@@ -13,7 +13,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { calcIndicators } from "../lib/indicators";
-import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData } from "../lib/ai-score";
+import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData, computeCatalystScore } from "../lib/ai-score";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -52,9 +52,19 @@ async function main() {
     console.log("⚠ GlobalMarket: 无数据, 使用 V2 默认值 7 (请运行 npm run fetch-global-market)");
   }
 
-  // ── V3: 预加载机构资金流向 ────────────────────────────────────────────────
-  const FLOW_MAX_AGE_DAYS = 14; // weekly data, allow up to 2 weeks old
-  const latestFlowDate = await prisma.institutionalFlow.findFirst({
+  // ── V3: 预加载机构资金流向（优先选真实数据，降级才用 synthetic）────────────
+  const FLOW_MAX_AGE_DAYS = 21; // weekly data, allow up to 3 weeks old
+  const REAL_FLOW_SOURCES = ["jquants_investor_types", "jpx", "jpx_file", "jpx_manual"];
+
+  // Step 1: 优先找最新真实数据
+  const latestRealFlow = await prisma.institutionalFlow.findFirst({
+    where: { source: { in: REAL_FLOW_SOURCES } },
+    orderBy: { date: "desc" },
+    select: { date: true, source: true },
+  });
+
+  // Step 2: 如果无真实数据，才用 synthetic 的最新日期
+  const latestFlowDate = latestRealFlow ?? await prisma.institutionalFlow.findFirst({
     orderBy: { date: "desc" },
     select: { date: true, source: true },
   });
@@ -64,8 +74,11 @@ async function main() {
     const ageMs = Date.now() - latestFlowDate.date.getTime();
     const ageDays = ageMs / 86400000;
     if (ageDays <= FLOW_MAX_AGE_DAYS) {
+      // J-Quants data uses TSEPrime market; legacy/synthetic uses "ALL"
+      const isJQuants = REAL_FLOW_SOURCES.includes(latestFlowDate.source ?? "");
+      const market = isJQuants ? "TSEPrime" : "ALL";
       const flows = await prisma.institutionalFlow.findMany({
-        where: { date: latestFlowDate.date, market: "ALL" },
+        where: { date: latestFlowDate.date, market, source: latestFlowDate.source ?? undefined },
         select: { investorType: true, netAmount: true, source: true },
       });
       const foreigners = flows.find((f) => f.investorType === "foreigners");
@@ -77,13 +90,14 @@ async function main() {
       };
       const fNet = foreigners?.netAmount;
       const tNet = trust?.netAmount;
-      console.log(`✓ InstitutionalFlow: date=${latestFlowDate.date.toISOString().split("T")[0]}, source=${latestFlowDate.source}`);
-      console.log(`  外国人 ${fNet != null ? (fNet >= 0 ? "+" : "") + fNet.toFixed(0) : "N/A"}億円  投信 ${tNet != null ? (tNet >= 0 ? "+" : "") + tNet.toFixed(0) : "N/A"}億円`);
+      const icon = REAL_FLOW_SOURCES.includes(latestFlowDate.source ?? "") ? "✓" : "⚠";
+      console.log(`${icon} InstitutionalFlow: date=${latestFlowDate.date.toISOString().split("T")[0]}, source=${latestFlowDate.source}, market=${market}`);
+      console.log(`  外国人 ${fNet != null ? (fNet >= 0 ? "+" : "") + fNet.toFixed(1) : "N/A"}億円  投信 ${tNet != null ? (tNet >= 0 ? "+" : "") + tNet.toFixed(1) : "N/A"}億円`);
     } else {
       console.log(`⚠ InstitutionalFlow: 数据过期 (${ageDays.toFixed(0)}天前), 使用 V2 代理`);
     }
   } else {
-    console.log("⚠ InstitutionalFlow: 无数据, 使用 V2 代理 (请运行 npm run fetch-institutional-flow)");
+    console.log("⚠ InstitutionalFlow: 无数据, 使用 V2 代理 (请运行 npm run sync:institutional-flow)");
   }
 
   console.log();
@@ -145,7 +159,7 @@ async function main() {
             fins.find((f) => f.revenue !== null && f.netProfit !== null) ??
             fins[0] ?? null;
 
-          const [div, recentNews] = await Promise.all([
+          const [div, recentNews, recentDisclosures] = await Promise.all([
             prisma.dividend.findFirst({
               where: { symbol: stock.symbol },
               orderBy: { year: "desc" },
@@ -158,6 +172,13 @@ async function main() {
                 publishedAt: { gte: new Date(Date.now() - 30 * 86400000) },
               },
               select: { sentiment: true },
+            }),
+            prisma.disclosure.findMany({
+              where: {
+                symbol: stock.symbol,
+                publishedAt: { gte: new Date(Date.now() - 30 * 86400000) },
+              },
+              select: { category: true },
             }),
           ]);
 
@@ -173,11 +194,17 @@ async function main() {
             ? Math.round(50 + ((positiveNewsCount - negativeNewsCount) / totalNewsCount) * 50)
             : null;
 
+          const disclosureCategories = recentDisclosures.map((d) => d.category);
+
           const input: ScoreInput = {
             symbol: stock.symbol,
             name: stock.name,
             latestClose: ind.latestClose,
             latestDate: ind.latestDate,
+            sector: stock.sector,
+            industry: stock.industry,
+            scaleCategory: stock.scaleCategory,
+            disclosureCategories,
             ma5: ind.ma5, ma20: ind.ma20, ma60: ind.ma60,
             rsi14: ind.rsi14,
             macd: ind.macd, macdSignal: ind.macdSignal, macdHist: ind.macdHist,
@@ -216,6 +243,17 @@ async function main() {
             starsLabel:         score.starsLabel,
             summaryReason:      score.summaryReason,
             newsSummary:        score.newsSummary,
+            // V3.1: data source transparency
+            moneyFlowSource:    score.moneyFlowSource,
+            globalTrendSource:  score.globalTrendSource,
+            scoreSource:        score.scoreSource,
+            // V7.5: dynamic scoring
+            rawScore:           score.rawScore,
+            adaptiveScore:      score.adaptiveScore,
+            stockStyle:         score.stockStyle,
+            highRiskFlag:       score.highRiskFlag,
+            fxSensitivity:      score.fxSensitivity,
+            catalystScore:      score.catalystScore,
           };
 
           await prisma.stockScore.upsert({
@@ -281,7 +319,7 @@ async function main() {
     select: {
       symbol: true, name: true, market: true,
       totalScore: true, recommendation: true, starsLabel: true,
-      latestClose: true, return20d: true,
+      latestClose: true, return20d: true, scoreSource: true,
     },
   });
 
@@ -293,8 +331,9 @@ async function main() {
   for (const s of top10) {
     const r20 = s.return20d !== null ? (s.return20d >= 0 ? "+" : "") + s.return20d.toFixed(1) + "%" : "—";
     const mkt = (s.market ?? "").slice(0, 10);
+    const src = (s.scoreSource ?? "?").padStart(8);
     console.log(
-      `${(s.name ?? "").slice(0, 19).padEnd(20)}${s.symbol.padEnd(10)}${mkt.padEnd(12)}${String(s.totalScore ?? 0).padStart(6)}${String(s.recommendation ?? "").padStart(12)}${String(s.latestClose?.toLocaleString() ?? "—").padStart(10)}${r20.padStart(8)}`
+      `${(s.name ?? "").slice(0, 19).padEnd(20)}${s.symbol.padEnd(10)}${mkt.padEnd(12)}${String(s.totalScore ?? 0).padStart(6)}${String(s.recommendation ?? "").padStart(12)}${String(s.latestClose?.toLocaleString() ?? "—").padStart(10)}${r20.padStart(8)}${src}`
     );
   }
 

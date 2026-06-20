@@ -36,6 +36,13 @@ export async function GET() {
       starsLabel: true,
       summaryReason: true,
       newsSummary: true,
+      // V7.5
+      rawScore: true,
+      adaptiveScore: true,
+      stockStyle: true,
+      highRiskFlag: true,
+      fxSensitivity: true,
+      catalystScore: true,
     },
   });
 
@@ -57,6 +64,13 @@ export async function GET() {
     recommendation: (s.recommendation ?? "HOLD") as "STRONG_BUY" | "BUY" | "WATCH" | "HOLD" | "AVOID",
     summaryReason: s.summaryReason ?? "",
     newsSummary: s.newsSummary ?? "",
+    // V7.5
+    rawScore: s.rawScore ?? s.totalScore ?? 0,
+    adaptiveScore: s.adaptiveScore ?? s.totalScore ?? 0,
+    stockStyle: s.stockStyle ?? "DOMESTIC_DEFENSIVE",
+    highRiskFlag: s.highRiskFlag ?? false,
+    fxSensitivity: s.fxSensitivity ?? "DOMESTIC_NEUTRAL",
+    catalystScore: s.catalystScore ?? 5,
   }));
 
   return NextResponse.json({ scores: result, updatedAt: new Date().toISOString() });

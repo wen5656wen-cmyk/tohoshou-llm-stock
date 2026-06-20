@@ -194,6 +194,20 @@ model Portfolio {
   @@index([symbol])
 }
 
+model PortfolioDiagnosis {
+  id              Int      @id @default(autoincrement())
+  symbol          String
+  portfolioId     Int?
+  riskLevel       String   // LOW | MEDIUM | HIGH | CRITICAL
+  diagnosis       String   @db.Text
+  suggestedAction String   // HOLD | WATCH | REDUCE | TAKE_PROFIT | STOP_LOSS | HEDGE
+  triggerReason   String   @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([symbol])
+  @@index([createdAt(sort: Desc)])
+}
+
 model SyncLog {
   id        Int      @id @default(autoincrement())
   source    String   // jquants | yahoo | tdnet
@@ -241,6 +255,17 @@ model StockScore {
   starsLabel         String?
   summaryReason      String?
   newsSummary        String?   @db.Text
+  // V3.1: data source transparency (REAL | PARTIAL | FALLBACK)
+  moneyFlowSource    String?   // "jpx" | "jpx_file" | "v2_proxy" | "synthetic"
+  globalTrendSource  String?   // "yahoo" | "v2_default"
+  scoreSource        String?   // "REAL" | "PARTIAL" | "FALLBACK"
+  // V7.5: dynamic scoring
+  rawScore           Float?    // original fixed-weight score (= totalScore pre-v7.5)
+  adaptiveScore      Float?    // dynamic-weight score using stockStyle weights (0-100)
+  stockStyle         String?   // VALUE_DEFENSIVE | GROWTH_MOMENTUM | QUALITY_COMPOUNDER | SPECULATIVE_MOMENTUM | CYCLICAL_EXPORTER | DOMESTIC_DEFENSIVE
+  highRiskFlag       Boolean   @default(false)
+  fxSensitivity      String?   // EXPORT_POSITIVE | DOMESTIC_NEUTRAL | IMPORT_SENSITIVE | FX_NEUTRAL
+  catalystScore      Float?    // 0-10, based on recent Disclosure events
 
   @@index([totalScore(sort: Desc)])
   @@index([computedAt(sort: Desc)])
@@ -293,18 +318,37 @@ model GlobalMarket {
 }
 
 model NotificationLog {
-  id          Int       @id @default(autoincrement())
-  type        String    // DAILY_REPORT | RSI_ALERT | MACD_ALERT | SCORE_CHANGE | PORTFOLIO_ALERT
-  title       String
-  content     String
-  stockSymbol String?
-  status      String    @default("PENDING") // PENDING | SENT | FAILED
-  sentAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id           Int       @id @default(autoincrement())
+  type         String    // MORNING_REPORT | MIDDAY_REPORT | CLOSE_REPORT | REALTIME_ALERT | NEWS_ALERT | PORTFOLIO_ALERT | TEST
+  title        String
+  content      String    @db.Text
+  symbols      String[]  @default([])
+  status       String    @default("PENDING") // PENDING | SUCCESS | FAILED
+  sentAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
 
   @@index([type])
   @@index([createdAt(sort: Desc)])
   @@map("notification_logs")
+}
+
+model NotificationSetting {
+  id                    Int      @id @default(autoincrement())
+  lineUserId            String?  @unique
+  enabled               Boolean  @default(true)
+  morningReportEnabled  Boolean  @default(true)
+  middayReportEnabled   Boolean  @default(true)
+  closeReportEnabled    Boolean  @default(true)
+  realtimeAlertEnabled  Boolean  @default(true)
+  portfolioAlertEnabled Boolean  @default(false)
+  minScoreChange        Int      @default(10)
+  minPriceChangePct     Float    @default(5.0)
+  minVolumeRatio        Float    @default(2.0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("notification_settings")
 }
 
 model TelegramUser {
@@ -383,4 +427,16 @@ model SyncJob {
 
   @@index([source, createdAt(sort: Desc)])
   @@index([status])
+}
+
+// AI产业链主题分类 (TOHOSHOU AI Theme Screener)
+model AITheme {
+  id        Int      @id @default(autoincrement())
+  symbol    String   @unique
+  theme     String   // AI_SOFTWARE | SEMICONDUCTOR | ROBOTICS | DATACENTER | AI_CONCEPT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([theme])
+  @@map("ai_themes")
 }

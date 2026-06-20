@@ -16,7 +16,108 @@
  *   0-49   = AVOID       ★☆☆☆☆
  */
 
-// V3: real global market snapshot (from GlobalMarket table)
+// ── V7.5: Dynamic Stock Style ─────────────────────────────────────────────────
+
+export type StockStyle =
+  | "VALUE_DEFENSIVE"
+  | "GROWTH_MOMENTUM"
+  | "QUALITY_COMPOUNDER"
+  | "SPECULATIVE_MOMENTUM"
+  | "CYCLICAL_EXPORTER"
+  | "DOMESTIC_DEFENSIVE";
+
+// J-Quants sector names (e.g., "電機・精密", "自動車・輸送機", "情報通信・サービスその他")
+const CYCLICAL_EXPORT_PATTERN = /電機・精密|自動車・輸送機|鉄鋼・非鉄|機械/;
+const DOMESTIC_PATTERN = /食品|小売|建設・資材|不動産|医薬品|エネルギー|電力/;
+const GROWTH_PATTERN = /情報通信/;
+
+const STYLE_WEIGHTS: Record<StockStyle, { tech: number; fund: number; money: number; news: number; global: number }> = {
+  VALUE_DEFENSIVE:      { tech: 0.20, fund: 0.50, money: 0.15, news: 0.10, global: 0.05 },
+  GROWTH_MOMENTUM:      { tech: 0.30, fund: 0.20, money: 0.30, news: 0.10, global: 0.10 },
+  QUALITY_COMPOUNDER:   { tech: 0.25, fund: 0.35, money: 0.20, news: 0.10, global: 0.10 },
+  SPECULATIVE_MOMENTUM: { tech: 0.35, fund: 0.10, money: 0.30, news: 0.15, global: 0.10 },
+  CYCLICAL_EXPORTER:    { tech: 0.25, fund: 0.25, money: 0.20, news: 0.10, global: 0.20 },
+  DOMESTIC_DEFENSIVE:   { tech: 0.20, fund: 0.40, money: 0.15, news: 0.15, global: 0.10 },
+};
+
+export function classifyStockStyle(params: {
+  sector?: string | null;
+  scaleCategory?: string | null;
+  operatingProfit?: number | null;
+  revenue?: number | null;
+  netProfit?: number | null;
+  equity?: number | null;
+  eps?: number | null;
+  return60d?: number | null;
+}): { style: StockStyle; highRiskFlag: boolean } {
+  const sector = params.sector ?? "";
+  const scale = params.scaleCategory ?? "";
+
+  const opMargin = (params.revenue && params.revenue > 0 && params.operatingProfit != null)
+    ? (params.operatingProfit / params.revenue) * 100 : null;
+  const roe = (params.netProfit != null && params.equity != null && params.equity > 0)
+    ? (params.netProfit / params.equity) * 100 : null;
+
+  const isSmall = scale === "SMALL";
+  const noEarnings = params.eps == null || params.eps <= 0;
+  const highMomentum = (params.return60d ?? 0) > 15;
+
+  if (isSmall && (noEarnings || highMomentum)) {
+    return { style: "SPECULATIVE_MOMENTUM", highRiskFlag: true };
+  }
+  if (CYCLICAL_EXPORT_PATTERN.test(sector)) {
+    return { style: "CYCLICAL_EXPORTER", highRiskFlag: false };
+  }
+  if (opMargin !== null && opMargin > 15 && roe !== null && roe > 15) {
+    return { style: "QUALITY_COMPOUNDER", highRiskFlag: false };
+  }
+  if (GROWTH_PATTERN.test(sector)) {
+    return { style: "GROWTH_MOMENTUM", highRiskFlag: false };
+  }
+  if (DOMESTIC_PATTERN.test(sector)) {
+    return { style: "VALUE_DEFENSIVE", highRiskFlag: false };
+  }
+  return { style: "DOMESTIC_DEFENSIVE", highRiskFlag: false };
+}
+
+export function computeAdaptiveScore(
+  technicalScore: number,
+  fundamentalScore: number,
+  moneyFlowScore: number,
+  newsSentimentScore: number,
+  globalTrendScore: number,
+  style: StockStyle,
+): number {
+  const w = STYLE_WEIGHTS[style];
+  const adaptive =
+    w.tech   * (technicalScore / 30) +
+    w.fund   * (fundamentalScore / 25) +
+    w.money  * (moneyFlowScore / 20) +
+    w.news   * (newsSentimentScore / 15) +
+    w.global * (globalTrendScore / 10);
+  return Math.round(Math.min(100, Math.max(0, adaptive * 100)));
+}
+
+export function computeFxSensitivity(sector?: string | null, industry?: string | null): string {
+  const s = `${sector ?? ""} ${industry ?? ""}`;
+  if (/電機・精密|自動車・輸送機|鉄鋼・非鉄|機械/.test(s)) return "EXPORT_POSITIVE";
+  if (/銀行|保険|証券|金融/.test(s)) return "FX_NEUTRAL";
+  if (/素材・化学|医薬品|食品/.test(s)) return "IMPORT_SENSITIVE";
+  return "DOMESTIC_NEUTRAL";
+}
+
+export function computeCatalystScore(disclosureCategories: string[]): number {
+  const POSITIVE: Record<string, number> = { EARNINGS: 2, FORECAST_REVISION: 3, BUYBACK: 2, DIVIDEND: 1 };
+  const NEGATIVE: Record<string, number> = { EQUITY: -3, MATERIAL: -2 };
+  let score = 5;
+  for (const cat of disclosureCategories) {
+    score += POSITIVE[cat] ?? 0;
+    score += NEGATIVE[cat] ?? 0;
+  }
+  return Math.min(10, Math.max(0, score));
+}
+
+// ── V3: real global market snapshot (from GlobalMarket table)
 export type GlobalMarketData = {
   nasdaqChange: number | null;
   vixLevel: number | null;     // VIX spot level
@@ -60,6 +161,11 @@ export type ScoreInput = {
   eps: number | null;
   equityRatio: number | null;  // 0-1
   financialCount: number;
+  // V7.5: stock metadata for style/FX classification
+  sector?: string | null;
+  industry?: string | null;
+  scaleCategory?: string | null;
+  disclosureCategories?: string[];
   // Dividend
   divAnn: number | null;
   divYieldRate: number | null;
@@ -74,6 +180,32 @@ export type ScoreInput = {
   // Legacy: direct globalTrendScore override (still accepted)
   globalTrendScore?: number | null;
 };
+
+// V3.1: strict three-level data quality
+export type ScoreSource = "REAL" | "PARTIAL" | "FALLBACK";
+
+/**
+ * Derive overall score quality from individual dimension sources.
+ *
+ * Authority hierarchy:
+ *   moneyFlow: jpx | jpx_file | jpx_manual > v2_proxy > synthetic
+ *   global:    yahoo > v2_default
+ *
+ * REAL    = both dimensions use authoritative data
+ * PARTIAL = at least one dimension uses authoritative data
+ * FALLBACK= no dimension has authoritative data
+ */
+export function computeScoreSource(
+  moneyFlowSrc: string,
+  globalSrc: string,
+): ScoreSource {
+  const REAL_MONEY = ["jpx", "jpx_file", "jpx_manual", "jquants_investor_types"];
+  const moneyReal = REAL_MONEY.includes(moneyFlowSrc);
+  const globalReal = globalSrc === "yahoo";
+  if (moneyReal && globalReal) return "REAL";
+  if (moneyReal || globalReal) return "PARTIAL";
+  return "FALLBACK";
+}
 
 export type AiScoreResult = {
   symbol: string;
@@ -94,8 +226,17 @@ export type AiScoreResult = {
   starsLabel: string;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
   // V3: data source transparency
-  moneyFlowSource: string;     // "jpx" | "synthetic" | "v2_proxy"
-  globalTrendSource: string;   // "yahoo" | "v2_default"
+  moneyFlowSource: string;   // "jquants_investor_types" | "jpx_file" | "jpx_manual" | "v2_proxy" | "synthetic"
+  globalTrendSource: string; // "yahoo" | "v2_default"
+  // V3.1: aggregate source quality
+  scoreSource: ScoreSource;  // "REAL" | "PARTIAL" | "FALLBACK"
+  // V7.5: dynamic scoring
+  rawScore: number;
+  adaptiveScore: number;
+  stockStyle: StockStyle;
+  highRiskFlag: boolean;
+  fxSensitivity: string;
+  catalystScore: number;
   // Analysis
   technicalReasons: string[];
   fundamentalReasons: string[];
@@ -343,15 +484,18 @@ export function calcAiScore(input: ScoreInput): AiScoreResult {
   const eqRT = calcEquityRatio(input.equityRatio);
   const fundamentalScore = Math.min(25, opMT.score + roeT.score + epsT.score + eqRT.score);
 
-  // Money Flow (0-20) — V3: real InstitutionalFlow (jpx only) else V2 proxy
-  const useRealFlow = input.institutionalFlowData?.source === "jpx";
+  // Money Flow (0-20) — V3.1: real data > v2_proxy > synthetic
+  const REAL_MONEY_SOURCES = ["jquants_investor_types", "jpx", "jpx_file", "jpx_manual"];
+  const flowSrc = input.institutionalFlowData?.source ?? "";
+  const useRealFlow = REAL_MONEY_SOURCES.includes(flowSrc);
   const inflowT = useRealFlow
     ? calcRealInflow(input.institutionalFlowData!)
     : calcInflow(input.return60d);
   const stabT  = calcStability(input.maTrend, input.rsi14);
   const shortT = calcShortPressure(input.return5d);
   const moneyFlowScore = Math.min(20, inflowT.score + stabT.score + shortT.score);
-  const moneyFlowSource = useRealFlow ? "jpx" : "v2_proxy";
+  // Preserve exact source label: jpx / jpx_file / jpx_manual / v2_proxy / synthetic
+  const moneyFlowSource = useRealFlow ? flowSrc : "v2_proxy";
 
   // News Sentiment (0-15)
   const pos   = input.positiveNewsCount ?? 0;
@@ -400,6 +544,23 @@ export function calcAiScore(input: ScoreInput): AiScoreResult {
   };
   const summaryReason = `${recLabel[recommendation] ?? recommendation}（${totalScore}分）：技术面${technicalScore}/30，基本面${fundamentalScore}/25，资金面${moneyFlowScore}/20[${moneyFlowSource}]，情绪${newsSentimentScore}/15，趋势${globalTrendScore}/10[${globalTrendSource}]。${maT.reason}。${opMT.reason}。`;
 
+  // V7.5: dynamic scoring
+  const { style: stockStyle, highRiskFlag } = classifyStockStyle({
+    sector: input.sector,
+    scaleCategory: input.scaleCategory,
+    operatingProfit: input.operatingProfit,
+    revenue: input.revenue,
+    netProfit: input.netProfit,
+    equity: input.equity,
+    eps: input.eps,
+    return60d: input.return60d,
+  });
+  const adaptiveScore = computeAdaptiveScore(
+    technicalScore, fundamentalScore, moneyFlowScore, newsSentimentScore, globalTrendScore, stockStyle,
+  );
+  const fxSensitivity = computeFxSensitivity(input.sector, input.industry);
+  const catalystScore = computeCatalystScore(input.disclosureCategories ?? []);
+
   return {
     symbol: input.symbol,
     name: input.name,
@@ -418,6 +579,13 @@ export function calcAiScore(input: ScoreInput): AiScoreResult {
     riskLevel,
     moneyFlowSource,
     globalTrendSource,
+    scoreSource: computeScoreSource(moneyFlowSource, globalTrendSource),
+    rawScore: totalScore,
+    adaptiveScore,
+    stockStyle,
+    highRiskFlag,
+    fxSensitivity,
+    catalystScore,
     technicalReasons: [maT.reason, macdT.reason, rsiT.reason, momT.reason],
     fundamentalReasons: [opMT.reason, roeT.reason, epsT.reason, eqRT.reason],
     moneyFlowReasons: [inflowT.reason, stabT.reason, shortT.reason],
