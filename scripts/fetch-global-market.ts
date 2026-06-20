@@ -14,7 +14,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import YahooFinance from "yahoo-finance2";
 
-const yf = new YahooFinance();
+const yf = new YahooFinance({ suppressNotices: ["ripHistorical", "yahooSurvey"] });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
@@ -107,7 +107,7 @@ async function main() {
     fetchSymbol("^IXIC"),
     fetchSymbol("JPY=X"),
     fetchSymbol("^N225"),
-    fetchSymbol("^TOPX"),
+    fetchSymbol("^TOPIX"),  // correct Yahoo Finance symbol for TOPIX (^TOPX was invalid)
   ]);
 
   // VIX: use quote() for real-time spot price — historical() can return null close on some dates
