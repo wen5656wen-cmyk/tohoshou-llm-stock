@@ -313,3 +313,22 @@ model WatchList {
   @@index([addedAt(sort: Desc)])
   @@map("watch_list")
 }
+
+// Async background sync jobs (e.g. J-Quants full sync)
+model SyncJob {
+  id           String    @id @default(cuid())
+  source       String
+  status       String    @default("PENDING") // PENDING | RUNNING | SUCCESS | FAILED
+  total        Int       @default(0)
+  processed    Int       @default(0)
+  successCount Int       @default(0)
+  failedCount  Int       @default(0)
+  errorMessage String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([source, createdAt(sort: Desc)])
+  @@index([status])
+}

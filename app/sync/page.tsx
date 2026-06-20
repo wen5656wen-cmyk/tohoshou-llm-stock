@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 
 type SyncStatus = {
@@ -33,7 +33,6 @@ type SyncLog = {
 };
 
 type SyncResult = {
-  // new unified format
   success?: boolean;
   source?: string;
   count?: number;
@@ -43,13 +42,27 @@ type SyncResult = {
   syncedAt?: string;
   message?: string;
   log?: string[];
-  // error paths
   error?: string;
   detail?: string;
   hint?: string;
-  // legacy
   status?: string;
   skipped?: string;
+  // async job fields
+  jobId?: string;
+  total?: number;
+  processed?: number;
+};
+
+type JobStatus = {
+  jobId: string;
+  source: string;
+  status: "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
+  total: number;
+  processed: number;
+  successCount: number;
+  failedCount: number;
+  errorMessage: string | null;
+  pct: number;
 };
 
 const sourceConfig = {
@@ -89,9 +102,7 @@ type Source = keyof typeof sourceConfig;
 async function safeFetchJson(url: string, init?: RequestInit): Promise<SyncResult> {
   const res = await fetch(url, init);
   const text = await res.text();
-  if (!text) {
-    return { success: false, error: `空响应 (HTTP ${res.status})` };
-  }
+  if (!text) return { success: false, error: `空响应 (HTTP ${res.status})` };
   let data: SyncResult;
   try {
     data = JSON.parse(text);
@@ -110,6 +121,8 @@ export default function SyncPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyncResult>>({});
+  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStatus = async () => {
     try {
@@ -123,27 +136,71 @@ export default function SyncPage() {
     }
   };
 
-  useEffect(() => { fetchStatus(); }, []);
+  useEffect(() => {
+    fetchStatus();
+    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
+  }, []);
+
+  // Poll job progress for jquants async jobs
+  const startPolling = (jobId: string) => {
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    pollTimer.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sync/jobs/${jobId}`, { cache: "no-store" });
+        const job: JobStatus = await res.json();
+        setJobStatus(job);
+        if (job.status === "SUCCESS" || job.status === "FAILED") {
+          clearInterval(pollTimer.current!);
+          pollTimer.current = null;
+          setSyncing((s) => ({ ...s, jquants: false }));
+          await fetchStatus();
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+  };
 
   const runSync = async (source: string) => {
     setSyncing((s) => ({ ...s, [source]: true }));
     setResults((r) => ({ ...r, [source]: {} }));
+    if (source === "jquants") setJobStatus(null);
 
     const url = source === "all" ? "/api/sync" : `/api/sync/${source}`;
     try {
       const data = await safeFetchJson(url, { method: "POST" });
       if (source === "all") {
         const r = (data as Record<string, unknown>).results;
-        setResults((prev) => ({ ...prev, all: typeof r === "object" && r ? r as SyncResult : data }));
+        setResults((prev) => ({
+          ...prev,
+          all: typeof r === "object" && r ? (r as SyncResult) : data,
+        }));
+        setSyncing((s) => ({ ...s, all: false }));
+      } else if (source === "jquants" && data.jobId) {
+        // Async job — start polling
+        setJobStatus({
+          jobId: data.jobId,
+          source: "jquants",
+          status: "RUNNING",
+          total: data.total ?? 0,
+          processed: 0,
+          successCount: 0,
+          failedCount: 0,
+          errorMessage: null,
+          pct: 0,
+        });
+        startPolling(data.jobId);
+        // Don't clear syncing here — polling will clear it when done
       } else {
         setResults((r) => ({ ...r, [source]: data }));
+        setSyncing((s) => ({ ...s, [source]: false }));
       }
     } catch (e) {
       setResults((r) => ({ ...r, [source]: { success: false, error: (e as Error).message } }));
+      setSyncing((s) => ({ ...s, [source]: false }));
     }
 
-    setSyncing((s) => ({ ...s, [source]: false }));
-    await fetchStatus();
+    if (source !== "jquants") await fetchStatus();
   };
 
   const StatusDot = ({ ok }: { ok: boolean }) => (
@@ -164,10 +221,48 @@ export default function SyncPage() {
     );
   };
 
+  // Progress panel for async jquants job
+  const JobProgressPanel = ({ job }: { job: JobStatus }) => {
+    const isDone = job.status === "SUCCESS" || job.status === "FAILED";
+    const isSuccess = job.status === "SUCCESS";
+    const bgColor = isSuccess ? "bg-green-50" : isDone ? "bg-red-50" : "bg-blue-50";
+    const textColor = isSuccess ? "text-green-700" : isDone ? "text-red-700" : "text-blue-700";
+    const barColor = isSuccess ? "bg-green-500" : isDone ? "bg-red-500" : "bg-blue-500";
+
+    return (
+      <div className="mt-4 pt-4 border-t border-slate-100">
+        <div className={`text-sm rounded-lg p-3 ${bgColor} ${textColor}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium">
+              {isSuccess ? "✓ 同步完成" : isDone ? "✗ 同步失败" : "⟳ 同步中…"}
+            </span>
+            <span className="text-xs tabular-nums">
+              {job.processed} / {job.total} 只
+              {isDone && job.failedCount > 0 && ` (失败 ${job.failedCount})`}
+            </span>
+          </div>
+          <div className="w-full bg-white/60 rounded-full h-2 overflow-hidden">
+            <div
+              className={`h-2 rounded-full transition-all duration-500 ${barColor}`}
+              style={{ width: `${job.pct}%` }}
+            />
+          </div>
+          <div className="text-xs mt-1.5 opacity-70">
+            {isDone
+              ? `成功 ${job.successCount} 只${job.failedCount > 0 ? `，失败 ${job.failedCount} 只` : ""}`
+              : `已完成 ${job.pct}%，每3秒更新…`}
+          </div>
+          {job.errorMessage && (
+            <div className="text-xs mt-1 opacity-80">{job.errorMessage}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const ResultPanel = ({ result }: { result: SyncResult }) => {
     if (!result || Object.keys(result).length === 0) return null;
 
-    // Error result
     if (result.success === false || (result.error && !result.success)) {
       return (
         <div className="mt-4 pt-4 border-t border-slate-100">
@@ -181,7 +276,6 @@ export default function SyncPage() {
       );
     }
 
-    // Skipped
     if (result.skipped) {
       return (
         <div className="mt-4 pt-4 border-t border-slate-100">
@@ -190,7 +284,6 @@ export default function SyncPage() {
       );
     }
 
-    // Success (new format: success: true)
     if (result.success === true) {
       const count = result.count ?? result.synced ?? 0;
       const ms = result.durationMs ?? 0;
@@ -214,7 +307,6 @@ export default function SyncPage() {
       );
     }
 
-    // Legacy format (status field)
     if (result.status) {
       const count = result.synced ?? result.count ?? 0;
       return (
@@ -290,7 +382,6 @@ export default function SyncPage() {
           const isSyncing = syncing[source];
           const result = results[source];
 
-          // J-Quants: show config method hint
           const jqMethod = source === "jquants" ? status?.jquantsMethod : null;
           const jqNote = jqMethod
             ? jqMethod.includes("api_key")
@@ -317,14 +408,19 @@ export default function SyncPage() {
                             未配置
                           </span>
                         )}
+                        {source === "jquants" && (
+                          <span className="text-xs text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
+                            异步任务
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-500">{cfg.description}</p>
                       <p className={`text-xs mt-0.5 ${isConfigured && jqMethod ? "text-green-600" : "text-slate-400"}`}>
-                        {jqNote}
+                        {source === "jquants" ? jqNote : cfg.note}
                       </p>
                       {"docUrl" in cfg && !isConfigured && (
                         <a
-                          href={cfg.docUrl}
+                          href={(cfg as { docUrl: string }).docUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-blue-600 hover:underline"
@@ -355,7 +451,20 @@ export default function SyncPage() {
                   </div>
                 </div>
 
-                {!loading && result && <ResultPanel result={result} />}
+                {/* J-Quants: show async job progress */}
+                {source === "jquants" && jobStatus && !loading && (
+                  <JobProgressPanel job={jobStatus} />
+                )}
+
+                {/* Other sources: show result panel */}
+                {source !== "jquants" && !loading && result && (
+                  <ResultPanel result={result} />
+                )}
+
+                {/* J-Quants error (non-job errors like not configured) */}
+                {source === "jquants" && !jobStatus && !loading && result && (
+                  <ResultPanel result={result} />
+                )}
               </div>
             </div>
           );
