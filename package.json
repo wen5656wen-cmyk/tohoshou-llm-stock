@@ -26,6 +26,12 @@
     "sync-financials": "npx tsx scripts/sync-financials.ts",
     "fetch-global-market": "npx tsx scripts/fetch-global-market.ts",
     "fetch-institutional-flow": "npx tsx scripts/fetch-institutional-flow.ts",
+    "fetch-short-selling": "npx tsx scripts/fetch-short-selling-ratio.ts",
+    "fetch-short-selling:dry": "DRY_RUN=1 npx tsx scripts/fetch-short-selling-ratio.ts",
+    "fetch-dividend-history": "npx tsx scripts/fetch-dividend-history.ts",
+    "fetch-dividend-history:dry": "DRY_RUN=1 npx tsx scripts/fetch-dividend-history.ts",
+    "fetch-tdnet": "npx tsx scripts/fetch-tdnet.ts",
+    "fetch-tdnet:dry": "DRY_RUN=1 npx tsx scripts/fetch-tdnet.ts",
     "sync:institutional-flow": "npx tsx scripts/fetch-jquants-investor-types.ts",
     "sync:institutional-flow:dry": "npx tsx scripts/fetch-jquants-investor-types.ts --dry-run",
     "seed:ai-themes": "npx tsx scripts/seed-ai-themes.ts",
@@ -38,7 +44,11 @@
     "line:check-alerts": "npx tsx scripts/check-alerts.ts",
     "line:check-alerts:dry": "DRY_RUN=1 npx tsx scripts/check-alerts.ts",
     "validate:line-links": "NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts",
-    "validate:line-links:dry": "DRY_RUN=1 NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts"
+    "validate:line-links:dry": "DRY_RUN=1 NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts",
+    "test:line-v79": "NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/test-line-v79.ts",
+    "validate:line-v79": "NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts",
+    "test:intent-engine": "APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts",
+    "test:intent-engine:dry": "SKIP_DB=1 APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

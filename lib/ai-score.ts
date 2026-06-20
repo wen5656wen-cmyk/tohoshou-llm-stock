@@ -467,6 +467,28 @@ function calcGlobalTrend(override: number | null | undefined): { score: number; 
   return { score: 7, reason: "全球趋势：温和偏多（V2基准，待接入实时数据）" };
 }
 
+// ── V7.8: Dividend Score (0-10) ──────────────────────────────────────────
+
+export function calcDividendScore(divYieldRate: number | null, payoutRatio: number | null): number {
+  if (divYieldRate === null || divYieldRate <= 0) return 0;
+  // yieldRate is stored as % (e.g., 3.42 = 3.42%)
+  const y = divYieldRate;
+  let score: number;
+  if (y < 1)      score = 1;
+  else if (y < 2) score = 3;
+  else if (y < 3) score = 5;
+  else if (y < 4) score = 7;
+  else if (y < 6) score = 8;
+  else            score = 6; // high yield — potential yield trap
+  // Payout ratio adjustment: normalize to % (J-Quants PayoutRatioAnn is 0-1 decimal)
+  if (payoutRatio != null) {
+    const prPct = payoutRatio < 1.5 ? payoutRatio * 100 : payoutRatio; // handle both 0.32 and 32
+    if (prPct >= 20 && prPct <= 60) score = Math.min(10, score + 1);
+    else if (prPct > 80)            score = Math.max(0, score - 1);
+  }
+  return score;
+}
+
 // ── Main Entry Point ──────────────────────────────────────────────────────
 
 export function calcAiScore(input: ScoreInput): AiScoreResult {

@@ -244,7 +244,9 @@ const CRON_SCHEDULE = [
   { time: "15:45 JST", task: "LINE 大引け总结（工作日）" },
   { time: "16:30 JST", task: "InstitutionalFlow（J-Quants，每周五）" },
   { time: "16:35 JST", task: "LINE 风险提示（工作日）" },
+  { time: "18:30 JST", task: "空売り比率（JPX PDF，工作日）" },
   { time: "22:00 JST", task: "Stock Master 元数据同步（每日）" },
+  { time: "22:30 JST", task: "配当历史（J-Quants fins/summary，每日）" },
 ];
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -342,9 +344,9 @@ export default function SyncPage() {
   const anySyncing = Object.values(syncing).some(Boolean);
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-4 md:p-6 max-w-6xl">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">数据同步中心</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -371,7 +373,7 @@ export default function SyncPage() {
 
       {/* ── Summary banner ── */}
       {sum && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
           {/* Health */}
           <div className="col-span-2 sm:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">数据源健康</div>

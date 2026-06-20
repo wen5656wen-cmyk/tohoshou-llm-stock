@@ -1,7 +1,7 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-06-20
-> **版本：** v7.5.0（动态权重评分 + GPT Phase 1 — 稳定基线）
+> **最后更新：** 2026-06-21
+> **版本：** v8.1（STRONG_BUY 阈值放宽 + CHIP_DESIGN 6只 + 供应链矢印修复，已部署生产）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
 ---
@@ -17,299 +17,314 @@
 | 本地目录 | `/Users/wenzhiyong/llm-stock/` |
 | 本地 DB | PostgreSQL Docker `localhost:15432` / DB: `llm_stock` |
 | 生产 DB | PostgreSQL `127.0.0.1:5432` / DB: `llm_stock` / user: tohoshou |
+| PM2 进程 | `tohoshou-web`（port 3000）+ `tohoshou-cron` |
 
 ---
 
-## 二、生产服务器状态（2026-06-20）
+## 二、部署命令（每次必须完整执行）
 
-### PM2 进程
-```
-id:0  tohoshou-web   online  port 3000
-id:1  tohoshou-cron  online  cron jobs（含周五16:30+周一07:15 JPX自动sync）
-```
-
-### ⚠️ rsync 必须修复 .env（每次 rsync 后执行）
+### 标准部署（前端/API 改动）
 ```bash
-sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "
-  sed -i 's|postgresql://postgres:123456@localhost:15432/llm_stock|postgresql://tohoshou:123456@127.0.0.1:5432/llm_stock|g' /opt/tohoshou/.env
-  sed -i 's|NEXT_PUBLIC_APP_URL=http://localhost:3000|NEXT_PUBLIC_APP_URL=https://aitohoshou.com|g' /opt/tohoshou/.env
-"
-```
-
-### 快速操作
-```bash
-# 标准部署（改了前端/API）
 npm run build
 sshpass -p 'Wen565656' rsync -avz --exclude node_modules .next/ root@8.209.247.68:/opt/tohoshou/.next/
-# ↑ 上面必须接着修复 .env（见上方）
-sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-web"
+# rsync 后验证 .env 未被覆盖：
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "grep 'DATABASE_URL\|APP_URL' /opt/tohoshou/.env"
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-web --update-env"
+```
 
-# 改了 prisma schema → 额外步骤
-npx prisma generate
+### Schema 变更（改了 prisma/schema.prisma）
+```bash
+npx prisma generate                  # 本地重新生成 Prisma client
+npm run build
 sshpass -p 'Wen565656' scp prisma/schema.prisma root@8.209.247.68:/opt/tohoshou/prisma/
+sshpass -p 'Wen565656' rsync -avz --exclude node_modules .next/ root@8.209.247.68:/opt/tohoshou/.next/
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
-  "cd /opt/tohoshou && npx prisma db push --accept-data-loss && npx prisma generate && pm2 restart tohoshou-web"
+  "cd /opt/tohoshou && npx prisma db push --accept-data-loss && npx prisma generate && pm2 restart tohoshou-web --update-env"
+```
 
-# 重算 AI 评分
+### Script/Lib 变更（改了 scripts/ 或 lib/）
+```bash
+sshpass -p 'Wen565656' rsync -avz scripts/ root@8.209.247.68:/opt/tohoshou/scripts/
+sshpass -p 'Wen565656' rsync -avz lib/ root@8.209.247.68:/opt/tohoshou/lib/
+# 然后按需执行脚本或 pm2 restart
+```
+
+### ⚠️ .env 规则
+- `rsync .next/` **不会** 覆盖 .env（只有 `rsync ./` 整个目录才会）
+- 每次部署后确认：`DATABASE_URL="postgresql://tohoshou:123456@127.0.0.1:5432/llm_stock"`
+- 确认：`APP_URL=https://aitohoshou.com`
+
+### 重算 AI 评分
+```bash
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
-  "cd /opt/tohoshou && npx tsx scripts/compute-scores.ts"
+  "cd /opt/tohoshou && npx tsx scripts/compute-scores.ts 2>&1 | tail -20"
+```
 
-# AI 评分必须先抓全球市场
-sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
-  "cd /opt/tohoshou && npx tsx scripts/fetch-global-market.ts"
-
-# 手动触发 J-Quants 机构资金同步
-sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
-  "cd /opt/tohoshou && npx tsx scripts/fetch-jquants-investor-types.ts"
-
-# 健康检查
-curl -s https://aitohoshou.com/api/sync | python3 -c "
-import json,sys; d=json.load(sys.stdin); da=d.get('dataAuthority',{})
-print('Flow:', da.get('institutionalFlow',{}).get('source'), da.get('institutionalFlow',{}).get('date'))
-print('ScoreDist:', da.get('scoreSourceDist'))
+### 快速健康检查
+```bash
+# 系统状态（11源是否全 REAL）
+curl -s "https://aitohoshou.com/api/sync/status" | python3 -c "
+import sys,json; d=json.load(sys.stdin)
+print('realCount:', d['summary']['realCount'], '/', len(d['sources']))
+for s in d['sources']: print(f'  {s[\"id\"]}: {s[\"status\"]}')
 "
+
+# AI产业链地图
+curl -s https://aitohoshou.com/api/ai-theme | python3 -c "
+import json,sys; d=json.load(sys.stdin); s=d['summary']
+print('uniqueSymbols:', s['uniqueSymbols'], 'coreStocks:', s['coreStocks'], 'buyCount:', s['buyCount'])
+print('themes:', [(t['label'],t['count']) for t in d['themes'][:3]])
+"
+
+# PM2 状态
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 'pm2 list'
 ```
 
 ---
 
-## 三、数据库现状（2026-06-20 生产实测）
+## 三、数据库现状（2026-06-21 生产，v8.0 部署后）
 
 | 表 | 条目数 | 状态 |
 |----|--------|------|
-| Stock | **3,716** | ✅ TSE 全量（中文名 100% 覆盖）|
-| DailyPrice | **7,912,513** | ✅ 最新日期 2026-06-19 |
+| Stock | **3,716** | ✅ TSE 全量，中文名 100% 覆盖 |
+| DailyPrice | **7,912,513+** | ✅ 最新 2026-06-19 |
 | Financial | **35,986** | ✅ J-Quants 财报 |
-| StockScore | **3,714** | ✅ V3.1，全部 scoreSource=REAL |
-| News | **1,590** | ✅ Kabutan（387条材料分类）|
-| GlobalMarket | **1** | ✅ 2026-06-20，score=7，VIX=16.78，source=yahoo |
-| InstitutionalFlow | **216** | ✅ jquants_investor_types，最新 2026-06-12，**无 synthetic** |
-| AITheme | **38** | ✅ 6分类科技股主题（新增）|
-| SyncJob | 1+ | 异步任务记录 |
+| StockScore | **3,714** | ✅ v7.8，dividendScore + shortSellingSource 全量 |
+| Disclosure | **4,691+** | ✅ TDnet REAL，最新 2026-06-19 |
+| News | **1,590+** | ✅ Kabutan |
+| GlobalMarket | **1** | ✅ 2026-06-20，score=7，VIX=16.78 |
+| InstitutionalFlow | **216** | ✅ jquants_investor_types，最新 2026-06-12 |
+| ShortSellingRatio | **2** | ✅ 2026-06-19，38.8%，jpx_real |
+| Dividend | **32,315** | ✅ 3,693只，最新2026年 |
+| **AITheme** | **109** | ✅ **v8.1：14分类，84只，39核心（CHIP_DESIGN 6只）** |
+| **UserAiSettings** | **0+** | ✅ **v7.9.3 新：AI启停设置，按需创建** |
 | LineUser | 1 | owner: U3223b03bb5879a9dabf2ce27b0f09524 |
 
 ---
 
-## 四、TOHOSHOU AI 评分体系 V4（当前，v7.5.0）
+## 四、数据库 Schema 完整结构（v8.0）
 
-### 100分5维度（固定维度 → 动态权重）
-
-| 维度 | 字段 | 满分 | 数据源 | 状态 |
-|------|------|------|--------|------|
-| 技術面 | technicalScore | 30 | J-Quants 价格 | ✅ 实时 |
-| 基本面 | fundamentalScore | 25 | J-Quants 财务 | ✅ 实时 |
-| 資金面 | moneyFlowScore | 20 | **J-Quants investor-types API** | ✅ REAL |
-| 新闻情绪 | newsSentimentScore | 15 | Kabutan DB | ✅ 实时 |
-| 全球趋势 | globalTrendScore | 10 | Yahoo Finance NASDAQ/VIX/日経 | ✅ 实时 |
-
-### v7.5 新增字段（StockScore）
-| 字段 | 说明 |
-|------|------|
-| `rawScore` | = totalScore（向后兼容） |
-| `adaptiveScore` | 按 stockStyle 动态权重加权后的归一化分（0-100） |
-| `stockStyle` | VALUE_DEFENSIVE / GROWTH_MOMENTUM / QUALITY_COMPOUNDER / SPECULATIVE_MOMENTUM / CYCLICAL_EXPORTER / DOMESTIC_DEFENSIVE |
-| `highRiskFlag` | SPECULATIVE 且近期大涨时 true |
-| `fxSensitivity` | EXPORT_POSITIVE / IMPORT_SENSITIVE / FX_NEUTRAL / DOMESTIC_NEUTRAL |
-| `catalystScore` | TDnet 公告类别得分（baseline 5，增发−3，业绩修正+3 等）|
-
-### 评级阈值（勿改）
-```
-STRONG_BUY ≥ 90
-BUY        ≥ 80
-HOLD       ≥ 65
-WATCH      ≥ 50
-AVOID      < 50
-```
-⚠️ recommendation 仍按 totalScore（rawScore）判定，不用 adaptiveScore。禁止降低阈值制造 BUY。
-
-### 评分分布（2026-06-20，3714只）
-| 评级 | 数量 |
-|------|------|
-| STRONG_BUY | 0 |
-| BUY | 0 |
-| HOLD | ~206 |
-| WATCH | ~1680 |
-| AVOID | ~1828 |
-| rawScore 最高 | 74（291A.T、9552.T）|
-| adaptiveScore 最高 | 77（291A.T — QUALITY_COMPOUNDER 加权提升）|
-
-### 数据权威分布（V4）
-```
-REAL    3714 / 100%   ← 两个维度均为真实数据
-PARTIAL    0
-FALLBACK   0
-```
-
-### InstitutionalFlow 数据权威体系
-```
-source 权威：jquants_investor_types(1) = jpx(1) > jpx_file(2) > jpx_manual(3) > synthetic(99)
-当前生产：216行 jquants_investor_types，TSEPrime市场，最新2026-06-12
-外国人净=-4.9億円，投信净=+0.9億円
-compute-scores.ts 优先选 REAL_FLOW_SOURCES，market="TSEPrime"
-REAL_MONEY_SOURCES（ai-score.ts 两处都要有）= ["jquants_investor_types","jpx","jpx_file","jpx_manual"]
-```
-
-### Cron 自动调度（Asia/Tokyo）
-```
-周五 16:30  → fetch-jquants-investor-types.ts（正式）
-周一 07:15  → fetch-jquants-investor-types.ts（备份，防周五失败）
-05:30 每日  → fetch-global-market.ts
-06:00 每日  → sync-all-prices.ts
-07:00/12/18/22 → Kabutan 新闻
-07:30 每日  → compute-scores.ts（AI评分）
-08:00 工作日 → send-morning-brief.ts
-08:30 每日  → send-daily-line.ts
-12:30 工作日 → send-midday-flash.ts
-15:45 工作日 → send-closing-summary.ts
-16:35 工作日 → send-line-risk-alert.ts
-22:00 每日  → sync-stock-meta.ts
-```
-
----
-
-## 五、已完成功能
-
-### v7.5.0 新功能（稳定基线，2026-06-20）
-- [x] **动态权重评分 adaptiveScore** — `lib/ai-score.ts` 新增 `classifyStockStyle()` / `computeAdaptiveScore()` / `computeFxSensitivity()` / `computeCatalystScore()`；6 种 StockStyle 对应不同维度权重
-- [x] **StockScore 新字段** — `rawScore / adaptiveScore / stockStyle / highRiskFlag / fxSensitivity / catalystScore` 全量写入 3714 只股票
-- [x] **`PortfolioDiagnosis` 数据模型** — schema 已加，待后续持仓诊断功能使用
-- [x] **`GET /api/stocks/[symbol]/alternatives`** — 同风格替代股 API，优先同行业，最多5只
-- [x] **GPT Phase 1：`POST /api/chat`** — 4 意图（today_picks/stock_analysis/theme_best/theme_outlook）；GPT 仅整理回复，所有数据来自 DB；无 OPENAI_API_KEY 时返回 503
-- [x] **`lib/openai.ts`** — GPT-4o-mini 客户端，显式 pin `https://api.openai.com/v1`
-- [x] **`lib/llm/client.ts` + `lib/llm/router.ts`** — 统一 LLM 工厂 + Intent Router
-- [x] **`lib/ai-agent.ts` baseURL 修复** — OpenAI key 存在时强制 OpenAI URL，不被 `OPENAI_BASE_URL=deepseek` 劫持（LINE 自然语言回复修复）
-- [x] **localhost 全站清零** — grep 0 处实际 URL（仅注释/检测器引用）
-- [x] **build + pm2 验证通过** — `npm run build` TypeScript 无错误，49条路由，生产 pm2 均 online
-
-### V3.1 新功能（本次会话）
-- [x] **J-Quants investor-types API** — `scripts/fetch-jquants-investor-types.ts`，获取 TSEPrime/TSEStandard/TSEGrowth 9种投资者类型周度净买卖，source=jquants_investor_types
-- [x] **数据权威体系** — `moneyFlowSource`/`globalTrendSource`/`scoreSource` 字段写入 StockScore
-- [x] **InstitutionalFlow 权威优先查询** — compute-scores.ts 优先选 REAL_FLOW_SOURCES，不被 synthetic 覆盖
-- [x] **Synthetic 数据清零** — 本地+生产 DB 已删除全部 synthetic 行，永不再写入
-- [x] **数据同步 V3.1 页面** — `/sync` 显示 GlobalMarket/InstitutionalFlow/ScoreSource 三卡权威状态
-- [x] **isReal 检查完整** — `sync/page.tsx` isReal 包含 jquants_investor_types，显示 REAL 而非 SYNTHETIC
-- [x] **sync/route.ts 加固** — GET 优先查真实 InstitutionalFlow，避免 synthetic 日期抢占最新位
-
-### LINE Flex Message 智能推送（v7.3.0）
-- [x] **`lib/stock-display-name.ts`** — `getStockDisplayName()` 统一名称优先级：nameZh > name > nameEn > symbol
-- [x] **`lib/line-flex.ts`** — 7个 Flex 构建器（朝報/午間/大引/アラート/リスク/個股/テスト）
-- [x] **`lib/line.ts`** — 完整 FlexMessage 类型 + `flexMsg()` builder
-- [x] **4个推送脚本全面升级** — morning-brief/midday-flash/closing-summary/risk-alert → Flex Message
-- [x] **`scripts/check-alerts.ts`** — 价格≥5%/出来高≥2x/HIGH新闻异动检测，去重推送
-- [x] **`app/notifications/page.tsx`** — 通知管理页（测试按钮/设置/日志）
-- [x] **6个通知 API 路由** — settings/logs/send-morning-report/send-close-report/check-alerts/test-flex
-- [x] **`NotificationSetting` DB 模型** — per-user 通知开关 + 阈值配置
-- [x] **`NotificationLog` 升级** — symbols String[], errorMessage, 完整 type 枚举
-- [x] **Cron 新增** — 工作日 09:00-16:00 每30分钟 check-alerts.ts
-- [x] **Sidebar** — 新增"🔔 通知管理"导航
-- [x] **全部 HTTP 200 验证** — /notifications, /api/notifications/settings, /api/notifications/logs
-
-### AI 科技股主题（v7.2.0）
-- [x] **AITheme 数据模型** — `prisma/schema.prisma` 新增 `AITheme`，`ai_themes` 表 + 索引
-- [x] **38只科技股种子数据** — `scripts/seed-ai-themes.ts`，6分类完整覆盖，seed 时全量删重建避免残留
-- [x] **`/api/ai-theme`** — 返回股票列表（LEFT JOIN StockScore）+ 分类汇总 + scored/unscored 标记
-- [x] **`/ai-theme` 页面** — 日本科技股・AI产业链，6分类Tab+排序+5维度评分条+待评分显示
-- [x] **Sidebar 更新** — "⚡AI产业链" 导航项
-
-### 科技股 6 分类
-| 分类 | theme key | 数量 | 代表 |
-|------|-----------|------|------|
-| 半导体设备 | SEMICONDUCTOR | 6 | 8035,6857,6920,7735,6146,3436 |
-| 电子・传感器・精密 | ELECTRONICS | 7 | 6758,6861,6981,6762,6963,6965,6806 |
-| 软件・AI・云 | SOFTWARE_AI | 9 | 3993,5574,4382,5132,9613★,9449,9719★,4684,4307 |
-| 工业自动化・机器人 | INDUSTRIAL_AUTO | 5 | 6954,6506,6273,6645,6383 |
-| 通信・数据中心 | TELECOM_DC | 5 | 9984,9432,9433,6701,6702 |
-| 科技服务・互联网 | TECH_SERVICES | 6 | 6098,4751,4385,3994,4443,4478 |
-
-★ 9613.T（NTT Data）和 9719.T（SCSK）不在 Stock / StockScore 表，页面显示"评分待生成"，名字从 API 内置 `SYMBOL_NAME_FALLBACK` 取得。
-
-### 已评分科技股 TOP10（2026-06-20）
-| 排名 | 代码 | 中文名 | 分类 | 分数 |
-|------|------|--------|------|------|
-| 1 | 6806.T | 广濑电机 | ELECTRONICS | 71 |
-| 2 | 6146.T | 迪斯科 | SEMICONDUCTOR | 70 |
-| 3 | 6981.T | 村田制作所 | ELECTRONICS | 69 |
-| 4 | 6273.T | SMC | INDUSTRIAL_AUTO | 69 |
-| 5 | 8035.T | 东京电子 | SEMICONDUCTOR | 68 |
-
-### 数据同步
-- [x] Yahoo Finance Japan（股价实时报价）
-- [x] J-Quants（日线价格 + 财报 + investor-types 机构流向）
-- [x] Kabutan 新闻（情绪分类，双 bug 已修复）
-- [x] TDnet 适时披露（爬虫模式）
-- [x] GlobalMarket（Yahoo Finance，每日 05:30 JST 自动）
-- [x] 异步任务模式（SyncJob 表，解决 504 超时）
-
-### 前端页面（全部 HTTP 200）
-- [x] `/` `/stocks` `/indicators` `/ai-picks` `/screener` `/sectors`
-- [x] `/stocks/[symbol]` 个股详情（SVG K线图 + OHLCV + MA）
-- [x] `/news` `/sync`（V3.1 数据权威状态面板）`/watchlist` `/portfolio`
-- [x] **`/ai-theme`**（新增）日本科技股・AI产业链主题筛选
-
-### LINE Bot
-- [x] Webhook：`https://aitohoshou.com/api/line/webhook`
-- [x] 每日早报 08:00 / 午间 12:30 / 收盘 15:45 / 风险预警 16:35 JST
-
----
-
-## 六、数据库 Schema（完整模型）
+### 核心模型
 
 ```
-Stock           — 3716只TSE（symbol unique，nameZh 100%覆盖）
-Financial       — 财务（stockId+fiscalYear+quarter unique）
-DailyPrice      — 日线OHLCV（symbol+date unique，7.9M条）
-Dividend        — 配当历史
-Disclosure      — TDnet适时披露
-News            — Kabutan（url unique，relatedSymbolConfidence 0-100）
-AIAnalysis      — 深度AI分析（旧lib/scoring.ts，与StockScore分离）
-Portfolio       — 持仓
-SyncLog         — 同步日志
-SyncJob         — 异步任务（id cuid，PENDING|RUNNING|SUCCESS|FAILED）
+Stock           — symbol @unique，nameZh 100%覆盖，3716条
+Financial       — (stockId, fiscalYear, quarter) @unique
+DailyPrice      — (symbol, date) @unique，7.9M条
+Dividend        — (symbol, year, quarter) @unique，32315条
+                  yieldRate: % 形式（如 3.42 = 3.42%）
+                  payoutRatio: 0-1 小数（J-Quants 返回格式，内部×100使用）
+Disclosure      — url @unique，4691件，TDnet REAL
+News            — url @unique，relatedSymbolConfidence 0-100
+SyncLog         — 同步日志（source/status/message/itemCount/durationMs）
+SyncJob         — id cuid，PENDING|RUNNING|SUCCESS|FAILED
+```
 
-StockScore      — AI预计算评分（symbol pk）★主读表
-  technicalScore     Int? (0-30)
-  fundamentalScore   Int? (0-25)
-  moneyFlowScore     Int? (0-20)
-  newsSentimentScore Int? (0-15)
-  globalTrendScore   Int? (0-10)
-  riskScore          Int? (legacy = moneyFlowScore)
-  totalScore         Int? (0-100)
-  recommendation     String? (STRONG_BUY|BUY|HOLD|WATCH|AVOID)
-  moneyFlowSource    String? ← V3.1新增
-  globalTrendSource  String? ← V3.1新增
-  scoreSource        String? ← V3.1新增 (REAL|PARTIAL|FALLBACK)
-  rawScore           Float?  ← v7.5新增 (= totalScore, 向后兼容)
-  adaptiveScore      Float?  ← v7.5新增 (动态权重归一化分)
-  stockStyle         String? ← v7.5新增 (6种风格分类)
-  highRiskFlag       Boolean ← v7.5新增 @default(false)
-  fxSensitivity      String? ← v7.5新增 (EXPORT_POSITIVE等4种)
-  catalystScore      Float?  ← v7.5新增 (TDnet公告评分)
-  [indexes: totalScore DESC, computedAt DESC, market, recommendation]
+### StockScore（★主读表，symbol @id）
 
-PortfolioDiagnosis — 持仓诊断（v7.5新增，待后续功能）
-  id/symbol/portfolioId/riskLevel/diagnosis/suggestedAction/triggerReason/createdAt
-  [indexes: symbol, createdAt DESC]
+```
+technicalScore     Int?      0-30 (J-Quants 价格技术面)
+fundamentalScore   Int?      0-25 (J-Quants 财务)
+moneyFlowScore     Int?      0-20 (J-Quants investor-types)
+newsSentimentScore Int?      0-15 (Kabutan)
+globalTrendScore   Int?      0-10 (Yahoo Finance NASDAQ/VIX/日経)
+totalScore         Int?      0-100 (= rawScore，旧字段保留)
+rawScore           Float?    = totalScore（向后兼容）
+adaptiveScore      Float?    动态权重归一化分 0-100 ← 主评分字段
+stockStyle         String?   VALUE_DEFENSIVE | GROWTH_MOMENTUM | QUALITY_COMPOUNDER
+                              | SPECULATIVE_MOMENTUM | CYCLICAL_EXPORTER | DOMESTIC_DEFENSIVE
+highRiskFlag       Boolean   @default(false)
+fxSensitivity      String?   EXPORT_POSITIVE | IMPORT_SENSITIVE | FX_NEUTRAL | DOMESTIC_NEUTRAL
+catalystScore      Float?    TDnet公告评分（baseline 5，±调整）
+percentileRank     Float?    全市场百分位（越低越好，1=前1%）
+marketRank         Int?      绝对排名（1=最佳）
+recommendation     String?   旧版评级（totalScore判定）
+recommendationV2   String?   ★双门槛：STRONG_BUY|BUY|HOLD|WATCH|AVOID
+recommendationReason String? 评级中文理由
+opportunityScore   Float?    综合机会分 0-100
+opportunityRank    Int?      机会分排名
+opportunityLabel   String?   STEADY | HIGH_RISK_SPECULATIVE
+dividendScore      Int?      配当质量分 0-10 ← v7.8
+shortSellingSource String?   jpx_real | fallback ← v7.8
+scoreSource        String?   REAL | PARTIAL | FALLBACK
+moneyFlowSource    String?   jquants_investor_types | jpx_file | jpx_manual | v2_proxy | synthetic
+globalTrendSource  String?   yahoo | v2_default
+latestDate         String?   最新价格日期（YYYY-MM-DD）
+latestClose        Float?    最新收盘价
 
-GlobalMarket    — 全球市场快照（date @unique）
-  date/nasdaq/nasdaqChange/sp500/vix/nikkei/nikkeiChange/topix/topixChange/usdjpy
-  score Int? (0-10)  source String (yahoo|manual)
+[indexes: totalScore DESC, adaptiveScore DESC, recommendationV2, percentileRank, computedAt DESC, market, recommendation]
+```
 
-InstitutionalFlow — JPX机构资金流（周度）
-  date DateTime @db.Date
-  investorType String  (foreigners|trust|corp|individual|dealer|trust_bank|insurance|bank|other)
-  market String        (TSEPrime|TSEStandard|TSEGrowth|ALL)
-  buyAmount/sellAmount/netAmount Float?  (億円)
-  source String        (jquants_investor_types|jpx|jpx_file|jpx_manual|synthetic)
-  @@unique([date, investorType, market]) named: date_investorType_market
+### ShortSellingRatio（v7.8）
 
-AITheme         — 科技股主题分类（V3.1新增）★ 38只
-  symbol String @unique
-  theme  String  (SEMICONDUCTOR|ELECTRONICS|SOFTWARE_AI|INDUSTRIAL_AUTO|TELECOM_DC|TECH_SERVICES)
-  @@map("ai_themes")  @@index([theme])
+```
+(date, market) @unique
+date             DateTime @db.Date
+market           String @default("ALL")  ← "ALL" = 全市场
+shortSellRatio   Float?   % 例: 38.8
+shortSellValue   Float?   百万円
+totalTradingValue Float?  百万円
+source           String   jpx_real | FALLBACK
+```
 
-NotificationLog / TelegramUser / LineGroup / LineUser / WatchList / SyncJob
+### AITheme（v8.0 大幅扩展）
+
+```
+(symbol, theme) @unique  ← v8.0 从 symbol @unique 改为复合唯一键（一股多主题）
+symbol           String
+theme            String   14种主题（见下方主题列表）
+subTheme         String?  细分方向
+role             String?  公司在产业链中的角色描述
+supplyChainLayer String?  UPSTREAM|MIDSTREAM|DOWNSTREAM|INFRASTRUCTURE|APPLICATION
+importanceScore  Int      1-10，产业链重要度
+reason           Text?    纳入理由
+riskNote         Text?    风险提示
+isCore           Boolean  @default(false)
+@@index([theme]), @@index([symbol]), @@index([supplyChainLayer]), @@index([isCore])
+@@map("ai_themes")
+
+当前数据：106条，82只股票，38核心标的，14主题
+```
+
+### AITheme 14主题
+
+| theme | label | 条目 | 颜色 |
+|-------|-------|------|------|
+| CHIP_DESIGN | AI芯片设计 | 3 | indigo |
+| SEMI_EQUIPMENT | AI半导体设备 | 8 | blue |
+| TEST_EQUIPMENT | AI测试设备 | 6 | cyan |
+| CHIP_MATERIAL | AI芯片材料 | 8 | teal |
+| HBM_PACKAGING | HBM・先进封装 | 7 | violet |
+| SENSOR_PRECISION | AI传感器・精密 | 8 | purple |
+| SERVER_DC | AI服务器・DC | 9 | amber |
+| NETWORK | AI网络通信 | 8 | orange |
+| ROBOT_AUTO | AI机器人・自动化 | 8 | emerald |
+| SOFTWARE_CLOUD | AI软件・云・SaaS | 14 | sky |
+| INTERNET_PLATFORM | AI互联网・平台 | 6 | pink |
+| MEDICAL_LIFE | AI医疗・生命科学 | 7 | rose |
+| SECURITY_VISION | AI安防・图像识别 | 7 | red |
+| POWER_INFRA | AI电力・能源 | 7 | yellow |
+
+### UserAiSettings（v7.9.3）
+
+```
+userId         String @unique  LINE userId 或 web sessionId
+aiEnabled      Boolean @default(true)
+mode           String @default("STOCK")  STOCK | CHAT | OFF
+strictRealData Boolean @default(true)
+@@map("user_ai_settings")
+```
+
+### 其他表
+
+```
+GlobalMarket    — date @db.Date @unique；nasdaq/sp500/vix/nikkei/usdjpy/score
+InstitutionalFlow — (date, investorType, market) @unique；weekly JPX 资金流
+                   @@unique named: date_investorType_market
+Portfolio / WatchList / LineUser / LineGroup — 辅助表
+PortfolioDiagnosis — Schema已建，功能待实现
+NotificationLog / NotificationSetting / TelegramUser / AIAnalysis
 ```
 
 完整 Schema 见 `prisma/schema.prisma`
+
+---
+
+## 五、TOHOSHOU AI 评分体系 V7.8
+
+### 双门槛评级（recommendationV2）
+```
+STRONG_BUY：adaptiveScore ≥78 AND percentileRank ≤2%
+BUY：adaptiveScore ≥70 AND percentileRank ≤10%
+HOLD：adaptiveScore ≥60
+WATCH：adaptiveScore ≥45
+AVOID：adaptiveScore <45
+```
+
+### 评分分布（2026-06-21 生产，3714只）
+| 评级 | 数量 |
+|------|------|
+| STRONG_BUY | 5（v8.1 放宽阈值≥75 AND ≤5%：Reskill教育77/量化研究76/日本M&A75/阿特拉埃75/Land75）|
+| BUY | ~30（v8.1 放宽 BUY percentileRank≤15%）|
+| HOLD | ~200 |
+| WATCH | ~1680 |
+| AVOID | ~1830 |
+| 市场温度 | COLD ❄️ |
+
+### Cron 调度（Asia/Tokyo）
+```
+05:30 每日    → fetch-global-market.ts
+06:00 每日    → sync-all-prices.ts
+07:00 工作日  → fetch-tdnet.ts
+07:00/12/18/22 → Kabutan 新闻
+07:30 每日    → compute-scores.ts（含 dividendScore + shortSellingSource）
+08:00 工作日  → send-morning-brief.ts（LINE）
+08:30 每日    → send-daily-line.ts（LINE TOP10）
+12:30 工作日  → send-midday-flash.ts（LINE）
+15:45 工作日  → send-closing-summary.ts（LINE）
+16:35 工作日  → send-line-risk-alert.ts（LINE）
+18:30 工作日  → fetch-short-selling-ratio.ts
+周五 16:30    → fetch-jquants-investor-types.ts
+周一 07:15    → fetch-jquants-investor-types.ts（备份）
+22:00 每日    → sync-stock-meta.ts
+22:30 每日    → fetch-dividend-history.ts
+```
+
+---
+
+## 六、已完成功能（完整历史）
+
+### v8.0 — AI产业链地图（2026-06-21，已部署）
+- [x] **AITheme 精细化重构** — 6分类→14细分，symbol @unique → @@unique([symbol,theme])
+- [x] **新字段** — subTheme/role/supplyChainLayer/importanceScore/reason/riskNote/isCore
+- [x] **106条数据** — 82只股票，38核心标的，一股多主题支持
+- [x] **供应链层分类** — UPSTREAM/MIDSTREAM/DOWNSTREAM/INFRASTRUCTURE/APPLICATION
+- [x] **`scripts/seed-ai-themes.ts`** 全量重写
+- [x] **`GET /api/ai-theme`** 重写 — themes/layers/summary，使用 adaptiveScore/dividendScore/catalystScore
+- [x] **`GET /api/ai-theme/[theme]`** 新增 — byLayer产业链详情
+- [x] **`/ai-theme` 页面** 重写 — 搜索/筛选/供应链层可视化/14主题卡/3列网格
+- [x] **`/ai-theme/[theme]` 页面** 新增 — 产业链流可视化+全量排序
+
+### v7.9.3 — AI System Control（2026-06-21，已部署）
+- [x] **`UserAiSettings` 表** — userId/aiEnabled/mode/strictRealData
+- [x] **`lib/ai-control.ts`** — detectSystemCommand/getAiEnabled/handleSystemCommand/buildStatusText/PAUSE_MSG
+- [x] **4系统命令** — START/STOP/RESET/STATUS，最高优先级，绕过全部pipeline
+- [x] **LINE + Web 双端门控** — aiEnabled=false 拦截所有非系统消息
+- [x] **Web sessionId** — crypto.randomUUID()，sessionStorage存储，userId 传给 /api/chat
+- [x] **INTENT_BADGE** 扩展 — 17种 badge（含 system_start/stop/reset/status/paused）
+- [x] 验收：LINE 9/9 ✅，Web 6/6 ✅
+
+### v7.9.2 — GPT Intent Engine（2026-06-21，已部署）
+- [x] **`lib/intent-schema.ts`** — StructuredIntent/ConversationContext/DbQueryResult 统一类型
+- [x] **`lib/intent-engine.ts`** — regex优先（~90%命中）+ GPT JSON fallback，30分钟 TTL 上下文
+- [x] **`lib/query-engine.ts`** — 12种意图 DB 查询统一入口（queryDatabase）
+- [x] **`lib/answer-builder.ts`** — buildWebAnswer() + buildLineMessages()，zero GPT
+- [x] **12种意图** — top_picks/recommend_more/stock_analysis/stock_compare/theme_rank/sector_outlook/market_overview/risk_analysis/reason_explain/data_source/help/unknown
+- [x] **`/api/chat` + `lib/line-chat.ts`** 重写为统一 pipeline
+- [x] **`scripts/test-intent-engine.ts`** — 14/14 intent ✅ + 6 answer tests
+- [x] 验收：answerSource=DB ✅，hallucination=false ✅，零 localhost ✅
+
+### v7.9 — LINE 全智能投资助手（2026-06-21）
+- [x] lib/line-intent.ts（8种意图，~100条公司名映射）
+- [x] lib/line-flex-v79.ts（8个 Flex builder，全 app-url.ts 验证）
+- [x] lib/line-chat.ts（统一调用链，UNKNOWN→HELP）
+- [x] /chat 页面（GPT Phase 2 Web UI，对话气泡，快捷提问，意图 badge）
+- [x] 36/36 测试通过
+
+### v7.8 — 空売り比率 + 配当スコア（2026-06-20）
+- [x] ShortSellingRatio 表，JPX PDF 解析，source=jpx_real
+- [x] dividendScore 0-10（calcDividendScore，3714只全量）
+- [x] Sync Center 11源全 REAL
+- [x] 股票详情 AI Tab 扩展（配当卡 + 空売りカード）
+
+### v7.7 — 双门槛评级 + 市场温度（2026-06-20）
+- [x] recommendationV2 双门槛（BUY=35，COLD ❄️）
+- [x] MarketTemperature，opportunityScore，percentileRank
+- [x] TDnet REAL（Cookie 方案，4691件）
+
+### v7.5-v7.6 — 动态权重（2026-06-14）
+- [x] adaptiveScore / stockStyle / fxSensitivity / catalystScore
+- [x] GPT Phase 1 /api/chat（4意图）
+- [x] LINE Flex Message V7.5
 
 ---
 
@@ -317,61 +332,145 @@ NotificationLog / TelegramUser / LineGroup / LineUser / WatchList / SyncJob
 
 | 端点 | 说明 |
 |------|------|
-| `GET /api/sync` | 同步状态 + V3.1 dataAuthority（GlobalMarket/InstitutionalFlow/ScoreDist）|
-| `POST /api/sync/jquants` | J-Quants 同步（立即返回 jobId）|
+| `GET /api/sync/status` | 11个数据源综合状态 |
+| `POST /api/sync/scores` | 触发 compute-scores（150s超时）|
+| `POST /api/sync/jquants` | J-Quants ��步（返回 jobId）|
 | `GET /api/sync/jobs/[jobId]` | 异步任务进度 |
-| `POST /api/sync/news` | 新闻同步（异步）|
-| `POST /api/sync/yahoo` | Yahoo Finance 同步 |
-| `POST /api/sync/tdnet` | TDnet 同步 |
-| `GET /api/ai-scores` | AI推荐列表（TOP50）含 v7.5 所有字段 |
-| `GET /api/ai-theme` | 科技股主题列表（38只，scored/unscored 均返回）|
-| `GET /api/indicators` | 技术指标列表（StockScore TOP500）|
+| `GET /api/market-stats` | 市场温度 + BUY分布 + TOP列表 |
+| `GET /api/ai-scores?mode=top\|opportunity\|high_risk` | AI推荐列表 |
+| `GET /api/stocks/[symbol]/ai-score` | 个股AI评分（含 dividendScore/shortSellingRatio）|
+| `GET /api/stocks/[symbol]/alternatives` | 同风格替代股 |
 | `GET /api/screener` | 全市场筛选 |
-| `GET /api/stocks/[symbol]/indicators` | 个股技术指标 + OHLCV 序列 |
-| `GET /api/stocks/[symbol]/alternatives` | 同风格替代股（最多5只）★v7.5新增 |
-| `GET /api/stocks/[symbol]/financials` | 个股财报 |
-| `POST /api/chat` | GPT Phase 1：自然语言 4 意图，数据来自 DB ★v7.5新增 |
+| `GET /api/ai-theme` | AI产业链地图（106条，14主题）|
+| `GET /api/ai-theme/[theme]` | 单主题产业链详情（byLayer）← v8.0 新 |
+| `POST /api/chat` | 自然语言对话（Intent Engine v7.9.2）|
 | `POST /api/line/webhook` | LINE Bot Webhook |
 
 ---
 
-## 八、已安装依赖（关键包）
+## 八、关键文件索引
 
-| 包 | 版本 | 重要注意 |
-|----|------|---------|
-| `next` | 16.2.9 | App Router；Route Params **必须** `await params` |
-| `@prisma/client` | ^7.8.0 | **必须用 PrismaPg adapter**，不是默认 datasource |
-| `@prisma/adapter-pg` | ^7.8.0 | 与 prisma/client 同版本 |
-| `yahoo-finance2` | ^3.15.3 | **v3 必须实例化** `new YahooFinance()`；VIX 用 `yf.quote()` 而非 `historical()` |
-| `node-html-parser` | ^7.1.0 | Kabutan 爬虫 |
-| `openai` | ^6.44.0 | DeepSeek API（兼容 OpenAI 接口）|
-| `node-cron` | ^4.4.1 | Cron 调度 |
-| `dayjs` | ^1.11.21 | 日期处理 |
-| `axios` | ^1.18.0 | HTTP client |
-| `zod` | ^4.4.3 | 数据验证 |
-| `xlsx` | ^0.18.5 | XLSX 文件解析（JPX CSV 导入用）|
-| `tailwindcss` | ^4 | `@import "tailwindcss"`，**无 tailwind.config.js** |
+### 核心 Lib
+```
+lib/intent-schema.ts    ← v7.9.2 统一类型（StructuredIntent/ConversationContext/DbQueryResult）
+lib/intent-engine.ts    ← v7.9.2 意图解析（regex + GPT fallback，30min TTL）
+lib/query-engine.ts     ← v7.9.2 12种意图 DB 查询
+lib/answer-builder.ts   ← v7.9.2 buildWebAnswer()/buildLineMessages()（zero GPT）
+lib/ai-control.ts       ← v7.9.3 系统控制（START/STOP/RESET/STATUS）
+lib/line-chat.ts        ← v7.9.2 LINE 统一 pipeline（pipeline gate: sysCmd → aiEnabled → intent）
+lib/line-intent.ts      ← v7.9 LINE regex 意图解析（parseLineIntent）
+lib/line-flex-v79.ts    ← v7.9 Flex Message builders（8个）
+lib/ai-score.ts         ← v7.8 评分引擎（calcDividendScore，REAL_MONEY_SOURCES）
+lib/market-temperature.ts ← v7.7 MarketTemperature 计算
+lib/app-url.ts          ← getBaseUrl()，APP_URL 优先
+lib/prisma.ts           ← Prisma singleton（PrismaPg adapter）
+lib/line.ts             ← LINE API 基础（textMsg等）
+lib/tdnet.ts            ← TDnet REAL Cookie 方案
+```
 
-### npm scripts 完整列表
-```bash
-npm run compute-scores              # 全量重算 AI 评分（~25s，3714只）
-npm run fetch-global-market         # 抓取 Yahoo Finance → GlobalMarket DB
-npm run sync:institutional-flow     # 抓取 J-Quants investor-types → InstitutionalFlow DB
-npm run sync:institutional-flow:dry # 预览（不写DB）
-npm run sync-meta                   # 同步股票元数据
-npm run sync-prices-recent          # 同步最近价格
-npm run cron                        # 启动 cron 调度器
-npm run seed:ai-themes              # 重置科技股主题分类数据（38只）
-npm run send-daily-line             # LINE 每日推送
-npm run line:morning-brief          # LINE 早报
-npm run line:midday-flash           # LINE 午间快报
-npm run line:closing-summary        # LINE 收盘总结
-npm run line:risk-alert             # LINE 风险预警
+### 关键脚本
+```
+scripts/compute-scores.ts          ← 双 Pass 全量评分（每日 07:30 JST）
+scripts/seed-ai-themes.ts          ← v8.0 AI产业链 106条数据写入
+scripts/fetch-short-selling-ratio.ts ← JPX PDF → ShortSellingRatio
+scripts/fetch-dividend-history.ts  ← J-Quants → Dividend
+scripts/fetch-global-market.ts     ← Yahoo Finance → GlobalMarket
+scripts/fetch-jquants-investor-types.ts ← JPX → InstitutionalFlow
+scripts/test-intent-engine.ts      ← Intent Engine 测试（14/14）
+scripts/cron-scheduler.ts          ← 全部 cron 定时任务
+```
+
+### 关键 API 路由
+```
+app/api/chat/route.ts              ← v7.9.3 gate: sysCmd → aiEnabled → intent → DB → answer
+app/api/ai-theme/route.ts          ← v8.0 重写（themes/layers/summary）
+app/api/ai-theme/[theme]/route.ts  ← v8.0 新增（byLayer 详情）
+app/api/line/webhook/route.ts      ← LINE webhook
+app/api/sync/status/route.ts       ← 11源状态聚合
+app/api/stocks/[symbol]/ai-score/route.ts ← 个股评分（含 v7.8 字段）
+```
+
+### 关键页面
+```
+app/ai-theme/page.tsx              ← v8.0 重写（产业链地图，搜索/筛选/3列网格）
+app/ai-theme/[theme]/page.tsx      ← v8.0 新增（产业链流可视化）
+app/chat/page.tsx                  ← v7.9.3 Web 对话（sessionId + intent badge）
+app/ai-picks/page.tsx              ← AI推荐榜
+app/screener/page.tsx              ← 全市场筛选
+app/sync/page.tsx                  ← Sync Center
 ```
 
 ---
 
-## 九、关键代码知识
+## 九、已安装依赖
+
+### package.json dependencies
+```
+next: 16.2.9                ← App Router；Route Params 必须 await params
+react: 19.2.4
+react-dom: 19.2.4
+@prisma/client: ^7.8.0      ← 必须用 PrismaPg adapter
+@prisma/adapter-pg: ^7.8.0
+prisma: ^7.8.0
+pg: ^8.22.0
+yahoo-finance2: ^3.15.3     ← v3：必须 new YahooFinance()；VIX 用 yf.quote()
+openai: ^6.44.0             ← DeepSeek/OpenAI 兼容接口
+node-cron: ^4.4.1
+node-html-parser: ^7.1.0    ← Kabutan/TDnet 爬虫
+axios: ^1.18.0
+dayjs: ^1.11.21
+zod: ^4.4.3
+xlsx: ^0.18.5
+```
+
+### devDependencies
+```
+tailwindcss: ^4             ← @import "tailwindcss"，无 tailwind.config.js
+@tailwindcss/postcss: ^4
+typescript: ^5
+eslint: ^9
+eslint-config-next: 16.2.9
+@types/node: ^20
+@types/react: ^19
+@types/react-dom: ^19
+@types/node-cron: ^3.0.11
+@types/pg: ^8.20.0
+```
+
+### 生产服务器系统包（apt 安装）
+```bash
+poppler-utils   # pdftotext，用于解析 JPX 空売り比率 PDF
+# 验证：which pdftotext → /usr/bin/pdftotext
+```
+
+### npm scripts 完整列表
+```bash
+npm run dev                         # 开发服务器（port 3000）
+npm run build                       # 生产构建（部署前必须）
+npx tsc --noEmit                    # 类型检查（不构建）
+npm run compute-scores              # 全量重算 AI 评分
+npm run fetch-global-market         # 抓取 Yahoo Finance → GlobalMarket
+npm run fetch-short-selling         # 抓取 JPX PDF → ShortSellingRatio
+npm run fetch-short-selling:dry     # 预览（不写DB）
+npm run fetch-dividend-history      # J-Quants → Dividend
+npm run fetch-dividend-history:dry  # 预览
+npm run fetch-institutional-flow    # J-Quants investor-types → InstitutionalFlow
+npm run sync-meta                   # 同步股票元数据
+npm run sync-prices-recent          # 同步最近价格
+npm run cron                        # 启动 cron 调度器
+npm run seed:ai-themes              # 重置 AITheme（v8.0：106条）
+npm run test:intent-engine          # 意图引擎测试（APP_URL=https://...）
+npm run test:intent-engine:dry      # 跳过 DB 的意图只测（SKIP_DB=1）
+npm run line:morning-brief          # LINE 早报
+npm run line:midday-flash           # LINE 午间
+npm run line:closing-summary        # LINE 收盘
+npm run line:risk-alert             # LINE 风险预警
+npm run send-daily-line             # LINE 每日推送（全版）
+```
+
+---
+
+## 十、关键代码规则（新 Claude 必读）
 
 ### Prisma 初始化（必须用 adapter）
 ```typescript
@@ -379,167 +478,185 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
+// ⚠️ scripts/ 中直接实例化；API routes 用 lib/prisma.ts singleton
 ```
 
-### 生产脚本规范（Node 22 不支持 top-level await CJS）
+### Next.js 16 Route Params（必须 await）
 ```typescript
-// ✅ 必须用 async function main() 包裹
-async function main() { ... }
-main().catch((e) => { console.error(e); process.exit(1); });
+// 服务端组件 / API Route：
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol } = await params;
+}
+// 客户端组件（"use client"）：
+import { useParams } from "next/navigation";
+const params = useParams();
+const theme = params?.theme as string;
 ```
 
-### Schema 变更流程
-```bash
-# 本地
-npx prisma db push --accept-data-loss   # 同步到本地Docker DB
-npx prisma generate                      # 重新生成客户端
-npm run build                            # 必须重新 build
-
-# 生产
-sshpass -p 'Wen565656' scp prisma/schema.prisma root@8.209.247.68:/opt/tohoshou/prisma/
-sshpass -p 'Wen565656' ssh root@8.209.247.68 "cd /opt/tohoshou && npx prisma db push --accept-data-loss && npx prisma generate"
-```
-
-### REAL_MONEY_SOURCES（ai-score.ts 两处都要维护）
+### scripts/ 路径规则
 ```typescript
-// lib/ai-score.ts line ~96（computeScoreSource）和 line ~375（calcAiScore）两处均需包含：
+// scripts/ 文件必须用相对路径，禁止 @/ 别名
+import { prisma } from "../lib/prisma";   // ✅
+import { prisma } from "@/lib/prisma";    // ❌ scripts 不支持
+```
+
+### Intent Engine Pipeline 顺序（line-chat.ts / api/chat）
+```
+1. detectSystemCommand(text) → 命中 → handleSystemCommand() → 立即返回（绕过全部）
+2. getAiEnabled(userId) → false → 返回 PAUSE_MSG（绕过全部）
+3. parseUserIntent(text, context) → GPT JSON fallback
+4. queryDatabase(intent) → DB only
+5. buildWebAnswer(data) / buildLineMessages(data) → zero GPT
+6. setContext(userId, nextCtx)
+```
+
+### 系统命令触发词（精确匹配）
+```
+START:  启动AI/开启AI/start/唤醒/激活/开机/resume/重启AI
+STOP:   关闭AI/停止AI/停止/stop/休眠/暂停/关机/下线
+RESET:  清空上下文/重置/reset/清空记忆/清空对话
+STATUS: 当前状态/状态/status/AI状态/系统状态
+```
+
+### dividendScore 计算（v7.8）
+```typescript
+// lib/ai-score.ts: calcDividendScore(yieldRate%, payoutRatio)
+// yieldRate:   来自 Dividend.yieldRate（% 形式，如 3.42）
+// payoutRatio: 来自 Dividend.payoutRatio（0-1 小数，内部自动×100）
+// 0%=0, <1%=1, <2%=3, <3%=5, <4%=7, <6%=8, ≥6%=6（高yield陷阱）
+// payout 20-60%: +1, >80%: -1；max=10
+```
+
+### ShortSellingRatio 查询（v7.8）
+```typescript
+const latest = await prisma.shortSellingRatio.findFirst({
+  where: { market: "ALL" },
+  orderBy: { date: "desc" },
+  select: { date: true, shortSellRatio: true, source: true },
+});
+```
+
+### AITheme 查询（v8.0）
+```typescript
+// 多主题查询：一个 symbol 可有多行
+const themeRows = await prisma.aITheme.findMany({
+  where: { theme: "SEMI_EQUIPMENT" },
+  select: { symbol: true, role: true, supplyChainLayer: true, importanceScore: true, isCore: true },
+  orderBy: [{ isCore: "desc" }, { importanceScore: "desc" }],
+});
+// Upsert key: symbol_theme（复合）
+await prisma.aITheme.upsert({
+  where: { symbol_theme: { symbol, theme } },
+  create: { ... },
+  update: { ... },
+});
+```
+
+### 日期处理
+```typescript
+// ⚠️ 服务器 CST（UTC+8），new Date(y,m,d) 会创建 CST 午夜 → UTC 前一天
+const date = new Date(Date.UTC(year, month - 1, day)); // ✅ 正确
+```
+
+### REAL_MONEY_SOURCES
+```typescript
+// lib/ai-score.ts 两处都要维护（computeScoreSource + calcAiScore）
 const REAL_MONEY_SOURCES = ["jquants_investor_types", "jpx", "jpx_file", "jpx_manual"];
-```
-
-### compute-scores.ts 数据优先查询规范
-```typescript
-// 先找 REAL 数据，无 REAL 才用 synthetic
-const latestRealFlow = await prisma.institutionalFlow.findFirst({
-  where: { source: { in: REAL_FLOW_SOURCES } },
-  orderBy: { date: "desc" },
-});
-const latestFlowDate = latestRealFlow ?? await prisma.institutionalFlow.findFirst({
-  orderBy: { date: "desc" },
-});
-```
-
-### AITheme API 关键设计
-- `GET /api/ai-theme`：先查 StockScore（scored=true），再查 Stock 表（unscored），两者都没有则用 SYMBOL_NAME_FALLBACK
-- 返回字段：`{ stocks[], themeSummary[], totalCount, scoredCount, updatedAt }`
-- stocks 排序：scored 在前（按 totalScore DESC），unscored 在后
-- 9613.T / 9719.T 不在 Stock/StockScore 表，从 SYMBOL_NAME_FALLBACK 取名字显示"评分待生成"
-
-### rsync 部署注意
-```
-⚠️ rsync 会覆盖生产 .env！每次 rsync 后必须通过 ssh sed 修复 .env（见"二、快速操作"）
 ```
 
 ---
 
-## 十、已知问题
+## 十一、已知问题
 
-### P2 — 9613.T / 9719.T 无评分数据
-- **NTT Data（9613.T）和 SCSK（9719.T）** 不在 Stock 表，因此不会被 J-Quants 同步到 DailyPrice，也不会进入 StockScore
-- 当前处理：`/api/ai-theme` 通过 `SYMBOL_NAME_FALLBACK` 显示名字，页面显示"评分待生成"
-- 如果需要修复：手动插入 Stock 表记录，然后触发 J-Quants 同步 + compute-scores
-
-### P2 — BUY/STRONG_BUY 阈值过高
-- 当前最高分 74（全市场），科技股最高分 71（广濑电机）
-- BUY 阈值 80，STRONG_BUY 阈值 90，导致 BUY/STRONG_BUY 均为 0
-- 考虑：调整阈值（评分本身是否有天花板需分析）
-
-### P3 — TDnet 真实数据
-- `lib/tdnet.ts` 大多数时候 fallback 到 mock 数据
-
-### P3 — LINE Flex Message
-- 当前推送为纯文本，未升级为富文本卡片格式
+| 优先级 | 问题 | 位置 | 解决方案 |
+|--------|------|------|---------|
+| P2 | STRONG_BUY=0（最高分77，门槛78） | `scripts/compute-scores.ts` → `computeRecommendationV2()` | 调整为 adaptiveScore≥75 AND percentileRank≤5% |
+| P2 | 9613.T/9719.T 无 StockScore 评分 | J-Quants 未覆盖这两只 | 手动添加到 Stock 表或单独评分 |
+| P3 | ShortSellingRatio 有1条时区 bug 旧行（2026-06-18）| DB | 无运行时影响（orderBy desc 取正确行），可清理 |
+| P3 | 服务器 tsc 构建时 webhook/route.ts 第98行类型错误 | `app/api/line/webhook/route.ts` | 本地 build 正常，rsync .next/ 绕过，不影响运行 |
+| P3 | STRONG_BUY=0 市场温度 COLD | compute-scores.ts | 见 P2 |
+| P3 | PortfolioDiagnosis 功能未实现 | Schema 已建 | 待未来迭代 |
 
 ---
 
 ## <a id="next-session"></a>NEXT SESSION — 下次启动继续位置
 
-### 当前系统状态（2026-06-20，v7.5.0 稳定基线）
+### 当前系统基线（2026-06-21，v8.1，全部已部署生产）
 
 ```
-✅ v7.5.0 动态权重评分上线
-   - adaptiveScore / stockStyle / fxSensitivity / catalystScore 全量写入（3714只）
-   - 6种 StockStyle 风格权重，QUALITY_COMPOUNDER 最高 adaptive=77
-   - /api/stocks/[symbol]/alternatives 上线（同风格替代股）
+✅ v8.1 STRONG_BUY 阈值放宽 + CHIP_DESIGN 扩充
+   - STRONG_BUY：≥78 AND ≤2% → ≥75 AND ≤5%（结果 5只）
+   - BUY：percentileRank ≤10% → ≤15%
+   - CHIP_DESIGN：3只 → 6只（新增 メガチップス/索尼/富士電機）
+   - 供应链流矢印：grid+absolute → flex+SVG arrow（视觉正常）
 
-✅ GPT Phase 1 上线
-   - POST /api/chat：4意图，全部数据来自 DB，无幻觉
-   - lib/openai.ts + lib/ai-agent.ts：显式 pin api.openai.com，防 DeepSeek 劫持
-   - LINE 自然语言路由修复（ai-agent.ts baseURL bug 已修）
+✅ v8.0 AI产业链地图（14细分主题，109条，84只，39核心）
+   - /ai-theme 页面完全重构（搜索/供应链层/14主题卡/3列网格）
+   - /ai-theme/[theme] 新增产业链流可视化
+   - /api/ai-theme 返回 themes/layers/summary（adaptiveScore为主）
+   - /api/ai-theme/[theme] 新增 byLayer 产业链详情
 
-✅ localhost 全站清零
-   - grep 0处实际 URL，所有链接统一 https://aitohoshou.com
+✅ v7.9.3 AI System Control
+   - UserAiSettings 表（userId unique/aiEnabled/mode）
+   - lib/ai-control.ts（START/STOP/RESET/STATUS 4命令）
+   - LINE + Web 双端 gate：sysCmd最高优先 → aiEnabled门控 → 正常pipeline
+   - LINE 9/9 验收通过，Web 6/6 验收通过
 
-✅ LINE Flex Message 全面上线（v7.3.0/v7.4.0）
-   - 所有推送 Flex Message 富文本卡片
-   - LINE V2 对话入口：7意图+Flex Card 回复
-   - 通知管理页 /notifications
+✅ v7.9.2 GPT Intent Engine（DB-only 回答，zero GPT for answers）
+   - lib/intent-schema.ts / intent-engine.ts / query-engine.ts / answer-builder.ts
+   - 12种意图，regex优先+GPT JSON fallback，30min TTL 上下文
+   - 14/14 intent 测试通过，answerSource=DB, hallucination=false
 
-✅ TOHOSHOU AI V4（原V3.1）— 5维度全部真实数据
-   - REAL 3714/3714（100%），含 jquants_investor_types
+✅ v7.9 LINE 全智能投资助手（36/36 测试通过）
 
-✅ 生产 build + pm2 验证
-   - npm run build 通过（49条路由，TypeScript无错误）
-   - tohoshou-web + tohoshou-cron 均 online
+✅ v7.8 空売り比率 + 配当スコア + 11源 Sync Center（全 REAL）
+
+✅ v7.7 双门槛评级 + 市场温度（BUY=35，COLD ❄️）
+
+✅ TypeScript 0错误 + npm run build 通过 + pm2 online
 ```
 
-### 未完成（按优先级）
+### 推荐 TODO（按优先级）
 
-#### P2 — 评分阈值调整（2小时）
-当前最高 rawScore=74，BUY 阈值 80，导致 0 只 BUY。
-`adaptiveScore` 最高已达 77（动态权重），但 recommendation 仍按 rawScore 判定。
-方案 A：调低阈值 `STRONG_BUY≥85, BUY≥75`，改 `lib/ai-score.ts` recommendation 逻辑。
-方案 B：让 recommendation 改用 adaptiveScore 判定（需评估影响面）。
+#### ~~P2 — 放宽 STRONG_BUY 阈值~~ ✅ v8.1 已完成
+#### ~~P2 — AI产业链 CHIP_DESIGN 扩充~~ ✅ v8.1 已完成（6只）
+#### ~~P2 — 搜索中文公司名~~ ✅ 已支持（前端 nameZh.includes 已实现）
+#### ~~P2 — 供应链矢印~~ ✅ v8.1 已修复
 
-#### P2 — 9613.T / 9719.T 评分待生成
-NTT Data / SCSK 不在 Stock 表，需手动插入后触发同步：
-```sql
-INSERT INTO "Stock" ("symbol","name","nameZh","market","createdAt","updatedAt")
-VALUES ('9613.T','ＮＴＴデータグループ','NTT Data集团','プライム',NOW(),NOW()),
-       ('9719.T','ＳＣＳＫホールディングス','SCSK控股','プライム',NOW(),NOW())
-ON CONFLICT ("symbol") DO NOTHING;
-```
+#### P3 — LINE 生产对话实测
+用真实 LINE Bot 账号发送以下消息验证 v7.9.3：
+- 「停止」→ 🛑 AI 已暂停
+- 「今天买什么」→「AI 当前已暂停」
+- 「启动AI」→ 🟢 已启动
+- 「今天买什么」→ TOP5 Flex Message
+- 「还有吗」→ 推荐更多（exclude lastSymbols）
+- 「当前状态」→ 状态卡（v7.9.3 含数据源清单）
 
-#### P2 — GPT Phase 2（Web Chat UI）
-当前 `/api/chat` 仅 API，无前端界面。
-可在 `/ai-picks` 或新页面 `/chat` 增加对话框 UI，调用现有 `/api/chat`。
+#### P3 — PortfolioDiagnosis 持仓诊断
+Schema 已建，待实现诊断逻辑 + `/api/portfolio/[id]/diagnose` 端点 + 前端展示。
 
-#### P3 — PortfolioDiagnosis 功能
-Schema 已建（v7.5.0），待实现：持仓诊断逻辑 + `/api/portfolio/[id]/diagnose` 端点 + 前端展示。
+### 第一步操作建议
 
-#### P3 — TDnet 真实数据
-`lib/tdnet.ts` 主要返回 mock。改进方向：对接 TDnet RSS 或 J-Quants 財務情報 API。
-`catalystScore` 已有 TDnet category 处理逻辑，真实数据接入后自动生效。
-
-#### P3 — 管理员支付路径同步 billItem（LINE quota 不相关，此项为 yahoo-auction 项目）
-此项属于另一个项目，此处不列出。
-
-### 快速健康检查
 ```bash
-# 生产数据权威状态
-curl -s "https://aitohoshou.com/api/sync" | python3 -c "
-import json,sys; d=json.load(sys.stdin); da=d.get('dataAuthority',{})
-fl = da.get('institutionalFlow',{}); ss = da.get('scoreSourceDist',{})
-print('Flow source:', fl.get('source'), '| date:', fl.get('date','')[:10], '| age:', fl.get('ageDays'),'days')
-print('ScoreSource:', ss)
+# 1. 验证当前生产状态
+curl -s https://aitohoshou.com/api/ai-theme | python3 -c "
+import json,sys; d=json.load(sys.stdin); s=d['summary']
+print('OK — uniqueSymbols:', s['uniqueSymbols'], 'coreStocks:', s['coreStocks'])
 "
 
-# GPT Chat 快速验证
-curl -s -X POST "https://aitohoshou.com/api/chat" \
-  -H "Content-Type: application/json" -d '{"message":"分析7203"}' | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print('intent:', d['intent'], '| len:', len(d['reply']))"
+# 2. 验证 AI System Control
+curl -s -X POST https://aitohoshou.com/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"当前状态","userId":"check_001"}' | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); print('STATUS:', d.get('intent'), d.get('reply','')[:50])"
 
-# alternatives API
-curl -s "https://aitohoshou.com/api/stocks/7203.T/alternatives" | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print('style:', d['stockStyle'], '| alts:', len(d['alternatives']))"
-
-# adaptiveScore TOP5
-curl -s "https://aitohoshou.com/api/ai-scores?sort=adaptive&limit=5" | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); [print(s['symbol'], 'raw=', s.get('rawScore'), 'adaptive=', s.get('adaptiveScore'), 'style=', s.get('stockStyle')) for s in d.get('scores', d)[:5]]"
-
-# PM2 状态
-sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 'pm2 list'
-
-# localhost 清零验证
-grep -rn "localhost\|127\.0\.0\.1" --include="*.ts" --include="*.tsx" \
-  --exclude-dir=node_modules --exclude-dir=.next . | grep -v "//.*localhost" | grep -v "#.*localhost"
+# 3. 验证 Intent Engine
+curl -s -X POST https://aitohoshou.com/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"今天买什么","userId":"check_001"}' | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); print(d.get('intent'), d.get('answerSource'), d.get('hallucination'))"
 ```
+
+---
+
+*最后更新：2026-06-21 | v8.0 | 系统已停止开发，待下次会话继续*

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 async function getDashboardData() {
   const [stockCount, priceCount, finCount, latestPrice, scores, scoreCount] =
     await Promise.all([
@@ -9,15 +11,18 @@ async function getDashboardData() {
       prisma.financial.count(),
       prisma.dailyPrice.findFirst({ orderBy: { date: "desc" }, select: { date: true } }),
       prisma.stockScore.findMany({
-        where: { priceCount: { gte: 20 } },
-        orderBy: { totalScore: "desc" },
+        where: { priceCount: { gte: 20 }, adaptiveScore: { not: null } },
+        orderBy: { adaptiveScore: "desc" },
         select: {
           symbol: true, name: true, nameZh: true, market: true, sector: true,
           latestClose: true, latestDate: true,
           return5d: true, return20d: true, return60d: true,
           rsi14: true, maTrend: true, macdSignalLabel: true,
           technicalScore: true, fundamentalScore: true, moneyFlowScore: true, riskScore: true,
-          totalScore: true, recommendation: true, starsLabel: true, summaryReason: true,
+          totalScore: true, adaptiveScore: true,
+          recommendation: true, recommendationV2: true,
+          starsLabel: true, summaryReason: true,
+          percentileRank: true, opportunityScore: true, stockStyle: true,
         },
       }),
       prisma.stockScore.count({ where: { priceCount: { gte: 20 } } }),
@@ -64,11 +69,11 @@ export default async function DashboardPage() {
 
   const latestDateStr = latestPrice ? latestPrice.date.toISOString().split("T")[0] : "—";
 
-  const buyCount   = scores.filter((s) => s.recommendation === "STRONG_BUY" || s.recommendation === "BUY").length;
-  const watchCount = scores.filter((s) => s.recommendation === "WATCH").length;
+  const buyCount   = scores.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY").length;
+  const watchCount = scores.filter((s) => s.recommendationV2 === "WATCH").length;
 
   return (
-    <div className="p-6 max-w-7xl">
+    <div className="p-4 md:p-6 max-w-7xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">仪表盘</h1>
         <p className="text-sm text-slate-500 mt-0.5">
@@ -77,7 +82,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
           { label: "数据库股票总数", value: stockCount.toLocaleString(),  unit: "只",  icon: "◉", cls: "text-slate-900" },
           { label: "已计算评分",     value: scoreCount.toLocaleString(),  unit: "只",  icon: "✦", cls: "text-blue-700" },
@@ -107,7 +112,7 @@ export default async function DashboardPage() {
             <span className="text-yellow-400 text-lg">✦</span>
             <h2 className="font-semibold text-white">AI推荐 TOP 3</h2>
             <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">
-              技术40% + 基本面40% + 安全性20%
+              V7.7 动态评分 · 全市场双门槛排名
             </span>
           </div>
           <Link href="/ai-picks" className="text-xs text-slate-400 hover:text-white transition-colors">
@@ -120,9 +125,9 @@ export default async function DashboardPage() {
             <code className="text-xs bg-slate-700 px-1 rounded ml-1">npm run compute-scores</code>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {top3.map((s, i) => {
-              const rec = REC_CFG[s.recommendation ?? "HOLD"] ?? REC_CFG.HOLD;
+              const rec = REC_CFG[s.recommendationV2 ?? s.recommendation ?? "HOLD"] ?? REC_CFG.HOLD;
               return (
                 <Link
                   key={s.symbol}
@@ -141,8 +146,12 @@ export default async function DashboardPage() {
                   )}
                   <div className="text-[12px] text-slate-500 font-mono mt-0.5 mb-2">{s.symbol}</div>
                   <div className="flex items-end gap-2">
-                    <div className="text-2xl font-bold text-white tabular-nums">{s.totalScore}</div>
-                    <div className="text-slate-300 text-xs mb-1">分　{s.starsLabel}</div>
+                    <div className="text-2xl font-bold text-white tabular-nums">
+                      {s.adaptiveScore?.toFixed(0) ?? s.totalScore}
+                    </div>
+                    <div className="text-slate-300 text-xs mb-1">
+                      分{s.percentileRank != null ? `　前${s.percentileRank.toFixed(1)}%` : ""}
+                    </div>
                   </div>
                   <div className="mt-1.5 grid grid-cols-3 gap-1 text-[10px]">
                     <div className="text-center">
@@ -167,7 +176,7 @@ export default async function DashboardPage() {
 
       {/* Score distribution */}
       {scores.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
           <Link href="/ai-picks?filter=BUY" className="bg-red-50 border border-red-100 rounded-xl p-4 hover:border-red-300 transition-colors">
             <div className="text-xs text-red-500 mb-1">买入推荐</div>
             <div className="text-3xl font-bold text-red-600 tabular-nums">{buyCount}</div>
@@ -222,7 +231,7 @@ export default async function DashboardPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {scores.slice(0, 100).map((s, i) => {
-                  const rec = REC_CFG[s.recommendation ?? "HOLD"] ?? REC_CFG.HOLD;
+                  const rec = REC_CFG[s.recommendationV2 ?? s.recommendation ?? "HOLD"] ?? REC_CFG.HOLD;
                   const rsiColor =
                     s.rsi14 == null ? "text-slate-400"
                     : s.rsi14 >= 70 ? "text-red-500"
@@ -265,7 +274,7 @@ export default async function DashboardPage() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         <span className={`text-sm font-bold tabular-nums ${rec.text}`}>
-                          {s.totalScore ?? "—"}
+                          {s.adaptiveScore?.toFixed(0) ?? s.totalScore ?? "—"}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-center">

@@ -103,6 +103,10 @@ export async function GET() {
     holdCount,
     watchCount,
     avoidCount,
+    shortSellLatest,
+    shortSellCount,
+    dividendCount,
+    dividendLatest,
     recentLogs,
   ] = await Promise.all([
     prisma.stock.count(),
@@ -138,6 +142,14 @@ export async function GET() {
     prisma.stockScore.count({ where: { recommendationV2: "HOLD" } }),
     prisma.stockScore.count({ where: { recommendationV2: "WATCH" } }),
     prisma.stockScore.count({ where: { recommendationV2: "AVOID" } }),
+    prisma.shortSellingRatio.findFirst({
+      where: { market: "ALL" },
+      orderBy: { date: "desc" },
+      select: { date: true, shortSellRatio: true, source: true },
+    }),
+    prisma.shortSellingRatio.count(),
+    prisma.dividend.count(),
+    prisma.dividend.findFirst({ orderBy: { year: "desc" }, select: { year: true, createdAt: true } }),
     prisma.syncLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
 
@@ -160,6 +172,9 @@ export async function GET() {
   const globalAge = ageDays(globalMarketLatest?.date ?? null);
   const dailyAge = ageDays(dailyPriceLatest?.date ?? null);
   const scoreAge = ageDays(stockScoreLatest?.computedAt ?? null);
+
+  const shortSellAge = ageDays(shortSellLatest?.date ?? null);
+  const dividendAge = ageDays(dividendLatest?.createdAt ?? null);
 
   const lineConfigured = !!(
     process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.LINE_ACCESS_TOKEN
@@ -370,6 +385,56 @@ export async function GET() {
         marketTemperature,
         bullRate,
       },
+    },
+    {
+      id: "short_selling_ratio",
+      taskName: "空売り比率",
+      icon: "◆",
+      description: "JPX 市場全体空売り比率（日次 PDF → pdftotext解析）",
+      status: !shortSellLatest
+        ? "NEVER_SYNCED"
+        : shortSellLatest.source === "jpx_real"
+        ? shortSellAge != null && shortSellAge > 5
+          ? "STALE"
+          : "REAL"
+        : "FALLBACK",
+      source: shortSellLatest?.source ?? "—",
+      lastSyncedAt: lastSync.short_selling_ratio?.createdAt?.toISOString() ?? null,
+      latestDate: isoDate(shortSellLatest?.date ?? null),
+      ageDays: shortSellAge,
+      rowsInserted: lastSync.short_selling_ratio?.itemCount ?? null,
+      totalCount: shortSellCount,
+      coveredSymbols: null,
+      nextCron: "18:30 JST 每工作日",
+      errorMessage: !shortSellLatest
+        ? "尚未同步 — 运行 fetch-short-selling-ratio.ts"
+        : shortSellAge != null && shortSellAge > 5
+        ? `数据已 ${shortSellAge} 天，建议重新同步`
+        : (lastSync.short_selling_ratio?.status === "ERROR" ? lastSync.short_selling_ratio.message : null),
+      apiEndpoint: null,
+      isAsync: false,
+      extra: { shortSellRatio: shortSellLatest?.shortSellRatio },
+    },
+    {
+      id: "dividend_history",
+      taskName: "配当历史",
+      icon: "◈",
+      description: "J-Quants 5年配当记录（DivAnn / PayoutRatio / YieldRate）→ dividendScore",
+      status: dividendCount > 10000 ? "REAL" : dividendCount > 0 ? "PARTIAL" : "NEVER_SYNCED",
+      source: "jquants_fins",
+      lastSyncedAt: lastSync.dividend_history?.createdAt?.toISOString() ?? null,
+      latestDate: dividendLatest ? String(dividendLatest.year) : null,
+      ageDays: dividendAge,
+      rowsInserted: lastSync.dividend_history?.itemCount ?? null,
+      totalCount: dividendCount,
+      coveredSymbols: null,
+      nextCron: "22:30 JST 每日",
+      errorMessage: dividendCount === 0
+        ? "无数据 — 运行 fetch-dividend-history.ts"
+        : (lastSync.dividend_history?.status === "ERROR" ? lastSync.dividend_history.message : null),
+      apiEndpoint: null,
+      isAsync: false,
+      extra: { latestYear: dividendLatest?.year },
     },
     {
       id: "line_gpt",

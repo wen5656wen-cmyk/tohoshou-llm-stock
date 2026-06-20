@@ -1,8 +1,8 @@
 #!/usr/bin/env npx tsx
 /**
- * Validate all LINE Flex Message button URLs
+ * Validate all LINE Flex Message button URLs (V7.9 + legacy)
  * - Must be absolute https://aitohoshou.com URLs
- * - No localhost, undefined, null, or relative paths
+ * - No localhost, 127.0.0.1, undefined, null, or relative paths
  * - Core pages must return HTTP 200
  *
  * Usage:  npm run validate:line-links
@@ -11,6 +11,40 @@
 
 import "dotenv/config";
 import { getBaseUrl, stockUrl, aiPicksUrl, aiThemeUrl, screenerUrl, newsUrl, notificationsUrl, portfolioUrl, syncUrl, normalizeSymbolForUrl } from "../lib/app-url";
+
+// ��─ Exported library function (used by test-line-v79.ts) ─────────────────────
+
+export interface ValidationResult {
+  valid: boolean;
+  issues: string[];
+  uriCount: number;
+  checkedUris: string[];
+}
+
+const BAD_PATTERNS = [
+  { re: /localhost/i,              label: "localhost" },
+  { re: /127\.0\.0\.1/,           label: "127.0.0.1" },
+  { re: /"uri"\s*:\s*"\/[^h]/,    label: "relative path" },
+  { re: /"uri"\s*:\s*"undefined"/, label: "undefined URI" },
+  { re: /"uri"\s*:\s*"null"/,     label: "null URI" },
+  { re: /"uri"\s*:\s*""/,         label: "empty URI" },
+];
+
+export function validateFlexUrls(json: string): ValidationResult {
+  const issues: string[] = [];
+  const checkedUris: string[] = [];
+  const uriMatches = [...json.matchAll(/"uri"\s*:\s*"([^"]+)"/g)];
+  for (const m of uriMatches) checkedUris.push(m[1]);
+  for (const { re, label } of BAD_PATTERNS) {
+    if (re.test(json)) issues.push(`Found bad URL pattern: ${label}`);
+  }
+  for (const uri of checkedUris) {
+    if (!uri.startsWith("https://") && !uri.startsWith("http://")) {
+      issues.push(`Non-https URI: ${uri.slice(0, 80)}`);
+    }
+  }
+  return { valid: issues.length === 0, issues, uriCount: checkedUris.length, checkedUris };
+}
 import {
   buildMorningReportFlex,
   buildMiddayFlex,
@@ -27,6 +61,16 @@ import {
   buildWelcomeFlex,
   buildGroupJoinFlex,
 } from "../lib/line-flex";
+import {
+  buildTopPicksFlexV79,
+  buildStockCardV79,
+  buildMarketOverviewFlexV79,
+  buildSectorFlexV79,
+  buildHelpFlexV79,
+  buildDataSourceFlexV79,
+  buildWelcomeFlexV79,
+  buildGroupJoinFlexV79,
+} from "../lib/line-flex-v79";
 
 const BASE = getBaseUrl();
 const DRY_RUN = process.env.DRY_RUN === "1";
@@ -122,7 +166,30 @@ function buildAllFlexPayloads(): Record<string, unknown> {
     { ...mockStock, symbol: "9613.T", nameZh: "NTT Data", theme: "TECH_SERVICES" },
   ];
 
+  const mockV79Stock = {
+    ...mockStock, adaptiveScore: 65, recommendationV2: "HOLD",
+    percentileRank: 20, marketRank: 300, opportunityScore: 55,
+    return20d: -1.3, rsi14: 52, maTrend: "BULLISH", macdSignalLabel: "BUY",
+    technicalScore: 18, fundamentalScore: 16, moneyFlowScore: 13,
+    newsSentimentScore: 9, globalTrendScore: 6,
+    stockStyle: "CYCLICAL_EXPORTER", highRiskFlag: false,
+    catalystScore: 5.5, dividendScore: 7, dividendYield: 3.4,
+    shortSellingRatio: 38.8, shortSellingSource: "jpx_real",
+    scoreSource: "REAL", latestDate: "2026-06-19",
+    recommendationReason: null, opportunityLabel: "STEADY",
+    payoutRatio: 0.321, dividendAnn: 120, shortSellingDate: "2026-06-19",
+  };
+  const mockMarketV79 = {
+    dateStr: "2026-06-21", marketTemperature: "COLD",
+    strongBuy: 0, buy: 35, hold: 206, watch: 1680, avoid: 1828, total: 3749,
+    top1: { symbol: "291A.T", name: "Reskill", adaptiveScore: 77, recommendationV2: "BUY", percentileRank: 0.9 },
+    globalMarket: { nasdaqChange: 0.5, sp500Change: 0.3, vix: 16.78, nikkeiChange: -0.2, topixChange: -0.1, usdjpy: 156.8, score: 7 },
+    instFlow: { investorType: "foreigners", netAmount: 350, date: new Date("2026-06-12"), source: "jquants_investor_types" },
+    shortSellRatio: 38.8, shortSellSource: "jpx_real", shortSellDate: "2026-06-19",
+  };
+
   return {
+    // Legacy push builders (unchanged)
     morning: buildMorningReportFlex(mockStocks.slice(0, 5), "2026-06-20", "金"),
     midday: buildMiddayFlex(mockStocks.slice(0, 3), mockStocks.slice(3, 6), mockStocks.slice(6, 9), "2026-06-20"),
     close: buildCloseReportFlex({ dateStr: "2026-06-20", dowLabel: "金", total: 3714, strongBuy: 12, buy: 85, hold: 200, watch: 500, avoid: 2900, avgScore: 52, topPerformers: mockStocks.slice(0, 3), fishingCandidates: mockStocks.slice(3, 6) }),
@@ -137,6 +204,15 @@ function buildAllFlexPayloads(): Record<string, unknown> {
     help: buildHelpFlex(),
     welcome: buildWelcomeFlex(),
     groupJoin: buildGroupJoinFlex(),
+    // V7.9 chat builders
+    v79_topPicks: buildTopPicksFlexV79([mockV79Stock], "2026-06-21", 5),
+    v79_stockCard: buildStockCardV79(mockV79Stock),
+    v79_marketOverview: buildMarketOverviewFlexV79(mockMarketV79),
+    v79_sector: buildSectorFlexV79([mockV79Stock], "半导体", "2026-06-21", "COLD"),
+    v79_help: buildHelpFlexV79(),
+    v79_dataSource: buildDataSourceFlexV79("2026-06-21"),
+    v79_welcome: buildWelcomeFlexV79(),
+    v79_groupJoin: buildGroupJoinFlexV79(),
   };
 }
 

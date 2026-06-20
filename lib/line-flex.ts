@@ -532,6 +532,31 @@ export type StockCardData = StockNameFields & {
   moneyFlowScore?: number | null;
   newsSentimentScore?: number | null;
   globalTrendScore?: number | null;
+  adaptiveScore?: number | null;
+  stockStyle?: string | null;
+  scoreSource?: string | null;
+  latestDate?: string | null;
+  // V7.7
+  recommendationV2?: string | null;
+  recommendationReason?: string | null;
+  percentileRank?: number | null;
+  marketRank?: number | null;
+  opportunityScore?: number | null;
+};
+
+const STYLE_LABEL: Record<string, string> = {
+  VALUE_DEFENSIVE:       "价值防御型",
+  GROWTH_MOMENTUM:       "成长动能型",
+  QUALITY_COMPOUNDER:    "优质复利型",
+  SPECULATIVE_MOMENTUM:  "投机动能型",
+  CYCLICAL_EXPORTER:     "周期出口型",
+  DOMESTIC_DEFENSIVE:    "内需防御型",
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  REAL:     "✅ REAL",
+  PARTIAL:  "⚠️ PARTIAL",
+  FALLBACK: "🔴 FALLBACK",
 };
 
 export function buildStockCard(stock: StockCardData): LineFlexMessage {
@@ -539,50 +564,104 @@ export function buildStockCard(stock: StockCardData): LineFlexMessage {
   const subName = getStockSubName(stock);
   const rec = stock.recommendation;
   const score = stock.totalScore ?? 0;
-  const reasonRaw = stock.summaryReason?.replace(/\[.*?\]/g, "").trim() ?? "";
+  const code = stock.symbol.replace(".T", "");
 
   const scoreItems: FlexComponent[] = [];
   const dims: Array<[string, number | null | undefined, number]> = [
-    ["技術", stock.technicalScore, 30],
-    ["基本", stock.fundamentalScore, 25],
-    ["資金", stock.moneyFlowScore, 20],
-    ["ニュース", stock.newsSentimentScore, 15],
-    ["グローバル", stock.globalTrendScore, 10],
+    ["技術面", stock.technicalScore, 30],
+    ["基本面", stock.fundamentalScore, 25],
+    ["資金面", stock.moneyFlowScore, 20],
+    ["情绪面", stock.newsSentimentScore, 15],
+    ["全球趋势", stock.globalTrendScore, 10],
   ];
   dims.forEach(([label, val, max]) => {
     if (val == null) return;
-    const pct = Math.round((val / max) * 100);
+    const bar = "█".repeat(Math.round((val / max) * 5)) + "░".repeat(5 - Math.round((val / max) * 5));
     scoreItems.push(
       box("horizontal", [
         txt(label, { size: "xxs", color: COLOR.TEXT_SUB, flex: 3 }),
         txt(`${val}/${max}`, { size: "xxs", color: COLOR.TEXT_MAIN, flex: 2, align: "end" }),
-        txt(`(${pct}%)`, { size: "xxs", color: COLOR.TEXT_SUB }),
+        txt(bar, { size: "xxs", color: "#60A5FA", margin: "sm" }),
       ], { margin: "xs" })
     );
   });
 
   const bodyContents: FlexComponent[] = [
-    txt(displayName, { size: "xl", weight: "bold", color: COLOR.TEXT_MAIN, wrap: true }),
-    txt(subName, { size: "sm", color: COLOR.TEXT_SUB }),
-    sep(),
+    // Header row: name + code
     box("horizontal", [
       box("vertical", [
-        txt(String(score), { size: "4xl", weight: "bold", color: recColor(rec) }),
-        txt("AI 評分", { size: "xxs", color: COLOR.TEXT_SUB }),
-      ], { flex: 1 }),
+        txt(displayName, { size: "lg", weight: "bold", color: COLOR.TEXT_MAIN, wrap: true }),
+        txt(`${code}.T  ${subName}`, { size: "xxs", color: COLOR.TEXT_SUB }),
+      ], { flex: 3 }),
       box("vertical", [
-        txt(recLabel(rec), { size: "md", weight: "bold", color: recColor(rec) }),
-        txt(priceText(stock.latestClose), { size: "sm", color: COLOR.TEXT_MAIN, margin: "sm" }),
-        box("horizontal", [
-          txt("5日", { size: "xxs", color: COLOR.TEXT_SUB }),
-          txt(pctText(stock.return5d), { size: "xs", weight: "bold", color: pctColor(stock.return5d), margin: "xs" }),
-          txt("20日", { size: "xxs", color: COLOR.TEXT_SUB, margin: "sm" }),
-          txt(pctText(stock.return20d), { size: "xs", weight: "bold", color: pctColor(stock.return20d), margin: "xs" }),
-        ]),
-      ], { flex: 2, margin: "sm" }),
+        txt(String(score), { size: "3xl", weight: "bold", color: recColor(rec), align: "end" }),
+        txt("AI总分/100", { size: "xxs", color: COLOR.TEXT_SUB, align: "end" }),
+      ], { flex: 2, alignItems: "flex-end" }),
     ], { margin: "sm" }),
-    ...(scoreItems.length > 0 ? [sep(), txt("スコア内訳", { size: "xs", color: COLOR.TEXT_SUB, margin: "sm" }), ...scoreItems] : []),
-    ...(reasonRaw ? [sep(), txt(`💡 ${reasonRaw.slice(0, 80)}`, { size: "xs", color: COLOR.TEXT_SUB, wrap: true, margin: "sm" })] : []),
+    sep(),
+    // Price + return row
+    box("horizontal", [
+      box("vertical", [
+        txt(priceText(stock.latestClose), { size: "md", weight: "bold", color: COLOR.TEXT_MAIN }),
+        txt("最新股价", { size: "xxs", color: COLOR.TEXT_SUB }),
+      ], { flex: 1 }),
+      box("horizontal", [
+        box("vertical", [
+          txt(pctText(stock.return5d), { size: "sm", weight: "bold", color: pctColor(stock.return5d), align: "center" }),
+          txt("5日", { size: "xxs", color: COLOR.TEXT_SUB, align: "center" }),
+        ], { flex: 1 }),
+        box("vertical", [
+          txt(pctText(stock.return20d), { size: "sm", weight: "bold", color: pctColor(stock.return20d), align: "center" }),
+          txt("20日", { size: "xxs", color: COLOR.TEXT_SUB, align: "center" }),
+        ], { flex: 1 }),
+      ], { flex: 2 }),
+    ], { margin: "sm" }),
+    sep(),
+    // V7.7: Primary rating row (recommendationV2 takes precedence)
+    box("horizontal", [
+      box("vertical", [
+        txt(recLabel(stock.recommendationV2 ?? stock.recommendation), { size: "sm", weight: "bold", color: recColor(stock.recommendationV2 ?? stock.recommendation) }),
+        txt("评级V2（双门槛）", { size: "xxs", color: COLOR.TEXT_SUB }),
+      ], { flex: 1 }),
+      ...(stock.percentileRank != null ? [
+        box("vertical", [
+          txt(`前${stock.percentileRank.toFixed(1)}%`, { size: "sm", weight: "bold", color: "#F6AD55", align: "center" }),
+          txt(`第${stock.marketRank ?? "—"}位`, { size: "xxs", color: COLOR.TEXT_SUB, align: "center" }),
+        ], { flex: 1 }),
+      ] : []),
+      ...(stock.opportunityScore != null ? [
+        box("vertical", [
+          txt(stock.opportunityScore.toFixed(0), { size: "sm", weight: "bold", color: "#68D391", align: "end" }),
+          txt("机会分", { size: "xxs", color: COLOR.TEXT_SUB, align: "end" }),
+        ], { flex: 1 }),
+      ] : []),
+    ], { margin: "sm" }),
+    // Style + adaptiveScore row
+    box("horizontal", [
+      box("vertical", [
+        txt(stock.adaptiveScore?.toFixed(1) ?? "—", { size: "sm", weight: "bold", color: "#60A5FA" }),
+        txt("风格评分", { size: "xxs", color: COLOR.TEXT_SUB }),
+      ], { flex: 1 }),
+      ...(stock.stockStyle ? [
+        box("vertical", [
+          txt(STYLE_LABEL[stock.stockStyle] ?? stock.stockStyle, { size: "xxs", color: "#93C5FD", align: "end", wrap: true }),
+          txt("风格", { size: "xxs", color: COLOR.TEXT_SUB, align: "end" }),
+        ], { flex: 2 }),
+      ] : []),
+    ], { margin: "xs" }),
+    // 5-dim scores
+    ...(scoreItems.length > 0 ? [
+      sep(),
+      txt("五维评分", { size: "xxs", weight: "bold", color: COLOR.TEXT_SUB, margin: "sm" }),
+      ...scoreItems,
+    ] : []),
+    // Data source footer
+    sep(),
+    box("horizontal", [
+      txt(SOURCE_LABEL[stock.scoreSource ?? ""] ?? "—", { size: "xxs", color: stock.scoreSource === "REAL" ? "#4ADE80" : COLOR.WATCH }),
+      txt(`数据日期: ${stock.latestDate ?? "—"}`, { size: "xxs", color: COLOR.TEXT_SUB, align: "end" }),
+    ], { margin: "xs" }),
+    txt("📊 J-Quants · TOHOSHOU AI V7.6", { size: "xxs", color: COLOR.TEXT_SUB, margin: "xs" }),
   ];
 
   const bubble: FlexBubble = {
@@ -656,6 +735,13 @@ export type AiPicksStock = StockNameFields & {
   moneyFlowScore?: number | null;
   newsSentimentScore?: number | null;
   globalTrendScore?: number | null;
+  adaptiveScore?: number | null;
+  stockStyle?: string | null;
+  // V7.7
+  recommendationV2?: string | null;
+  percentileRank?: number | null;
+  opportunityScore?: number | null;
+  highRiskFlag?: boolean;
 };
 
 export function buildAiPicksChatFlex(
@@ -669,25 +755,30 @@ export function buildAiPicksChatFlex(
   function compactRow(s: AiPicksStock, rank: number): FlexComponent {
     const name = getStockDisplayName(s);
     const sym = s.symbol.replace(".T", "");
-    const score = s.totalScore ?? 0;
-    const rec = s.recommendation;
+    // V7.7: use recommendationV2 for color; adaptiveScore as primary display score
+    const displayScore = s.adaptiveScore != null ? s.adaptiveScore.toFixed(0) : String(s.totalScore ?? "—");
+    const rec = s.recommendationV2 ?? s.recommendation; // V7.7 first
+    const riskIcon = s.highRiskFlag ? "⚠" : "";
+    // dim line: numeric only, no GPT phrases
     const dims = [
       s.technicalScore != null ? `技${s.technicalScore}` : null,
       s.fundamentalScore != null ? `基${s.fundamentalScore}` : null,
-      s.moneyFlowScore != null ? `資${s.moneyFlowScore}` : null,
-      s.newsSentimentScore != null ? `話${s.newsSentimentScore}` : null,
-      s.globalTrendScore != null ? `G${s.globalTrendScore}` : null,
+      s.moneyFlowScore != null ? `资${s.moneyFlowScore}` : null,
+      s.newsSentimentScore != null ? `情${s.newsSentimentScore}` : null,
+      s.globalTrendScore != null ? `全${s.globalTrendScore}` : null,
+      s.percentileRank != null ? `前${s.percentileRank.toFixed(1)}%` : null,
     ].filter(Boolean).join(" ");
+    const styleLabel = s.stockStyle ? (STYLE_LABEL[s.stockStyle] ?? s.stockStyle).slice(0, 5) : null;
 
     return box("vertical", [
       box("horizontal", [
         txt(`${rank}`, { size: "xs", color: COLOR.TEXT_SUB, flex: 0, margin: "none" }),
         box("vertical", [
-          txt(name, { size: "sm", weight: "bold", color: COLOR.TEXT_MAIN, wrap: true }),
-          txt(sym, { size: "xxs", color: COLOR.TEXT_SUB }),
+          txt(`${riskIcon}${name}`, { size: "sm", weight: "bold", color: s.highRiskFlag ? COLOR.WATCH : COLOR.TEXT_MAIN, wrap: true }),
+          txt(`${sym}.T${styleLabel ? "  " + styleLabel : ""}`, { size: "xxs", color: COLOR.TEXT_SUB }),
         ], { flex: 3, margin: "xs" }),
         box("vertical", [
-          txt(String(score), { size: "lg", weight: "bold", color: recColor(rec), align: "end" }),
+          txt(displayScore, { size: "lg", weight: "bold", color: recColor(rec), align: "end" }),
           txt(recLabel(rec), { size: "xxs", color: recColor(rec), align: "end" }),
           txt(pctText(s.return5d), { size: "xxs", weight: "bold", color: pctColor(s.return5d), align: "end" }),
         ], { flex: 2, alignItems: "flex-end" }),

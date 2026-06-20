@@ -266,11 +266,41 @@ model StockScore {
   highRiskFlag       Boolean   @default(false)
   fxSensitivity      String?   // EXPORT_POSITIVE | DOMESTIC_NEUTRAL | IMPORT_SENSITIVE | FX_NEUTRAL
   catalystScore      Float?    // 0-10, based on recent Disclosure events
+  // V7.7: relative ranking + dual-threshold recommendation
+  percentileRank     Float?    // 1-100 (lower = better: 1=top 1%, 50=median, 100=bottom)
+  marketRank         Int?      // absolute rank by adaptiveScore (1=best in market)
+  recommendationV2   String?   // STRONG_BUY | BUY | HOLD | WATCH | AVOID (dual-threshold)
+  recommendationReason String? // human-readable reason for V2 rating
+  // V7.7: opportunity scoring
+  opportunityScore   Float?    // 0-100 composite opportunity metric
+  opportunityRank    Int?      // rank by opportunityScore (1=best)
+  opportunityLabel   String?   // STEADY | HIGH_RISK_SPECULATIVE
+  // V7.8: dividend & short selling
+  dividendScore      Int?      // 0-10 dividend quality score
+  shortSellingSource String?   // "jpx_real" | "fallback"
 
   @@index([totalScore(sort: Desc)])
+  @@index([adaptiveScore(sort: Desc)])
+  @@index([recommendationV2])
+  @@index([percentileRank])
   @@index([computedAt(sort: Desc)])
   @@index([market])
   @@index([recommendation])
+}
+
+// V7.8: Daily short selling ratio (JPX market-wide data)
+model ShortSellingRatio {
+  id               Int      @id @default(autoincrement())
+  date             DateTime @db.Date
+  market           String   @default("ALL") // ALL (TSE total) or market code
+  shortSellRatio   Float?   // short sell / total trading value (%)
+  shortSellValue   Float?   // short selling value (百万円)
+  totalTradingValue Float?  // total market trading value (百万円)
+  source           String   @default("FALLBACK") // jpx_real | FALLBACK
+  createdAt        DateTime @default(now())
+
+  @@unique([date, market])
+  @@index([date(sort: Desc)])
 }
 
 // Market-wide investor type weekly trading flow (TSE/JPX 投資部門別売買動向)
@@ -429,14 +459,39 @@ model SyncJob {
   @@index([status])
 }
 
-// AI产业链主题分类 (TOHOSHOU AI Theme Screener)
+// AI产业链主题分类 v8.0 (TOHOSHOU AI Supply Chain Map)
 model AITheme {
-  id        Int      @id @default(autoincrement())
-  symbol    String   @unique
-  theme     String   // AI_SOFTWARE | SEMICONDUCTOR | ROBOTICS | DATACENTER | AI_CONCEPT
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  symbol           String
+  theme            String   // 14 fine-grained categories
+  subTheme         String?  // subdivision label
+  role             String?  // company role in supply chain
+  supplyChainLayer String?  // UPSTREAM | MIDSTREAM | DOWNSTREAM | INFRASTRUCTURE | APPLICATION
+  importanceScore  Int      @default(5)  // 1-10
+  reason           String?  @db.Text
+  riskNote         String?  @db.Text
+  isCore           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
+  @@unique([symbol, theme])
   @@index([theme])
+  @@index([symbol])
+  @@index([supplyChainLayer])
+  @@index([isCore])
   @@map("ai_themes")
+}
+
+// Per-user AI system settings (V7.9.3 System Control)
+model UserAiSettings {
+  id             Int      @id @default(autoincrement())
+  userId         String   @unique  // LINE userId or web sessionId
+  aiEnabled      Boolean  @default(true)
+  mode           String   @default("STOCK")  // STOCK | CHAT | OFF
+  strictRealData Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_ai_settings")
 }

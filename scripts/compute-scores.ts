@@ -14,7 +14,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { calcIndicators } from "../lib/indicators";
-import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData, computeCatalystScore } from "../lib/ai-score";
+import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData, computeCatalystScore, calcDividendScore } from "../lib/ai-score";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -27,16 +27,16 @@ function computeRecommendationV2(
   adaptiveScore: number,
   percentileRank: number,
 ): { rec: string; reason: string } {
-  if (adaptiveScore >= 78 && percentileRank <= 2) {
+  if (adaptiveScore >= 75 && percentileRank <= 5) {
     return {
       rec: "STRONG_BUY",
-      reason: `adaptiveScore=${adaptiveScore.toFixed(1)}（≥78）且前${percentileRank.toFixed(1)}%（≤2%）`,
+      reason: `adaptiveScore=${adaptiveScore.toFixed(1)}（≥75）且前${percentileRank.toFixed(1)}%（≤5%）`,
     };
   }
-  if (adaptiveScore >= 70 && percentileRank <= 10) {
+  if (adaptiveScore >= 70 && percentileRank <= 15) {
     return {
       rec: "BUY",
-      reason: `adaptiveScore=${adaptiveScore.toFixed(1)}（≥70）且前${percentileRank.toFixed(1)}%（≤10%）`,
+      reason: `adaptiveScore=${adaptiveScore.toFixed(1)}（≥70）且前${percentileRank.toFixed(1)}%（≤15%）`,
     };
   }
   if (adaptiveScore >= 60) {
@@ -87,6 +87,23 @@ function computeOpportunityScore(params: {
 async function main() {
   console.log("=== AI评分全量计算 V7.7 ===\n");
   const start = Date.now();
+
+  // ── 预加载空売り比率 ──────────────────────────────────────────────────────────
+  const latestShortSelling = await prisma.shortSellingRatio.findFirst({
+    where: { market: "ALL", source: "jpx_real" },
+    orderBy: { date: "desc" },
+    select: { date: true, shortSellRatio: true, source: true },
+  });
+  const shortSellingSource = latestShortSelling ? "jpx_real" : "fallback";
+  const shortSellRatio = latestShortSelling?.shortSellRatio ?? null;
+  if (latestShortSelling) {
+    const dateStr = latestShortSelling.date instanceof Date
+      ? latestShortSelling.date.toISOString().split("T")[0]
+      : String(latestShortSelling.date).split("T")[0];
+    console.log(`✓ ShortSellingRatio: ${dateStr}, 市場空売り比率=${shortSellRatio?.toFixed(1)}%`);
+  } else {
+    console.log("⚠ ShortSellingRatio: 無実データ → shortSellingSource=fallback");
+  }
 
   // ── 预加载全球市场数据 ──────────────────────────────────────────────────────
   const latestGlobalMarket = await prisma.globalMarket.findFirst({
@@ -182,7 +199,7 @@ async function main() {
         const best = fins.find((f) => f.revenue !== null && f.netProfit !== null) ?? fins[0] ?? null;
 
         const [div, recentNews, recentDisclosures] = await Promise.all([
-          prisma.dividend.findFirst({ where: { symbol: stock.symbol }, orderBy: { year: "desc" }, select: { dividend: true, yieldRate: true } }),
+          prisma.dividend.findFirst({ where: { symbol: stock.symbol }, orderBy: { year: "desc" }, select: { dividend: true, yieldRate: true, payoutRatio: true } }),
           prisma.news.findMany({ where: { stockId: stock.id, relatedSymbolConfidence: { gte: 70 }, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { sentiment: true } }),
           prisma.disclosure.findMany({ where: { symbol: stock.symbol, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { category: true } }),
         ]);
@@ -214,13 +231,16 @@ async function main() {
           eps:             best ? toNum(best.eps)             : null,
           equityRatio:     best ? toNum(best.equityRatio)     : null,
           financialCount: fins.length,
-          divAnn:       div ? toNum(div.dividend)  : null,
-          divYieldRate: div ? toNum(div.yieldRate) : null,
+          divAnn:       div ? toNum(div.dividend)   : null,
+          divYieldRate: div ? toNum(div.yieldRate)  : null,
           newsScore, positiveNewsCount, negativeNewsCount, totalNewsCount,
           globalMarketData, institutionalFlowData,
         };
 
         const score = calcAiScore(input);
+        const divYield = div ? toNum(div.yieldRate) : null;
+        const divPayout = div ? toNum(div.payoutRatio) : null;
+        const dividendScore = calcDividendScore(divYield, divPayout);
 
         await prisma.stockScore.upsert({
           where: { symbol: stock.symbol },
@@ -245,6 +265,7 @@ async function main() {
             rawScore: score.rawScore, adaptiveScore: score.adaptiveScore,
             stockStyle: score.stockStyle, highRiskFlag: score.highRiskFlag,
             fxSensitivity: score.fxSensitivity, catalystScore: score.catalystScore,
+            dividendScore, shortSellingSource,
             // V7.7 fields will be filled in Pass 2
           },
           update: {
@@ -267,6 +288,7 @@ async function main() {
             rawScore: score.rawScore, adaptiveScore: score.adaptiveScore,
             stockStyle: score.stockStyle, highRiskFlag: score.highRiskFlag,
             fxSensitivity: score.fxSensitivity, catalystScore: score.catalystScore,
+            dividendScore, shortSellingSource,
           },
         });
         computed++;

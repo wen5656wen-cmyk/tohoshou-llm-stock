@@ -31,8 +31,7 @@ import {
   upsertLineGroup,
   deactivateLineGroup,
 } from "@/lib/line-agent";
-import { handleLineChat } from "@/lib/line-chat";
-import { buildWelcomeFlex, buildGroupJoinFlex } from "@/lib/line-flex";
+import { handleLineChat, buildWelcomeFlexV79, buildGroupJoinFlexV79 } from "@/lib/line-chat";
 
 export const runtime = "nodejs";
 
@@ -106,7 +105,7 @@ async function onFollow(event: LineFollowEvent): Promise<void> {
   const ownerId = process.env.LINE_OWNER_USER_ID;
   if (ownerId && userId !== ownerId) return;
 
-  await replyMessage(event.replyToken, [buildWelcomeFlex()]);
+  await replyMessage(event.replyToken, [buildWelcomeFlexV79()]);
 }
 
 async function onUnfollow(event: LineUnfollowEvent): Promise<void> {
@@ -122,7 +121,7 @@ async function onJoin(event: LineJoinEvent): Promise<void> {
   console.log(`[webhook] ✅ Bot 加入群组 groupId=${groupId}`);
 
   await upsertLineGroup(groupId).catch(() => {});
-  await replyMessage(event.replyToken, [buildGroupJoinFlex()]).catch(() => {});
+  await replyMessage(event.replyToken, [buildGroupJoinFlexV79()]).catch(() => {});
 }
 
 async function onLeave(event: LineLeaveEvent): Promise<void> {

@@ -52,6 +52,26 @@ type V2Score = {
   fundamentalReasons: string[];
   moneyFlowReasons: string[];
   detail: Record<string, number>;
+  // V7.7 pre-computed
+  adaptiveScore: number | null;
+  stockStyle: string | null;
+  scoreSource: string;
+  highRiskFlag: boolean;
+  percentileRank: number | null;
+  marketRank: number | null;
+  recommendationV2: string | null;
+  recommendationReason: string | null;
+  opportunityScore: number | null;
+  opportunityRank: number | null;
+  opportunityLabel: string | null;
+  // V7.8 dividend & short selling
+  dividendScore: number | null;
+  dividendYield: number | null;
+  payoutRatio: number | null;
+  dividendAnn: number | null;
+  shortSellingRatio: number | null;
+  shortSellingDate: string | null;
+  shortSellingSource: string | null;
 };
 
 type StockData = {
@@ -308,12 +328,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
     { key: "chart",      label: "价格图表" },
     { key: "financials", label: `财务 (${financials.length}条)` },
     { key: "indicators", label: "技术指标" },
-    { key: "ai",         label: aiScore ? `AI评分 ${aiScore.totalScore}分` : "AI评分" },
+    { key: "ai",         label: aiScore ? `AI评分 ${aiScore.adaptiveScore?.toFixed(0) ?? aiScore.totalScore}分` : "AI评分" },
     { key: "news",       label: "最新新闻" },
   ] as const;
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-4 md:p-6 max-w-5xl">
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
@@ -331,7 +351,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             {watched ? "已加自选" : "加入自选"}
           </button>
         </div>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <h1 style={{ fontSize: 32, fontWeight: 700, color: "#111827", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
               {stock.nameZh || stock.name}
@@ -392,12 +412,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-slate-100 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-slate-100 rounded-lg p-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === t.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             }`}
           >
@@ -409,7 +429,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* ── Tab: Overview ─────────────────────────────────────────────────── */}
       {activeTab === "overview" && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">移动均线</h3>
               <div className="space-y-3">
@@ -679,27 +699,41 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               暂无AI评分数据
             </div>
           ) : (() => {
-            const rec = REC_CFG[aiScore.recommendation] ?? REC_CFG.HOLD;
+            const rv2 = aiScore.recommendationV2 ?? aiScore.recommendation;
+            const rec = REC_CFG[rv2] ?? REC_CFG.HOLD;
             const riskColors = { LOW: "#10b981", MEDIUM: "#f59e0b", HIGH: "#ef4444" };
             const riskLabels = { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险" };
+            const STYLE_LABEL: Record<string, string> = {
+              QUALITY_COMPOUNDER: "质优复利", GROWTH_MOMENTUM: "成长动能",
+              CYCLICAL_EXPORTER: "出口周期", VALUE_DEFENSIVE: "价值防御",
+              DOMESTIC_DEFENSIVE: "内需防御", SPECULATIVE_MOMENTUM: "投机动能",
+            };
+            const SOURCE_LABEL: Record<string, string> = {
+              REAL: "✅ J-Quants 真实数据", PARTIAL: "⚠️ 部分真实", FALLBACK: "🔴 回测估算",
+            };
 
             return (
               <>
-                {/* Main Score Card — Dark */}
-                <div style={{ background: "#0f172a", borderRadius: 16, padding: "28px 32px", border: "1px solid #1e293b" }}>
-                  <div className="flex items-start justify-between gap-6">
-                    {/* Left: Score + label */}
+                {/* Main Score Card — Dark Bloomberg */}
+                <div style={{ background: "#0f172a", borderRadius: 16, padding: "20px 20px", border: "1px solid #1e293b" }}>
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+                    {/* Left: Score + V7.7 label */}
                     <div className="shrink-0">
-                      <div className="text-xs font-semibold tracking-widest mb-3" style={{ color: "#475569" }}>
-                        TOHOSHOU AI SCORE
+                      <div className="text-xs font-semibold tracking-widest mb-1" style={{ color: "#475569" }}>
+                        TOHOSHOU AI V7.7
                       </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 12 }}>
+                        {SOURCE_LABEL[aiScore.scoreSource] ?? aiScore.scoreSource}
+                      </div>
+                      {/* adaptiveScore (primary) */}
                       <div className="flex items-baseline gap-3 mb-2">
                         <span style={{ fontSize: 72, fontWeight: 900, lineHeight: 1, color: rec.color, fontVariantNumeric: "tabular-nums" }}>
-                          {aiScore.totalScore}
+                          {aiScore.adaptiveScore != null ? aiScore.adaptiveScore.toFixed(0) : aiScore.totalScore}
                         </span>
                         <span style={{ fontSize: 24, color: "#475569", fontWeight: 400 }}>/100</span>
                       </div>
-                      <div className="flex items-center gap-3 mb-4">
+                      {/* V7.7 primary rating */}
+                      <div className="flex items-center gap-3 mb-3">
                         <span style={{
                           fontSize: 18, fontWeight: 700, color: rec.color,
                           background: rec.glow, padding: "4px 12px", borderRadius: 8,
@@ -707,8 +741,29 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         }}>
                           {rec.label}
                         </span>
-                        <span style={{ color: "#f59e0b", fontSize: 16 }}>{aiScore.starsLabel}</span>
+                        {aiScore.highRiskFlag && (
+                          <span style={{ fontSize: 11, color: "#ef4444", background: "#ef444420", padding: "2px 8px", borderRadius: 6, border: "1px solid #ef444440" }}>⚠ 高风险</span>
+                        )}
                       </div>
+                      {/* Rank row */}
+                      <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                        {aiScore.percentileRank != null && (
+                          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                            市场排名：前 <strong style={{ color: "#f8fafc" }}>{aiScore.percentileRank.toFixed(1)}%</strong>（第 {aiScore.marketRank} 位）
+                          </span>
+                        )}
+                        {aiScore.opportunityScore != null && (
+                          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                            机会分：<strong style={{ color: "#f8fafc" }}>{aiScore.opportunityScore.toFixed(1)}</strong>
+                            {aiScore.opportunityLabel && <span style={{ color: "#64748b" }}> · {aiScore.opportunityLabel === "STEADY" ? "稳健" : "高风险"}</span>}
+                          </span>
+                        )}
+                      </div>
+                      {aiScore.stockStyle && (
+                        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
+                          风格：{STYLE_LABEL[aiScore.stockStyle] ?? aiScore.stockStyle}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <span style={{
                           fontSize: 11, fontWeight: 600, color: riskColors[aiScore.riskLevel],
@@ -719,13 +774,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                           {riskLabels[aiScore.riskLevel]}
                         </span>
                       </div>
-                      <p style={{ color: "#64748b", fontSize: 12, marginTop: 16, lineHeight: 1.6, maxWidth: 280 }}>
-                        {aiScore.summaryReason}
+                      <p style={{ color: "#64748b", fontSize: 12, marginTop: 12, lineHeight: 1.6, maxWidth: 280 }}>
+                        {aiScore.recommendationReason ?? aiScore.summaryReason}
                       </p>
                     </div>
 
-                    {/* Center: Radar */}
-                    <div className="flex-1 flex justify-center">
+                    {/* Center: Radar — hidden on mobile */}
+                    <div className="hidden md:flex flex-1 justify-center">
                       <RadarChart
                         tech={aiScore.technicalScore}
                         fund={aiScore.fundamentalScore}
@@ -736,7 +791,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     </div>
 
                     {/* Right: 5 bars */}
-                    <div className="shrink-0 w-56 space-y-4 pt-2">
+                    <div className="md:shrink-0 md:w-56 space-y-3 md:space-y-4 pt-0 md:pt-2">
                       <ScoreBar label="技術面" score={aiScore.technicalScore}     max={30} color="#3b82f6" />
                       <ScoreBar label="基本面" score={aiScore.fundamentalScore}   max={25} color="#10b981" />
                       <ScoreBar label="資金面" score={aiScore.moneyFlowScore}     max={20} color="#8b5cf6" />
@@ -747,7 +802,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 </div>
 
                 {/* Dimension Analysis Cards */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                   {[
                     { title: "技術面分析", reasons: aiScore.technicalReasons,    color: "#3b82f6", bg: "bg-blue-50/50",    border: "border-blue-100" },
                     { title: "基本面分析", reasons: aiScore.fundamentalReasons,  color: "#10b981", bg: "bg-emerald-50/50", border: "border-emerald-100" },
@@ -775,10 +830,48 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   </div>
                 )}
 
+                {/* V7.8: Dividend & Short Selling */}
+                {(aiScore.dividendYield != null || aiScore.shortSellingRatio != null) && (
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-4">配当 · 空売り</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {aiScore.dividendYield != null && (
+                        <div className="bg-teal-50 rounded-lg p-3">
+                          <div className="text-xs text-teal-600 mb-1">配当利回り</div>
+                          <div className="text-xl font-bold text-teal-700">{aiScore.dividendYield.toFixed(2)}%</div>
+                          {aiScore.dividendAnn != null && (
+                            <div className="text-xs text-teal-500 mt-1">年間 ¥{aiScore.dividendAnn.toFixed(0)}</div>
+                          )}
+                          {aiScore.payoutRatio != null && (
+                            <div className="text-xs text-teal-500">
+                              配当性向 {(aiScore.payoutRatio < 1.5 ? aiScore.payoutRatio * 100 : aiScore.payoutRatio).toFixed(0)}%
+                            </div>
+                          )}
+                          {aiScore.dividendScore != null && (
+                            <div className="text-xs text-teal-600 mt-1 font-medium">配当スコア {aiScore.dividendScore}/10</div>
+                          )}
+                        </div>
+                      )}
+                      {aiScore.shortSellingRatio != null && (
+                        <div className="bg-red-50 rounded-lg p-3">
+                          <div className="text-xs text-red-600 mb-1">市場空売り比率</div>
+                          <div className="text-xl font-bold text-red-700">{aiScore.shortSellingRatio.toFixed(1)}%</div>
+                          <div className="text-xs text-red-500 mt-1">
+                            {aiScore.shortSellingDate ? `${aiScore.shortSellingDate} JPX` : "JPX日次"}
+                          </div>
+                          <div className="text-xs text-red-400 mt-1">
+                            {aiScore.shortSellingSource === "jpx_real" ? "✓ 実データ" : "⚠ fallback"}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Sub-score Detail Bars */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                   <h3 className="text-sm font-semibold text-slate-700 mb-5">评分细项详情</h3>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                     {[
                       { label: "均线趋势",   key: "maTrendScore",       max: 12, color: "bg-blue-400" },
                       { label: "MACD信号",   key: "macdScore",           max: 8,  color: "bg-blue-400" },

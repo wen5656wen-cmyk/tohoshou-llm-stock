@@ -9,6 +9,7 @@ const navItems = [
   { href: "/indicators", label: "技术指标", icon: "▣" },
   { href: "/ai-picks", label: "AI推荐", icon: "✦" },
   { href: "/ai-theme", label: "AI产业链", icon: "⚡" },
+  { href: "/chat", label: "AI对话", icon: "💬" },
   { href: "/screener", label: "全市场筛选", icon: "◫" },
   { href: "/sectors", label: "行业分析", icon: "▤" },
   { href: "/watchlist", label: "自选股", icon: "★" },
@@ -22,7 +23,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-56 bg-[#0f1629] flex flex-col z-40">
+    <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 bg-[#0f1629] flex-col z-40">
       <div className="px-5 py-5 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
           <span className="text-xl text-blue-400">◈</span>

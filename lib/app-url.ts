@@ -6,9 +6,12 @@
  */
 
 export function getBaseUrl(): string {
+  // APP_URL is a server-side runtime variable (not baked in at build time).
+  // NEXT_PUBLIC_APP_URL is replaced by Next.js at build time — local builds
+  // would embed "http://localhost:3000" into the bundle, so it must come last.
   return (
-    process.env.NEXT_PUBLIC_APP_URL ??
     process.env.APP_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
     "https://aitohoshou.com"
   );
 }

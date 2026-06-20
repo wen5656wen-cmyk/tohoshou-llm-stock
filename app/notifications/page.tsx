@@ -136,9 +136,9 @@ export default function NotificationsPage() {
   const quotaExhausted = quota?.exhausted === true;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 p-4 md:p-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">🔔 通知管理</h1>
+        <h1 className="text-2xl font-bold text-slate-900">🔔 通知管理</h1>
         <p className="text-slate-400 text-sm mt-1">LINE Flex Message 設定・テスト・ログ</p>
       </div>
 
@@ -151,7 +151,7 @@ export default function NotificationsPage() {
               {quota.planLabel}
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-3">
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
               <p className="text-xs text-slate-400 mb-0.5">月間割当</p>
               <p className="text-lg font-bold text-white">{quota.value !== null ? `${quota.value.toLocaleString()} 通` : "無制限"}</p>
@@ -247,7 +247,7 @@ export default function NotificationsPage() {
               </label>
             ))}
 
-            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-700">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-700">
               {[
                 ["minScoreChange", "AI評分変化閾値", "点"],
                 ["minPriceChangePct", "価格変化閾値", "%"],

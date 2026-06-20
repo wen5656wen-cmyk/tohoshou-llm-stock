@@ -2,6 +2,572 @@
 
 ---
 
+## [8.2.0] - 2026-06-21 — v8.1 Mobile First 手机端全面适配
+
+### 概述
+完整移动端响应式改造，覆盖 9 个页面，新增 5 个移动端组件。桌面端布局完全保留，无破坏性变更。
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `components/mobile/MobileHeader.tsx` | 手机固定顶栏（TOHOSHOU AI + 当前页名 + 菜单按钮） |
+| `components/mobile/MobileBottomNav.tsx` | 手机固定底部导航（5项：首页/AI推荐/对话/筛选/产业链），safe-area 支持 |
+| `components/mobile/MobileDrawer.tsx` | 全屏侧滑导航抽屉（11项菜单 + 数据来源面板） |
+| `components/mobile/ResponsiveShell.tsx` | Client wrapper，统一管理 Drawer 开关状态 |
+| `components/StockMobileCard.tsx` | 筛选器手机端股票卡片（评级/评分/现价/涨跌/机会分） |
+
+### 页面改造
+| 页面 | 主要改动 |
+|------|---------|
+| `app/layout.tsx` | `md:ml-56 pt-14 md:pt-0 pb-20 md:pb-0`，引入 ResponsiveShell |
+| `components/Sidebar.tsx` | `hidden md:flex`，手机端隐藏侧边栏 |
+| `app/page.tsx` | stats 2×5→2col/5col，TOP3 1col/3col，score dist 2→3col |
+| `app/ai-picks/page.tsx` | mode/filter tabs overflow-x-scroll，TOP3 1/3col，5dim grid 2/5col |
+| `app/chat/page.tsx` | `h-[calc(100dvh-136px)] md:h-screen`，quick prompts 横向滚动，desktop header hidden on mobile |
+| `app/ai-theme/page.tsx` | stats 2/7col，14主题卡 2/3/7col，默认折叠主题卡，tabs overflow-x，stock grid 1/2/3col |
+| `app/ai-theme/[theme]/page.tsx` | 供应链横排→手机纵排+下箭头，stats 2/5col，stock grid 1/2col |
+| `app/screener/page.tsx` | 手机显示 StockMobileCard，桌面显示完整表格，filters overflow-x |
+| `app/stocks/[symbol]/page.tsx` | hero flex-col/row，tabs overflow-x，AI评分卡 flex-col/row，Radar手机隐藏，dimension cards 1/3col |
+| `app/sync/page.tsx` | header flex-col/row，summary 2/3/7col |
+| `app/notifications/page.tsx` | px-4 padding，heading text-slate-900，settings grid 1/3col |
+
+### 验收标准
+- 手机：隐藏 Sidebar，显示 MobileHeader(h-14) + MobileBottomNav(h-14+safe-area)
+- 内容区：`pt-14 pb-20` 防被固定组件遮挡
+- 聊天页：`h-[calc(100dvh-136px)]` 精确适配可视区
+- 筛选器：手机显示卡片，桌面显示完整11列表格
+
+---
+
+## [8.1.0] - 2026-06-21 — STRONG_BUY 阈值放宽 + CHIP_DESIGN 扩充 + 供应链流矢印修复
+
+### 概述
+- **STRONG_BUY 阈值放宽**：`adaptiveScore≥78 AND percentileRank≤2%` → `≥75 AND ≤5%` → 结果 STRONG_BUY=5（新增 Reskill教育/量化研究/日本M&A中心/阿特拉埃/Land不动产）
+- **BUY 阈值放宽**：`percentileRank≤10%` → `≤15%`
+- **CHIP_DESIGN 扩充**：3只 → 6只（新增 メガチップス/ソニー/富士電機）
+- **供应链流矢印修复**：`grid + absolute` → `flex + SVG arrow`，层级间视觉箭头正常显示
+
+### 修改文件
+| 文件 | 变更 |
+|------|------|
+| `scripts/compute-scores.ts` | `computeRecommendationV2()` 阈值调整 |
+| `scripts/seed-ai-themes.ts` | CHIP_DESIGN 新增 6875.T/6758.T/6504.T |
+| `app/ai-theme/[theme]/page.tsx` | 供应链流从 grid 改为 flex + SVG 矢印 |
+
+### 验收（生产 2026-06-21）
+- STRONG_BUY=5 ✅（原 0）
+- CHIP_DESIGN 6只 ✅（瑞萨/罗姆/滨松/メガチップス/索尼/富士电机）
+- /ai-theme/chip_design 返回 200，byLayer 正常 ✅
+- 供应链流箭头 → 正常渲染 ✅
+
+### 背景
+v8.0 生产数据显示最高 adaptiveScore=77（291A.T），旧阈值 78 导致 STRONG_BUY=0。
+
+---
+
+## [8.0.0] - 2026-06-21 — AI产业链地图：14细分主题完整产业链
+
+### 概述
+- **AITheme精细化重构**：从6个粗分类升级为14细分AI产业链主题
+- **106条目，82只股票，38个核心标的**
+- **供应链层级**：UPSTREAM→MIDSTREAM→DOWNSTREAM/INFRASTRUCTURE/APPLICATION
+- **每条目含**：role/supplyChainLayer/importanceScore/reason/riskNote/isCore
+- **股票可多主题归属**（东京电子同时属于SEMI_EQUIPMENT+TEST_EQUIPMENT）
+
+### 14细分主题
+| 主题 | 条目 | 核心 |
+|------|------|------|
+| AI芯片设计 | 3 | 1 |
+| AI半导体设备 | 8 | 5 |
+| AI测试设备 | 6 | 1 |
+| AI芯片材料 | 8 | 3 |
+| HBM・先进封装 | 7 | 2 |
+| AI传感器・精密 | 8 | 4 |
+| AI服务器・DC | 9 | 4 |
+| AI网络通信 | 8 | 2 |
+| AI机器人・自动化 | 8 | 3 |
+| AI软件・云・SaaS | 14 | 4 |
+| AI互联网・平台 | 6 | 2 |
+| AI医疗・生命科学 | 7 | 3 |
+| AI安防・图像识别 | 7 | 3 |
+| AI电力・能源 | 7 | 1 |
+
+### 新增/修改文件
+| 文件 | 变更 |
+|------|------|
+| `prisma/schema.prisma` | AITheme扩展字段，@@unique改为[symbol,theme]复合键 |
+| `scripts/seed-ai-themes.ts` | 全量重写，106条目14主题 |
+| `app/api/ai-theme/route.ts` | 重写，返回themes/layers/summary，使用adaptiveScore |
+| `app/api/ai-theme/[theme]/route.ts` | 新增，byLayer产业链详情 |
+| `app/ai-theme/page.tsx` | 重写，搜索/筛选/供应链层可视化/14主题卡/3列股票网格 |
+| `app/ai-theme/[theme]/page.tsx` | 新增，产业链流可视化+全量股票排列 |
+
+### 验收（生产 2026-06-21）
+- /ai-theme HTTP 200 ✅
+- /api/ai-theme HTTP 200 ✅，14主题全返回 ✅
+- 东京电子/Advantest/信越化学/SUMCO/Ibiden/NEC/Sakura Internet全显示 ✅
+- recommendationV2/adaptiveScore/dividendScore/catalystScore正常 ✅
+- /ai-theme/[theme] 6条路由全200 ✅
+- /ai-picks /screener /stocks不受影响 ✅
+
+---
+
+## [7.9.3] - 2026-06-21 — AI System Control Center
+
+### 概述
+- **系统控制命令**：START / STOP / RESET / STATUS — 最高优先级，绕过整个 pipeline（零 GPT / 零 DB 股票查询）
+- **AI 启停状态持久化**：新增 `UserAiSettings` DB 表，每用户独立开关
+- **AI 暂停门控**：`aiEnabled=false` 时任何非系统指令均返回暂停提示，彻底不触发意图引擎
+- **Web sessionId 追踪**：`/chat` 页面以 `sessionStorage` 稳定 session ID 传给后端，实现独立上下文隔离
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `lib/ai-control.ts` | detectSystemCommand / getAiEnabled / handleSystemCommand / buildStatusText / PAUSE_MSG |
+
+### 新增数据表
+| 表 | 字段 |
+|----|------|
+| `user_ai_settings` | userId(unique) / aiEnabled / mode / strictRealData / createdAt / updatedAt |
+
+### 修改文件
+- `lib/line-chat.ts`：最高优先级插入系统命令检测 + aiEnabled 门控
+- `app/api/chat/route.ts`：同上（系统命令 → aiEnabled → 正常 pipeline）
+- `app/chat/page.tsx`：sessionId 生成（sessionStorage）、传 userId 给后端、INTENT_BADGE 补全 17 种
+
+### 触发词（精确匹配）
+| 命令 | 触发词示例 |
+|------|-----------|
+| START | 启动AI / 开启AI / start / 唤醒 / 激活 |
+| STOP | 关闭AI / 停止 / 暂停 / stop / 休眠 |
+| RESET | 清空上下文 / 重置 / reset / 清空记忆 |
+| STATUS | 当前状态 / 状态 / status / AI状态 |
+
+### 验收结果（生产）
+- LINE 9步链 ✅（启动→状态→个股→停止→AI暂停→恢复→主题→重置→追问无上下文）
+- Web 3步链 ✅（启动→停止→AI暂停门控）
+- STATUS 显示完整数据源清单 ✅（3714 REAL / JPX REAL / 4691件 TDnet）
+- STRICT_REAL_DATA 始终 ON ✅
+
+---
+
+## [7.9.2] - 2026-06-21 — GPT Intent Engine 重构：DB-only 回答
+
+### 概述
+- **GPT 职责边界**：GPT 仅作为意图识别 fallback（输出 JSON only），所有回答 100% 来自 DB
+- **统一调用链**：`/api/chat` 和 LINE webhook 共用 `parseUserIntent → queryDatabase → buildAnswer`
+- **12种意图**：新增 `recommend_more`（记忆排除）、`stock_compare`（对比）、`risk_analysis`（风险）、`reason_explain`（解释原因）
+- **对话上下文**：30分钟 TTL，`lastSymbols/lastResults` 支持追问（"还有其他的"、"风险呢"、"为什么"）
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `lib/intent-schema.ts` | 统一类型：StructuredIntent / ConversationContext / DbQueryResult |
+| `lib/intent-engine.ts` | 意图解析（regex优先 + GPT JSON fallback）+ 上下文存储 |
+| `lib/query-engine.ts` | 所有意图的 DB 查询（12种意图统一入口） |
+| `lib/answer-builder.ts` | buildWebAnswer() + buildLineMessages()（zero GPT） |
+| `scripts/test-intent-engine.ts` | 14/14 意图测试 + 6种回答测试 |
+
+### 修改文件
+- `app/api/chat/route.ts`：简化至 50 行（pipeline 调用），移除旧 GPT 回答逻辑
+- `lib/line-chat.ts`：简化至 80 行（pipeline 调用），移除重复 DB 查询
+- `package.json`：新增 `test:intent-engine` / `test:intent-engine:dry`
+
+### 验收结果（生产）
+- Intent 14/14 ✅（regex 全命中，含 "高股息低风险的"、"丰田和伊藤忠比"、追问三连）
+- answerSource=DB ✅ hallucination=false ✅ 零 localhost URL ✅
+- 追问上下文：`top_picks→recommend_more→risk_analysis→reason_explain` 链全通
+
+---
+
+## [7.9.1] - 2026-06-21 — 修复 Flex Message localhost 链接根本原因
+
+### 修复
+- **`lib/app-url.ts` `getBaseUrl()` 优先级调整**：`APP_URL`（运行时读取）调整至 `NEXT_PUBLIC_APP_URL`（build-time bake-in）之前
+  - 根本原因：Next.js 在 build 时将 `NEXT_PUBLIC_*` 变量的值直接替换进 server bundle（webpack DefinePlugin），本地 `.env` 有 `NEXT_PUBLIC_APP_URL=http://localhost:3000`，导致生产 bundle 里该值被硬编码为 localhost
+  - 修复方案：在生产服务器 `.env` 加入 `APP_URL=https://aitohoshou.com`，`getBaseUrl()` 改为优先读 `APP_URL`（运行时 process.env，不会被 bake-in）
+  - Bundle 验证：server chunk 含 `process.env.APP_URL`（运行时）+ `"http://localhost:3000"`（旧 bake-in，被 `??` 跳过）+ `"https://aitohoshou.com"`（fallback）
+- **生产验收测试脚本** `scripts/test-line-production.ts` — 14/14 通过
+
+---
+
+## [7.9] - 2026-06-21 — LINE 全智能投资助手 V7.9 + Web Chat UI
+
+### 概述
+- **LINE NLP 意图引擎**：完全重构 LINE 对话入口，8种意图 + 100+公司名映射，零"不支持该查询"
+- **Flex Message V7.9**：全新8个 Flex 构建器，全链接经 app-url.ts 验证，零 localhost
+- **统一调用链**：parseLineIntent → queryRealData(DB only) → buildLineReply，GPT 禁止生成股票列表
+- **Web Chat UI**：`/chat` 页面，对话式AI助手，对接 `/api/chat`
+- **36/36 测试通过**：意图分类 14/14、Flex URL 8/8、边界用例 14/14
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `lib/line-intent.ts` | LINE NLP 意图解析器（8种意图类型、~100条公司名映射、SECTOR_MAP） |
+| `lib/line-flex-v79.ts` | V7.9 Flex Message 构建器（8个 builder + buildRealReason）|
+| `scripts/test-line-v79.ts` | 意图分类 + Flex URL 验证 + 边界用例测试脚本 |
+| `app/chat/page.tsx` | Web Chat UI（快速提问按钮、意图 badge、打字动画）|
+
+### 修改文件
+| 文件 | 修改 |
+|------|------|
+| `lib/line-chat.ts` | 完整重写：统一调用链，引入 parseLineIntent，移除"不支持该查询" |
+| `app/api/line/webhook/route.ts` | 使用 handleLineChat + buildWelcomeFlexV79 + buildGroupJoinFlexV79 |
+| `scripts/validate-line-links.ts` | 新增 validateFlexUrls() 导出 + V7.9 builders 验证 |
+| `components/Sidebar.tsx` | 新增「AI对话」入口（💬）|
+| `package.json` | 新增 test:line-v79 / validate:line-v79 脚本 |
+
+### 意图类型
+| 意图 | 触发示例 |
+|------|---------|
+| TOP_PICKS | 今天买什么 / 明天买什么 / 推荐十只 / 再推荐五只 |
+| STOCK_ANALYSIS | 7203 / 分析7203 / 丰田怎么样 / 伊藤忠值得买吗 |
+| TECH_THEME | 科技股 / 科技股谁最强 |
+| SECTOR_OUTLOOK | 半导体还能买吗 / 机器人 / 银行股怎么样 |
+| MARKET_OVERVIEW | 市场怎么样 / 日经怎么样 / 行情如何 |
+| DATA_SOURCE | 数据哪里来的 / 评分怎么算 |
+| HELP | 帮助 / 菜单 |
+| UNKNOWN | → 自动显示 HELP，永不回复"不支持" |
+
+### V7.9 Flex 构建器
+- `buildTopPicksFlexV79` — Carousel（每页5只，最多10只），含 percentileRank + 真实原因标签
+- `buildStockCardV79` — 5维评分雷达 + 配当分/收益率 + 空売り比率 + scoreSource REAL badge
+- `buildMarketOverviewFlexV79` — 市场温度 + 分布 + GlobalMarket + 机构流向 + 空売り
+- `buildSectorFlexV79` — 板块 TOP8 + return5d/return20d + percentileRank
+- `buildHelpFlexV79` — 7项功能指南，含自然语言示例
+- `buildDataSourceFlexV79` — 9数据来源列表
+- `buildWelcomeFlexV79` / `buildGroupJoinFlexV79` — V7.9 欢迎卡
+
+### 关键修复（TypeScript 类型）
+- `セブン&アイ` 作为对象键需要引号（syntax error）
+- `三菱ufj` 重复键去重
+- `sp500Change` 不存在于 GlobalMarket schema → 移除
+- `analysisPrefix` 由 `\s+` 改为 `\s*` → 支持`分析7203`（无空格）
+- MARKET_OVERVIEW 正则新增 `日经`（简体）覆盖 `日経`（繁体）
+
+---
+
+## [7.8.5] - 2026-06-21 — GPT Phase 2 Web Chat UI (prev label)
+
+### 新增
+- **`/chat` 页面** — Web Chat UI，对话式 AI 选股助手
+  - 聊天气泡 UI（用户消息 / AI 回复）
+  - 快速提问按钮：今日TOP5 / TOP10推荐 / 市场概况 / 科技股 / 半导体 / 汽车股
+  - Intent 标签：自动显示意图分类（AI推荐 / TOP10 / 个股分析 / 板块分析 / 市场概况）
+  - 打字中动画指示器（三点跳动）
+  - 自适应输入框（Enter 发送，Shift+Enter 换行，自动高度）
+  - 清空对话按钮
+  - 严格真实数据模式标识（REAL DATA badge）
+- **侧边栏新增「AI对话」入口**（💬 图标，位于 AI产业链 与 全市场筛选 之间）
+
+### 技术细节
+- 调用现有 `POST /api/chat`（GPT Phase 1.5 STRICT_REAL_DATA 模式）
+- 响应解析 `intent` 字段 → 意图 badge
+- 欢迎消息说明支持功能和数据来源
+- 全高度布局（header + 滚动消息区 + 快捷键 + 输入框）
+
+---
+
+## [7.8] - 2026-06-20 — 空売り比率 JPX REAL + 配当スコア + Sync Center 11源
+
+### 概述
+- **空売り比率（ShortSellingRatio）**：从 JPX 官网下载 PDF → `pdftotext` 解析 → 写入 `ShortSellingRatio` 表，source=jpx_real，数据：2026-06-19，38.8%
+- **配当スコア（dividendScore 0-10）**：利用已有 Dividend 表（32,315行），`calcDividendScore(yield%, payoutRatio)` 写入 StockScore，全量3714只
+- **Sync Center 11源**：`/api/sync/status` 新增 short_selling_ratio + dividend_history 两张源卡，生产全部 REAL ✅
+- **Cron 扩展**：18:30 JST 工作日（空売り）+ 22:30 JST 每日（配当历史）
+
+### 新文件
+| 文件 | 说明 |
+|------|------|
+| `scripts/fetch-short-selling-ratio.ts` | JPX PDF 下载 → pdftotext 解析 → upsert ShortSellingRatio |
+| `scripts/fetch-dividend-history.ts` | J-Quants fins/summary → 批量同步 Dividend（CONCURRENCY=5，7天去重）|
+
+### Schema 变更（已 `npx prisma db push` 到生产）
+| 变更 | 说明 |
+|------|------|
+| `ShortSellingRatio.market String @default("ALL")` | 新增字段，支持按市场区分 |
+| `ShortSellingRatio @@unique([date, market])` | 原 `@unique(date)` 改为联合唯一键 |
+| `StockScore.dividendScore Int?` | 配当质量分 0-10 |
+| `StockScore.shortSellingSource String?` | "jpx_real" 或 "fallback" |
+
+### 关键技术细节
+
+#### JPX PDF 解析
+- JPX 空売り比率每日 PDF：`https://www.jpx.co.jp/markets/statistics-equities/short-selling/nlsgeu0000XXX.pdf`
+- 生产服务器安装 `poppler-utils`（apt-get install -y poppler-utils）
+- `execSync('pdftotext /tmp/jpx_short.pdf -', { encoding: 'utf-8' })` 提取文本
+- PDF 文本含三个百分比：(a)/(d) 普通注文 ~61%、(b)/(d) 空売り+価格制限 ~32%、(c)/(d) 空売り ~7%
+- 总空売り比率 = [1]+[2]（b/d + c/d）≈ 38.8%
+
+#### 日期时区修复（CST 服务器）
+- 生产服务器为 CST（UTC+8），`new Date(y, m, d)` 创建 CST 午夜 = UTC 前一天
+- **必须用** `new Date(Date.UTC(year, month-1, day))` 确保 @db.Date 存储正确
+- 错误行（2026-06-18）仍在 DB 中但无害（orderBy date desc 始终取正确行）
+
+#### payoutRatio 单位处理
+- J-Quants `PayoutRatioAnn` 返回 0-1 小数（0.321 = 32.1%），非百分比
+- `calcDividendScore` 内自动检测：`payoutRatio < 1.5 → × 100 转为 %`
+- UI 同样需要此转换：`(pr < 1.5 ? pr * 100 : pr).toFixed(0) + "%"`
+
+### calcDividendScore 评分表（`lib/ai-score.ts`）
+| 配当利回り | 基础分 |
+|-----------|--------|
+| = 0 或 null | 0（无配当）|
+| < 1% | 1 |
+| 1-2% | 3 |
+| 2-3% | 5 |
+| 3-4% | 7 |
+| 4-6% | 8（甜蜜区间）|
+| ≥ 6% | 6（高yield陷阱风险）|
+
+配当性向 20-60%：+1；> 80%：-1；最大10分。
+
+### API 扩展（`/api/stocks/[symbol]/ai-score`）
+新增7个字段：
+- `dividendScore`（从 StockScore precomputed 或实时计算）
+- `dividendYield`（%，来自 Dividend.yieldRate）
+- `payoutRatio`（0-1 小数，来自 Dividend.payoutRatio，J-Quants 原始值）
+- `dividendAnn`（年间配当额，来自 Dividend.dividend）
+- `shortSellingRatio`（%，来自 ShortSellingRatio.shortSellRatio，最新）
+- `shortSellingDate`（ISO 日期字符串）
+- `shortSellingSource`（"jpx_real" 或 "fallback"）
+
+### compute-scores 更新（`scripts/compute-scores.ts`）
+- Pass1 开始前：预加载最新 ShortSellingRatio（where market="ALL", source="jpx_real"）
+- Pass1 逐股：`prisma.dividend.findFirst({ where: { symbol }, orderBy: { year: "desc" } })` 取配当，调 `calcDividendScore` 计算 dividendScore
+- 两者均写入 StockScore create + update 块
+
+### 股票详情页 AI Tab（`app/stocks/[symbol]/page.tsx`）
+新增「配当・空売り」面板（位于5维分数条之后）：
+- **配当卡**：年間配当（円）/ 配当利回り（%）/ 配当性向（%）/ dividendScore（0-10 星级）
+- **空売りカード**：市場空売り比率（%）/ 最新日期 / source badge（REAL/推算）
+
+### 生产验证（2026-06-20）
+```
+Symbol: 7203.T (Toyota)
+adaptiveScore: 48 / WATCH
+dividendScore: 7 / 10（precomputed）
+dividendYield: 3.42%，payoutRatio: 0.321（32.1%）
+shortSellingRatio: 38.8%
+shortSellingSource: jpx_real
+shortSellingDate: 2026-06-19
+Sync Center: 11/11 REAL ✅
+```
+
+### npm scripts 新增
+```bash
+npm run fetch-short-selling         # 抓取 JPX 空売り比率 PDF → ShortSellingRatio
+npm run fetch-short-selling:dry     # DRY_RUN 预览
+npm run fetch-dividend-history      # J-Quants fins/summary → Dividend（FORCE=1 强制全量）
+npm run fetch-dividend-history:dry  # DRY_RUN 预览
+```
+
+---
+
+## [7.7] - 2026-06-20 — 双门槛评级 V2 + 市场温度 + 机会分 + TDnet REAL
+
+### 概述
+- **recommendationV2**（双门槛）：STRONG_BUY（adaptiveScore≥78 AND percentileRank≤2%）/ BUY（≥70 AND ≤10%）/ HOLD / WATCH / AVOID
+- **MarketTemperature**：HOT/WARM/NEUTRAL/COLD/EXTREME_COLD，基于全市场 BUY+ 占比实时计算
+- **opportunityScore**：综合机会分（0-100），复合公式 = adaptiveScore×0.5 + 排名强度×0.2 + 资金×0.1 + catalyst×0.1 - 风险×0.1
+- **TDnet REAL 真实数据接通**：东京阿里云 IP 无地理封锁，Cookie 方案绕过 WAF 挑战
+
+### StockScore 新增字段（v7.7，已部署生产 DB）
+| 字段 | 说明 |
+|------|------|
+| `percentileRank` | Float 全市场百分位（越低越好，1=前1%） |
+| `marketRank` | Int 绝对排名（1=最佳） |
+| `recommendationV2` | 双门槛评级字符串 |
+| `recommendationReason` | 中文评级理由（含阈值） |
+| `opportunityScore` | 综合机会分 Float 0-100 |
+| `opportunityRank` | 机会分排名 Int |
+| `opportunityLabel` | STEADY \| HIGH_RISK_SPECULATIVE |
+
+### compute-scores 双Pass（`scripts/compute-scores.ts`）
+- **Pass 1**：逐股计算5维原始分 + adaptiveScore + stockStyle（同 V7.5）
+- **Pass 2**：全市场 3714 只排序 → percentileRank / marketRank → recommendationV2 / recommendationReason → opportunityScore / opportunityRank / opportunityLabel，批量更新 200条/批
+
+### API 更新
+- `GET /api/market-stats`：返回 marketTemperature / bullCount / bullRate / distribution / topAdaptive / topOpportunity
+- `GET /api/ai-scores?mode=top|opportunity|high_risk`：含全部 V7.7 字段 + marketStats 内嵌
+- `GET /api/screener`：新增 V7.7 列（adaptiveScore / percentileRank / recommendationV2 / opportunityScore / stockStyle / highRiskFlag）
+- `GET /api/stocks/[symbol]/ai-score`：从 StockScore 合并全部 V7.7 预计算字段
+- `POST /api/chat`：所有意图切换为 recommendationV2，响应含 percentileRank / opportunityScore / stockStyle
+
+### 前端更新
+- **`/ai-picks`**：MarketTemperatureBanner（5类分布格子）+ 三模式 Tab（综合/稳健机会/高风险动能）+ V7.7 评级 badge + percentileRank + opportunityScore
+- **`/screener`**：动态分列 / 排名列（前X%）/ 机会分列 / 风格过滤器 / 点击表头排序 / 高风险行浅红底色
+- **`/stocks/[symbol]` AI Tab**：主分数显示 adaptiveScore，V7.7 评级 badge，市场排名行，机会分行，风格标签，scoreSource badge
+
+### LINE 更新（`lib/line-flex.ts`）
+- `compactRow`：使用 recommendationV2 着色，展示 percentileRank（前X%），⚠ 高风险前缀
+
+### 生产数据（2026-06-20 部署后）
+- STRONG_BUY: 0 / BUY: 35（0.9%）/ MarketTemperature: COLD ❄️
+- 最高分：Reskill 291A.T，adaptiveScore=77
+
+---
+
+## [7.7-TDnet] - 2026-06-20 — TDnet REAL 真实数据接通
+
+### 问题
+- `lib/tdnet.ts` 此前全部返回 mock/fallback 数据
+- 原以为香港服务器被地理封锁，实际为 Cookie WAF 挑战
+
+### 根本原因（调查结论）
+1. GET `https://www.release.tdnet.info/` → HTTP 403，但 **Set-Cookie: te-w1-pri=xxx**
+2. 带该 Cookie 发 GET → HTTP 200
+3. 非地理封锁，非 Cloudflare，非 IP ban；东京阿里云 IP（8.209.247.68）可正常访问
+
+### 实现
+**`lib/tdnet.ts`（完整重写）**
+- `acquireSessionCookie()`：首次 GET 根页提取 `te-w1-pri` Cookie
+- `fetchTDnetForDate(date)`：分页 GET `I_list_NNN_YYYYMMDD.html`，带 Cookie + 浏览器 UA
+- 翻页检测：检查 HTML 是否含下一页链接（**不用行数判断**，因字母股票代码被过滤后行数偏少）
+- 代码解析：`XXXX0`（5位）→ 取前4位，仅保留 `/^\d{4}$/` 纯数字代码，过滤 `485A` 等字母代码
+- 1秒翻页间隔（robots.txt `Disallow: /`，法定公开信息）
+- 删除所有 mock / fallback 分支
+
+**`scripts/fetch-tdnet.ts`（新增）**
+- `DRY_RUN=1` 预览模式，默认同步最近5个工作日
+- 写入 Disclosure 表后自动更新 catalystScore（base=5 + min(3,count) + 业绩奖励 + 重要性奖励，范围 1-10）
+
+**`scripts/cron-scheduler.ts`**
+- 新增 `0 7 * * 1-5`（07:00 JST 工作日）：TDnet 同步
+- 确保先于 `0 7:30 * * *` compute-scores 运行
+
+**`app/api/sync/tdnet/route.ts`（重写）**
+- 改用 `fetchTDnetForDate`，同步最近3个工作日
+
+### 已验证数据
+- 2026-06-19 单日：288件公告（3页），有效4位代码 272件
+- 生产 DB（5天）：975件新增 + 已有历史 = 4691件总计
+- 673只股票 catalystScore 更新
+- 类型分布：OTHER 72% / EARNINGS 9.2% / DIVIDEND 5% / EQUITY 4.7% / BUYBACK 4.3% / MATERIAL 3.1% / FORECAST_REVISION 1.6%
+
+### 结论
+- **TDnet REAL = YES** ✅（东京 IP 可访问）
+- **TDnet proxy server：暂不需要**
+
+---
+
+## [7.6.2] - 2026-06-20 — LINE STRICT_REPLY 模板 + localhost 全清零
+
+### 问题
+1. LINE 回复仍含客服话术（"表现稳定/建议关注/进一步研究/业务布局良好"）
+2. URL 验证脚本确认全部 Flex URI 均为 https://aitohoshou.com（无 localhost）
+
+### 修复
+
+**`lib/line-flex.ts`**
+- `buildStockCard` 新增字段展示：`adaptiveScore`/`stockStyle`/`scoreSource`/`latestDate`/`数据来源 footer`
+- 五维评分加进度条 `█░` 可视化
+- `AiPicksStock` 新增 `adaptiveScore`/`stockStyle` 字段
+- `compactRow` 优先显示 `adaptiveScore`；评分行展示 `stockStyle` 缩写；删除 `summaryReason` 显示（防混入GPT话术）
+
+**`lib/line-chat.ts`**
+- 新增 `handleStockFlexCard(code)` — 查 DB → 返回 `buildStockCard` Flex（无 GPT 调用）
+- `handleLineChat` 中拦截 `^(\d{4})` 和 `^分析\d{4}` → 走 Flex 卡片路径，不再落入 `processMessage` 文本路径
+- `handleStockFlexCard` 在显示前清洗 `summaryReason`（删除「表现稳定/建议关注」等模板词）
+- 最终 fallback：直接返回使用指南文本，**不调用任何 GPT**
+
+**`lib/ai-agent.ts`**
+- `buildAnalysisReply`：完全删除 GPT 调用，输出纯结构化 DB 数据文本（含全字段）
+- `buildStockReply`：保留纯文本格式（LINE 走 Flex；此为 Web/API 文本 fallback）
+
+### validate:line-links 结果
+- 0 错误，1 警告（testFlex 无按钮，正常）
+- 全部 13 个 Flex payload 均通过 https://aitohoshou.com 验证
+
+### LINE 消息路由（修复后）
+| 输入 | 路由 | 输出 |
+|------|------|------|
+| `推荐/再推荐五只/TOP10` | V2 `ai_picks` → `handleAiPicks` | Flex Carousel，DB REAL TOP10 |
+| `科技股/半导体` | V2 `ai_theme` → `handleAiTheme` | Flex，科技主题TOP20 |
+| `伊藤忠怎么样/8001` | `handleStockFlexCard("8001")` | `buildStockCard` Flex |
+| `分析8001` | `handleStockFlexCard("8001")` | `buildStockCard` Flex |
+| 其他 | 直接返回使用指南 | 文本（无GPT） |
+
+---
+
+## [7.6.1] - 2026-06-20 — LINE 调用链 STRICT 修复
+
+### 问题
+- LINE "再推荐五只" → `parseV2Intent` 无匹配 → 落入 `buildGeneralReply` → GPT 自由编造 Toyota/Sony/Nintendo（100% 幻觉）
+
+### 修复（`lib/ai-agent.ts` 完全重写 + `lib/line-chat.ts` 修复）
+
+**`lib/ai-agent.ts`（完全重写）**
+- `parseIntent`：新增 `/推荐|精选|top10?|picks/i` 宽泛模式（覆盖"再推荐"/"推荐五只"等所有变体）
+- `buildPicksReply`：DB 查询改为 `scoreSource:"REAL"` + `adaptiveScore DESC`（原 `totalScore DESC`，无 REAL 过滤）
+- `buildGeneralReply`：**完全删除** — 原函数调用 `callAI(temperature=0.7)` 致使 GPT 自由编造推荐
+- `callAI`：`temperature: 0.2`（原 0.7）
+- `buildAnalysisReply`：新增 STRICT system prompt（6条禁止规则），GPT 只解读 DB 数据
+- 删除 `upProb()` / "上涨概率" 伪造指标
+- `unknown` 意图：直接返回使用指南，不调用 GPT
+
+**`lib/line-chat.ts`**
+- `parseV2Intent`：新增模式 `/(再推荐|推荐更多|多推荐|推荐[五六七八九十\d]+[只只])/i` → `ai_picks`
+- `handleAiPicks`：DB 查询改为 `scoreSource:"REAL"` + `adaptiveScore:{ not:null }` + `adaptiveScore DESC`
+
+### 修复后调用链
+```
+"再推荐五只" → parseV2Intent → "ai_picks" → handleAiPicks → DB REAL TOP10 → Flex 卡片
+```
+零 GPT 调用，零幻觉
+
+---
+
+## [7.6.0] - 2026-06-20 — GPT Phase 1.5: STRICT REAL DATA 模式
+
+### 概述
+- **STRICT_REAL_DATA 全局开关**：`STRICT_REAL_DATA=true` 写入 `.env`，启用后 GPT 被禁止编造任何投资数据
+- **`/api/chat` 全面重写**：新增意图 `recommend_ten` / `market_overview`；全部切换为 `adaptiveScore DESC` + `scoreSource=REAL` 排序
+- **Bloomberg级别回复格式**：结构化卡片、emoji分隔线、五维进度条（`████░░`）、数据来源footer（`✓ J-Quants ✓ ...`）
+- **STOCK_NOT_FOUND 严格处理**：未知代码直接早返回"未找到"，不经过GPT，无幻觉风险
+- **数据来源公开**：每次回复底部自动追加 `📊 数据来源 / ⏰ 更新时间 JST`
+
+### 新增意图
+| 意图 | 触发词 | 说明 |
+|------|--------|------|
+| `recommend_ten` | 推荐十只/TOP10 | 真实TOP10；DB<10时如实告知数量 |
+| `market_overview` | 今天市场如何/日经怎么样 | NASDAQ+VIX+日经+外资+AI TOP3 |
+
+### DB查询升级
+- `fetchTopPicks` — `scoreSource:"REAL"` + `adaptiveScore DESC`（原 `totalScore DESC`）
+- `fetchStockData` — 新增 `Disclosure` 查询（近3条TDnet公告）、`equityRatio`、`scaleCategory`
+- `fetchThemeStocks` — `scoreSource:"REAL"` + `adaptiveScore DESC` + 外资仅取 `foreigners` 类型
+- `fetchMarketOverview` — 新增（GlobalMarket + AI TOP3 + 外资）
+- 全部 theme 查询：新增 `金融股` / `医药股` / `能源股` 三个主题
+
+### GPT System Prompt 升级（Phase 1.5）
+- 明确禁止规则 6 条（禁止虚构名称/价格/评分/猜测语言/占位符/DB空时补全）
+- 四种意图各有独立格式模板（top_picks / stock_analysis / theme / market_overview）
+- `temperature: 0.2`（原 0.3）+ `max_tokens: 1500`（原 500）
+
+### 验收结果（2026-06-20 生产）
+| 测试 | 结果 |
+|------|------|
+| 今天买什么 → TOP5 | ✅ 全部真实（291A,9552,6194,...） |
+| 推荐十只 → TOP10 | ✅ 全部真实，无虚构名称 |
+| 分析7203（丰田） | ✅ 真实价格¥2,776.5 / 真实财务 / 五维进度条 |
+| 分析8035（东京电子） | ✅ 真实价格¥75,360 / 评分68 / PER60.1 |
+| 分析9999（虚构） | ✅ 直接返回"未找到"，零幻觉 |
+| 分析1234（随机） | ✅ 同上 |
+| 科技股谁最强 | ✅ 真实TOP8板块股票 |
+| 半导体还能买吗 | ✅ 真实VIX+外资+板块数据 |
+| 今天市场如何 | ✅ NASDAQ/日经/VIX/外资全真实 |
+| 未知意图 | ✅ 返回使用指南，不猜测 |
+| 虚构关键词检查 | ✅ 0处"株式会社A/B"等 |
+| strictMode 字段 | ✅ 全部返回 `true` |
+
+### 规则（勿改）
+- `STRICT_REAL_DATA=true` 禁止删除或改为 `false`
+- GPT 职责：仅格式化DB数据，不产生任何原始投资判断
+- 数据源footer 为强制项，每次回复必须包含
+
+---
+
 ## [7.5.0] - 2026-06-20 — 动态权重评分 + GPT Phase 1（稳定基线）
 
 ### 概述
