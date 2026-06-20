@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 
+type DataAuthorityStatus = {
+  globalMarket: { date: string; source: string; ageDays: number | null; score: number | null; vix: number | null } | null;
+  institutionalFlow: { date: string; source: string; ageDays: number | null } | null;
+  scoreSourceDist: Record<string, number>;
+};
+
 type SyncStatus = {
   configured: { yahoo: boolean; jquants: boolean; tdnet: boolean; news: boolean };
   jquantsMethod?: string;
@@ -20,6 +26,7 @@ type SyncStatus = {
     news: SyncLog | null;
   };
   recentLogs: SyncLog[];
+  dataAuthority?: DataAuthorityStatus;
 };
 
 type SyncLog = {
@@ -410,6 +417,126 @@ export default function SyncPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* V3.1: Data Authority Status */}
+      {status?.dataAuthority && (
+        <div className="mb-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+            <h2 className="font-semibold text-slate-900 text-sm">数据权威状态 V3.1</h2>
+            <span className="text-xs text-slate-400">（REAL / PARTIAL / FALLBACK）</span>
+          </div>
+          <div className="p-5 grid grid-cols-3 gap-4">
+            {/* GlobalMarket card */}
+            <div className="rounded-lg border border-slate-100 p-4">
+              <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">全球市场</div>
+              {status.dataAuthority.globalMarket ? (() => {
+                const gm = status.dataAuthority.globalMarket;
+                const stale = (gm.ageDays ?? 0) > 7;
+                return (
+                  <>
+                    <div className={`text-sm font-semibold mb-1 ${stale ? "text-amber-600" : "text-green-700"}`}>
+                      {stale ? "⚠ 数据过期" : "✓ 数据新鲜"}
+                    </div>
+                    <div className="text-xs text-slate-600 space-y-0.5">
+                      <div>日期: {dayjs(gm.date).format("YYYY/M/D")}</div>
+                      <div>来源: <span className="font-mono">{gm.source}</span></div>
+                      <div>距今: {gm.ageDays}天</div>
+                      {gm.score != null && <div>评分: {gm.score}/10</div>}
+                      {gm.vix != null && <div>VIX: {gm.vix.toFixed(1)}</div>}
+                    </div>
+                    <div className={`mt-2 text-xs px-2 py-0.5 rounded inline-block font-medium ${
+                      gm.source === "yahoo" && !stale ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                    }`}>
+                      {gm.source === "yahoo" && !stale ? "REAL" : "FALLBACK"}
+                    </div>
+                  </>
+                );
+              })() : (
+                <>
+                  <div className="text-sm text-slate-400 mb-1">无数据</div>
+                  <div className="text-xs text-slate-400">请运行: npm run fetch-global-market</div>
+                  <div className="mt-2 text-xs px-2 py-0.5 rounded inline-block font-medium bg-red-100 text-red-700">MISSING</div>
+                </>
+              )}
+            </div>
+
+            {/* InstitutionalFlow card */}
+            <div className="rounded-lg border border-slate-100 p-4">
+              <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">机构资金流 (JPX)</div>
+              {status.dataAuthority.institutionalFlow ? (() => {
+                const fl = status.dataAuthority.institutionalFlow;
+                const stale = (fl.ageDays ?? 0) > 14;
+                const isReal = ["jquants_investor_types", "jpx", "jpx_file", "jpx_manual"].includes(fl.source);
+                return (
+                  <>
+                    <div className={`text-sm font-semibold mb-1 ${stale ? "text-amber-600" : isReal ? "text-green-700" : "text-slate-500"}`}>
+                      {stale ? "⚠ 数据过期" : isReal ? "✓ 真实数据" : "○ 合成数据"}
+                    </div>
+                    <div className="text-xs text-slate-600 space-y-0.5">
+                      <div>日期: {dayjs(fl.date).format("YYYY/M/D")}</div>
+                      <div>来源: <span className="font-mono">{fl.source}</span></div>
+                      <div>距今: {fl.ageDays}天</div>
+                    </div>
+                    <div className={`mt-2 text-xs px-2 py-0.5 rounded inline-block font-medium ${
+                      isReal && !stale ? "bg-green-100 text-green-700"
+                      : isReal ? "bg-amber-100 text-amber-700"
+                      : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {isReal && !stale ? "REAL" : isReal ? "STALE" : "SYNTHETIC"}
+                    </div>
+                  </>
+                );
+              })() : (
+                <>
+                  <div className="text-sm text-slate-400 mb-1">无数据</div>
+                  <div className="text-xs text-slate-400 space-y-0.5">
+                    <div>方法1: npm run fetch-institutional-flow</div>
+                    <div>方法2: 导入JPX CSV文件</div>
+                  </div>
+                  <div className="mt-2 text-xs px-2 py-0.5 rounded inline-block font-medium bg-red-100 text-red-700">MISSING</div>
+                </>
+              )}
+            </div>
+
+            {/* ScoreSource distribution card */}
+            <div className="rounded-lg border border-slate-100 p-4">
+              <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">AI评分质量分布</div>
+              {(() => {
+                const dist = status.dataAuthority!.scoreSourceDist;
+                const real    = dist["REAL"]    ?? 0;
+                const partial = dist["PARTIAL"]  ?? 0;
+                const fallback= dist["FALLBACK"] ?? 0;
+                const total   = real + partial + fallback || 1;
+                const realPct    = Math.round((real    / total) * 100);
+                const partialPct = Math.round((partial / total) * 100);
+                const fallbackPct= Math.round((fallback/ total) * 100);
+                return (
+                  <>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: "REAL",     count: real,     pct: realPct,    color: "bg-green-500" },
+                        { label: "PARTIAL",  count: partial,  pct: partialPct, color: "bg-amber-400" },
+                        { label: "FALLBACK", count: fallback, pct: fallbackPct,color: "bg-slate-300" },
+                      ].map(({ label, count, pct, color }) => (
+                        <div key={label}>
+                          <div className="flex justify-between text-xs mb-0.5">
+                            <span className="text-slate-600 font-mono">{label}</span>
+                            <span className="text-slate-500">{count.toLocaleString()} ({pct}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5">
+                            <div className={`${color} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-400">总计 {total.toLocaleString()} 只</div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       )}
 

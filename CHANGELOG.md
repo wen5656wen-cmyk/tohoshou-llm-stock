@@ -2,6 +2,266 @@
 
 ---
 
+## [7.5.0] - 2026-06-20 — 动态权重评分 + GPT Phase 1（稳定基线）
+
+### 概述
+- **TOHOSHOU AI V4（动态权重评分）**：`adaptiveScore` 按 6 种股票风格（StockStyle）对 5 维度差异化加权，脱离固定权重
+- **v7.5 新增字段**：`rawScore / adaptiveScore / stockStyle / highRiskFlag / fxSensitivity / catalystScore`
+- **GPT Phase 1**：接入 GPT-4o-mini，`POST /api/chat` 处理 4 种自然语言意图，全部数据来自 DB，无幻觉
+- **OpenAI baseURL 固定**：`lib/openai.ts` + `lib/ai-agent.ts` 均显式 pin `https://api.openai.com/v1`，防 `OPENAI_BASE_URL=deepseek` 劫持
+- **localhost 全站清零**：所有实际 URL 统一至 `https://aitohoshou.com`，grep 0 处匹配
+
+### 新增文件
+- `lib/openai.ts` — GPT-4o-mini 客户端，显式 pin OpenAI baseURL；`isOpenAIConfigured()`；DB-grounded 规则注释
+- `lib/llm/client.ts` — 统一 LLM 客户端工厂（`llmClient()` / `LLM_MODEL()` / `isLLMConfigured()`）
+- `lib/llm/router.ts` — Intent Router（quickParse 正则快路 + GPT JSON 模式慢路）；返回 8 种 `LLMIntent` 类型
+- `app/api/chat/route.ts` — `POST /api/chat`；4 意图：today_picks / stock_analysis / theme_best / theme_outlook；DB 取数 + GPT 格式化；OPENAI_API_KEY 缺失时返回 503
+- `app/api/stocks/[symbol]/alternatives/route.ts` — 同风格替代股，优先同行业，最多5只，按 adaptiveScore 排序
+- `prisma/migrations/20260620_add_ai_themes/` — AITheme 表迁移（已应用）
+- `prisma/migrations/20260620_score_source_fields/` — StockScore 新字段迁移（已应用）
+
+### 修改文件
+- `prisma/schema.prisma` — StockScore 新增 6 字段：`rawScore / adaptiveScore / stockStyle / highRiskFlag / fxSensitivity / catalystScore`；新增 `PortfolioDiagnosis` 模型
+- `lib/ai-score.ts` — 新增 `StockStyle` 类型 / `STYLE_WEIGHTS` map / `classifyStockStyle()` / `computeAdaptiveScore()` / `computeFxSensitivity()` / `computeCatalystScore()`；`ScoreInput` 扩展 sector/industry/scaleCategory/disclosureCategories；`AiScoreResult` 扩展全部 v7.5 字段
+- `lib/ai-agent.ts` — **修复 baseURL 劫持 bug**：当 `OPENAI_API_KEY` 存在时强制 `https://api.openai.com/v1` + `gpt-4o-mini`，不再被 `OPENAI_BASE_URL=deepseek` 覆盖
+- `scripts/compute-scores.ts` — 新增 disclosure 查询 + sector/industry/disclosureCategories 传入 + 全部 v7.5 字段写入 scorePayload
+- `app/api/ai-scores/route.ts` — select + mapping 新增 v7.5 字段及默认值
+- `lib/app-url.ts` — 新增（v7.4.0），本次复用；已覆盖所有 LINE Flex 按钮 + 脚本 URL
+- `lib/daily-picks-report.ts` — `aiPicksUrl()` 替换 hardcoded localhost
+- `scripts/send-daily-picks.ts` — 同上
+
+### v7.5 评分体系
+
+#### 6 种 StockStyle 及权重分配
+| 风格 | 技术 | 基本面 | 资金 | 新闻 | 全球 |
+|------|------|--------|------|------|------|
+| VALUE_DEFENSIVE | 15% | 50% | 15% | 10% | 10% |
+| GROWTH_MOMENTUM | 35% | 20% | 25% | 10% | 10% |
+| QUALITY_COMPOUNDER | 25% | 35% | 20% | 10% | 10% |
+| SPECULATIVE_MOMENTUM | 40% | 10% | 30% | 15% | 5% |
+| CYCLICAL_EXPORTER | 30% | 20% | 20% | 10% | 20% |
+| DOMESTIC_DEFENSIVE | 20% | 35% | 25% | 15% | 5% |
+
+#### 新字段说明
+- `rawScore`：等同原 `totalScore`（向后兼容）
+- `adaptiveScore`：各维度归一化 0→1 后按风格权重加权 ×100
+- `stockStyle`：6 种风格之一（sector + 财务特征分类）
+- `highRiskFlag`：SPECULATIVE_MOMENTUM 且近期大涨时为 true
+- `fxSensitivity`：EXPORT_POSITIVE / IMPORT_SENSITIVE / FX_NEUTRAL / DOMESTIC_NEUTRAL
+- `catalystScore`：TDnet 公告类别打分（baseline=5，增发−3，业绩修正+3 等）
+
+### GPT Phase 1 — `/api/chat` 验收结果
+| 查询 | Intent | 字数 | 无幻觉 | DB数据 |
+|------|--------|------|--------|--------|
+| 今天买什么？ | top_picks | 418 | ✅ | ✅ StockScore TOP5 |
+| 分析7203 | stock_analysis | 312 | ✅ | ✅ ¥2,776.5 score=46 |
+| 科技股谁最强？ | theme_best | 288 | ✅ | ✅ 情報通信セクター |
+| 半导体还能买吗？ | theme_outlook | 253 | ✅ | ✅ GlobalMarket+InstitutionalFlow |
+
+### alternatives API 验收结果
+- 7203.T (CYCLICAL_EXPORTER, adaptive=46) → 5只，最高 6161.T adaptive=73
+- 8035.T (CYCLICAL_EXPORTER, adaptive=68) → 5只
+- 9983.T (VALUE_DEFENSIVE, adaptive=67) → 1只（3333.T adaptive=68）
+
+### 规则（勿改）
+- `rawScore/adaptiveScore` 均不影响 `recommendation`（仍按 `totalScore` 的 ≥90/80/65/50 阈值）
+- 禁止为提升 BUY 数量而调高 adaptive 评分或降低 BUY 阈值
+- GPT 回复必须来自 DB；DB 无数据时返回"暂无真实数据"
+
+---
+
+## [7.4.0] - 2026-06-20 — LINE 对话入口 V2 + 全链接修复
+
+### 新增
+- `lib/app-url.ts`: 中央 URL 工具（getBaseUrl / normalizeSymbolForUrl / stockUrl / aiPicksUrl 等8个函数）
+- LINE 对话 V2：7个新意图（AI推荐/科技股/全市场/新闻/通知/持仓/帮助）→ 返回 Flex Message
+- `lib/line-flex.ts` 新增 7 个 V2 构建器：buildAiPicksChatFlex / buildAiThemeChatFlex / buildMarketSummaryFlex / buildNotificationStatusFlex / buildHelpFlex / buildWelcomeFlex / buildGroupJoinFlex
+- `scripts/validate-line-links.ts`: 全量验证所有 LINE Flex 按钮 URL（+HTTP 200 检查）
+- `npm run validate:line-links`: 部署前必跑验证
+
+### 修复
+- 修复所有 LINE Flex Message 按钮 URL（之前 `line-agent.ts` fallback 为 `localhost:3000`）
+- webhook 返回类型从 `string | null` 升级为 `LineMessage[] | null`（支持 Flex 直接返回）
+- Follow/Join 欢迎消息改为 V2 Flex Card
+- `lib/line-agent.ts` APP_URL localhost 错误 fallback → 使用 `getBaseUrl()`
+
+### 验证结果
+- validate:line-links → 0错误，9核心页面全部 HTTP 200
+- 所有 Flex 按钮 URL: https://aitohoshou.com/* 正确
+- normalizeSymbolForUrl: 7203→7203.T, 291A→291A.T ✅
+
+---
+
+## [7.3.0] - 2026-06-20 — LINE 中文名 + Flex Message 智能推送
+
+### 概述
+- **全面 Flex Message 升级**：所有 LINE 推送改为 LINE Flex Message 富文本卡片，禁止纯文本股票列表
+- **股票中文名统一**：新增 `getStockDisplayName()` 工具，所有推送优先显示 nameZh
+- **通知管理系统**：新增 `/notifications` 管理页、`NotificationSetting` DB 模型、6 个 API 路由
+- **异动提醒**：新增 `check-alerts.ts` 每30分钟检测价格涨跌≥5%/出来高≥2x/HIGH新闻，去重推送
+
+### 新增文件
+- `lib/stock-display-name.ts` — `getStockDisplayName(nameZh→name→nameEn→symbol)` / `getStockSubName()`
+- `lib/line-flex.ts` — 7个 Flex Message 构建器：`buildMorningReportFlex` / `buildMiddayFlex` / `buildCloseReportFlex` / `buildAlertFlex` / `buildRiskAlertFlex` / `buildStockCard` / `buildTestFlex`
+- `scripts/check-alerts.ts` — 异动提醒脚本（价格涨跌≥5% / 出来高≥2x / HIGH新闻）
+- `app/notifications/page.tsx` — 通知管理页（测试按钮 + 设置 + 日志）
+- `app/api/line/test-flex/route.ts` — `POST /api/line/test-flex`
+- `app/api/notifications/settings/route.ts` — GET/POST 通知设置
+- `app/api/notifications/logs/route.ts` — GET 推送日志
+- `app/api/notifications/send-morning-report/route.ts` — POST 立即发送朝報
+- `app/api/notifications/send-close-report/route.ts` — POST 立即发送大引けまとめ
+- `app/api/notifications/check-alerts/route.ts` — POST 触发异动检查
+
+### 修改文件
+- `lib/line.ts` — 新增 `LineFlexMessage` / `FlexBubble` / `FlexCarousel` 等所有 Flex 类型 + `flexMsg()` 构建器
+- `lib/line-push.ts` — export `flexMsg`
+- `scripts/send-morning-brief.ts` — 改为 `buildMorningReportFlex`，写入 NotificationLog
+- `scripts/send-closing-summary.ts` — 改为 `buildCloseReportFlex`，写入 NotificationLog
+- `scripts/send-midday-flash.ts` — 改为 `buildMiddayFlex`，写入 NotificationLog
+- `scripts/send-line-risk-alert.ts` — 改为 `buildRiskAlertFlex`，写入 NotificationLog
+- `scripts/cron-scheduler.ts` — 新增每工作日 09:00-16:00 每30分钟 `check-alerts.ts`
+- `components/Sidebar.tsx` — 新增"🔔 通知管理"导航
+- `prisma/schema.prisma` — 更新 `NotificationLog`（symbols String[], errorMessage），新增 `NotificationSetting`
+- `package.json` — 新增 `line:check-alerts` / `line:check-alerts:dry` npm scripts
+
+### Flex Message 设计规范
+- **颜色**：BUY=#27AE60(绿) WATCH=#E67E22(橙) AVOID=#C0392B(红) 按钮=#3B82F6(蓝)
+- **日本股价色**：涨=红 跌=蓝（日本惯例）
+- **名称优先级**：nameZh → name(nameJa) → nameEn → symbol（不允许空白）
+- **每报最多 TOP5**，每条包含：中文名/代码/AI评分/推荐等级/理由/涨跌幅
+
+---
+
+## [7.2.0] - 2026-06-20 — V3.1 J-Quants 机构资金实时接入 + 日本科技股主题筛选
+
+### 概述
+- **TOHOSHOU AI V3.1**：资金面评分升级为 J-Quants `/v2/equities/investor-types` 真实数据，3714只股票全部 scoreSource=REAL
+- **日本科技股・AI产业链**：新增 `/ai-theme` 主题筛选页，覆盖 6 分类 38 只核心科技股
+
+---
+
+### V3.1 — J-Quants 机构资金流接入
+
+#### `scripts/fetch-jquants-investor-types.ts`（新增）
+- 调用 J-Quants `/v2/equities/investor-types`，获取 TSEPrime/TSEStandard/TSEGrowth 三市场
+- 9种投资者类型：foreigners/trust/corp/individual/dealer/trust_bank/insurance/bank/other
+- API 单位 ¥1 → 除以 1e8 → 億円写入 DB
+- source = `"jquants_investor_types"`，authority rank = 1（最高）
+- 支持 `--dry-run`、`--weeks=N` 参数
+- npm scripts：`sync:institutional-flow` / `sync:institutional-flow:dry`
+
+#### 数据权威体系（新增）
+- **AUTHORITY_RANK**：`jquants_investor_types(1) = jpx(1) > jpx_file(2) > jpx_manual(3) > synthetic(99)`
+- `StockScore` 新增 3 字段：`moneyFlowSource` / `globalTrendSource` / `scoreSource`
+- `computeScoreSource()`：REAL = 两维度均真实；PARTIAL = 一个；FALLBACK = 无
+- `REAL_MONEY_SOURCES`（`lib/ai-score.ts` 两处）= `["jquants_investor_types","jpx","jpx_file","jpx_manual"]`
+
+#### `scripts/compute-scores.ts` 加固
+- 优先选 `REAL_FLOW_SOURCES` 查 InstitutionalFlow，不被 synthetic 日期抢占最新位
+- `FLOW_MAX_AGE_DAYS` 从 14 → 21 天（周度数据，允许3周内有效）
+- J-Quants 数据自动用 market="TSEPrime"，legacy/synthetic 用 market="ALL"
+
+#### `scripts/cron-scheduler.ts`
+- 新增：**周五 16:30 JST** → `fetch-jquants-investor-types.ts`（正式）
+- 新增：**周一 07:15 JST** → `fetch-jquants-investor-types.ts`（备份）
+
+#### Synthetic 数据清零
+- 本地 DB + 生产 DB 全部 synthetic 行已删除（4行）
+- `scripts/fetch-institutional-flow.ts` 旧脚本不再自动写 synthetic
+- 永不再写入 synthetic
+
+#### `app/api/sync/route.ts` V3.1 升级
+- GET 返回 `dataAuthority` 块：GlobalMarket 状态 / InstitutionalFlow 状态 / scoreSourceDist
+- InstitutionalFlow 查询：优先查真实 sources，fallback 才用最新任意行
+- `app/sync/page.tsx`：`isReal` 检查补全 `jquants_investor_types`，修复"SYNTHETIC"误显
+
+#### 生产结果（2026-06-20）
+```
+InstitutionalFlow: 216行 jquants_investor_types（无 synthetic）
+最新日期: 2026-06-12  外国人净=-4.9億円  投信净=+0.9億円
+scoreSource: REAL 3714 / 100%
+```
+
+---
+
+### AI 科技股主题筛选
+
+#### `prisma/schema.prisma` — 新增 `AITheme` model
+```prisma
+model AITheme {
+  id        Int      @id @default(autoincrement())
+  symbol    String   @unique
+  theme     String   // SEMICONDUCTOR|ELECTRONICS|SOFTWARE_AI|INDUSTRIAL_AUTO|TELECOM_DC|TECH_SERVICES
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([theme])
+  @@map("ai_themes")
+}
+```
+
+#### `scripts/seed-ai-themes.ts`（新增）
+- 38只日本核心科技股，6分类
+- seed 策略：先全量 deleteMany 再重建，避免旧 symbol 残留
+- npm scripts：`seed:ai-themes`
+
+| 分类 | key | 数量 |
+|------|-----|------|
+| 半导体设备 | SEMICONDUCTOR | 6 |
+| 电子・传感器・精密 | ELECTRONICS | 7 |
+| 软件・AI・云 | SOFTWARE_AI | 9 |
+| 工业自动化・机器人 | INDUSTRIAL_AUTO | 5 |
+| 通信・数据中心 | TELECOM_DC | 5 |
+| 科技服务・互联网 | TECH_SERVICES | 6 |
+
+#### `app/api/ai-theme/route.ts`（新增）
+- 查 AITheme 全部 symbol → 分批查 StockScore（scored=true）+ Stock 表（unscored）
+- 两者都无则用 `SYMBOL_NAME_FALLBACK`（9613.T NTT Data / 9719.T SCSK）
+- 返回：`{ stocks[], themeSummary[], totalCount, scoredCount, updatedAt }`
+- themeSummary 含：avgScore / buyCount / count / scoredCount / topSymbol
+
+#### `app/ai-theme/page.tsx`（新增）
+- 标题：「日本科技股・AI产业链」+ 「科技主题」标签
+- 统计面板：科技股总数 / 已评分数量 / 平均分 / BUY数量 / 最高分
+- 分类汇总卡（6张，可点击跳转 Tab）
+- Tab 切换：全部 / 6分类
+- 排序：综合评分 / 5日涨跌 / 20日涨跌
+- 股票卡：5维度评分条 + 涨跌幅 + AI摘要，unscored 显示"评分待生成"
+
+#### `components/Sidebar.tsx` 更新
+- 在"AI推荐"后新增 `⚡AI产业链` 导航项，链接 `/ai-theme`
+
+#### 生产结果（2026-06-20）
+```
+ai_themes: 38只，6分类
+已评分: 36/38（9613.T NTT Data、9719.T SCSK 不在Stock表，显示评分待生成）
+TOP1: 广濑电机 6806.T 71pt
+平均分: ~53pt
+HTTP 200 ✅
+```
+
+---
+
+### 修改文件汇总
+
+| 文件 | 变更 |
+|------|------|
+| `prisma/schema.prisma` | 新增 AITheme model；StockScore 新增 moneyFlowSource/globalTrendSource/scoreSource |
+| `prisma/migrations/20260620_add_ai_themes/migration.sql` | 新增 |
+| `prisma/migrations/20260620_score_source_fields/migration.sql` | 新增 |
+| `scripts/fetch-jquants-investor-types.ts` | 新增：J-Quants investor-types 周度同步 |
+| `scripts/seed-ai-themes.ts` | 新增：38只科技股种子数据（后续调整为6分类版本）|
+| `scripts/compute-scores.ts` | 更新：scoreSource/moneyFlowSource/globalTrendSource 写入；REAL_FLOW_SOURCES 优先查询 |
+| `scripts/cron-scheduler.ts` | 更新：周五16:30+周一07:15 J-Quants 机构流向自动同步 |
+| `lib/ai-score.ts` | 更新：两处 REAL_MONEY_SOURCES 均含 jquants_investor_types；computeScoreSource() |
+| `app/api/ai-theme/route.ts` | 新增：科技股主题 API |
+| `app/api/sync/route.ts` | 更新：dataAuthority 块；InstitutionalFlow 优先查真实源 |
+| `app/ai-theme/page.tsx` | 新增：科技股主题筛选页面 |
+| `app/sync/page.tsx` | 更新：isReal 含 jquants_investor_types；DataAuthorityStatus 面板 |
+| `components/Sidebar.tsx` | 更新：新增 AI产业链 导航项 |
+| `package.json` | 更新：sync:institutional-flow / seed:ai-themes |
+
+---
+
 ## [7.1.0] - 2026-06-20 — VIX 实时修复 + LINE 智能推送升级（朝報/午間/大引）
 
 ### 修复

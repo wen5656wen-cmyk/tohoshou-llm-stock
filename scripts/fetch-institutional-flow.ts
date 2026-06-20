@@ -213,24 +213,41 @@ async function downloadAndParseCsv(csvUrl: string): Promise<{ date: Date; rows: 
   }
 }
 
-// ── Write synthetic neutral data (fallback) ────────────────────────────────
+// ── Authority sources (highest to lowest) ─────────────────────────────────
+const REAL_SOURCES = ["jpx", "jpx_file", "jpx_manual"] as const;
+
+/** Check if real-authority data already exists for a date. */
+async function hasRealDataForDate(date: Date): Promise<boolean> {
+  const existing = await prisma.institutionalFlow.findFirst({
+    where: { date, source: { in: [...REAL_SOURCES] } },
+    select: { id: true, source: true },
+  });
+  return existing !== null;
+}
+
+// ── Write synthetic neutral data (only when explicitly allowed) ────────────
 
 async function writeSyntheticData(date: Date, reason: string): Promise<number> {
-  console.log(`  → 写入中性合成数据（${reason}）`);
+  // Authority guard: never overwrite real data with synthetic
+  if (await hasRealDataForDate(date)) {
+    console.log(`  ⚠ 该日期已有真实数据，跳过 synthetic 写入（${reason}）`);
+    return 0;
+  }
 
-  const synthetic: Array<{ investorType: string; net: number }> = [
-    { investorType: "foreigners", net: 0 },
-    { investorType: "trust",      net: 0 },
-    { investorType: "corp",       net: 0 },
-    { investorType: "individual", net: 0 },
+  console.log(`  → 写入中性合成数据（${reason}）`);
+  const rows: Array<{ investorType: string }> = [
+    { investorType: "foreigners" },
+    { investorType: "trust" },
+    { investorType: "corp" },
+    { investorType: "individual" },
   ];
 
   let written = 0;
-  for (const row of synthetic) {
+  for (const row of rows) {
     await prisma.institutionalFlow.upsert({
       where: { date_investorType_market: { date, investorType: row.investorType, market: "ALL" } },
-      create: { date, investorType: row.investorType, market: "ALL", buyAmount: null, sellAmount: null, netAmount: row.net, source: "synthetic" },
-      update: { netAmount: row.net, source: "synthetic" },
+      create: { date, investorType: row.investorType, market: "ALL", buyAmount: null, sellAmount: null, netAmount: 0, source: "synthetic" },
+      update: { netAmount: 0, source: "synthetic" },
     });
     written++;
   }
@@ -240,17 +257,29 @@ async function writeSyntheticData(date: Date, reason: string): Promise<number> {
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("=== V3 机构资金流向抓取 ===\n");
+  console.log("=== V3.1 机构资金流向抓取 ===");
+  console.log("数据权威：jpx > jpx_file > jpx_manual > synthetic\n");
+
+  const allowSynthetic = process.argv.includes("--allow-synthetic");
 
   // Step 1: Find latest CSV URL
   console.log("1. 搜索 JPX 最新 CSV 链接...");
   const csvUrl = await findLatestCsvUrl();
 
   if (!csvUrl) {
-    console.log("  ✗ 未找到 CSV 链接");
-    const date = new Date(new Date().toISOString().split("T")[0]);
-    await writeSyntheticData(date, "JPX页面无法访问");
-    console.log("\n使用 fallback: 中性合成数据 (源=synthetic)");
+    console.log("  ✗ 未找到 CSV 链接（JPX 网站从当前服务器不可访问）");
+    console.log("\n⚠ JPX unavailable — manual import required.");
+    console.log("  方法 1: 从 JPX 网站下载 CSV/XLSX 后运行：");
+    console.log("    npx tsx scripts/import-institutional-flow.ts ./data/jpx.csv");
+    console.log("  方法 2: 允许写入 synthetic fallback（不影响评分真实性）：");
+    console.log("    npx tsx scripts/fetch-institutional-flow.ts --allow-synthetic");
+    if (allowSynthetic) {
+      const date = new Date(new Date().toISOString().split("T")[0]);
+      const written = await writeSyntheticData(date, "JPX页面无法访问");
+      console.log(written > 0
+        ? `\n写入 ${written} 条 synthetic 数据（scoreSource将显示FALLBACK）`
+        : "\n已有真实数据，synthetic 写入已跳过");
+    }
     await prisma.$disconnect();
     return;
   }
@@ -262,9 +291,12 @@ async function main() {
 
   if (!parsed || parsed.rows.length === 0) {
     console.log("  ✗ CSV 解析失败或数据为空");
-    const date = new Date(new Date().toISOString().split("T")[0]);
-    await writeSyntheticData(date, "CSV解析失败");
-    console.log("\n使用 fallback: 中性合成数据 (源=synthetic)");
+    console.log("\n⚠ JPX data unavailable — manual import required.");
+    console.log("  npx tsx scripts/import-institutional-flow.ts ./data/jpx.csv");
+    if (allowSynthetic) {
+      const date = new Date(new Date().toISOString().split("T")[0]);
+      await writeSyntheticData(date, "CSV解析失败");
+    }
     await prisma.$disconnect();
     return;
   }
@@ -273,8 +305,8 @@ async function main() {
   const dateStr = date.toISOString().split("T")[0];
   console.log(`  ✓ 解析完成: 日期=${dateStr}, 行数=${rows.length}`);
 
-  // Step 3: Write to DB
-  console.log("3. 写入 DB...");
+  // Step 3: Write to DB (source="jpx" — highest authority for online fetch)
+  console.log("3. 写入 DB (source=jpx)...");
   let written = 0;
   for (const row of rows) {
     await prisma.institutionalFlow.upsert({
@@ -285,10 +317,9 @@ async function main() {
     written++;
   }
 
-  // Summary
   const foreigners = rows.find((r) => r.investorType === "foreigners");
   const trust      = rows.find((r) => r.investorType === "trust");
-  console.log(`\n✓ 写入 ${written} 条记录`);
+  console.log(`\n✓ 写入 ${written} 条记录 (source=jpx → scoreSource: REAL)`);
   if (foreigners) console.log(`  外国人净买卖: ${foreigners.netAmount != null ? (foreigners.netAmount >= 0 ? "+" : "") + foreigners.netAmount.toFixed(0) + " 億円" : "N/A"}`);
   if (trust)      console.log(`  投资信托净买卖: ${trust.netAmount != null ? (trust.netAmount >= 0 ? "+" : "") + trust.netAmount.toFixed(0) + " 億円" : "N/A"}`);
 

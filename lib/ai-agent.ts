@@ -11,8 +11,14 @@ import { prisma } from "@/lib/prisma";
 // ── AI Client ─────────────────────────────────────────────────────────────────
 
 const AI_KEY = process.env.OPENAI_API_KEY ?? process.env.DEEPSEEK_API_KEY ?? "";
-const AI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.deepseek.com";
-const AI_MODEL = process.env.AI_MODEL ?? "deepseek-chat";
+// When OPENAI_API_KEY is set, always pin to OpenAI URL to prevent OPENAI_BASE_URL
+// (which may point to DeepSeek for other clients) from hijacking this client.
+const AI_BASE_URL = process.env.OPENAI_API_KEY
+  ? "https://api.openai.com/v1"
+  : (process.env.OPENAI_BASE_URL ?? "https://api.deepseek.com");
+const AI_MODEL = process.env.OPENAI_API_KEY
+  ? (process.env.OPENAI_MODEL ?? "gpt-4o-mini")
+  : (process.env.AI_MODEL ?? "deepseek-chat");
 
 let _client: OpenAI | null = null;
 function aiClient(): OpenAI | null {

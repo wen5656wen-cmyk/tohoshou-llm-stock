@@ -8,11 +8,13 @@ const navItems = [
   { href: "/stocks", label: "股票列表", icon: "◉" },
   { href: "/indicators", label: "技术指标", icon: "▣" },
   { href: "/ai-picks", label: "AI推荐", icon: "✦" },
+  { href: "/ai-theme", label: "AI产业链", icon: "⚡" },
   { href: "/screener", label: "全市场筛选", icon: "◫" },
   { href: "/sectors", label: "行业分析", icon: "▤" },
   { href: "/watchlist", label: "自选股", icon: "★" },
   { href: "/news", label: "新闻资讯", icon: "◎" },
   { href: "/portfolio", label: "持仓管理", icon: "◇" },
+  { href: "/notifications", label: "通知管理", icon: "🔔" },
   { href: "/sync", label: "数据同步", icon: "⟳" },
 ];
 

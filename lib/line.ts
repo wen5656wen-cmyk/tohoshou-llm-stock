@@ -11,7 +11,87 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const BASE = "https://api.line.me/v2/bot";
 
 export type LineTextMessage = { type: "text"; text: string };
-export type LineMessage = LineTextMessage;
+
+// ── Flex Message types ─────────────────────────────────────────────────────
+
+export type FlexText = {
+  type: "text";
+  text: string;
+  size?: "xxs" | "xs" | "sm" | "md" | "lg" | "xl" | "xxl" | "3xl" | "4xl" | "5xl";
+  color?: string;
+  weight?: "regular" | "bold";
+  wrap?: boolean;
+  align?: "start" | "end" | "center";
+  flex?: number;
+  margin?: string;
+  decoration?: "none" | "underline" | "line-through";
+  maxLines?: number;
+};
+
+export type FlexBox = {
+  type: "box";
+  layout: "horizontal" | "vertical" | "baseline";
+  contents: FlexComponent[];
+  spacing?: "none" | "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
+  margin?: string;
+  paddingAll?: string;
+  paddingStart?: string;
+  paddingEnd?: string;
+  paddingTop?: string;
+  paddingBottom?: string;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: string;
+  cornerRadius?: string;
+  flex?: number;
+  alignItems?: "center" | "flex-start" | "flex-end";
+  justifyContent?: "center" | "flex-start" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+};
+
+export type FlexSeparator = { type: "separator"; margin?: string; color?: string };
+export type FlexSpacer = { type: "spacer"; size?: "xs" | "sm" | "md" | "lg" | "xl" | "xxl" };
+export type FlexButton = {
+  type: "button";
+  action: FlexAction;
+  style?: "primary" | "secondary" | "link";
+  color?: string;
+  height?: "sm" | "md";
+  margin?: string;
+  flex?: number;
+};
+
+export type FlexAction =
+  | { type: "uri"; label: string; uri: string }
+  | { type: "message"; label: string; text: string }
+  | { type: "postback"; label: string; data: string };
+
+export type FlexComponent = FlexText | FlexBox | FlexSeparator | FlexSpacer | FlexButton;
+
+export type FlexBubble = {
+  type: "bubble";
+  size?: "nano" | "micro" | "kilo" | "mega" | "giga";
+  header?: FlexBox;
+  body?: FlexBox;
+  footer?: FlexBox;
+  styles?: {
+    header?: { backgroundColor?: string; separator?: boolean; separatorColor?: string };
+    body?: { backgroundColor?: string };
+    footer?: { backgroundColor?: string; separator?: boolean; separatorColor?: string };
+  };
+};
+
+export type FlexCarousel = {
+  type: "carousel";
+  contents: FlexBubble[];
+};
+
+export type LineFlexMessage = {
+  type: "flex";
+  altText: string;
+  contents: FlexBubble | FlexCarousel;
+};
+
+export type LineMessage = LineTextMessage | LineFlexMessage;
 
 // ── Config helpers ─────────────────────────────────────────────────────────
 
@@ -54,6 +134,22 @@ export function textMsg(text: string): LineTextMessage {
   return { type: "text", text: text.slice(0, 4999) };
 }
 
+/** Create a Flex Message */
+export function flexMsg(altText: string, contents: FlexBubble | FlexCarousel): LineFlexMessage {
+  return { type: "flex", altText: altText.slice(0, 400), contents };
+}
+
+// ── Errors ─────────────────────────────────────────────────────────────────
+
+export class QuotaExceededError extends Error {
+  readonly rawBody: string;
+  constructor(rawBody: string) {
+    super("LINE monthly quota exceeded (HTTP 429)");
+    this.name = "QuotaExceededError";
+    this.rawBody = rawBody;
+  }
+}
+
 // ── API helpers ────────────────────────────────────────────────────────────
 
 async function linePost(path: string, body: unknown, retries = 3): Promise<void> {
@@ -69,14 +165,25 @@ async function linePost(path: string, body: unknown, retries = 3): Promise<void>
       });
       if (res.ok) return;
       const errText = await res.text().catch(() => "");
+      if (res.status === 429) throw new QuotaExceededError(errText); // no retry
       if (i === retries - 1) {
         throw new Error(`LINE API ${path} → ${res.status}: ${errText}`);
       }
     } catch (e) {
+      if (e instanceof QuotaExceededError) throw e; // propagate immediately, no retry
       if (i === retries - 1) throw e;
     }
     await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
   }
+}
+
+/** GET helper for read-only LINE API endpoints (quota, profile, etc.) */
+export async function lineGet<T = unknown>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  });
+  if (!res.ok) throw new Error(`LINE API GET ${path} → ${res.status}`);
+  return res.json() as Promise<T>;
 }
 
 // ── Public send functions ──────────────────────────────────────────────────

@@ -32,6 +32,7 @@ import {
   deactivateLineGroup,
 } from "@/lib/line-agent";
 import { handleLineChat } from "@/lib/line-chat";
+import { buildWelcomeFlex, buildGroupJoinFlex } from "@/lib/line-flex";
 
 export const runtime = "nodejs";
 
@@ -88,37 +89,24 @@ async function onMessage(event: LineTextEvent): Promise<void> {
   console.log(`[webhook] message from ${userId ?? "anon"}: "${text.slice(0, 50)}"`);
 
   // 20s timeout guard — prevents hanging on slow AI responses
-  const reply = await Promise.race([
+  const messages = await Promise.race([
     handleLineChat(text, userId, event.source),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), 20000)),
   ]);
 
-  if (reply == null) return; // unauthorized or timeout
+  if (messages == null) return; // unauthorized or timeout
 
-  await replyMessage(event.replyToken, [textMsg(reply)]);
+  await replyMessage(event.replyToken, messages.slice(0, 5));
 }
 
 async function onFollow(event: LineFollowEvent): Promise<void> {
   const userId = getUserId(event.source);
   console.log(`[webhook] follow from userId=${userId}`);
 
-  // Only greet authorized user
   const ownerId = process.env.LINE_OWNER_USER_ID;
   if (ownerId && userId !== ownerId) return;
 
-  const welcome = [
-    "欢迎使用 TOHOSHOU AI 🤖🇯🇵",
-    "",
-    "日本股市 AI 智能分析助手",
-    "",
-    "发送 帮助 查看全部指令",
-    "发送 7203 快速查询股票",
-    "发送 今日推荐 查看AI精选",
-    "",
-    "每天 08:30 JST 推送 AI 日报 📊",
-  ].join("\n");
-
-  await replyMessage(event.replyToken, [textMsg(welcome)]);
+  await replyMessage(event.replyToken, [buildWelcomeFlex()]);
 }
 
 async function onUnfollow(event: LineUnfollowEvent): Promise<void> {
@@ -134,23 +122,7 @@ async function onJoin(event: LineJoinEvent): Promise<void> {
   console.log(`[webhook] ✅ Bot 加入群组 groupId=${groupId}`);
 
   await upsertLineGroup(groupId).catch(() => {});
-
-  const greeting = [
-    "🤖 TOHOSHOU AI 已加入群组",
-    "",
-    "日本股市 AI 智能分析助手",
-    "",
-    "📊 指令：",
-    "  7203        → 丰田股价+评分",
-    "  分析9984    → 软银完整分析",
-    "  今日推荐    → AI精选 TOP10",
-    "  新闻        → 最新市场资讯",
-    "  帮助        → 全部指令",
-    "",
-    "每天 08:30 JST 推送 AI 日报 🇯🇵",
-  ].join("\n");
-
-  await replyMessage(event.replyToken, [textMsg(greeting)]).catch(() => {});
+  await replyMessage(event.replyToken, [buildGroupJoinFlex()]).catch(() => {});
 }
 
 async function onLeave(event: LineLeaveEvent): Promise<void> {

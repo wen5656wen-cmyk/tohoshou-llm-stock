@@ -26,12 +26,19 @@
     "sync-financials": "npx tsx scripts/sync-financials.ts",
     "fetch-global-market": "npx tsx scripts/fetch-global-market.ts",
     "fetch-institutional-flow": "npx tsx scripts/fetch-institutional-flow.ts",
+    "sync:institutional-flow": "npx tsx scripts/fetch-jquants-investor-types.ts",
+    "sync:institutional-flow:dry": "npx tsx scripts/fetch-jquants-investor-types.ts --dry-run",
+    "seed:ai-themes": "npx tsx scripts/seed-ai-themes.ts",
     "line:morning-brief": "npx tsx scripts/send-morning-brief.ts",
     "line:morning-brief:dry": "DRY_RUN=1 npx tsx scripts/send-morning-brief.ts",
     "line:midday-flash": "npx tsx scripts/send-midday-flash.ts",
     "line:midday-flash:dry": "DRY_RUN=1 npx tsx scripts/send-midday-flash.ts",
     "line:closing-summary": "npx tsx scripts/send-closing-summary.ts",
-    "line:closing-summary:dry": "DRY_RUN=1 npx tsx scripts/send-closing-summary.ts"
+    "line:closing-summary:dry": "DRY_RUN=1 npx tsx scripts/send-closing-summary.ts",
+    "line:check-alerts": "npx tsx scripts/check-alerts.ts",
+    "line:check-alerts:dry": "DRY_RUN=1 npx tsx scripts/check-alerts.ts",
+    "validate:line-links": "NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts",
+    "validate:line-links:dry": "DRY_RUN=1 NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -48,6 +55,7 @@
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "xlsx": "^0.18.5",
     "yahoo-finance2": "^3.15.3",
     "zod": "^4.4.3"
   },
