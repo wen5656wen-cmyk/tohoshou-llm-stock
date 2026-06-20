@@ -12,11 +12,11 @@ async function getDashboardData() {
         where: { priceCount: { gte: 20 } },
         orderBy: { totalScore: "desc" },
         select: {
-          symbol: true, name: true, market: true, sector: true,
+          symbol: true, name: true, nameZh: true, market: true, sector: true,
           latestClose: true, latestDate: true,
           return5d: true, return20d: true, return60d: true,
           rsi14: true, maTrend: true, macdSignalLabel: true,
-          technicalScore: true, fundamentalScore: true, riskScore: true,
+          technicalScore: true, fundamentalScore: true, moneyFlowScore: true, riskScore: true,
           totalScore: true, recommendation: true, starsLabel: true, summaryReason: true,
         },
       }),
@@ -135,8 +135,11 @@ export default async function DashboardPage() {
                       {rec.label}
                     </span>
                   </div>
-                  <div className="font-semibold text-white text-sm truncate">{s.name}</div>
-                  <div className="text-slate-400 text-xs mb-2">{s.symbol}</div>
+                  <div className="text-[15px] font-bold text-white leading-tight truncate">{s.nameZh || s.name}</div>
+                  {s.nameZh && s.nameZh !== s.name && (
+                    <div className="text-[12px] text-slate-400 truncate">{s.name}</div>
+                  )}
+                  <div className="text-[12px] text-slate-500 font-mono mt-0.5 mb-2">{s.symbol}</div>
                   <div className="flex items-end gap-2">
                     <div className="text-2xl font-bold text-white tabular-nums">{s.totalScore}</div>
                     <div className="text-slate-300 text-xs mb-1">分　{s.starsLabel}</div>
@@ -151,8 +154,8 @@ export default async function DashboardPage() {
                       <div className="text-slate-500">基本面</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-violet-300 font-bold">{s.riskScore}</div>
-                      <div className="text-slate-500">安全性</div>
+                      <div className="text-violet-300 font-bold">{s.moneyFlowScore ?? s.riskScore}</div>
+                      <div className="text-slate-500">資金面</div>
                     </div>
                   </div>
                 </Link>
@@ -230,10 +233,13 @@ export default async function DashboardPage() {
                       <td className="px-4 py-2 text-center text-xs text-slate-300 tabular-nums">{i + 1}</td>
                       <td className="px-4 py-2">
                         <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
-                          <div className="font-medium text-sm text-slate-900 group-hover:text-blue-600 leading-tight">
-                            {s.name}
+                          <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
+                            {s.nameZh || s.name}
                           </div>
-                          <div className="text-xs text-slate-400 font-mono">{s.symbol}</div>
+                          {s.nameZh && s.nameZh !== s.name && (
+                            <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{s.name}</div>
+                          )}
+                          <div className="text-[12px] text-[#64748b] font-mono mt-0.5">{s.symbol}</div>
                         </Link>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium text-sm text-slate-900">

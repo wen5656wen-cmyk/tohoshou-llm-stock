@@ -1,7 +1,7 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
 > **最后更新：** 2026-06-20
-> **版本：** v5.2.0（K 线图升级 + 推荐阈值优化 + 生产全量重算）
+> **版本：** v7.0.0（TOHOSHOU AI V3：GlobalMarket 真实数据接入）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
 ---
@@ -20,12 +20,12 @@
 
 ---
 
-## 二、生产服务器状态（2026-06-19）
+## 二、生产服务器状态（2026-06-20）
 
 ### PM2 进程
 ```
-id:0  tohoshou-web   online  ~190MB  port 3000
-id:1  tohoshou-cron  online  ~90MB   cron jobs
+id:0  tohoshou-web   online  port 3000
+id:1  tohoshou-cron  online  cron jobs
 ```
 
 ### 快速操作
@@ -36,258 +36,397 @@ ssh root@8.209.247.68   # 密码: Wen565656
 # 部署单个文件（本地改完后）
 sshpass -p 'Wen565656' scp -o StrictHostKeyChecking=no <本地文件> root@8.209.247.68:/opt/tohoshou/<目标路径>
 
-# 服务器构建重启
+# 服务器构建重启（⚠️ rsync 会覆盖 .env，需修复）
+sshpass -p 'Wen565656' rsync -avz --exclude node_modules \
+  .next/ root@8.209.247.68:/opt/tohoshou/.next/
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
-  "cd /opt/tohoshou && npm run build && pm2 restart all --update-env"
+  "pm2 restart tohoshou-web"
 
 # 查看日志
 pm2 logs tohoshou-web --lines 50
+
+# 重算 AI 评分（改了 scoring 逻辑后必须执行）
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "cd /opt/tohoshou && npx tsx scripts/compute-scores.ts"
+
+# 抓取最新全球市场数据（建议每交易日执行）
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "cd /opt/tohoshou && npx tsx scripts/fetch-global-market.ts"
+
+# 验证数据源状态
+curl -s https://aitohoshou.com/api/market-data | python3 -c \
+  "import sys,json; d=json.load(sys.stdin); \
+   gm=d['globalMarket']; print('GlobalMarket:', gm['date'], 'score='+str(gm['score']), gm['source']); \
+   print('scoringMode:', d['scoringMode'])"
 ```
 
 ---
 
-## 三、数据库现状（2026-06-19 生产实测）
+## 三、数据库现状（2026-06-20 生产实测）
 
 | 表 | 条目数 | 状态 |
 |----|--------|------|
-| Stock | **3,716** | ✅ TSE 全量 |
-| DailyPrice | **7,912,242** | ✅ 全量同步完成，最新日期 2026-06-19 |
-| Financial | **13,619** | ✅ J-Quants 财报全量 |
-| StockScore | **3,714** | ✅ 99.9% 已评分（3716只中3714只）|
-| News | 0 | ⚠️ 待同步 |
+| Stock | **3,716** | ✅ TSE 全量（3716/3716 中文名 100% 覆盖）|
+| DailyPrice | **7,912,513** | ✅ 全量同步完成，最新日期 2026-06-19 |
+| Financial | **35,986** | ✅ J-Quants 财报 |
+| StockScore | **3,714** | ✅ V3 评分引擎，全量已重算 |
+| News | **1,590** | ✅ Kabutan 新闻（387条材料分类）|
+| GlobalMarket | **1** | ✅ 2026-06-20，score=7，source=yahoo |
+| InstitutionalFlow | **4** | ⚠️ 2026-06-20，source=synthetic（JPX 海外不可访问）|
+| SyncJob | 1+ | 异步任务记录 |
 | WatchList | 0 | 用户未添加 |
 | LineUser | 1 | owner: U3223b03bb5879a9dabf2ce27b0f09524 |
 | LineGroup | 0 | Bot 尚未加入任何群 |
 
-### 当前 TOP5 AI评分（最高 73 = WATCH）
+---
+
+## 四、TOHOSHOU AI 评分体系（当前版本：V3）
+
+### 100分5维度（V2结构，V3接入真实数据）
+
+| 维度 | 字段 | 满分 | 数据源（V3状态）|
+|------|------|------|----------------|
+| 技術面 | technicalScore | 30 | J-Quants 价格数据（实时）|
+| 基本面 | fundamentalScore | 25 | J-Quants 财务数据（实时）|
+| 資金面 | moneyFlowScore | 20 | **JPX 机构流向（当前 fallback → V2 proxy）**|
+| 新闻情绪 | newsSentimentScore | 15 | Kabutan 新闻 DB（实时）|
+| 全球趋势 | globalTrendScore | 10 | **Yahoo Finance NASDAQ/日経（实时 ✅）**|
+
+### 评级阈值
 ```
-1. ショーボンドHD (1414.T)  73分  WATCH  上涨概率65%
-2. エムビーエス (1401.T)    72分  WATCH  上涨概率65%
-3. 日鉄鉱業 (1515.T)        72分  WATCH  上涨概率66%
-4. ライオン (4912.T)         72分  WATCH  上涨概率67%
-5. キヤノン (7751.T)         72分  WATCH  上涨概率67%
+STRONG_BUY ≥ 90
+BUY        ≥ 80
+HOLD       ≥ 65
+WATCH      ≥ 50
+AVOID      < 50
 ```
 
-> 注：当前 BUY 阈值为 80，最高分 73，所以没有任何 BUY 推荐。
-> 下次若要出现 BUY，在 `lib/ai-score.ts` 末尾将 BUY 阈值从 80 改为 70。
+### 评分分布（2026-06-20，3714只）
+| 评级 | 数量 |
+|------|------|
+| STRONG_BUY | 0 |
+| BUY | 0 |
+| HOLD | 410 |
+| WATCH | 1463 |
+| AVOID | 1841 |
+| 平均分 | 49.8 / 最高分 79 |
+
+### TOP10（截至 2026-06-20）
+| 排名 | 代码 | 名称 | 总分 |
+|------|------|------|------|
+| 1 | 9552.T | 量化研究控股 | 79 |
+| 2 | 4063.T | 信越化学工业 | 78 |
+| 3 | 429A.T | Techsend光掩模 | 78 |
+| 4 | 6194.T | 阿特拉埃人才科技 | 77 |
+| 5 | 6235.T | Optorun | 76 |
+| 6 | 6806.T | 广濑电机 | 76 |
+| 7 | 4431.T | Smaregi | 76 |
+| 8 | 9983.T | 迅销/优衣库 | 76 |
+| 9 | 8918.T | Land不动产 | 76 |
+| 10 | 6278.T | Union Tool | 75 |
 
 ---
 
-## 四、页面状态（全部 HTTP 200）
+## 五、已完成功能
 
-| URL | 状态 | 响应时间 | 数据来源 |
-|-----|------|---------|----------|
-| / | ✅ | 0.18s | StockScore |
-| /stocks | ✅ | 0.28s | StockScore TOP500（读 /api/indicators）|
-| /indicators | ✅ | 0.25s | StockScore TOP500 |
-| /ai-picks | ✅ | 0.08s | StockScore TOP50（读 /api/ai-scores）|
-| /screener | ✅ | — | StockScore TOP50 + 市场统计 |
-| /sectors | ✅ | — | StockScore 按行业聚合 |
-| /stocks/[symbol] | ✅ | — | Stock + DailyPrice + StockScore |
-| /watchlist | ✅ | — | WatchList 表（空）|
-| /portfolio | ✅ | — | Portfolio 表（空）|
-| /news | ✅ | — | News 表（空，待同步）|
-| /sync | ✅ | — | 管理页面 |
+### 数据同步
+- [x] **Yahoo Finance Japan** — 股价实时报价（`lib/yahoo.ts` + `lib/yahooFinance.ts`）
+- [x] **J-Quants** — 日线价格 + 财报（`lib/jquants.ts`，V1 认证 + 异步任务）
+- [x] **Kabutan 新闻** — 关联股票新闻 + 情绪分类（`lib/kabutan.ts`，双 bug 已修复）
+- [x] **TDnet** — 适时披露（`lib/tdnet.ts`，爬虫模式）
+- [x] **异步同步任务** — `SyncJob` 表 + `GET /api/sync/jobs/[jobId]`，解决 504 超时
+- [x] **GlobalMarket 数据** — `scripts/fetch-global-market.ts`，Yahoo Finance，每日写入 DB
 
-**已修复：无限加载问题（2026-06-19）**
-- 根因：`/api/indicators` 和 `/api/ai-scores` 对 3716 只股票并发 Promise.all → OOM → PM2 崩溃 → 前端 fetch 永不 resolve
-- 修复：改为单次读取 StockScore 预计算表，无实时计算
+### AI 评分引擎（V3）
+- [x] `lib/ai-score.ts` — V3 评分引擎：真实 GlobalMarket + JPX fallback
+- [x] `scripts/compute-scores.ts` — 全量3714只股票预计算，预加载 GlobalMarket/InstitutionalFlow
+- [x] `scripts/fetch-global-market.ts` — Yahoo Finance 抓取 NASDAQ/VIX/USDJPY/Nikkei
+- [x] `scripts/fetch-institutional-flow.ts` — JPX 机构流向抓取 + synthetic fallback
+- [x] `app/api/market-data/route.ts` — 数据源状态验证 API
+- [x] `lib/scoring.ts` — AIAnalysis-based 旧评分（与 ai-score.ts 分离，勿混淆）
 
----
+### 前端页面（全部 HTTP 200）
+- [x] `/` 首页 · `/stocks` 列表 · `/indicators` 技术指标
+- [x] `/ai-picks` AI 推荐（V3 5维度，資金面/情绪/全球）
+- [x] `/screener` 筛选 · `/sectors` 行业
+- [x] `/stocks/[symbol]` 个股详情（SVG K线图 + OHLCV + MA5/20/60）
+- [x] `/news` 新闻 · `/sync` 同步管理（含异步进度条）
+- [x] `/watchlist` 关注 · `/portfolio` 持仓
 
-## 五、API 路由
+### LINE Bot
+- [x] `app/api/line/webhook/route.ts` — Webhook 处理（已注册并验证）
+- [x] `lib/line-chat.ts` — 股票查询对话（上下文感知）
+- [x] `scripts/send-daily-line.ts` — 每日 AI 推荐推送
+- [x] **Webhook URL**：`https://aitohoshou.com/api/line/webhook`
+- [x] LINE Owner User ID：`U3223b03bb5879a9dabf2ce27b0f09524`
 
-| 端点 | 说明 | 关键参数 |
-|------|------|----------|
-| GET `/api/stocks` | 分页股票列表 | ?q=&market=&sector=&page=1&limit=50 |
-| GET `/api/indicators` | StockScore TOP500，含技术指标 | — |
-| GET `/api/ai-scores` | StockScore TOP50，含AI评分 | — |
-| GET `/api/screener` | StockScore TOP50 + 全市场统计 | — |
-| GET `/api/stocks/[symbol]` | 个股详情 + 最近价格 | — |
-| GET `/api/stocks/[symbol]/indicators` | 个股技术指标 | — |
-| GET `/api/stocks/[symbol]/ai-score` | 个股 AI 评分 | — |
-| GET `/api/financials/[symbol]` | 个股财报 | — |
-| GET `/api/prices/[symbol]` | 历史价格 | ?days=60 |
-| GET `/api/sectors` | 行业统计 | — |
-| GET/POST `/api/watchlist` | 自选股管理 | — |
-| POST `/api/line/webhook` | LINE Bot Webhook（待注册）| — |
+### 多语言
+- [x] 3716/3716 股票中文名覆盖率 100%（手动305只 + 自动3411只）
 
 ---
 
-## 六、技术栈
+## 六、API 路由一览
 
-| 层 | 技术 | 版本 |
-|----|------|------|
-| 框架 | Next.js App Router + Turbopack | 16.2.9 |
-| ORM | Prisma（prisma.config.ts 驱动 URL）| 7.8.0 |
-| DB 适配 | @prisma/adapter-pg + pg | — |
-| UI | Tailwind CSS v4（无 config 文件）| ^4 |
-| AI | OpenAI SDK → DeepSeek API | ^6.44.0 |
-| LINE | 自建 lib/line.ts | — |
-| 数据 | J-Quants API v2 + yahoo-finance2 | — |
-
-### 关键踩坑（必读）
-- **Next.js 16 动态路由 params 是 Promise**，必须 `const { symbol } = await params`
-- **Prisma 7 scripts**：不能用 `@/` 别名，用相对路径；PrismaClient 必须传 adapter
-- **Tailwind v4**：CSS 入口文件用 `@import "tailwindcss"`，无 tailwind.config.js
-- **日本股票颜色**：红=涨，蓝=跌（与 A 股相反）
-- **J-Quants 代码**：5 位（4 位代码 + "0"），市场 0111=Prime/0112=Standard/0113=Growth
-- **禁止 API route 里 Promise.all 全市场**：3716只 → OOM → 崩溃
+| 端点 | 说明 |
+|------|------|
+| `GET /api/sync` | 同步状态总览 |
+| `POST /api/sync/jquants` | J-Quants 同步（立即返回 jobId，fire-and-forget）|
+| `GET /api/sync/jobs/[jobId]` | 异步任务进度查询 `{ status, processed, total, pct }` |
+| `POST /api/sync/news` | Kabutan 新闻同步 |
+| `POST /api/sync/yahoo` | Yahoo Finance 同步 |
+| `POST /api/sync/tdnet` | TDnet 适时披露同步 |
+| `GET /api/indicators` | 股票指标列表（StockScore TOP500）|
+| `GET /api/ai-scores` | AI 推荐列表（TOP50，V3字段）|
+| `GET /api/market-data` | GlobalMarket + InstitutionalFlow 数据源状态 ★V3新增 |
+| `GET /api/stocks/[symbol]/indicators` | 个股技术指标 + OHLCV 序列（K线数据）|
+| `GET /api/stocks/[symbol]/financials` | 个股财报 |
+| `POST /api/line/webhook` | LINE Bot Webhook |
 
 ---
 
-## 七、脚本命令
+## 七、数据库 Schema（完整模型列表）
 
+```
+Stock           — 股票基本信息（3,716只 TSE，含nameZh）
+Financial       — 财务数据（stockId+fiscalYear+quarter unique）
+DailyPrice      — 日线OHLCV（symbol+date unique，7.9M条）
+Dividend        — 配当历史
+Disclosure      — TDnet适时披露
+News            — Kabutan新闻（url unique，category/relatedSymbolConfidence）
+AIAnalysis      — 深度AI分析（旧lib/scoring.ts使用，与StockScore分离）
+Portfolio       — 持仓
+SyncLog         — 同步历史日志
+SyncJob         — 异步任务（id cuid, status PENDING|RUNNING|SUCCESS|FAILED）
+
+StockScore      — AI预计算评分（symbol pk）★主要读取表
+  technicalScore    Int? (0-30)
+  fundamentalScore  Int? (0-25)
+  moneyFlowScore    Int? (0-20)  ← riskScore 的别名（同步写入）
+  newsSentimentScore Int? (0-15)
+  globalTrendScore  Int? (0-10)
+  riskScore         Int? (legacy alias = moneyFlowScore)
+  totalScore        Int? (0-100)
+  recommendation    String? (STRONG_BUY|BUY|HOLD|WATCH|AVOID)
+  summaryReason     String? (含 [yahoo]/[v2_proxy] 数据源标签)
+  newsSummary       String?
+
+GlobalMarket    — 全球市场快照（V3新增）★每日写入
+  date          DateTime @unique
+  nasdaq        Float?   nasdaqChange Float?
+  sp500         Float?   vix          Float?
+  nikkei        Float?   nikkeiChange Float?
+  topix         Float?   topixChange  Float?
+  usdjpy        Float?
+  score         Int?     (0-10, 综合得分)
+  source        String   (yahoo | manual)
+
+InstitutionalFlow — JPX机构资金流（V3新增）★目前synthetic
+  date          DateTime @db.Date
+  investorType  String   (foreigners|trust|corp|individual|dealer)
+  market        String   @default("ALL")
+  buyAmount     Float?   sellAmount Float?  netAmount Float?
+  source        String   (jpx | synthetic)
+  @@unique([date, investorType, market])
+
+NotificationLog — 通知日志
+TelegramUser    — Telegram用户（预留）
+LineGroup       — LINE群组
+LineUser        — LINE用户（userId unique，lastSymbol上下文）
+WatchList       — 关注列表
+```
+
+完整 Schema 见 `prisma/schema.prisma`
+
+---
+
+## 八、已安装依赖（关键包）
+
+| 包 | 版本 | 重要注意 |
+|----|------|---------|
+| `next` | 16.2.9 | App Router；Route Params 需 `await params` |
+| `@prisma/client` | ^7.8.0 | 用 `adapter-pg`（PrismaPg），不是旧 datasource pg |
+| `@prisma/adapter-pg` | ^7.8.0 | 必须与 prisma/client 同版本 |
+| `yahoo-finance2` | ^3.15.3 | **v3 必须实例化** `new YahooFinance()`，见 `lib/yahooFinance.ts`；`yf.historical()` = `chart()` 的 alias，`^VIX` 某些日期 close=null 会触发 validation warning，已处理 |
+| `node-html-parser` | ^7.1.0 | Kabutan 新闻爬虫 |
+| `openai` | ^6.44.0 | DeepSeek API（兼容 OpenAI 接口）|
+| `node-cron` | ^4.4.1 | Cron 调度 |
+| `axios` | ^1.18.0 | HTTP client |
+| `dayjs` | ^1.11.21 | 日期处理 |
+| `zod` | ^4.4.3 | 数据验证 |
+
+npm scripts 重要命令：
 ```bash
-npm run dev                  # 本地开发 localhost:3000
-npm run build                # 生产构建
-npm run sync-meta            # 同步股票元数据（名称/行业/市值）
-npm run sync-prices-recent   # 同步全量最新价格（3716只，约1.5小时）✅已完成
-npm run sync-financials      # 同步J-Quants财报（3716只，约2-3小时）✅已完成
-npm run compute-scores       # 重算全部StockScore（约10分钟）✅已完成
-npm run line:test            # 发送LINE测试推送
-npm run line:test:dry        # 预览LINE测试推送（不发送）
-npm run send-daily-line      # 发送LINE每日AI日报
-npm run line:groups          # 列出Bot所在LINE群组
+npm run compute-scores          # 全量重算 AI 评分
+npm run fetch-global-market     # 抓取全球市场数据写入 GlobalMarket
+npm run fetch-institutional-flow # 抓取 JPX 机构流向（当前 fallback）
+npm run sync-meta               # 同步股票元数据
+npm run sync-prices-recent      # 同步最近价格
+npm run cron                    # 启动 cron 调度器
+npm run send-daily-line         # 发送每日 LINE 推送
 ```
 
 ---
 
-## 八、数据库模型（13个）
+## 九、关键代码知识
 
-| 模型 | 表名 | 关键字段 |
-|------|------|----------|
-| Stock | `"Stock"` | symbol(unique), name, market, sector, price |
-| DailyPrice | `"DailyPrice"` | symbol+date(unique), open/high/low/close, volume |
-| Financial | `"Financial"` | stockId+fiscalYear+quarter(unique), revenue, netProfit, roe, eps |
-| **StockScore** | `"StockScore"` | **symbol(pk), totalScore, technicalScore, fundamentalScore, riskScore, recommendation, rsi14, macd, maTrend** |
-| News | `"News"` | stockId, title, source, publishedAt, sentiment |
-| AIAnalysis | `"AIAnalysis"` | stockId, score, recommendation, summary |
-| Portfolio | `"Portfolio"` | symbol, shares, avgPrice |
-| Disclosure | `"Disclosure"` | symbol, title, category, publishedAt |
-| Dividend | `"Dividend"` | symbol+year+quarter(unique), dividend, yieldRate |
-| SyncLog | `"SyncLog"` | source, status, itemCount |
-| WatchList | `watch_list` | symbol(unique), targetPrice |
-| LineUser | `line_users` | userId(unique), lastSymbol（上下文记忆）|
-| LineGroup | `line_groups` | groupId(unique), isActive |
-
-**Prisma 操作：**
-```bash
-npx prisma migrate dev        # 本地新增迁移
-npx prisma generate           # schema变更后重新生成client
-npx prisma migrate deploy     # 生产应用迁移（在/opt/tohoshou执行）
-npx prisma studio             # GUI查看数据
-```
-
----
-
-## 九、AI 评分算法（lib/ai-score.ts V2）
-
-**权重：** 技术面(40%) + 基本面(40%) + 风险面(20%) = 总分 100
-
-**技术面（满40分）：**
-- MA趋势(0-10)：GOLDEN=10, BULLISH=8, NEUTRAL=5, BEARISH=2, DEAD=0
-- MACD(0-5)：BUY=5, NEUTRAL=2, SELL=1（V2修复，旧SELL=0）
-- RSI(0-5)：40-60=5, 60-70=4, 30-40=4, 70-80=3, 80+=1, ≤30=3（V2调整）
-- 20日涨幅(0-10)：+10%+=10, +5-10=8, 0-5=5, -5-0=3, -10--5=1, ≤-10=0
-- 60日涨幅(0-10)：同上尺度
-
-**基本面（满40分）：**
-- 营业利润率(0-8)：20%+=8, 15-20=7, 10-15=6, 5-10=4, 0-5=2, 负=0，缺失=**12**
-- ROE(0-8)：20%+=8, 15-20=7, 10-15=6, 5-10=4, 0-5=2, 负=0，缺失=**12**
-- EPS(0-8)：正EPS按价格占比，负=0，缺失=**12**
-- 自有资本比率(0-8)：50%+=8, 40-50=7, 30-40=6, 20-30=4, 10-20=2, <10=0，缺失=**12**
-- 数据完整性(0-20)：5条+4期=20, 4条=16, 3条=11, 1条=6, 0条=**10**（V2修复，旧=0）
-
-**风险面（满20分）：**
-- 波动率(0-7)、RSI安全性(0-7)、近期涨幅异动(0-6)
-
-**推荐阈值（待优化）：**
+### Prisma 初始化（必须用 adapter）
 ```typescript
-// lib/ai-score.ts 末尾
-if (total >= 90) rec = "STRONG_BUY";
-else if (total >= 80) rec = "BUY";   // ← 建议改为 70
-else if (total >= 65) rec = "WATCH"; // ← 建议改为 60
-else if (total >= 45) rec = "HOLD";
-else rec = "AVOID";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
+```
+
+### 改 schema 后必须执行
+```bash
+npx prisma generate           # 本地
+npx prisma db push --accept-data-loss  # 生产（无迁移历史时）
+npm run build                 # prisma generate 后必须重新 build
+```
+
+### Kabutan 新闻爬虫关键修复（勿回退）
+```typescript
+// Bug 1: parseKabutanDate 必须有 isNaN 防护
+const valid = (d: Date) => !isNaN(d.getTime()) ? d : null;
+// Bug 2: category 在 <div> 上
+const catEl = row.querySelector(".newslist_ctg");  // 正确
+```
+
+### V3 数据来源标签（summaryReason 中）
+```
+[yahoo]    = globalTrendScore 来自 Yahoo Finance 实时数据
+[v2_proxy] = moneyFlowScore 来自 V2 return60d 代理（JPX 不可用时）
+[jpx]      = moneyFlowScore 来自真实 JPX 机构流向（未来）
+```
+
+### rsync 部署注意
+```
+⚠️ rsync 会覆盖生产 .env！每次 rsync 后必须通过 ssh sed 修复 .env
 ```
 
 ---
 
-## 十、LINE Bot 状态
-
-| 功能 | 状态 | 备注 |
-|------|------|------|
-| LINE_OWNER_USER_ID | ✅ | U3223b03bb5879a9dabf2ce27b0f09524（已写入生产 .env）|
-| 广播推送 | ✅ | LINE_CHANNEL_ACCESS_TOKEN 已配置 |
-| Webhook 接收 | ⚠️ 待注册 | 需在 LINE Developers 填写 Webhook URL |
-| 聊天意图 | ✅ | 7203、トヨタ、丰田、今日推荐、新闻、分析7203、为什么、帮助 |
-| 上下文记忆 | ✅ | LineUser.lastSymbol（问"为什么"→用上次查的股票）|
-| 每日日报 | ✅ 设计 | 08:30 JST，cron-scheduler.ts，生产 tohoshou-cron 运行中 |
-
-**注册 Webhook：**
-1. 登录 https://developers.line.biz
-2. 选择 TOHOSHOU AI channel（Channel ID: 2010449475）
-3. Messaging API → Webhook URL → 填写：`https://aitohoshou.com/api/line/webhook`
-4. 点击 Verify 验证
-5. 开启 "Use webhook" 开关
-
----
-
-## 十一、TODO
-
-### P0 — 最优先
-- [ ] **注册 LINE Webhook**：填 `https://aitohoshou.com/api/line/webhook`，用户才能聊天
-- [x] **调低推荐阈值**：BUY 从 80 → 70，WATCH 从 65 → 60 ✅ v5.2.0
-
-### P1 — 重要
-- [x] **重算 StockScore**：生产重算完成（3714只）✅ v5.2.0
-- [ ] **同步新闻数据**：访问 `/sync` 页面触发，或直接 `POST /api/sync`
-- [x] **个股 K 线图**：蜡烛图 + MA均线 + 成交量 + Tooltip ✅ v5.2.0
-
-### P2 — 功能完善
-- [ ] **WatchList UI**：/watchlist 已建，添加"加入自选"按钮到个股详情页
-- [ ] **Portfolio UI**：/portfolio 持仓记录和盈亏计算
-- [ ] **每日价格自动同步**：验证 cron-scheduler 在生产正常执行
-- [ ] **Telegram Bot**：TELEGRAM_CHAT_ID 未填写（`npm run telegram:chat-id` 获取）
-
-### P3 — 数据维护
-- [ ] **财报季同步**：每季度末 `npm run sync-financials`
-- [ ] **新闻数据清理**：当前测试数据时间戳为 2024 年，需更新
-
----
-
-## NEXT SESSION
-
-**下次启动，按顺序执行：**
+## 十、部署流程
 
 ```bash
-# === 第一步：调整评分阈值让 BUY 推荐出现 ===
-# 编辑 lib/ai-score.ts，找到最后的推荐逻辑
-# 将 BUY 阈值从 >=80 改为 >=70
-# 将 WATCH 阈值从 >=65 改为 >=60
+# 标准部署（改了前端/API）
+npm run build
+sshpass -p 'Wen565656' rsync -avz --exclude node_modules \
+  .next/ root@8.209.247.68:/opt/tohoshou/.next/
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "pm2 restart tohoshou-web"
 
-# === 第二步：重算评分 ===
-npm run compute-scores
+# 改了 prisma schema → 额外步骤
+npx prisma generate
+sshpass -p 'Wen565656' scp prisma/schema.prisma root@8.209.247.68:/opt/tohoshou/prisma/
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "cd /opt/tohoshou && npx prisma generate && npm run build && pm2 restart tohoshou-web"
 
-# === 第三步：验证结果 ===
-curl https://aitohoshou.com/api/ai-scores | python3 -c "
-import sys,json; d=json.load(sys.stdin)
-for s in d['scores'][:5]: print(s['symbol'], s['totalScore'], s['recommendation'])
-"
+# 改了 scoring 逻辑 → 重算评分
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "cd /opt/tohoshou && npx tsx scripts/compute-scores.ts"
 
-# === 第四步：注册 LINE Webhook（需要浏览器）===
-# https://developers.line.biz → TOHOSHOU AI → Webhook URL
-# 填入: https://aitohoshou.com/api/line/webhook
-
-# === 第五步（可选）：画个股 K 线图 ===
-# /stocks/[symbol]/page.tsx 添加 recharts LineChart
-# 数据来源：/api/prices/[symbol]?days=60
+# 验证
+curl -s https://aitohoshou.com/api/market-data
 ```
 
-**验证生产是否正常：**
+---
+
+## 十一、已知问题 & TODO
+
+### 优先级说明：P0=阻塞 P1=重要 P2=中等 P3=低
+
+### P1 — V3 数据源改进
+
+#### InstitutionalFlow（JPX 机构资金流）
+- [ ] **JPX 数据当前不可用**：`www.jpx.co.jp` 从海外服务器（Alibaba HK）不可访问，
+  `scripts/fetch-institutional-flow.ts` 始终 fallback 写 synthetic 中性数据
+- **影响**：`moneyFlowScore` inflow 组件对所有股票使用 V2 proxy（`calcInflow(return60d)`）
+- **备选方案**：① 使用日本 IP 的 VPN/代理抓取 ② 替代数据源（Investing.com、Bloomberg 日本市场流向）③ 手动上传每周 CSV
+
+#### VIX 数据
+- [ ] `^VIX` 通过 `yf.historical()` 获取时某些日期 close=null（Yahoo Finance V3 schema 验证问题）
+  → 当前使用 1.5 分中性值，不影响评分稳定性
+- **改进**：改用 `yf.quote('^VIX')` 获取实时 VIX 报价（更可靠）
+
+### P2 — LINE 智能推送升级
+- [ ] **每日早报**：开盘前推送当日 AI 强推列表（STRONG_BUY）
+- [ ] **午间快报**：异动股（涨跌幅 > 5%）实时提醒
+- [ ] **收盘总结**：收盘后推送当日涨跌榜 + AI 分析
+- [ ] **Flex Message 卡片**：升级现有文本消息为富文本卡片格式
+- [ ] 加入 `cron-scheduler.ts`：08:00/12:30/15:45 JST 定时推送
+
+### P2 — 数据源
+- [ ] **TDnet 真实数据**：当前 `lib/tdnet.ts` 大多数时候 fallback 到 mock 数据
+- [ ] **J-Quants 定时同步**：当前需手动触发
+
+### P3
+- [ ] LINE Bot 群组功能
+- [ ] News 页面关键词搜索 / 按股票过滤
+- [ ] V3 第二阶段：新闻情绪真实接入（TDnet 公告扩充 Kabutan 覆盖率）
+
+---
+
+## <a id="next-session"></a>NEXT SESSION — 下次启动继续位置
+
+### 当前状态（2026-06-20，v7.0.0）
+
+#### 已完成
+- ✅ **TOHOSHOU AI V1** — 基础5维度评分体系（AIAnalysis 路线，`lib/scoring.ts`）
+- ✅ **TOHOSHOU AI V2** — 100分新5维度（技術/基本/資金/情绪/全球，`lib/ai-score.ts`）
+- ✅ **TOHOSHOU AI V3 第一阶段** — 真实全球市场数据接入（Yahoo Finance → GlobalMarket DB）
+- ✅ **V1 残留全部清零** — 全站 "安全性" 改为 "資金面"，评分描述更新为5维度
+- ✅ **3714只股票 V3 评分已重算完成**（生产）
+
+#### 当前 scoring 状态
+```
+globalTrendScore  ← Yahoo Finance 实时 ✅（每次 compute-scores 前需先 fetch-global-market）
+moneyFlowScore    ← V2 proxy（return60d）⚠️ JPX 不可用 fallback
+newsSentimentScore← Kabutan DB 实时 ✅
+technicalScore    ← J-Quants 价格 ✅
+fundamentalScore  ← J-Quants 财务 ✅
+```
+
+### 下次第一件事（推荐3选1）
+
+#### 选项 A — 修复 VIX 数据（1小时）
+改 `scripts/fetch-global-market.ts` 中 VIX 抓取方式：
+```typescript
+// 当前（有时返回 null）
+const vixHist = await fetchSymbol("^VIX");
+// 改为（使用 quote 接口，更稳定）
+const vixQuote = await yf.quote("^VIX");
+const vix = vixQuote?.regularMarketPrice ?? null;
+```
+
+#### 选项 B — JPX 机构流向替代方案（半天）
+为 `scripts/fetch-institutional-flow.ts` 增加备用数据源：
+Investing.com 日本市场机构买卖（周报页面），或改为手动上传模式（上传 JPX CSV 到 `/api/admin/upload-jpx-flow`）
+
+#### 选项 C — LINE 智能推送升级（1-2天）
+1. Schema 新增 `NotificationSetting` 表
+2. 实现 `scripts/send-morning-brief.ts`（早报，HOLD+ TOP5）
+3. 接入 `cron-scheduler.ts`（08:00 JST）
+
+### 快速健康检查
+
 ```bash
-curl https://aitohoshou.com/api/stocks | python3 -c "import sys,json; d=json.load(sys.stdin); print('stocks total=', d['total'])"
-curl https://aitohoshou.com/api/ai-scores | python3 -c "import sys,json; d=json.load(sys.stdin); print('ai-scores=', len(d['scores']))"
-pm2 list   # 在服务器上运行
+# 生产状态
+curl -s https://aitohoshou.com/api/market-data
+
+# 评分分布
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "cd /opt/tohoshou && npx tsx -e \"
+const {PrismaClient}=require('@prisma/client');
+const {PrismaPg}=require('@prisma/adapter-pg');
+const p=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})});
+p.stockScore.groupBy({by:['recommendation'],_count:{recommendation:true}}).then(r=>{console.log(r);p.\$disconnect()})
+\""
+
+# PM2 状态
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 'pm2 list'
+
+# 最新日志
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  'pm2 logs tohoshou-web --lines 10 --nostream 2>/dev/null | tail -15'
 ```

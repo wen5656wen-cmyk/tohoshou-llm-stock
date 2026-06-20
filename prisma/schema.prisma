@@ -10,6 +10,7 @@ model Stock {
   id            Int          @id @default(autoincrement())
   symbol        String       @unique
   name          String
+  nameZh        String?
   nameEn        String?
   market        String       @default("TSE")
   price         Float        @default(0)
@@ -207,37 +208,88 @@ model SyncLog {
 
 // Pre-computed screener scores (materialized via scripts/compute-scores.ts)
 model StockScore {
-  symbol           String    @id
-  name             String
-  market           String?
-  sector           String?
-  industry         String?
-  scaleCategory    String?
-  computedAt       DateTime
-  priceCount       Int       @default(0)
-  latestDate       String?
-  latestClose      Float?
-  return5d         Float?
-  return20d        Float?
-  return60d        Float?
-  rsi14            Float?
-  macd             Float?
-  macdSignal       Float?
-  macdHist         Float?
-  maTrend          String?
-  macdSignalLabel  String?
-  technicalScore   Int?
-  fundamentalScore Int?
-  riskScore        Int?
-  totalScore       Int?
-  recommendation   String?
-  starsLabel       String?
-  summaryReason    String?
+  symbol             String    @id
+  name               String
+  nameZh             String?
+  market             String?
+  sector             String?
+  industry           String?
+  scaleCategory      String?
+  computedAt         DateTime
+  priceCount         Int       @default(0)
+  latestDate         String?
+  latestClose        Float?
+  return5d           Float?
+  return20d          Float?
+  return60d          Float?
+  rsi14              Float?
+  macd               Float?
+  macdSignal         Float?
+  macdHist           Float?
+  maTrend            String?
+  macdSignalLabel    String?
+  // V2 5-dimension scores (sum = totalScore 0-100)
+  technicalScore     Int?      // 0-30
+  fundamentalScore   Int?      // 0-25
+  moneyFlowScore     Int?      // 0-20 (proxy until InstitutionalFlow data available)
+  newsSentimentScore Int?      // 0-15
+  globalTrendScore   Int?      // 0-10
+  // Legacy (kept for DB compat, same as moneyFlowScore)
+  riskScore          Int?
+  totalScore         Int?
+  recommendation     String?
+  starsLabel         String?
+  summaryReason      String?
+  newsSummary        String?   @db.Text
 
   @@index([totalScore(sort: Desc)])
   @@index([computedAt(sort: Desc)])
   @@index([market])
   @@index([recommendation])
+}
+
+// Market-wide investor type weekly trading flow (TSE/JPX 投資部門別売買動向)
+model InstitutionalFlow {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @db.Date          // week-ending Friday
+  investorType String                      // foreigners | trust | corp | individual | dealer
+  market       String   @default("ALL")   // ALL | PRIME | STANDARD | GROWTH
+  buyAmount    Float?                      // 買い（億円）
+  sellAmount   Float?                      // 売り（億円）
+  netAmount    Float?                      // 差引き = buy - sell（正=買越, 負=売越）
+  source       String   @default("jpx")   // jpx | synthetic
+  createdAt    DateTime @default(now())
+
+  @@unique([date, investorType, market])
+  @@index([date(sort: Desc)])
+}
+
+// Global market snapshot (for globalTrendScore)
+model GlobalMarket {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @db.Date @unique
+  // US market
+  nasdaq        Float?   // NASDAQ Composite close
+  nasdaqChange  Float?   // 1-day % change
+  sp500         Float?   // S&P 500 close
+  vix           Float?   // VIX fear index level
+  // Japan
+  nikkei        Float?   // Nikkei 225 close
+  nikkeiChange  Float?   // 1-day % change
+  topix         Float?   // TOPIX close (or ETF proxy)
+  topixChange   Float?   // 1-day % change
+  // FX
+  usdjpy        Float?   // USD/JPY spot
+  // Legacy macro fields
+  sox           Float?
+  cpi           Float?
+  fedRate       Float?
+  // Computed score
+  score         Int?     // global trend score 0-10
+  source        String   @default("yahoo") // yahoo | manual
+  createdAt     DateTime @default(now())
+
+  @@index([date(sort: Desc)])
 }
 
 model NotificationLog {

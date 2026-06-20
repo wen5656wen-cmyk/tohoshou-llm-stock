@@ -6,6 +6,7 @@ import Link from "next/link";
 type StockRow = {
   symbol: string;
   name: string;
+  nameZh: string | null;
   sector: string | null;
   market: string | null;
   latestDate: string;
@@ -92,7 +93,16 @@ export default function StocksPage() {
   }, []);
 
   const filtered = rows
-    .filter((r) => !q || r.symbol.toLowerCase().includes(q.toLowerCase()) || r.name.includes(q))
+    .filter((r) => {
+      if (!q) return true;
+      const ql = q.toLowerCase();
+      return (
+        r.symbol.toLowerCase().includes(ql) ||
+        r.name.includes(q) ||
+        (r.nameZh ?? "").includes(q) ||
+        r.symbol.replace(".T", "").includes(q)
+      );
+    })
     .sort((a, b) => {
       const av = a[sort] ?? -Infinity;
       const bv = b[sort] ?? -Infinity;
@@ -122,7 +132,7 @@ export default function StocksPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex gap-3">
         <input
           type="text"
-          placeholder="搜索股票代码或名称"
+          placeholder="搜索：代码（7203）、中文名（丰田）、日文名（トヨタ）"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -180,9 +190,14 @@ export default function StocksPage() {
               ) : filtered.map((s) => (
                 <tr key={s.symbol} className="hover:bg-blue-50/30 transition-colors">
                   <td className="px-5 py-3">
-                    <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block">
-                      <div className="font-medium text-sm text-slate-900 hover:text-blue-600">{s.name}</div>
-                      <div className="text-xs text-slate-400 font-mono">{s.symbol}</div>
+                    <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
+                      <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
+                        {s.nameZh || s.name}
+                      </div>
+                      {s.nameZh && s.nameZh !== s.name && (
+                        <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{s.name}</div>
+                      )}
+                      <div className="text-[12px] text-[#64748b] font-mono mt-0.5">{s.symbol}</div>
                     </Link>
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums font-medium text-sm text-slate-900">

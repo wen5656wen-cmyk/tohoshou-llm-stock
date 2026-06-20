@@ -19,6 +19,7 @@ export async function GET() {
     select: {
       symbol: true,
       name: true,
+      nameZh: true,
       sector: true,
       market: true,
       latestDate: true,
@@ -39,6 +40,7 @@ export async function GET() {
     scores.map((s) => ({
       symbol: s.symbol,
       name: s.name,
+      nameZh: s.nameZh ?? null,
       sector: s.sector ?? null,
       market: s.market ?? null,
       latestDate: s.latestDate ?? "",

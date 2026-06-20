@@ -18,7 +18,16 @@ export async function GET(req: NextRequest) {
 
   const where = {
     AND: [
-      q ? { OR: [{ name: { contains: q } }, { symbol: { contains: q } }] } : {},
+      q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { nameZh: { contains: q } },
+              { nameEn: { contains: q, mode: "insensitive" as const } },
+              { symbol: { contains: q } },
+            ],
+          }
+        : {},
       market ? { market: { contains: market } } : {},
       sector ? { sector: { contains: sector } } : {},
     ],
@@ -32,7 +41,7 @@ export async function GET(req: NextRequest) {
       skip,
       take: limit,
       select: {
-        id: true, symbol: true, name: true, market: true, sector: true,
+        id: true, symbol: true, name: true, nameZh: true, market: true, sector: true,
         industry: true, price: true, change: true, changeRate: true,
         high52w: true, low52w: true, volume: true,
       },

@@ -15,7 +15,7 @@ type PortfolioItem = {
   value: number;
   pnl: number;
   pnlRate: number;
-  stock: { price: number; changeRate: number | null; aiScore: number | null } | null;
+  stock: { price: number; changeRate: number | null; aiScore: number | null; nameZh: string | null } | null;
 };
 
 type PortfolioData = {
@@ -214,9 +214,14 @@ export default function PortfolioPage() {
               {data?.items.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3">
-                    <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="block">
-                      <div className="font-medium text-sm text-slate-900 hover:text-blue-600">{item.name}</div>
-                      <div className="text-xs text-slate-400 font-mono">{item.symbol}</div>
+                    <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="block group">
+                      <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
+                        {item.stock?.nameZh || item.name}
+                      </div>
+                      {item.stock?.nameZh && item.stock.nameZh !== item.name && (
+                        <div className="text-[12px] text-[#94a3b8]">{item.name}</div>
+                      )}
+                      <div className="text-[12px] text-[#64748b] font-mono">{item.symbol}</div>
                     </Link>
                     {item.note && <div className="text-xs text-slate-400 mt-0.5">{item.note}</div>}
                   </td>

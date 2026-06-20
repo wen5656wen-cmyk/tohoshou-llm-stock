@@ -122,7 +122,9 @@ export default function SyncPage() {
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyncResult>>({});
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const [newsJobStatus, setNewsJobStatus] = useState<JobStatus | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const newsPollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStatus = async () => {
     try {
@@ -138,7 +140,10 @@ export default function SyncPage() {
 
   useEffect(() => {
     fetchStatus();
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
+    return () => {
+      if (pollTimer.current) clearInterval(pollTimer.current);
+      if (newsPollTimer.current) clearInterval(newsPollTimer.current);
+    };
   }, []);
 
   // Poll job progress for jquants async jobs
@@ -161,10 +166,31 @@ export default function SyncPage() {
     }, 3000);
   };
 
+  // Poll job progress for news async jobs
+  const startNewsPolling = (jobId: string) => {
+    if (newsPollTimer.current) clearInterval(newsPollTimer.current);
+    newsPollTimer.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sync/jobs/${jobId}`, { cache: "no-store" });
+        const job: JobStatus = await res.json();
+        setNewsJobStatus(job);
+        if (job.status === "SUCCESS" || job.status === "FAILED") {
+          clearInterval(newsPollTimer.current!);
+          newsPollTimer.current = null;
+          setSyncing((s) => ({ ...s, news: false }));
+          await fetchStatus();
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+  };
+
   const runSync = async (source: string) => {
     setSyncing((s) => ({ ...s, [source]: true }));
     setResults((r) => ({ ...r, [source]: {} }));
     if (source === "jquants") setJobStatus(null);
+    if (source === "news") setNewsJobStatus(null);
 
     const url = source === "all" ? "/api/sync" : `/api/sync/${source}`;
     try {
@@ -190,7 +216,20 @@ export default function SyncPage() {
           pct: 0,
         });
         startPolling(data.jobId);
-        // Don't clear syncing here — polling will clear it when done
+      } else if (source === "news" && data.jobId) {
+        // Async job — start polling
+        setNewsJobStatus({
+          jobId: data.jobId,
+          source: "news",
+          status: "RUNNING",
+          total: data.total ?? 0,
+          processed: 0,
+          successCount: 0,
+          failedCount: 0,
+          errorMessage: null,
+          pct: 0,
+        });
+        startNewsPolling(data.jobId);
       } else {
         setResults((r) => ({ ...r, [source]: data }));
         setSyncing((s) => ({ ...s, [source]: false }));
@@ -200,7 +239,7 @@ export default function SyncPage() {
       setSyncing((s) => ({ ...s, [source]: false }));
     }
 
-    if (source !== "jquants") await fetchStatus();
+    if (source !== "jquants" && source !== "news") await fetchStatus();
   };
 
   const StatusDot = ({ ok }: { ok: boolean }) => (
@@ -408,7 +447,7 @@ export default function SyncPage() {
                             未配置
                           </span>
                         )}
-                        {source === "jquants" && (
+                        {(source === "jquants" || source === "news") && (
                           <span className="text-xs text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
                             异步任务
                           </span>
@@ -455,14 +494,20 @@ export default function SyncPage() {
                 {source === "jquants" && jobStatus && !loading && (
                   <JobProgressPanel job={jobStatus} />
                 )}
-
-                {/* Other sources: show result panel */}
-                {source !== "jquants" && !loading && result && (
+                {source === "jquants" && !jobStatus && !loading && result && (
                   <ResultPanel result={result} />
                 )}
 
-                {/* J-Quants error (non-job errors like not configured) */}
-                {source === "jquants" && !jobStatus && !loading && result && (
+                {/* News: show async job progress */}
+                {source === "news" && newsJobStatus && !loading && (
+                  <JobProgressPanel job={newsJobStatus} />
+                )}
+                {source === "news" && !newsJobStatus && !loading && result && (
+                  <ResultPanel result={result} />
+                )}
+
+                {/* Other sources: show result panel */}
+                {source !== "jquants" && source !== "news" && !loading && result && (
                   <ResultPanel result={result} />
                 )}
               </div>

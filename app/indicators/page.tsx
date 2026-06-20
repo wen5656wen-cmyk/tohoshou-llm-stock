@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type StockIndicator = {
-  symbol: string; name: string; sector: string | null;
+  symbol: string; name: string; nameZh: string | null; sector: string | null;
   latestDate: string; latestClose: number;
   ma5: number | null; ma20: number | null; ma60: number | null;
   rsi14: number | null; macd: number | null; macdSignal: number | null; macdHist: number | null;
@@ -218,9 +218,14 @@ export default function IndicatorsPage() {
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-300 w-4 tabular-nums">{idx + 1}</span>
-                        <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block">
-                          <div className="font-medium text-sm text-slate-900 hover:text-blue-600">{s.name}</div>
-                          <div className="text-xs text-slate-400 font-mono">{s.symbol}</div>
+                        <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
+                          <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
+                            {s.nameZh || s.name}
+                          </div>
+                          {s.nameZh && s.nameZh !== s.name && (
+                            <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{s.name}</div>
+                          )}
+                          <div className="text-[12px] text-[#64748b] font-mono mt-0.5">{s.symbol}</div>
                         </Link>
                       </div>
                     </td>
@@ -259,7 +264,7 @@ export default function IndicatorsPage() {
                   <Link key={s.symbol} href={`/stocks/${encodeURIComponent(s.symbol)}`}
                     className="rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ backgroundColor: bg }}>
                     <div className="text-xs font-mono text-slate-500 mb-1">{s.symbol}</div>
-                    <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.name}</div>
+                    <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.nameZh || s.name}</div>
                     <div className="text-xl font-bold tabular-nums" style={{ color: textColor }}>
                       {v >= 0 ? "▲" : "▼"}{Math.abs(v).toFixed(2)}%
                     </div>
@@ -285,7 +290,7 @@ export default function IndicatorsPage() {
                   <Link key={s.symbol} href={`/stocks/${encodeURIComponent(s.symbol)}`}
                     className="rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ backgroundColor: bg }}>
                     <div className="text-xs font-mono text-slate-500 mb-1">{s.symbol}</div>
-                    <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.name}</div>
+                    <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.nameZh || s.name}</div>
                     <div className="text-xl font-bold tabular-nums" style={{ color: textColor }}>{v.toFixed(1)}</div>
                     <div className="text-xs text-slate-500 mt-1">
                       {v >= 70 ? "超买" : v <= 30 ? "超卖" : "中性"}
@@ -312,7 +317,7 @@ export default function IndicatorsPage() {
                   <Link key={s.symbol} href={`/stocks/${encodeURIComponent(s.symbol)}`}
                     className={`rounded-xl border p-4 hover:opacity-90 transition-opacity ${cls}`}>
                     <div className="text-xs font-mono text-slate-500 mb-1">{s.symbol}</div>
-                    <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.name}</div>
+                    <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.nameZh || s.name}</div>
                     <div className="text-xs space-y-1">
                       {[["MA5", s.ma5], ["MA20", s.ma20], ["MA60", s.ma60]].map(([k, v]) => (
                         <div key={k as string} className="flex justify-between">

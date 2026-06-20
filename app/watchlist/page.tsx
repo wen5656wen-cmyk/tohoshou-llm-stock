@@ -14,6 +14,9 @@ type WatchScore = {
   macdSignalLabel: string | null;
   technicalScore: number | null;
   fundamentalScore: number | null;
+  moneyFlowScore: number | null;
+  newsSentimentScore: number | null;
+  globalTrendScore: number | null;
   riskScore: number | null;
   totalScore: number | null;
   recommendation: string | null;
@@ -25,6 +28,7 @@ type WatchItem = {
   id: number;
   symbol: string;
   name: string;
+  nameZh: string | null;
   sector: string | null;
   market: string | null;
   note: string | null;
@@ -274,11 +278,14 @@ export default function WatchListPage() {
                     <div className="flex items-center gap-3 mb-1">
                       <Link
                         href={`/stocks/${encodeURIComponent(item.symbol)}`}
-                        className="font-semibold text-slate-900 hover:text-blue-600 text-sm"
+                        className="text-[15px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
                       >
-                        {item.name}
+                        {item.nameZh || item.name}
                       </Link>
-                      <span className="text-xs text-slate-400 font-mono">{item.symbol}</span>
+                      {item.nameZh && item.nameZh !== item.name && (
+                        <span className="text-[12px] text-[#94a3b8]">{item.name}</span>
+                      )}
+                      <span className="text-[12px] text-[#64748b] font-mono">{item.symbol}</span>
                       {s?.recommendation && (
                         <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
                           {rec.label}
@@ -327,11 +334,18 @@ export default function WatchListPage() {
                       </div>
                     )}
                     {s && (
-                      <div className="text-center">
-                        <div className="text-xs text-blue-600 font-bold">{s.technicalScore ?? "—"}</div>
-                        <div className="text-[10px] text-slate-400">技术</div>
-                        <div className="text-xs text-emerald-600 font-bold mt-1">{s.fundamentalScore ?? "—"}</div>
-                        <div className="text-[10px] text-slate-400">基本面</div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-center">
+                        {[
+                          { label: "技術", val: s.technicalScore, max: 30, cls: "text-blue-600" },
+                          { label: "基本", val: s.fundamentalScore, max: 25, cls: "text-emerald-600" },
+                          { label: "資金", val: s.moneyFlowScore, max: 20, cls: "text-violet-600" },
+                          { label: "情绪", val: s.newsSentimentScore, max: 15, cls: "text-amber-600" },
+                        ].map((d) => (
+                          <div key={d.label}>
+                            <div className={`text-xs font-bold ${d.cls}`}>{d.val ?? "—"}</div>
+                            <div className="text-[10px] text-slate-400">{d.label}/{d.max}</div>
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div className="flex flex-col gap-2">

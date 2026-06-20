@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       orderBy: { totalScore: "desc" },
       take: limit,
       select: {
-        symbol: true, name: true, market: true, sector: true, industry: true, scaleCategory: true,
+        symbol: true, name: true, nameZh: true, market: true, sector: true, industry: true, scaleCategory: true,
         computedAt: true, priceCount: true, latestDate: true, latestClose: true,
         return5d: true, return20d: true, return60d: true,
         rsi14: true, macd: true, macdHist: true, maTrend: true, macdSignalLabel: true,

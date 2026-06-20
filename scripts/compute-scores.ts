@@ -13,7 +13,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { calcIndicators } from "../lib/indicators";
-import { calcAiScore, type ScoreInput } from "../lib/ai-score";
+import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData } from "../lib/ai-score";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -22,13 +22,76 @@ const prisma = new PrismaClient({ adapter });
 const MIN_PRICE_COUNT = 20;
 
 async function main() {
-  console.log("=== AI评分全量计算 ===\n");
+  console.log("=== AI评分全量计算 V3 ===\n");
   const start = Date.now();
+
+  // ── V3: 预加载全球市场数据 ──────────────────────────────────────────────
+  const latestGlobalMarket = await prisma.globalMarket.findFirst({
+    orderBy: { date: "desc" },
+    select: { date: true, nasdaqChange: true, vix: true, usdjpy: true, nikkeiChange: true, topixChange: true, score: true, source: true },
+  });
+
+  let globalMarketData: GlobalMarketData | null = null;
+  if (latestGlobalMarket) {
+    const ageMs = Date.now() - latestGlobalMarket.date.getTime();
+    const ageDays = ageMs / 86400000;
+    if (ageDays <= 7) { // accept data up to 7 days old (covers weekends)
+      globalMarketData = {
+        nasdaqChange: latestGlobalMarket.nasdaqChange,
+        vixLevel:     latestGlobalMarket.vix,
+        usdJpy:       latestGlobalMarket.usdjpy,
+        nikkeiChange: latestGlobalMarket.nikkeiChange,
+        topixChange:  latestGlobalMarket.topixChange,
+        score:        latestGlobalMarket.score,
+      };
+      console.log(`✓ GlobalMarket: date=${latestGlobalMarket.date.toISOString().split("T")[0]}, score=${latestGlobalMarket.score}/10, source=${latestGlobalMarket.source}`);
+    } else {
+      console.log(`⚠ GlobalMarket: 数据过期 (${ageDays.toFixed(0)}天前), 使用 V2 默认值 7`);
+    }
+  } else {
+    console.log("⚠ GlobalMarket: 无数据, 使用 V2 默认值 7 (请运行 npm run fetch-global-market)");
+  }
+
+  // ── V3: 预加载机构资金流向 ────────────────────────────────────────────────
+  const FLOW_MAX_AGE_DAYS = 14; // weekly data, allow up to 2 weeks old
+  const latestFlowDate = await prisma.institutionalFlow.findFirst({
+    orderBy: { date: "desc" },
+    select: { date: true, source: true },
+  });
+
+  let institutionalFlowData: InstitutionalFlowData | null = null;
+  if (latestFlowDate) {
+    const ageMs = Date.now() - latestFlowDate.date.getTime();
+    const ageDays = ageMs / 86400000;
+    if (ageDays <= FLOW_MAX_AGE_DAYS) {
+      const flows = await prisma.institutionalFlow.findMany({
+        where: { date: latestFlowDate.date, market: "ALL" },
+        select: { investorType: true, netAmount: true, source: true },
+      });
+      const foreigners = flows.find((f) => f.investorType === "foreigners");
+      const trust      = flows.find((f) => f.investorType === "trust");
+      institutionalFlowData = {
+        foreignersNet: foreigners?.netAmount ?? null,
+        trustNet:      trust?.netAmount ?? null,
+        source:        latestFlowDate.source ?? "synthetic",
+      };
+      const fNet = foreigners?.netAmount;
+      const tNet = trust?.netAmount;
+      console.log(`✓ InstitutionalFlow: date=${latestFlowDate.date.toISOString().split("T")[0]}, source=${latestFlowDate.source}`);
+      console.log(`  外国人 ${fNet != null ? (fNet >= 0 ? "+" : "") + fNet.toFixed(0) : "N/A"}億円  投信 ${tNet != null ? (tNet >= 0 ? "+" : "") + tNet.toFixed(0) : "N/A"}億円`);
+    } else {
+      console.log(`⚠ InstitutionalFlow: 数据过期 (${ageDays.toFixed(0)}天前), 使用 V2 代理`);
+    }
+  } else {
+    console.log("⚠ InstitutionalFlow: 无数据, 使用 V2 代理 (请运行 npm run fetch-institutional-flow)");
+  }
+
+  console.log();
 
   // 获取所有股票（关联 stock info）
   const stocks = await prisma.stock.findMany({
     select: {
-      id: true, symbol: true, name: true,
+      id: true, symbol: true, name: true, nameZh: true,
       market: true, sector: true, industry: true, scaleCategory: true,
     },
     orderBy: { symbol: "asc" },
@@ -133,15 +196,34 @@ async function main() {
             newsScore,
             positiveNewsCount,
             negativeNewsCount,
+            totalNewsCount,
+            // V3: real market data (null → fallback to V2 proxy)
+            globalMarketData,
+            institutionalFlowData,
           };
 
           const score = calcAiScore(input);
+
+          const scorePayload = {
+            technicalScore:     score.technicalScore,
+            fundamentalScore:   score.fundamentalScore,
+            moneyFlowScore:     score.moneyFlowScore,
+            newsSentimentScore: score.newsSentimentScore,
+            globalTrendScore:   score.globalTrendScore,
+            riskScore:          score.riskScore,
+            totalScore:         score.totalScore,
+            recommendation:     score.recommendation,
+            starsLabel:         score.starsLabel,
+            summaryReason:      score.summaryReason,
+            newsSummary:        score.newsSummary,
+          };
 
           await prisma.stockScore.upsert({
             where: { symbol: stock.symbol },
             create: {
               symbol: stock.symbol,
               name: stock.name,
+              nameZh: stock.nameZh ?? null,
               market: stock.market ?? null,
               sector: stock.sector ?? null,
               industry: stock.industry ?? null,
@@ -153,16 +235,11 @@ async function main() {
               return5d: ind.return5d, return20d: ind.return20d, return60d: ind.return60d,
               rsi14: ind.rsi14, macd: ind.macd, macdSignal: ind.macdSignal, macdHist: ind.macdHist,
               maTrend: ind.maTrend, macdSignalLabel: ind.macdSignalLabel,
-              technicalScore: score.technicalScore,
-              fundamentalScore: score.fundamentalScore,
-              riskScore: score.riskScore,
-              totalScore: score.totalScore,
-              recommendation: score.recommendation,
-              starsLabel: score.starsLabel,
-              summaryReason: score.summaryReason,
+              ...scorePayload,
             },
             update: {
               name: stock.name,
+              nameZh: stock.nameZh ?? null,
               market: stock.market ?? null,
               sector: stock.sector ?? null,
               industry: stock.industry ?? null,
@@ -174,13 +251,7 @@ async function main() {
               return5d: ind.return5d, return20d: ind.return20d, return60d: ind.return60d,
               rsi14: ind.rsi14, macd: ind.macd, macdSignal: ind.macdSignal, macdHist: ind.macdHist,
               maTrend: ind.maTrend, macdSignalLabel: ind.macdSignalLabel,
-              technicalScore: score.technicalScore,
-              fundamentalScore: score.fundamentalScore,
-              riskScore: score.riskScore,
-              totalScore: score.totalScore,
-              recommendation: score.recommendation,
-              starsLabel: score.starsLabel,
-              summaryReason: score.summaryReason,
+              ...scorePayload,
             },
           });
 

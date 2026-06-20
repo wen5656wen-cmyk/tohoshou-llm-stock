@@ -5,7 +5,7 @@ export async function GET() {
   const portfolios = await prisma.portfolio.findMany({
     include: {
       stock: {
-        select: { price: true, changeRate: true, aiScore: true },
+        select: { price: true, changeRate: true, aiScore: true, nameZh: true },
       },
     },
     orderBy: { createdAt: "desc" },

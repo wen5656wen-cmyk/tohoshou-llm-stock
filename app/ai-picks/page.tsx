@@ -6,34 +6,21 @@ import Link from "next/link";
 type AiScore = {
   symbol: string;
   name: string;
+  nameZh: string | null;
   latestClose: number;
   latestDate: string;
   technicalScore: number;
   fundamentalScore: number;
+  moneyFlowScore: number;
+  newsSentimentScore: number;
+  globalTrendScore: number;
   riskScore: number;
   totalScore: number;
   stars: number;
   starsLabel: string;
   recommendation: "STRONG_BUY" | "BUY" | "WATCH" | "HOLD" | "AVOID";
-  technicalReasons: string[];
-  fundamentalReasons: string[];
-  riskReasons: string[];
   summaryReason: string;
-  detail: {
-    maTrendScore: number;
-    macdScore: number;
-    rsiScore: number;
-    return20dScore: number;
-    return60dScore: number;
-    opMarginScore: number;
-    roeScore: number;
-    epsScore: number;
-    equityRatioScore: number;
-    volatilityScore: number;
-    rsiSafetyScore: number;
-    recentMoveScore: number;
-    dataCompletenessScore: number;
-  };
+  newsSummary: string;
 };
 
 type ApiResponse = { scores: AiScore[]; updatedAt: string };
@@ -42,7 +29,7 @@ const REC_CFG: Record<string, { label: string; bg: string; text: string; border:
   STRONG_BUY: { label: "强烈买入", bg: "bg-red-50",    text: "text-red-700",    border: "border-red-200" },
   BUY:        { label: "买入",     bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
   WATCH:      { label: "关注",     bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
-  HOLD:       { label: "持有",     bg: "bg-slate-50",  text: "text-slate-600",  border: "border-slate-200" },
+  HOLD:       { label: "持有观察", bg: "bg-slate-50",  text: "text-slate-600",  border: "border-slate-200" },
   AVOID:      { label: "回避",     bg: "bg-blue-50",   text: "text-blue-600",   border: "border-blue-200" },
 };
 
@@ -53,21 +40,8 @@ function ScoreBar({ score, max = 100, color }: { score: number; max?: number; co
       <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs tabular-nums text-slate-600 w-8 text-right">{score}</span>
+      <span className="text-xs tabular-nums text-slate-600 w-12 text-right">{score}/{max}</span>
     </div>
-  );
-}
-
-function ReasonList({ reasons, color }: { reasons: string[]; color: string }) {
-  return (
-    <ul className="space-y-1">
-      {reasons.map((r, i) => (
-        <li key={i} className={`text-xs flex items-start gap-1.5 ${color}`}>
-          <span className="mt-0.5 shrink-0">▸</span>
-          <span>{r}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -88,33 +62,38 @@ function DetailCard({ score }: { score: AiScore }) {
               <div className="flex items-center gap-2 mb-0.5">
                 <Link
                   href={`/stocks/${encodeURIComponent(score.symbol)}`}
-                  className="font-semibold text-slate-900 hover:text-blue-600 text-sm"
+                  className="text-[15px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {score.name}
+                  {score.nameZh || score.name}
                 </Link>
-                <span className="text-xs text-slate-400 font-mono">{score.symbol}</span>
+                <span className="text-[12px] text-[#64748b] font-mono">{score.symbol}</span>
                 <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
                   {rec.label}
                 </span>
               </div>
+              {score.nameZh && score.nameZh !== score.name && (
+                <div className="text-[12px] text-[#94a3b8]">{score.name}</div>
+              )}
               <div className="text-[11px] text-slate-500">{score.starsLabel}</div>
               <div className="text-[11px] text-slate-500 mt-0.5 max-w-lg">{score.summaryReason}</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-5 shrink-0 ml-4">
-            <div className="text-center w-12">
-              <div className="text-sm font-bold text-blue-700 tabular-nums">{score.technicalScore}</div>
-              <div className="text-[10px] text-slate-400">技术</div>
-            </div>
-            <div className="text-center w-12">
-              <div className="text-sm font-bold text-emerald-700 tabular-nums">{score.fundamentalScore}</div>
-              <div className="text-[10px] text-slate-400">基本面</div>
-            </div>
-            <div className="text-center w-12">
-              <div className="text-sm font-bold text-violet-700 tabular-nums">{score.riskScore}</div>
-              <div className="text-[10px] text-slate-400">安全性</div>
+          <div className="flex items-center gap-4 shrink-0 ml-4">
+            <div className="grid grid-cols-5 gap-3">
+              {[
+                { label: "技術",  val: score.technicalScore,    cls: "text-blue-700" },
+                { label: "基本",  val: score.fundamentalScore,  cls: "text-emerald-700" },
+                { label: "資金",  val: score.moneyFlowScore,    cls: "text-violet-700" },
+                { label: "情绪",  val: score.newsSentimentScore,cls: "text-amber-700" },
+                { label: "全球",  val: score.globalTrendScore,  cls: "text-cyan-700" },
+              ].map((d) => (
+                <div key={d.label} className="text-center w-10">
+                  <div className={`text-sm font-bold tabular-nums ${d.cls}`}>{d.val}</div>
+                  <div className="text-[10px] text-slate-400">{d.label}</div>
+                </div>
+              ))}
             </div>
             <div className="text-right w-24">
               <div className="text-sm font-bold text-slate-900 tabular-nums">¥{score.latestClose.toLocaleString()}</div>
@@ -124,84 +103,52 @@ function DetailCard({ score }: { score: AiScore }) {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-4">
-          <div>
-            <div className="text-[10px] text-slate-400 mb-1">技术指标 (40%)</div>
-            <ScoreBar score={score.technicalScore} color="bg-blue-400" />
-          </div>
-          <div>
-            <div className="text-[10px] text-slate-400 mb-1">基本面 (40%)</div>
-            <ScoreBar score={score.fundamentalScore} color="bg-emerald-400" />
-          </div>
-          <div>
-            <div className="text-[10px] text-slate-400 mb-1">安全性 (20%)</div>
-            <ScoreBar score={score.riskScore} color="bg-violet-400" />
-          </div>
+        <div className="mt-3 grid grid-cols-5 gap-3">
+          {[
+            { label: "技術面 (30)",  score: score.technicalScore,    max: 30, color: "bg-blue-400" },
+            { label: "基本面 (25)",  score: score.fundamentalScore,  max: 25, color: "bg-emerald-400" },
+            { label: "資金面 (20)",  score: score.moneyFlowScore,    max: 20, color: "bg-violet-400" },
+            { label: "情绪面 (15)",  score: score.newsSentimentScore,max: 15, color: "bg-amber-400" },
+            { label: "全球趋势 (10)",score: score.globalTrendScore,  max: 10, color: "bg-cyan-400" },
+          ].map((d) => (
+            <div key={d.label}>
+              <div className="text-[10px] text-slate-400 mb-1">{d.label}</div>
+              <ScoreBar score={d.score} max={d.max} color={d.color} />
+            </div>
+          ))}
         </div>
       </div>
 
       {open && (
         <div className="px-5 pb-5 border-t border-slate-200/60 pt-4">
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <div className="text-xs font-semibold text-blue-700 mb-2">技术面依据</div>
-              <ReasonList reasons={score.technicalReasons} color="text-slate-600" />
-              <div className="mt-3 space-y-1.5">
+              <div className="text-xs font-semibold text-slate-700 mb-3">5维度评分</div>
+              <div className="space-y-3">
                 {[
-                  { label: "均线趋势", s: score.detail.maTrendScore,   m: 25 },
-                  { label: "MACD",     s: score.detail.macdScore,       m: 20 },
-                  { label: "RSI",      s: score.detail.rsiScore,        m: 25 },
-                  { label: "20日涨跌", s: score.detail.return20dScore,  m: 15 },
-                  { label: "60日涨跌", s: score.detail.return60dScore,  m: 15 },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
-                      <span>{item.label}</span><span>{item.s}/{item.m}</span>
-                    </div>
-                    <ScoreBar score={item.s} max={item.m} color="bg-blue-300" />
+                  { label: "技術面",  score: score.technicalScore,    max: 30, color: "bg-blue-400" },
+                  { label: "基本面",  score: score.fundamentalScore,  max: 25, color: "bg-emerald-400" },
+                  { label: "資金面",  score: score.moneyFlowScore,    max: 20, color: "bg-violet-400" },
+                  { label: "新闻情绪",score: score.newsSentimentScore,max: 15, color: "bg-amber-400" },
+                  { label: "全球趋势",score: score.globalTrendScore,  max: 10, color: "bg-cyan-400" },
+                ].map((d) => (
+                  <div key={d.label}>
+                    <div className="text-[10px] text-slate-500 mb-0.5">{d.label}</div>
+                    <ScoreBar score={d.score} max={d.max} color={d.color} />
                   </div>
                 ))}
               </div>
             </div>
-
             <div>
-              <div className="text-xs font-semibold text-emerald-700 mb-2">基本面依据</div>
-              <ReasonList reasons={score.fundamentalReasons} color="text-slate-600" />
-              <div className="mt-3 space-y-1.5">
-                {[
-                  { label: "营业利润率", s: score.detail.opMarginScore,   m: 25 },
-                  { label: "ROE",        s: score.detail.roeScore,         m: 25 },
-                  { label: "EPS",        s: score.detail.epsScore,         m: 25 },
-                  { label: "自有资本比率",s: score.detail.equityRatioScore, m: 25 },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
-                      <span>{item.label}</span><span>{item.s}/{item.m}</span>
-                    </div>
-                    <ScoreBar score={item.s} max={item.m} color="bg-emerald-300" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-violet-700 mb-2">风险评估依据</div>
-              <ReasonList reasons={score.riskReasons} color="text-slate-600" />
-              <div className="mt-3 space-y-1.5">
-                {[
-                  { label: "60日波动幅度", s: score.detail.volatilityScore,       m: 30 },
-                  { label: "RSI安全度",    s: score.detail.rsiSafetyScore,        m: 25 },
-                  { label: "近期急变动",   s: score.detail.recentMoveScore,       m: 25 },
-                  { label: "数据完备度",   s: score.detail.dataCompletenessScore, m: 20 },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
-                      <span>{item.label}</span><span>{item.s}/{item.m}</span>
-                    </div>
-                    <ScoreBar score={item.s} max={item.m} color="bg-violet-300" />
-                  </div>
-                ))}
-              </div>
+              <div className="text-xs font-semibold text-slate-700 mb-3">AI分析摘要</div>
+              {score.newsSummary ? (
+                <p className="text-xs text-slate-500 leading-relaxed mb-2">{score.newsSummary}</p>
+              ) : null}
+              {score.summaryReason ? (
+                <p className="text-xs text-slate-500 leading-relaxed">{score.summaryReason}</p>
+              ) : (
+                <p className="text-xs text-slate-300">暂无AI分析摘要</p>
+              )}
             </div>
           </div>
         </div>
@@ -258,7 +205,7 @@ export default function AiPicksPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">AI推荐排行</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          J-Quants实盘数据　技术40% + 基本面40% + 安全性20%
+          J-Quants实盘数据　技術30 + 基本面25 + 資金面20 + 情绪15 + 全球10
           　计算时间：{new Date(data.updatedAt).toLocaleString("zh-CN")}
         </p>
       </div>
@@ -299,8 +246,11 @@ export default function AiPicksPage() {
                   <span className="text-lg">{["🥇","🥈","🥉"][i]}</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded ${rec.bg} ${rec.text}`}>{rec.label}</span>
                 </div>
-                <div className="font-semibold text-white text-sm mb-0.5">{s.name}</div>
-                <div className="text-slate-400 text-xs mb-2">{s.symbol}</div>
+                <div className="text-[15px] font-bold text-white leading-tight">{s.nameZh || s.name}</div>
+                {s.nameZh && s.nameZh !== s.name && (
+                  <div className="text-[12px] text-slate-400 truncate">{s.name}</div>
+                )}
+                <div className="text-[12px] text-slate-500 font-mono mt-0.5 mb-2">{s.symbol}</div>
                 <div className="text-2xl font-bold text-white tabular-nums">{s.totalScore}分</div>
                 <div className="text-slate-300 text-xs mt-1">{s.starsLabel}</div>
                 <div className="mt-2 text-slate-400 text-[11px] line-clamp-2">{s.summaryReason}</div>

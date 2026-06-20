@@ -34,26 +34,134 @@ type Financial = {
   reportedAt: string;
 };
 
-type AiScoreResult = {
-  totalScore: number; technicalScore: number; fundamentalScore: number; riskScore: number;
-  stars: number; starsLabel: string;
-  recommendation: "STRONG_BUY" | "BUY" | "WATCH" | "HOLD" | "AVOID";
+type V2Score = {
+  totalScore: number;
+  technicalScore: number;
+  fundamentalScore: number;
+  moneyFlowScore: number;
+  newsSentimentScore: number;
+  globalTrendScore: number;
+  riskScore: number;
+  stars: number;
+  starsLabel: string;
+  recommendation: "STRONG_BUY" | "BUY" | "HOLD" | "WATCH" | "AVOID";
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
   summaryReason: string;
-  technicalReasons: string[]; fundamentalReasons: string[]; riskReasons: string[];
+  newsSummary: string;
+  technicalReasons: string[];
+  fundamentalReasons: string[];
+  moneyFlowReasons: string[];
   detail: Record<string, number>;
 };
 
 type StockData = {
   stock: {
-    symbol: string; name: string; nameEn: string | null;
+    symbol: string; name: string; nameZh: string | null; nameEn: string | null;
     sector: string | null; industry: string | null; market: string | null;
     price: number; high52w: number | null; low52w: number | null;
   };
   indicators: Indicators;
   series: { last30: PricePoint[]; last250: PricePoint[] };
   financials: Financial[];
-  aiScore: AiScoreResult | null;
+  aiScore: V2Score | null;
 };
+
+// ── Radar Chart (5-dimension pentagon SVG) ────────────────────────────────
+
+function RadarChart({ tech, fund, money, news, global: glob }: {
+  tech: number; fund: number; money: number; news: number; global: number;
+}) {
+  const cx = 130, cy = 130, r = 90;
+  const maxes = [30, 25, 20, 15, 10];
+  const scores = [tech, fund, money, news, glob];
+  const labels = [
+    { text: "技術面", sub: "/30" },
+    { text: "基本面", sub: "/25" },
+    { text: "資金面", sub: "/20" },
+    { text: "情绪",   sub: "/15" },
+    { text: "趋势",   sub: "/10" },
+  ];
+  const n = 5;
+  const angle = (i: number) => (2 * Math.PI * i / n) - Math.PI / 2;
+
+  const gridPts = (scale: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const a = angle(i);
+      return `${cx + r * scale * Math.cos(a)},${cy + r * scale * Math.sin(a)}`;
+    }).join(" ");
+
+  const dataPts = scores.map((v, i) => {
+    const norm = Math.min(1, v / maxes[i]);
+    const a = angle(i);
+    return `${cx + r * norm * Math.cos(a)},${cy + r * norm * Math.sin(a)}`;
+  }).join(" ");
+
+  return (
+    <svg width={260} height={260} viewBox="0 0 260 260">
+      {/* Grid rings */}
+      {[0.25, 0.5, 0.75, 1].map((s, i) => (
+        <polygon key={i} points={gridPts(s)} fill="none" stroke="#1e293b" strokeWidth={i === 3 ? 1.5 : 1} />
+      ))}
+      {/* Axis lines */}
+      {Array.from({ length: n }, (_, i) => {
+        const a = angle(i);
+        return (
+          <line key={i} x1={cx} y1={cy}
+            x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)}
+            stroke="#1e293b" strokeWidth="1"
+          />
+        );
+      })}
+      {/* Data polygon */}
+      <polygon points={dataPts} fill="rgba(59,130,246,0.2)" stroke="#3b82f6" strokeWidth="2" />
+      {/* Data dots */}
+      {scores.map((v, i) => {
+        const norm = Math.min(1, v / maxes[i]);
+        const a = angle(i);
+        return (
+          <circle key={i}
+            cx={cx + r * norm * Math.cos(a)}
+            cy={cy + r * norm * Math.sin(a)}
+            r={3.5} fill="#3b82f6"
+          />
+        );
+      })}
+      {/* Labels */}
+      {labels.map((lbl, i) => {
+        const a = angle(i);
+        const lx = cx + (r + 26) * Math.cos(a);
+        const ly = cy + (r + 26) * Math.sin(a);
+        return (
+          <g key={i}>
+            <text x={lx} y={ly - 5} textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
+              {lbl.text}
+            </text>
+            <text x={lx} y={ly + 8} textAnchor="middle" fill="#475569" fontSize="9">
+              {scores[i]}{lbl.sub}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── Score Bar ─────────────────────────────────────────────────────────────
+
+function ScoreBar({ label, score, max, color }: { label: string; score: number; max: number; color: string }) {
+  const pct = Math.round((score / max) * 100);
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-slate-400 w-16 shrink-0">{label}</span>
+      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "#1e293b" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span className="text-xs tabular-nums w-10 text-right shrink-0" style={{ color }}>
+        {score}/{max}
+      </span>
+    </div>
+  );
+}
 
 function ReturnBadge({ label, val }: { label: string; val: number | null }) {
   if (val === null) return null;
@@ -87,12 +195,12 @@ function fmtBillion(v: number | null): string {
   return v.toLocaleString();
 }
 
-const REC_CFG: Record<string, { label: string; bg: string; text: string }> = {
-  STRONG_BUY: { label: "强烈买入", bg: "bg-red-50",    text: "text-red-700" },
-  BUY:        { label: "买入",     bg: "bg-orange-50", text: "text-orange-700" },
-  WATCH:      { label: "关注",     bg: "bg-yellow-50", text: "text-yellow-700" },
-  HOLD:       { label: "持有",     bg: "bg-slate-50",  text: "text-slate-600" },
-  AVOID:      { label: "回避",     bg: "bg-blue-50",   text: "text-blue-600" },
+const REC_CFG: Record<string, { label: string; color: string; glow: string }> = {
+  STRONG_BUY: { label: "强烈买入", color: "#10b981", glow: "rgba(16,185,129,0.15)" },
+  BUY:        { label: "买入",     color: "#3b82f6", glow: "rgba(59,130,246,0.15)" },
+  HOLD:       { label: "持有观察", color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
+  WATCH:      { label: "关注等待", color: "#f59e0b", glow: "rgba(245,158,11,0.10)" },
+  AVOID:      { label: "回避",     color: "#ef4444", glow: "rgba(239,68,68,0.15)" },
 };
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -108,6 +216,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [watchLoading, setWatchLoading] = useState(false);
   const [newsItems, setNewsItems] = useState<NewsItem[] | null>(null);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [newsIsGeneral, setNewsIsGeneral] = useState(false);
 
   useEffect(() => {
     const s = decoded;
@@ -124,7 +233,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         if (indData.error) { setError(indData.error); setLoading(false); return; }
         setData({
           stock: {
-            symbol: stock.symbol, name: stock.name, nameEn: stock.nameEn,
+            symbol: stock.symbol, name: stock.name,
+            nameZh: stock.nameZh ?? null, nameEn: stock.nameEn ?? null,
             sector: stock.sector, industry: stock.industry, market: stock.market,
             price: stock.price, high52w: stock.high52w, low52w: stock.low52w,
           },
@@ -138,23 +248,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [decoded]);
 
-  const [newsIsGeneral, setNewsIsGeneral] = useState(false);
   useEffect(() => {
     if (activeTab !== "news" || newsItems !== null) return;
     setNewsLoading(true);
-
-    // Fetch all news linked to this stock (ordered by confidence desc)
-    // confidence>=95: 適時開示 (開示) — company filings
-    // confidence>=50: 材料ニュース — stock-related market news
-    // confidence>=25: general market shown in stock context
     fetch(`/api/news?symbol=${encodeURIComponent(decoded)}&limit=20`)
       .then((r) => r.json())
       .then((items: NewsItem[]) => {
-        if (Array.isArray(items) && items.length > 0) {
-          setNewsItems(items);
-          return null;
-        }
-        // Final fallback: general market news
+        if (Array.isArray(items) && items.length > 0) { setNewsItems(items); return null; }
         setNewsIsGeneral(true);
         return fetch("/api/news?limit=15").then((r) => r.json());
       })
@@ -204,12 +304,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   };
 
   const tabs = [
-    { key: "overview",    label: "概览" },
-    { key: "chart",       label: "价格图表" },
-    { key: "financials",  label: `财务 (${financials.length}条)` },
-    { key: "indicators",  label: "技术指标" },
-    { key: "ai",          label: aiScore ? `AI评分 ${aiScore.totalScore}分` : "AI评分" },
-    { key: "news",        label: "最新新闻" },
+    { key: "overview",   label: "概览" },
+    { key: "chart",      label: "价格图表" },
+    { key: "financials", label: `财务 (${financials.length}条)` },
+    { key: "indicators", label: "技术指标" },
+    { key: "ai",         label: aiScore ? `AI评分 ${aiScore.totalScore}分` : "AI评分" },
+    { key: "news",       label: "最新新闻" },
   ] as const;
 
   return (
@@ -217,9 +317,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <Link href="/stocks" className="text-xs text-slate-400 hover:text-slate-600">
-            ← 股票列表
-          </Link>
+          <Link href="/stocks" className="text-xs text-slate-400 hover:text-slate-600">← 股票列表</Link>
           <button
             onClick={toggleWatch}
             disabled={watchLoading}
@@ -235,14 +333,19 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
         <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900">{stock.name}</h1>
-              <span className="text-sm text-slate-400 font-mono bg-slate-100 px-2 py-0.5 rounded">
+            <h1 style={{ fontSize: 32, fontWeight: 700, color: "#111827", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
+              {stock.nameZh || stock.name}
+            </h1>
+            {stock.nameZh && stock.nameZh !== stock.name && (
+              <p style={{ fontSize: 18, fontWeight: 500, color: "#64748b", marginTop: 2 }}>{stock.name}</p>
+            )}
+            {stock.nameEn && (
+              <p style={{ fontSize: 16, fontWeight: 400, color: "#94a3b8", marginTop: 2 }}>{stock.nameEn}</p>
+            )}
+            <div className="flex items-center gap-2 mt-2">
+              <span className="font-mono text-sm font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg tracking-wide">
                 {stock.symbol}
               </span>
-            </div>
-            {stock.nameEn && <p className="text-sm text-slate-500 mt-0.5">{stock.nameEn}</p>}
-            <div className="flex items-center gap-2 mt-1">
               {stock.market && (
                 <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{stock.market}</span>
               )}
@@ -263,10 +366,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       </div>
 
-      {/* Return Summary Strip */}
+      {/* Return Strip */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5">
         <div className="flex items-center justify-around">
-          <ReturnBadge label="5日涨跌" val={ind.return5d} />
+          <ReturnBadge label="5日涨跌"  val={ind.return5d}  />
           <div className="w-px h-8 bg-slate-100" />
           <ReturnBadge label="20日涨跌" val={ind.return20d} />
           <div className="w-px h-8 bg-slate-100" />
@@ -303,7 +406,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         ))}
       </div>
 
-      {/* Tab: Overview */}
+      {/* ── Tab: Overview ─────────────────────────────────────────────────── */}
       {activeTab === "overview" && (
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-5">
@@ -379,7 +482,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       )}
 
-      {/* Tab: Chart */}
+      {/* ── Tab: Chart ───────────────────────────────────────────────────── */}
       {activeTab === "chart" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
@@ -408,7 +511,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       )}
 
-      {/* Tab: Financials */}
+      {/* ── Tab: Financials ──────────────────────────────────────────────── */}
       {activeTab === "financials" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
@@ -463,7 +566,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       )}
 
-      {/* Tab: Indicators */}
+      {/* ── Tab: Indicators ──────────────────────────────────────────────── */}
       {activeTab === "indicators" && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -512,9 +615,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   </div>
                   <div className="flex justify-between text-xs text-slate-400 mt-0.5">
                     <span>0</span><span>30</span><span>50</span><span>70</span><span>100</span>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {ind.rsi14 >= 80 ? "⚠ 超买区（注意回调风险）" : ind.rsi14 >= 60 ? "强势区" : ind.rsi14 <= 20 ? "⚠ 超卖区（可能反弹）" : ind.rsi14 <= 40 ? "弱势区" : "中性区"}
                   </div>
                 </div>
               )}
@@ -571,7 +671,150 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       )}
 
-      {/* Tab: News */}
+      {/* ── Tab: AI Score V2 — Dark Bloomberg Style ──────────────────────── */}
+      {activeTab === "ai" && (
+        <div className="space-y-4">
+          {!aiScore ? (
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-sm">
+              暂无AI评分数据
+            </div>
+          ) : (() => {
+            const rec = REC_CFG[aiScore.recommendation] ?? REC_CFG.HOLD;
+            const riskColors = { LOW: "#10b981", MEDIUM: "#f59e0b", HIGH: "#ef4444" };
+            const riskLabels = { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险" };
+
+            return (
+              <>
+                {/* Main Score Card — Dark */}
+                <div style={{ background: "#0f172a", borderRadius: 16, padding: "28px 32px", border: "1px solid #1e293b" }}>
+                  <div className="flex items-start justify-between gap-6">
+                    {/* Left: Score + label */}
+                    <div className="shrink-0">
+                      <div className="text-xs font-semibold tracking-widest mb-3" style={{ color: "#475569" }}>
+                        TOHOSHOU AI SCORE
+                      </div>
+                      <div className="flex items-baseline gap-3 mb-2">
+                        <span style={{ fontSize: 72, fontWeight: 900, lineHeight: 1, color: rec.color, fontVariantNumeric: "tabular-nums" }}>
+                          {aiScore.totalScore}
+                        </span>
+                        <span style={{ fontSize: 24, color: "#475569", fontWeight: 400 }}>/100</span>
+                      </div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <span style={{
+                          fontSize: 18, fontWeight: 700, color: rec.color,
+                          background: rec.glow, padding: "4px 12px", borderRadius: 8,
+                          border: `1px solid ${rec.color}40`,
+                        }}>
+                          {rec.label}
+                        </span>
+                        <span style={{ color: "#f59e0b", fontSize: 16 }}>{aiScore.starsLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, color: riskColors[aiScore.riskLevel],
+                          background: `${riskColors[aiScore.riskLevel]}20`,
+                          padding: "2px 8px", borderRadius: 6,
+                          border: `1px solid ${riskColors[aiScore.riskLevel]}40`,
+                        }}>
+                          {riskLabels[aiScore.riskLevel]}
+                        </span>
+                      </div>
+                      <p style={{ color: "#64748b", fontSize: 12, marginTop: 16, lineHeight: 1.6, maxWidth: 280 }}>
+                        {aiScore.summaryReason}
+                      </p>
+                    </div>
+
+                    {/* Center: Radar */}
+                    <div className="flex-1 flex justify-center">
+                      <RadarChart
+                        tech={aiScore.technicalScore}
+                        fund={aiScore.fundamentalScore}
+                        money={aiScore.moneyFlowScore}
+                        news={aiScore.newsSentimentScore}
+                        global={aiScore.globalTrendScore}
+                      />
+                    </div>
+
+                    {/* Right: 5 bars */}
+                    <div className="shrink-0 w-56 space-y-4 pt-2">
+                      <ScoreBar label="技術面" score={aiScore.technicalScore}     max={30} color="#3b82f6" />
+                      <ScoreBar label="基本面" score={aiScore.fundamentalScore}   max={25} color="#10b981" />
+                      <ScoreBar label="資金面" score={aiScore.moneyFlowScore}     max={20} color="#8b5cf6" />
+                      <ScoreBar label="情绪"   score={aiScore.newsSentimentScore} max={15} color="#f59e0b" />
+                      <ScoreBar label="趋势"   score={aiScore.globalTrendScore}   max={10} color="#06b6d4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dimension Analysis Cards */}
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { title: "技術面分析", reasons: aiScore.technicalReasons,    color: "#3b82f6", bg: "bg-blue-50/50",    border: "border-blue-100" },
+                    { title: "基本面分析", reasons: aiScore.fundamentalReasons,  color: "#10b981", bg: "bg-emerald-50/50", border: "border-emerald-100" },
+                    { title: "资金面分析", reasons: aiScore.moneyFlowReasons,    color: "#8b5cf6", bg: "bg-violet-50/50",  border: "border-violet-100" },
+                  ].map((sec) => (
+                    <div key={sec.title} className={`rounded-xl border ${sec.border} ${sec.bg} p-4`}>
+                      <div className="text-xs font-bold mb-3" style={{ color: sec.color }}>{sec.title}</div>
+                      <ul className="space-y-2">
+                        {sec.reasons.map((r, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-xs text-slate-600">
+                            <span className="shrink-0 mt-0.5" style={{ color: sec.color }}>▸</span>
+                            <span>{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {/* News Sentiment */}
+                {aiScore.newsSummary && (
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+                    <div className="text-xs font-bold text-amber-700 mb-2">新闻情绪分析</div>
+                    <p className="text-xs text-slate-600">{aiScore.newsSummary}</p>
+                  </div>
+                )}
+
+                {/* Sub-score Detail Bars */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-5">评分细项详情</h3>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                    {[
+                      { label: "均线趋势",   key: "maTrendScore",       max: 12, color: "bg-blue-400" },
+                      { label: "MACD信号",   key: "macdScore",           max: 8,  color: "bg-blue-400" },
+                      { label: "RSI位置",    key: "rsiScore",            max: 6,  color: "bg-blue-400" },
+                      { label: "价格动能",   key: "momentumScore",       max: 4,  color: "bg-blue-400" },
+                      { label: "营业利润率", key: "opMarginScore",       max: 8,  color: "bg-emerald-400" },
+                      { label: "ROE",        key: "roeScore",            max: 7,  color: "bg-emerald-400" },
+                      { label: "EPS",        key: "epsScore",            max: 5,  color: "bg-emerald-400" },
+                      { label: "自有资本率", key: "equityRatioScore",    max: 5,  color: "bg-emerald-400" },
+                      { label: "资金流入",   key: "inflowScore",         max: 8,  color: "bg-violet-400" },
+                      { label: "趋势稳定",   key: "stabilityScore",      max: 7,  color: "bg-violet-400" },
+                      { label: "空方压力",   key: "shortPressureScore",  max: 5,  color: "bg-violet-400" },
+                    ].map((item) => {
+                      const score = (aiScore.detail as Record<string, number>)[item.key] ?? 0;
+                      const pct = Math.round((score / item.max) * 100);
+                      return (
+                        <div key={item.key} className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-24 shrink-0">{item.label}</span>
+                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${item.color}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs tabular-nums text-slate-600 w-12 text-right shrink-0">
+                            {score}/{item.max}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── Tab: News ─────────────────────────────────────────────────────── */}
       {activeTab === "news" && (
         <div className="space-y-3">
           {newsLoading && (
@@ -584,19 +827,16 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           )}
           {!newsLoading && newsItems !== null && newsItems.length === 0 && (
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
-              <div className="text-slate-400 text-sm mb-2">暂无新闻数据</div>
-              <div className="text-xs text-slate-400">请在数据同步页面同步新闻</div>
+              <div className="text-slate-400 text-sm">暂无新闻数据</div>
             </div>
           )}
           {!newsLoading && newsItems && newsItems.map((item) => {
-            const sentimentEmoji =
-              item.sentiment === "POSITIVE" ? "🟢"
-              : item.sentiment === "NEGATIVE" ? "🔴"
-              : "⚪";
             const sentimentColor =
               item.sentiment === "POSITIVE" ? "text-green-700 bg-green-50 border-green-100"
               : item.sentiment === "NEGATIVE" ? "text-red-700 bg-red-50 border-red-100"
               : "text-slate-500 bg-slate-50 border-slate-100";
+            const sentimentEmoji =
+              item.sentiment === "POSITIVE" ? "🟢" : item.sentiment === "NEGATIVE" ? "🔴" : "⚪";
 
             const categoryLabel: Record<string, string> = {
               EARNINGS: "決算", GUIDANCE: "業績修正", DIVIDEND: "配当",
@@ -612,15 +852,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               OTHER: "",
             };
 
-            const imp = item.importance ?? 0;
-            const impLevel = imp >= 7 ? "HIGH" : imp >= 4 ? "MEDIUM" : "LOW";
-            const impDot = impLevel === "HIGH" ? "bg-red-400" : impLevel === "MEDIUM" ? "bg-amber-400" : "bg-slate-300";
-
             const cat = item.category ?? "OTHER";
             const catLabel = categoryLabel[cat] ?? "";
             const catColor = categoryColor[cat] ?? "";
-
-            // Strip "tdnet:" prefix from URL for display
+            const imp = item.importance ?? 0;
+            const impLevel = imp >= 7 ? "HIGH" : imp >= 4 ? "MEDIUM" : "LOW";
+            const impDot = impLevel === "HIGH" ? "bg-red-400" : impLevel === "MEDIUM" ? "bg-amber-400" : "bg-slate-300";
             const displayUrl = item.url.startsWith("tdnet:") ? item.url.slice(6) : item.url;
 
             return (
@@ -633,7 +870,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    {/* Category + Importance row */}
                     <div className="flex items-center gap-1.5 mb-1.5">
                       {catLabel && (
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${catColor}`}>
@@ -641,17 +877,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         </span>
                       )}
                       {impLevel !== "LOW" && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${impDot}`} title={`重要度: ${impLevel}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${impDot}`} />
                       )}
                       {item.relatedSymbolConfidence >= 70 && (
-                        <span className="text-[10px] text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
-                          個株
-                        </span>
+                        <span className="text-[10px] text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">個株</span>
                       )}
                     </div>
-                    <div className="text-sm font-medium text-slate-900 leading-snug line-clamp-2 mb-2">
-                      {item.title}
-                    </div>
+                    <div className="text-sm font-medium text-slate-900 leading-snug line-clamp-2 mb-2">{item.title}</div>
                     {item.summary && (
                       <div className="text-xs text-slate-500 line-clamp-2 mb-2">{item.summary}</div>
                     )}
@@ -668,108 +900,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               </a>
             );
           })}
-        </div>
-      )}
-
-      {/* Tab: AI Score */}
-      {activeTab === "ai" && (
-        <div className="space-y-4">
-          {!aiScore ? (
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-sm">
-              暂无AI评分数据
-            </div>
-          ) : (
-            <>
-              {(() => {
-                const rec = REC_CFG[aiScore.recommendation] ?? REC_CFG.HOLD;
-                return (
-                  <div className={`rounded-xl border p-5 ${rec.bg}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <span className={`text-5xl font-black tabular-nums ${rec.text}`}>{aiScore.totalScore}</span>
-                          <div>
-                            <div className={`text-sm font-bold ${rec.text}`}>
-                              {rec.label}　{aiScore.starsLabel}
-                            </div>
-                            <div className="text-xs text-slate-500 mt-0.5">AI综合评分 / 100分</div>
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-600 max-w-lg">{aiScore.summaryReason}</p>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4 text-center shrink-0">
-                        {[
-                          { label: "技术指标", val: aiScore.technicalScore,   cls: "text-blue-600" },
-                          { label: "基本面",   val: aiScore.fundamentalScore, cls: "text-emerald-600" },
-                          { label: "安全性",   val: aiScore.riskScore,        cls: "text-violet-600" },
-                        ].map((item) => (
-                          <div key={item.label} className="bg-white/70 rounded-lg px-4 py-3">
-                            <div className={`text-2xl font-bold tabular-nums ${item.cls}`}>{item.val}</div>
-                            <div className="text-xs text-slate-400">{item.label}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { title: "技术面依据",   reasons: aiScore.technicalReasons,   color: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-100" },
-                  { title: "基本面依据",   reasons: aiScore.fundamentalReasons, color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-100" },
-                  { title: "风险评估依据", reasons: aiScore.riskReasons,        color: "text-violet-700", bg: "bg-violet-50",  border: "border-violet-100" },
-                ].map((section) => (
-                  <div key={section.title} className={`rounded-xl border ${section.border} ${section.bg} p-4`}>
-                    <div className={`text-xs font-semibold ${section.color} mb-3`}>{section.title}</div>
-                    <ul className="space-y-2">
-                      {section.reasons.map((r, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-xs text-slate-600">
-                          <span className="shrink-0 mt-0.5">▸</span>
-                          <span>{r}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <h3 className="text-sm font-semibold text-slate-700 mb-4">评分详情</h3>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                  {[
-                    { label: "均线趋势",   key: "maTrendScore",         max: 25, color: "bg-blue-300" },
-                    { label: "MACD",       key: "macdScore",             max: 20, color: "bg-blue-300" },
-                    { label: "RSI",        key: "rsiScore",              max: 25, color: "bg-blue-300" },
-                    { label: "20日涨跌",   key: "return20dScore",        max: 15, color: "bg-blue-300" },
-                    { label: "60日涨跌",   key: "return60dScore",        max: 15, color: "bg-blue-300" },
-                    { label: "营业利润率", key: "opMarginScore",         max: 25, color: "bg-emerald-300" },
-                    { label: "ROE",        key: "roeScore",              max: 25, color: "bg-emerald-300" },
-                    { label: "EPS",        key: "epsScore",              max: 25, color: "bg-emerald-300" },
-                    { label: "自有资本比率",key: "equityRatioScore",     max: 25, color: "bg-emerald-300" },
-                    { label: "波动幅度",   key: "volatilityScore",       max: 30, color: "bg-violet-300" },
-                    { label: "RSI安全度",  key: "rsiSafetyScore",        max: 25, color: "bg-violet-300" },
-                    { label: "近期急变动", key: "recentMoveScore",       max: 25, color: "bg-violet-300" },
-                    { label: "数据完备度", key: "dataCompletenessScore", max: 20, color: "bg-violet-300" },
-                  ].map((item) => {
-                    const score = (aiScore.detail as Record<string, number>)[item.key] ?? 0;
-                    const pct = Math.round((score / item.max) * 100);
-                    return (
-                      <div key={item.key} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500 w-24 shrink-0">{item.label}</span>
-                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${item.color}`} style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-xs tabular-nums text-slate-600 w-12 text-right shrink-0">
-                          {score}/{item.max}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
         </div>
       )}
     </div>

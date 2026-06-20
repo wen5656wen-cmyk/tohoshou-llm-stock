@@ -8,20 +8,28 @@ export async function GET() {
     orderBy: { addedAt: "desc" },
   });
 
-  // Enrich with latest StockScore
+  // Enrich with StockScore + nameZh from Stock table
   const enriched = await Promise.all(
     items.map(async (w) => {
-      const score = await prisma.stockScore.findUnique({
-        where: { symbol: w.symbol },
-        select: {
-          latestClose: true, latestDate: true,
-          return5d: true, return20d: true, return60d: true,
-          rsi14: true, maTrend: true, macdSignalLabel: true,
-          technicalScore: true, fundamentalScore: true, riskScore: true,
-          totalScore: true, recommendation: true, starsLabel: true, summaryReason: true,
-        },
-      });
-      return { ...w, score };
+      const [score, stock] = await Promise.all([
+        prisma.stockScore.findUnique({
+          where: { symbol: w.symbol },
+          select: {
+            latestClose: true, latestDate: true,
+            return5d: true, return20d: true, return60d: true,
+            rsi14: true, maTrend: true, macdSignalLabel: true,
+            technicalScore: true, fundamentalScore: true,
+            moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true,
+            riskScore: true,
+            totalScore: true, recommendation: true, starsLabel: true, summaryReason: true,
+          },
+        }),
+        prisma.stock.findUnique({
+          where: { symbol: w.symbol },
+          select: { nameZh: true },
+        }),
+      ]);
+      return { ...w, nameZh: stock?.nameZh ?? null, score };
     })
   );
 

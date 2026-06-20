@@ -13,6 +13,9 @@
     "sync-meta": "npx tsx scripts/sync-stock-meta.ts",
     "sync-prices-recent": "npx tsx scripts/sync-all-prices.ts",
     "compute-scores": "npx tsx scripts/compute-scores.ts",
+    "seed-zh-names": "npx tsx scripts/seed-chinese-names.ts",
+    "seed-all-zh": "npx tsx scripts/seed-all-chinese-names.ts",
+    "seed-all-zh:force": "npx tsx scripts/seed-all-chinese-names.ts --force",
     "send-daily-line": "npx tsx scripts/send-daily-line.ts",
     "send-daily-line:dry": "DRY_RUN=1 npx tsx scripts/send-daily-line.ts",
     "line:risk-alert": "npx tsx scripts/send-line-risk-alert.ts",
@@ -20,7 +23,9 @@
     "line:test": "npx tsx scripts/send-line-test.ts",
     "line:test:dry": "DRY_RUN=1 npx tsx scripts/send-line-test.ts",
     "line:groups": "npx tsx scripts/list-line-groups.ts",
-    "sync-financials": "npx tsx scripts/sync-financials.ts"
+    "sync-financials": "npx tsx scripts/sync-financials.ts",
+    "fetch-global-market": "npx tsx scripts/fetch-global-market.ts",
+    "fetch-institutional-flow": "npx tsx scripts/fetch-institutional-flow.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

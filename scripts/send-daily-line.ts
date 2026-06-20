@@ -56,7 +56,7 @@ async function buildTop10Block(): Promise<string> {
     orderBy: { totalScore: "desc" },
     take: 10,
     select: {
-      symbol: true, name: true,
+      symbol: true, name: true, nameZh: true,
       totalScore: true, technicalScore: true,
       recommendation: true, return20d: true, return5d: true,
     },
@@ -78,14 +78,14 @@ async function buildTop10Block(): Promise<string> {
 
     if (i < 3) {
       lines.push(
-        `${prefix} ${s.name} (${s.symbol.replace(".T", "")})`,
+        `${prefix} ${(s as any).nameZh || s.name} (${s.symbol.replace(".T", "")})`,
         `   AI评分 ${total}分 ${starsOf(total)} ${recEmoji(s.recommendation)}`,
         `   上涨概率 ${prob}%  20日 ${pct(s.return20d)}`,
         ``
       );
     } else {
       lines.push(
-        `${i + 1}. ${s.name} (${s.symbol.replace(".T", "")}) ${total}分 ${recEmoji(s.recommendation)} 上涨概率${prob}%`
+        `${i + 1}. ${(s as any).nameZh || s.name} (${s.symbol.replace(".T", "")}) ${total}分 ${recEmoji(s.recommendation)} 上涨概率${prob}%`
       );
     }
   }

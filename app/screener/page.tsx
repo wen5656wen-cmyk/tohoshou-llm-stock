@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
 type Score = {
-  symbol: string; name: string; market: string | null;
+  symbol: string; name: string; nameZh: string | null; market: string | null;
   sector: string | null; industry: string | null; scaleCategory: string | null;
   latestDate: string | null; latestClose: number | null; priceCount: number;
   return5d: number | null; return20d: number | null; return60d: number | null;
@@ -98,7 +98,7 @@ export default function ScreenerPage() {
     if (mktFilter === "Growth"   && !s.market?.includes("グロース")) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (!s.name?.toLowerCase().includes(q) && !s.symbol?.toLowerCase().includes(q) && !s.sector?.toLowerCase().includes(q)) return false;
+      if (!s.name?.toLowerCase().includes(q) && !(s.nameZh ?? "").includes(q) && !s.symbol?.toLowerCase().includes(q) && !s.sector?.toLowerCase().includes(q)) return false;
     }
     return true;
   });
@@ -118,7 +118,7 @@ export default function ScreenerPage() {
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900">全市场筛选</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          J-Quants 全市场上市股票　技术40% + 基本面40% + 安全性20%
+          J-Quants 全市场上市股票　技術/30 + 基本面/25 + 資金面/20 + 情绪/15 + 全球/10
           {stats.lastComputedAt &&
             `　最近评分时间：${new Date(stats.lastComputedAt).toLocaleString("zh-CN")}`
           }
@@ -203,7 +203,7 @@ export default function ScreenerPage() {
           <option value="totalScore">AI综合评分</option>
           <option value="technicalScore">技术指标</option>
           <option value="fundamentalScore">基本面</option>
-          <option value="riskScore">安全性</option>
+          <option value="riskScore">資金面</option>
           <option value="return20d">20日涨跌</option>
           <option value="return60d">60日涨跌</option>
           <option value="rsi14">RSI</option>
@@ -259,10 +259,13 @@ export default function ScreenerPage() {
                     <td className="px-4 py-2 text-right text-xs text-slate-300 tabular-nums">{idx + 1}</td>
                     <td className="px-3 py-2">
                       <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
-                        <div className="font-medium text-slate-900 group-hover:text-blue-600 text-sm leading-tight">
-                          {s.name}
+                        <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
+                          {s.nameZh || s.name}
                         </div>
-                        <div className="text-xs text-slate-400 font-mono">{s.symbol}</div>
+                        {s.nameZh && s.nameZh !== s.name && (
+                          <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{s.name}</div>
+                        )}
+                        <div className="text-[12px] text-[#64748b] font-mono mt-0.5">{s.symbol}</div>
                       </Link>
                     </td>
                     <td className="px-2 py-2"><MktChip mkt={s.market} /></td>

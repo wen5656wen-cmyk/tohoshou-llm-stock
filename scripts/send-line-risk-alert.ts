@@ -53,7 +53,7 @@ async function main() {
     orderBy: { riskScore: "asc" },
     take: 10,
     select: {
-      name: true, symbol: true,
+      name: true, nameZh: true, symbol: true,
       rsi14: true, macdSignalLabel: true,
       totalScore: true, riskScore: true,
       return5d: true, latestClose: true,
@@ -90,7 +90,7 @@ async function main() {
     if (r.return5d !== null && r.return5d <= -7) warns.push(`5日跌${Math.abs(r.return5d).toFixed(1)}%`);
 
     lines.push(
-      `🔴 ${r.name} (${r.symbol.replace(".T", "")})`,
+      `🔴 ${(r as any).nameZh || r.name} (${r.symbol.replace(".T", "")})`,
       `   现价 ¥${r.latestClose?.toLocaleString() ?? "—"}  5日 ${pct(r.return5d)}`,
       `   ⚠️ ${warns.join(" | ")}`,
       ``

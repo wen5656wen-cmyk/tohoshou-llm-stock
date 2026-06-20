@@ -186,7 +186,7 @@ async function handleStockCode(symbol: string, userId: string | null): Promise<s
     ].join("\n");
   }
 
-  const name = score?.name ?? stock?.name ?? symbol;
+  const name = score?.nameZh ?? score?.name ?? stock?.nameZh ?? stock?.name ?? symbol;
   const market = score?.market ?? stock?.market ?? "";
 
   if (!score) {
@@ -250,12 +250,13 @@ async function handleStockName(query: string, userId: string | null): Promise<st
     where: {
       OR: [
         { name: { contains: query, mode: "insensitive" } },
+        { nameZh: { contains: query } },
         { nameEn: { contains: query, mode: "insensitive" } },
         { symbol: { contains: query.replace(/\.T$/i, ""), mode: "insensitive" } },
       ],
     },
     take: 5,
-    select: { symbol: true, name: true },
+    select: { symbol: true, name: true, nameZh: true },
   });
 
   if (results.length === 0) {
@@ -277,7 +278,7 @@ async function handleStockName(query: string, userId: string | null): Promise<st
   const lines = [
     `🔍 「${query}」搜索结果 ${results.length}条`,
     ``,
-    ...results.map((r, i) => `${i + 1}. ${r.name}\n   → 发送 ${r.symbol.replace(".T", "")} 查看详情`),
+    ...results.map((r, i) => `${i + 1}. ${r.nameZh || r.name}\n   → 发送 ${r.symbol.replace(".T", "")} 查看详情`),
     ``,
     `请输入代码查看详细分析`,
   ];
@@ -292,7 +293,7 @@ async function handleTodayPicks(): Promise<string> {
     orderBy: { totalScore: "desc" },
     take: 10,
     select: {
-      symbol: true, name: true, market: true,
+      symbol: true, name: true, nameZh: true, market: true,
       totalScore: true, recommendation: true, starsLabel: true,
       technicalScore: true, return20d: true, summaryReason: true,
     },
@@ -328,7 +329,7 @@ async function handleTodayPicks(): Promise<string> {
     if (i < 3) {
       lines.push(
         ``,
-        `${prefix} ${s.name} (${s.symbol.replace(".T", "")})`,
+        `${prefix} ${s.nameZh || s.name} (${s.symbol.replace(".T", "")})`,
         `   AI：${total}分 ${starsOf(total)}`,
         `   推荐：${recLabel(s.recommendation)}`,
         `   上涨概率：${prob}%　20日：${pct(s.return20d)}`,
@@ -337,7 +338,7 @@ async function handleTodayPicks(): Promise<string> {
     } else {
       if (i === 3) lines.push(``, `【第4〜10名】`);
       lines.push(
-        `${i + 1}. ${s.name}（${s.symbol.replace(".T", "")}）${total}分 ${recLabel(s.recommendation).split(" ")[0]}`
+        `${i + 1}. ${s.nameZh || s.name}（${s.symbol.replace(".T", "")}）${total}分 ${recLabel(s.recommendation).split(" ")[0]}`
       );
     }
   }
@@ -416,14 +417,14 @@ async function handleAnalysis(symbol: string, userId: string | null): Promise<st
     return `❌ 未找到 ${symbol} 的数据`;
   }
 
-  const name = score?.name ?? stock?.name ?? symbol;
+  const name = score?.nameZh ?? score?.name ?? stock?.nameZh ?? stock?.name ?? symbol;
   const fins = stock?.financials ?? [];
   const bestFin = fins[0];
 
   const total = score?.totalScore ?? 0;
   const tech  = score?.technicalScore ?? 0;
   const fund  = score?.fundamentalScore ?? 0;
-  const risk  = score?.riskScore ?? 0;
+  const risk  = score?.moneyFlowScore ?? score?.riskScore ?? 0;
   const prob  = upProb(total, tech);
 
   const formatBillion = (v: number | null | undefined) => {
@@ -454,7 +455,7 @@ async function handleAnalysis(symbol: string, userId: string | null): Promise<st
     `📊 评分拆解`,
     `   技术指标：${tech}分`,
     `   基本面　：${fund}分`,
-    `   安全性　：${risk}分`,
+    `   資金面　：${risk}分`,
     ``,
     `──────────────────`,
     `📉 技术指标详情`,
