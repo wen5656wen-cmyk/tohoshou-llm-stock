@@ -1,7 +1,7 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
 > **最后更新：** 2026-06-20
-> **版本：** v7.0.0（TOHOSHOU AI V3：GlobalMarket 真实数据接入）
+> **版本：** v7.1.1（VIX实时修复 + LINE 4段推送完整升级）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
 ---
