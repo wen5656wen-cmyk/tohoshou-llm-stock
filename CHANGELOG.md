@@ -2,6 +2,45 @@
 
 ---
 
+## [7.1.0] - 2026-06-20 — VIX 实时修复 + LINE 智能推送升级（朝報/午間/大引）
+
+### 修复
+
+#### `scripts/fetch-global-market.ts`
+- VIX 抓取改用 `yf.quote("^VIX").regularMarketPrice`（实时报价），不再依赖 `historical()` — 旧方式某些日期 close=null 导致 VIX 显示 N/A
+- 保留 fallback：quote 失败时回退到 `historical()`
+- 验证：VIX 由 "N/A" → 实时 16.78
+
+### 新增
+
+#### `scripts/send-morning-brief.ts` (npm run line:morning-brief)
+- 每个工作日 **08:00 JST** 在开场前30分钟推送
+- 内容：昨夜グローバル市場（NASDAQ/VIX/USDJPY/日経）→ AI推薦 TOP5（HOLD以上）→ 超買警戒（RSI≥75）
+- 市場スコア进度条可视化
+
+#### `scripts/send-midday-flash.ts` (npm run line:midday-flash)
+- 每个工作日 **12:30 JST** 午間速報
+- 内容：急騰株（5日+5%以上・AI注目）→ 急落株（-5%以下）→ MACD 買転換シグナル → 市場体温
+- 无注目銘柄时自动跳过，不推送
+
+#### `scripts/send-closing-summary.ts` (npm run line:closing-summary)
+- 每个工作日 **15:45 JST** 大引け後总结
+- 内容：市場総括（分布 + 平均スコア棒グラフ）→ AI推薦銘柄パフォーマンス → 底打ちサイン候補 → 本日注目ニュース
+
+### 修改
+
+#### `scripts/cron-scheduler.ts`
+- 新增 **05:30 JST** GlobalMarket 取得（AI評分前に確保）
+- 新增 **08:00 JST** LINE 朝報（工作日）
+- 新增 **12:30 JST** LINE 午間速報（工作日）
+- 新增 **15:45 JST** LINE 大引けまとめ（工作日）
+- 各 LINE 推送统一用 `hasLine()` 判断
+
+#### `package.json`
+- 新增 scripts：`line:morning-brief` / `line:morning-brief:dry` / `line:midday-flash` / `line:midday-flash:dry` / `line:closing-summary` / `line:closing-summary:dry`
+
+---
+
 ## [7.0.0] - 2026-06-20 — TOHOSHOU AI V3：全球市场真实数据接入第一阶段
 
 ### 概述

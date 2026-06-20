@@ -25,7 +25,13 @@
     "line:groups": "npx tsx scripts/list-line-groups.ts",
     "sync-financials": "npx tsx scripts/sync-financials.ts",
     "fetch-global-market": "npx tsx scripts/fetch-global-market.ts",
-    "fetch-institutional-flow": "npx tsx scripts/fetch-institutional-flow.ts"
+    "fetch-institutional-flow": "npx tsx scripts/fetch-institutional-flow.ts",
+    "line:morning-brief": "npx tsx scripts/send-morning-brief.ts",
+    "line:morning-brief:dry": "DRY_RUN=1 npx tsx scripts/send-morning-brief.ts",
+    "line:midday-flash": "npx tsx scripts/send-midday-flash.ts",
+    "line:midday-flash:dry": "DRY_RUN=1 npx tsx scripts/send-midday-flash.ts",
+    "line:closing-summary": "npx tsx scripts/send-closing-summary.ts",
+    "line:closing-summary:dry": "DRY_RUN=1 npx tsx scripts/send-closing-summary.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

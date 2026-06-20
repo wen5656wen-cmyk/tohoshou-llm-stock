@@ -103,16 +103,27 @@ async function main() {
   const todayStr = new Date().toISOString().split("T")[0];
 
   console.log("正在抓取...");
-  const [nasdaq, vix, usdjpy, nikkei, topix] = await Promise.all([
+  const [nasdaq, usdjpy, nikkei, topix] = await Promise.all([
     fetchSymbol("^IXIC"),
-    fetchSymbol("^VIX"),
     fetchSymbol("JPY=X"),
     fetchSymbol("^N225"),
     fetchSymbol("^TOPX"),
   ]);
 
+  // VIX: use quote() for real-time spot price — historical() can return null close on some dates
+  let vixLevel: number | null = null;
+  try {
+    const vixQuote = await yf.quote("^VIX");
+    vixLevel = vixQuote?.regularMarketPrice ?? null;
+  } catch {
+    // fallback to historical if quote fails
+    const vixHist = await fetchSymbol("^VIX");
+    vixLevel = vixHist.level;
+  }
+  const vix = { level: vixLevel, change: null as number | null };
+
   console.log(`  NASDAQ  : ${nasdaq.level?.toFixed(2) ?? "N/A"} (${nasdaq.change != null ? (nasdaq.change >= 0 ? "+" : "") + nasdaq.change.toFixed(2) + "%" : "N/A"})`);
-  console.log(`  VIX     : ${vix.level?.toFixed(2) ?? "N/A"}`);
+  console.log(`  VIX     : ${vix.level?.toFixed(2) ?? "N/A"} (real-time quote)`);
   console.log(`  USD/JPY : ${usdjpy.level?.toFixed(2) ?? "N/A"}`);
   console.log(`  Nikkei  : ${nikkei.level?.toFixed(2) ?? "N/A"} (${nikkei.change != null ? (nikkei.change >= 0 ? "+" : "") + nikkei.change.toFixed(2) + "%" : "N/A"})`);
   console.log(`  TOPIX   : ${topix.level?.toFixed(2) ?? "N/A"} (${topix.change != null ? (topix.change >= 0 ? "+" : "") + topix.change.toFixed(2) + "%" : "N/A"})`);

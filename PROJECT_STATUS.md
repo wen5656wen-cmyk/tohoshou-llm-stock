@@ -350,11 +350,11 @@ curl -s https://aitohoshou.com/api/market-data
 - **改进**：改用 `yf.quote('^VIX')` 获取实时 VIX 报价（更可靠）
 
 ### P2 — LINE 智能推送升级
-- [ ] **每日早报**：开盘前推送当日 AI 强推列表（STRONG_BUY）
-- [ ] **午间快报**：异动股（涨跌幅 > 5%）实时提醒
-- [ ] **收盘总结**：收盘后推送当日涨跌榜 + AI 分析
-- [ ] **Flex Message 卡片**：升级现有文本消息为富文本卡片格式
-- [ ] 加入 `cron-scheduler.ts`：08:00/12:30/15:45 JST 定时推送
+- [x] **每日早报**：`scripts/send-morning-brief.ts`，08:00 JST，HOLD+ TOP5 + 全球市場
+- [x] **午间快报**：`scripts/send-midday-flash.ts`，12:30 JST，異動株 + MACD シグナル
+- [x] **收盘总结**：`scripts/send-closing-summary.ts`，15:45 JST，市場총括 + 底打ち候補
+- [x] cron-scheduler.ts：05:30/08:00/12:30/15:45 JST 已加入
+- [ ] **Flex Message 卡片**：升级现有文本消息为富文本卡片格式（待开发）
 
 ### P2 — 数据源
 - [ ] **TDnet 真实数据**：当前 `lib/tdnet.ts` 大多数时候 fallback 到 mock 数据
@@ -387,26 +387,17 @@ technicalScore    ← J-Quants 价格 ✅
 fundamentalScore  ← J-Quants 财务 ✅
 ```
 
-### 下次第一件事（推荐3选1）
-
-#### 选项 A — 修复 VIX 数据（1小时）
-改 `scripts/fetch-global-market.ts` 中 VIX 抓取方式：
-```typescript
-// 当前（有时返回 null）
-const vixHist = await fetchSymbol("^VIX");
-// 改为（使用 quote 接口，更稳定）
-const vixQuote = await yf.quote("^VIX");
-const vix = vixQuote?.regularMarketPrice ?? null;
-```
+### 下次第一件事（推荐2选1）
 
 #### 选项 B — JPX 机构流向替代方案（半天）
 为 `scripts/fetch-institutional-flow.ts` 增加备用数据源：
 Investing.com 日本市场机构买卖（周报页面），或改为手动上传模式（上传 JPX CSV 到 `/api/admin/upload-jpx-flow`）
 
-#### 选项 C — LINE 智能推送升级（1-2天）
-1. Schema 新增 `NotificationSetting` 表
-2. 实现 `scripts/send-morning-brief.ts`（早报，HOLD+ TOP5）
-3. 接入 `cron-scheduler.ts`（08:00 JST）
+#### 选项 D — LINE Flex Message 卡片升级（1天）
+将现有文本消息升级为 LINE Flex Message 富文本卡片格式：
+- 朝報カード：株名 + スコア + 変化率バー + ボタン（詳細リンク）
+- 大引けカード：市場スコアゲージ + TOP3 銘柄一覧
+- 实现方法：`lib/line.ts` 增加 `flexMsg()` helper，调整各推送脚本
 
 ### 快速健康检查
 

@@ -51,24 +51,34 @@ log("INFO", `LINE：${process.env.LINE_CHANNEL_ACCESS_TOKEN ? "✅ 已配置" : 
 log("INFO", `AI Key：${(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY) ? "✅ 已配置" : "⚠️  未配置（模板回复模式）"}`);
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-// ── 06:00 JST — 股票价格同步 ──────────────────────────────────────────────────
-cron.schedule("0 6 * * *", () => {
-  log("INFO", "⏰ 06:00 触发：股票价格同步");
-  run("sync-all-prices.ts", "股票价格同步");
+function hasLine(): boolean {
+  return !!process.env.LINE_CHANNEL_ACCESS_TOKEN;
+}
+
+// ── 05:30 JST — グローバル市場データ取得（AI評分前に必要）────────────────────
+cron.schedule("30 5 * * *", () => {
+  log("INFO", "⏰ 05:30 触发：グローバル市場取得");
+  run("fetch-global-market.ts", "グローバル市場取得");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 07:00 / 12:00 / 18:00 / 22:00 JST — 新闻抓取 ────────────────────────────
+// ── 06:00 JST — 株価同期 ──────────────────────────────────────────────────────
+cron.schedule("0 6 * * *", () => {
+  log("INFO", "⏰ 06:00 触发：株価同期");
+  run("sync-all-prices.ts", "株価同期");
+}, { timezone: "Asia/Tokyo" });
+
+// ── 07:00 / 12:00 / 18:00 / 22:00 JST — ニュース取得 ────────────────────────
 function runNewsSync(label: string) {
-  log("INFO", `⏰ ${label} 触发：新闻抓取`);
+  log("INFO", `⏰ ${label} 触发：ニュース取得`);
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   try {
     execSync(`curl -s -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"`, {
       stdio: "inherit",
       timeout: 10 * 60 * 1000,
     });
-    log("INFO", `✅ 完成 ${label} 新闻抓取`);
+    log("INFO", `✅ 完成 ${label} ニュース取得`);
   } catch (err) {
-    log("ERROR", `❌ 失败 ${label} 新闻抓取：${err instanceof Error ? err.message : err}`);
+    log("ERROR", `❌ 失败 ${label} ニュース取得：${err instanceof Error ? err.message : err}`);
   }
 }
 
@@ -77,37 +87,53 @@ cron.schedule("0 12 * * *", () => runNewsSync("12:00"), { timezone: "Asia/Tokyo"
 cron.schedule("0 18 * * *", () => runNewsSync("18:00"), { timezone: "Asia/Tokyo" });
 cron.schedule("0 22 * * *", () => runNewsSync("22:00"), { timezone: "Asia/Tokyo" });
 
-// ── 07:30 JST — AI 评分计算 ───────────────────────────────────────────────────
+// ── 07:30 JST — AI 評分計算 ───────────────────────────────────────────────────
 cron.schedule("30 7 * * *", () => {
-  log("INFO", "⏰ 07:30 触发：AI 评分计算");
-  run("compute-scores.ts", "AI 评分计算");
+  log("INFO", "⏰ 07:30 触发：AI 評分計算");
+  run("compute-scores.ts", "AI 評分計算");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 08:30 JST — LINE AI 日报推送 ──────────────────────────────────────────────
+// ── 08:00 JST — LINE 朝報（開場前・工作日）────────────────────────────────────
+cron.schedule("0 8 * * 1-5", () => {
+  log("INFO", "⏰ 08:00 触发：LINE 朝報");
+  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
+  run("send-morning-brief.ts", "LINE 朝報");
+}, { timezone: "Asia/Tokyo" });
+
+// ── 08:30 JST — LINE AI 日報（詳細・毎日）────────────────────────────────────
 cron.schedule("30 8 * * *", () => {
-  log("INFO", "⏰ 08:30 触发：LINE AI 日报");
-  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-    log("WARN", "LINE 未配置，跳过日报");
-    return;
-  }
-  run("send-daily-line.ts", "LINE AI 日报");
+  log("INFO", "⏰ 08:30 触发：LINE AI 日報");
+  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
+  run("send-daily-line.ts", "LINE AI 日報");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 16:35 JST — LINE 风险预警（工作日） ───────────────────────────────────────
+// ── 12:30 JST — LINE 午間速報（工作日）───────────────────────────────────────
+cron.schedule("30 12 * * 1-5", () => {
+  log("INFO", "⏰ 12:30 触发：LINE 午間速報");
+  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
+  run("send-midday-flash.ts", "LINE 午間速報");
+}, { timezone: "Asia/Tokyo" });
+
+// ── 15:45 JST — LINE 大引けまとめ（工作日）───────────────────────────────────
+cron.schedule("45 15 * * 1-5", () => {
+  log("INFO", "⏰ 15:45 触发：LINE 大引けまとめ");
+  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
+  run("send-closing-summary.ts", "LINE 大引けまとめ");
+}, { timezone: "Asia/Tokyo" });
+
+// ── 16:35 JST — LINE リスク警告（工作日）─────────────────────────────────────
 cron.schedule("35 16 * * 1-5", () => {
-  log("INFO", "⏰ 16:35 触发：LINE 风险预警");
-  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-    log("WARN", "LINE 未配置，跳过风险预警");
-    return;
-  }
-  run("send-line-risk-alert.ts", "LINE 风险预警");
+  log("INFO", "⏰ 16:35 触发：LINE リスク警告");
+  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
+  run("send-line-risk-alert.ts", "LINE リスク警告");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 22:00 JST — 日终复盘 ─────────────────────────────────────────────────────
+// ── 22:00 JST — 日終メタ同期 ─────────────────────────────────────────────────
 cron.schedule("0 22 * * *", () => {
-  log("INFO", "⏰ 22:00 触发：日终复盘同步");
-  run("sync-stock-meta.ts", "日终元数据同步");
+  log("INFO", "⏰ 22:00 触发：日終メタ同期");
+  run("sync-stock-meta.ts", "日終メタ同期");
 }, { timezone: "Asia/Tokyo" });
 
-log("INFO", "调度器运行中，按 Ctrl+C 停止");
-log("INFO", "任务计划：06:00 同步 / 07:00·12:00·18:00·22:00 新闻 / 07:30 AI评分 / 08:30 日报 / 16:35 预警 / 22:00 复盘");
+log("INFO", "調度器起動完了");
+log("INFO", "スケジュール：05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース / 07:30 AI評分");
+log("INFO", "           08:00 朝報 / 08:30 日報 / 12:30 午間 / 15:45 大引 / 16:35 リスク / 22:00 複盤");
