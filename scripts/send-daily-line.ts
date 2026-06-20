@@ -25,7 +25,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
 
 const DRY_RUN = process.env.DRY_RUN === "1";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aitohoshou.com";
 
 function pct(v: number | null | undefined): string {
   if (v == null) return "—";

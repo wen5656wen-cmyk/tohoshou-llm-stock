@@ -55,6 +55,19 @@ function hasLine(): boolean {
   return !!process.env.LINE_CHANNEL_ACCESS_TOKEN;
 }
 
+// ── 毎週金曜 16:30 JST — J-Quants 機構資金流向 週次同期 ─────────────────────
+// 市場引け後の公表タイミングに合わせて金曜夕方に取得
+cron.schedule("30 16 * * 5", () => {
+  log("INFO", "⏰ 金曜 16:30 触发：J-Quants 機構資金流向同期");
+  run("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向");
+}, { timezone: "Asia/Tokyo" });
+
+// ── 月曜 07:15 JST — 週初バックアップ取得（金曜に失敗した場合のフォールバック）
+cron.schedule("15 7 * * 1", () => {
+  log("INFO", "⏰ 月曜 07:15 触发：J-Quants 機構資金流向（週初バックアップ）");
+  run("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向（バックアップ）");
+}, { timezone: "Asia/Tokyo" });
+
 // ── 05:30 JST — グローバル市場データ取得（AI評分前に必要）────────────────────
 cron.schedule("30 5 * * *", () => {
   log("INFO", "⏰ 05:30 触发：グローバル市場取得");
@@ -70,7 +83,7 @@ cron.schedule("0 6 * * *", () => {
 // ── 07:00 / 12:00 / 18:00 / 22:00 JST — ニュース取得 ────────────────────────
 function runNewsSync(label: string) {
   log("INFO", `⏰ ${label} 触发：ニュース取得`);
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aitohoshou.com";
   try {
     execSync(`curl -s -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"`, {
       stdio: "inherit",
@@ -128,6 +141,13 @@ cron.schedule("35 16 * * 1-5", () => {
   run("send-line-risk-alert.ts", "LINE リスク警告");
 }, { timezone: "Asia/Tokyo" });
 
+// ── 毎30分 JST — 異動アラートチェック（工作日 09:00-16:00）────────────────────
+cron.schedule("*/30 9-16 * * 1-5", () => {
+  log("INFO", "⏰ 毎30分 触发：異動アラートチェック");
+  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
+  run("check-alerts.ts", "異動アラートチェック");
+}, { timezone: "Asia/Tokyo" });
+
 // ── 22:00 JST — 日終メタ同期 ─────────────────────────────────────────────────
 cron.schedule("0 22 * * *", () => {
   log("INFO", "⏰ 22:00 触发：日終メタ同期");
@@ -135,5 +155,7 @@ cron.schedule("0 22 * * *", () => {
 }, { timezone: "Asia/Tokyo" });
 
 log("INFO", "調度器起動完了");
-log("INFO", "スケジュール：05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース / 07:30 AI評分");
+log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
+log("INFO", "           05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース / 07:30 AI評分");
 log("INFO", "           08:00 朝報 / 08:30 日報 / 12:30 午間 / 15:45 大引 / 16:35 リスク / 22:00 複盤");
+log("INFO", "           09:00-16:00 毎30分 異動アラート（工作日）");

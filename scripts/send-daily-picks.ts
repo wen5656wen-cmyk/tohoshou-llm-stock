@@ -12,6 +12,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { aiPicksUrl } from "../lib/app-url";
 import { appendFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
@@ -285,7 +286,7 @@ async function main() {
     sections.join("\n\n━━━━━━━━\n\n"),
     ``,
     `━━━━━━━━`,
-    `[查看完整排行榜 →](http://localhost:3000/ai-picks)`,
+    `[查看完整排行榜 →](${aiPicksUrl()})`,
   ].join("\n");
 
   const textSections = top3.map((s, i) => {
@@ -307,7 +308,7 @@ async function main() {
     textSections.join("\n\n━━━━━━━━\n\n"),
     ``,
     `━━━━━━━━`,
-    `查看详情：http://localhost:3000/ai-picks`,
+    `查看详情：${aiPicksUrl()}`,
   ].join("\n");
 
   console.log("\n========== Markdown 预览 ==========\n");

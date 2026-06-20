@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { calcIndicators } from "@/lib/indicators";
 import { calcAiScore, type ScoreInput, type AiScoreResult } from "@/lib/ai-score";
+import { aiPicksUrl } from "@/lib/app-url";
 
 const REC_LABEL: Record<string, string> = {
   STRONG_BUY: "强烈买入 🔥",
@@ -123,7 +124,7 @@ export async function buildDailyPicksReport(): Promise<DailyPicksReport> {
     sections.join("\n\n━━━━━━━━\n\n"),
     ``,
     `━━━━━━━━`,
-    `[查看完整排行榜 →](http://localhost:3000/ai-picks)`,
+    `[查看完整排行榜 →](${aiPicksUrl()})`,
   ].join("\n");
 
   // ── 纯文本版本（兜底）────────────────────────────────────────────────
@@ -150,7 +151,7 @@ export async function buildDailyPicksReport(): Promise<DailyPicksReport> {
     textSections.join("\n\n━━━━━━━━\n\n"),
     ``,
     `━━━━━━━━`,
-    `查看详情：http://localhost:3000/ai-picks`,
+    `查看详情：${aiPicksUrl()}`,
   ].join("\n");
 
   return { date: dateStr, top3, markdown, text };
