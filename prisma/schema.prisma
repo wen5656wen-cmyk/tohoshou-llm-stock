@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Stock {
+  id            Int          @id @default(autoincrement())
+  symbol        String       @unique
+  name          String
+  nameEn        String?
+  market        String       @default("TSE")
+  price         Float        @default(0)
+  change        Float?
+  changeRate    Float?
+  marketCap     Float?       // 億円
+  per           Float?
+  pbr           Float?
+  roe           Float?
+  roa           Float?
+  dividend      Float?       // %
+  sector        String?
+  industry      String?
+  scaleCategory String?      // LARGE | MID | SMALL
+  description   String?
+  website       String?
+  employees     Int?
+  aiScore       Int?         // 0-100
+  eps           Float?
+  bps           Float?
+  high52w       Float?
+  low52w        Float?
+  volume        Float?
+  avgVolume     Float?
+  beta          Float?
+  lastSyncAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  financials  Financial[]
+  news        News[]
+  analyses    AIAnalysis[]
+  portfolios  Portfolio[]
+  disclosures Disclosure[]
+}
+
+model Financial {
+  id               Int       @id @default(autoincrement())
+  stockId          Int
+  stock            Stock     @relation(fields: [stockId], references: [id])
+  fiscalYear       Int
+  quarter          Int?
+  revenue          Float?
+  operatingProfit  Float?
+  ordinaryProfit   Float?
+  netProfit        Float?
+  totalAssets      Float?
+  equity           Float?
+  eps              Float?
+  bps              Float?
+  roe              Float?
+  roa              Float?
+  equityRatio      Float?
+  dividendPerShare Float?
+  reportedAt       DateTime?
+  source           String    @default("manual") // jquants | yahoo | manual
+  createdAt        DateTime  @default(now())
+
+  @@unique([stockId, fiscalYear, quarter])
+  @@index([stockId])
+}
+
+model DailyPrice {
+  id       Int      @id @default(autoincrement())
+  symbol   String
+  date     DateTime @db.Date
+  open     Float
+  high     Float
+  low      Float
+  close    Float
+  volume   Float
+  adjClose Float?
+  source   String   @default("yahoo") // yahoo | jquants
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@index([symbol, date(sort: Desc)])
+}
+
+model Dividend {
+  id          Int       @id @default(autoincrement())
+  symbol      String
+  year        Int
+  quarter     Int?
+  dividend    Float     // 一株配当
+  yieldRate   Float?    // 配当利回り %
+  payoutRatio Float?    // 配当性向 %
+  exDivDate   DateTime? @db.Date
+  payDate     DateTime? @db.Date
+  source      String    @default("yahoo")
+  createdAt   DateTime  @default(now())
+
+  @@unique([symbol, year, quarter])
+  @@index([symbol])
+}
+
+model Disclosure {
+  id          Int      @id @default(autoincrement())
+  stockId     Int?
+  stock       Stock?   @relation(fields: [stockId], references: [id])
+  symbol      String
+  title       String
+  publishedAt DateTime
+  category    String   // EARNINGS | FORECAST_REVISION | BUYBACK | DIVIDEND | EQUITY | MATERIAL | OTHER
+  summary     String?  @db.Text
+  sentiment   String?  // POSITIVE | NEGATIVE | NEUTRAL
+  url         String   @unique
+  importance  Int      @default(0)
+  rawData     Json?
+  createdAt   DateTime @default(now())
+
+  @@index([symbol])
+  @@index([publishedAt(sort: Desc)])
+  @@index([category])
+}
+
+model News {
+  id                     Int      @id @default(autoincrement())
+  stockId                Int?
+  stock                  Stock?   @relation(fields: [stockId], references: [id])
+  title                  String
+  content                String?  @db.Text
+  summary                String?  @db.Text
+  source                 String
+  url                    String   @unique
+  publishedAt            DateTime
+  sentiment              String?
+  importance             Int      @default(0)
+  category               String   @default("OTHER")
+  relatedSymbolConfidence Int     @default(0)
+  createdAt              DateTime @default(now())
+
+  @@index([stockId])
+  @@index([publishedAt(sort: Desc)])
+  @@index([relatedSymbolConfidence])
+  @@index([category])
+}
+
+model AIAnalysis {
+  id               Int      @id @default(autoincrement())
+  stockId          Int
+  stock            Stock    @relation(fields: [stockId], references: [id])
+  model            String
+  analysisType     String
+  score            Int?     // 0-100
+  // Phase 2: 5次元スコア
+  scoreGrowth      Int?     // 成長性 0-100
+  scoreValuation   Int?     // バリュエーション 0-100
+  scoreProfitability Int?   // 収益性 0-100
+  scoreCapitalFlow Int?     // 資金面 0-100
+  scoreSentiment   Int?     // ニュース感情 0-100
+  stars            Int?     // 1-5
+  recommendation   String?  // BUY | WATCH | AVOID
+  grade            String?  // STRONG_BUY | BUY | WATCH | AVOID | STRONG_AVOID
+  summary          String?  @db.Text
+  bullPoints       Json?
+  bearPoints       Json?
+  targetPrice      Float?
+  upsideRate       Float?   // 目標価格への上昇余地 %
+  riskLevel        String?
+  riskWarnings     Json?    // string[]
+  investReason     String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  @@index([stockId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Portfolio {
+  id        Int      @id @default(autoincrement())
+  stockId   Int?
+  stock     Stock?   @relation(fields: [stockId], references: [id])
+  symbol    String
+  name      String
+  shares    Float
+  avgPrice  Float
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([symbol])
+}
+
+model SyncLog {
+  id        Int      @id @default(autoincrement())
+  source    String   // jquants | yahoo | tdnet
+  status    String   // SUCCESS | ERROR | PARTIAL
+  message   String?
+  itemCount Int      @default(0)
+  durationMs Int?
+  createdAt DateTime @default(now())
+
+  @@index([source, createdAt(sort: Desc)])
+}
+
+// Pre-computed screener scores (materialized via scripts/compute-scores.ts)
+model StockScore {
+  symbol           String    @id
+  name             String
+  market           String?
+  sector           String?
+  industry         String?
+  scaleCategory    String?
+  computedAt       DateTime
+  priceCount       Int       @default(0)
+  latestDate       String?
+  latestClose      Float?
+  return5d         Float?
+  return20d        Float?
+  return60d        Float?
+  rsi14            Float?
+  macd             Float?
+  macdSignal       Float?
+  macdHist         Float?
+  maTrend          String?
+  macdSignalLabel  String?
+  technicalScore   Int?
+  fundamentalScore Int?
+  riskScore        Int?
+  totalScore       Int?
+  recommendation   String?
+  starsLabel       String?
+  summaryReason    String?
+
+  @@index([totalScore(sort: Desc)])
+  @@index([computedAt(sort: Desc)])
+  @@index([market])
+  @@index([recommendation])
+}
+
+model NotificationLog {
+  id          Int       @id @default(autoincrement())
+  type        String    // DAILY_REPORT | RSI_ALERT | MACD_ALERT | SCORE_CHANGE | PORTFOLIO_ALERT
+  title       String
+  content     String
+  stockSymbol String?
+  status      String    @default("PENDING") // PENDING | SENT | FAILED
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([type])
+  @@index([createdAt(sort: Desc)])
+  @@map("notification_logs")
+}
+
+model TelegramUser {
+  id         Int       @id @default(autoincrement())
+  chatId     String    @unique
+  username   String?
+  firstName  String?
+  isActive   Boolean   @default(true)
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("telegram_users")
+}
+
+// LINE Bot groups – tracks LINE groups the bot has been added to
+model LineGroup {
+  id          Int       @id @default(autoincrement())
+  groupId     String    @unique
+  name        String?
+  isActive    Boolean   @default(true)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+  @@map("line_groups")
+}
+
+// LINE Bot users – tracks followers for push notifications and context
+model LineUser {
+  id          Int       @id @default(autoincrement())
+  userId      String    @unique
+  displayName String?
+  pictureUrl  String?
+  lastSymbol  String?   // last queried stock (context awareness for follow-up questions)
+  isActive    Boolean   @default(true)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+  @@map("line_users")
+}
+
+// User watchlist – stocks to follow (separate from Portfolio which tracks actual positions)
+model WatchList {
+  id          Int      @id @default(autoincrement())
+  symbol      String   @unique
+  name        String
+  sector      String?
+  market      String?
+  note        String?
+  targetPrice Float?
+  addedAt     DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([addedAt(sort: Desc)])
+  @@map("watch_list")
+}
