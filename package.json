@@ -56,7 +56,9 @@
     "rerank:top500": "npx tsx scripts/rerank-top500.ts",
     "rerank:top500:dry": "npx tsx scripts/rerank-top500.ts --dry-run",
     "rerank:top500:test": "npx tsx scripts/rerank-top500.ts --limit=5",
-    "rescore": "npm run compute-scores && npm run rerank:top500"
+    "rescore": "npm run compute-scores && npm run rerank:top500",
+    "pipeline": "npx tsx scripts/daily-ai-pipeline.ts",
+    "pipeline:dry": "npx tsx scripts/daily-ai-pipeline.ts --dry-run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

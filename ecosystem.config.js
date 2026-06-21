@@ -35,5 +35,25 @@ module.exports = {
       out_file: "/opt/tohoshou/logs/cron-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
     },
+    {
+      // Daily AI scoring pipeline — 06:00 JST = 21:00 UTC
+      // Steps: global-market → price-sync → news → tdnet → compute-scores → rerank-top500
+      name: "tohoshou-ai-daily-pipeline",
+      script: "npx",
+      args: "tsx scripts/daily-ai-pipeline.ts",
+      cwd: "/opt/tohoshou",
+      interpreter: "none",
+      autorestart: false,           // one-shot; do NOT restart after each run
+      cron_restart: "0 21 * * *",   // 21:00 UTC = 06:00 JST
+      watch: false,
+      max_memory_restart: "768M",
+      env: {
+        NODE_ENV: "production",
+        TZ: "Asia/Tokyo",
+      },
+      error_file: "/opt/tohoshou/logs/ai-pipeline-error.log",
+      out_file:   "/opt/tohoshou/logs/ai-pipeline-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+    },
   ],
 };
