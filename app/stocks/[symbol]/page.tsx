@@ -227,6 +227,119 @@ function fmtBillion(v: number | null): string {
 }
 
 
+// ── AI Action Card (v8.3 P2) ──────────────────────────────────────────────
+
+const AI_ACTION_CFG: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
+  BUY_NOW:       { bg: "bg-emerald-50",  text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500",  label: "BUY NOW" },
+  WAIT_PULLBACK: { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500",    label: "WAIT PULLBACK" },
+  HOLD:          { bg: "bg-slate-50",    text: "text-slate-700",   border: "border-slate-200",   dot: "bg-slate-400",    label: "HOLD" },
+  TAKE_PROFIT:   { bg: "bg-orange-50",   text: "text-orange-700",  border: "border-orange-200",  dot: "bg-orange-500",   label: "TAKE PROFIT" },
+  SELL:          { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500",      label: "SELL" },
+  AVOID:         { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500",      label: "AVOID" },
+};
+const AI_RISK_COLOR: Record<string, string> = {
+  LOW: "text-emerald-600", MEDIUM: "text-amber-600", HIGH: "text-orange-600", EXTREME: "text-red-600",
+};
+
+function AiActionCard({ score }: { score: {
+  tradingAction: string | null;
+  positionSizePct: number | null;
+  entryLow: number | null; entryHigh: number | null;
+  stopLoss: number | null; target1: number | null; target2: number | null;
+  actionRiskLevel: string | null;
+  actionReasons: string[]; actionWarnings: string[];
+} }) {
+  const action = score.tradingAction;
+  if (!action) return null;
+  const cfg = AI_ACTION_CFG[action] ?? AI_ACTION_CFG.HOLD;
+  const riskColor = AI_RISK_COLOR[score.actionRiskLevel ?? "MEDIUM"] ?? AI_RISK_COLOR.MEDIUM;
+  const reasons = score.actionReasons.slice(0, 3);
+  const warnings = score.actionWarnings.slice(0, 2);
+
+  return (
+    <div className={`rounded-2xl border ${cfg.border} p-5 ${cfg.bg}`}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+        <h3 className="text-xs font-semibold tracking-widest text-slate-500 uppercase">AI Action</h3>
+      </div>
+      {/* Label + Position */}
+      <div className="flex items-end justify-between mb-4">
+        <div>
+          <div className={`text-[28px] font-extrabold tracking-tight leading-none ${cfg.text}`}>{cfg.label}</div>
+          <div className={`text-xs font-semibold mt-1 ${riskColor}`}>Risk: {score.actionRiskLevel ?? "—"}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] text-slate-400 mb-0.5">Suggested Position</div>
+          <div className={`text-[28px] font-extrabold tabular-nums leading-none ${cfg.text}`}>
+            {score.positionSizePct?.toFixed(0) ?? "0"}%
+          </div>
+        </div>
+      </div>
+      {/* Price grid */}
+      {(score.entryLow != null || score.entryHigh != null || score.stopLoss != null || score.target1 != null || score.target2 != null) && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          {score.entryLow != null && (
+            <div className="bg-white/70 rounded-xl p-2.5">
+              <div className="text-[10px] text-slate-400 mb-1">Entry Low</div>
+              <div className="text-sm font-bold text-slate-800 tabular-nums">¥{score.entryLow.toLocaleString()}</div>
+            </div>
+          )}
+          {score.entryHigh != null && (
+            <div className="bg-white/70 rounded-xl p-2.5">
+              <div className="text-[10px] text-slate-400 mb-1">Entry High</div>
+              <div className="text-sm font-bold text-slate-800 tabular-nums">¥{score.entryHigh.toLocaleString()}</div>
+            </div>
+          )}
+          {score.stopLoss != null && (
+            <div className="bg-white/70 rounded-xl p-2.5">
+              <div className="text-[10px] text-red-400 mb-1">Stop Loss</div>
+              <div className="text-sm font-bold text-red-600 tabular-nums">¥{score.stopLoss.toLocaleString()}</div>
+            </div>
+          )}
+          {score.target1 != null && (
+            <div className="bg-white/70 rounded-xl p-2.5">
+              <div className="text-[10px] text-emerald-500 mb-1">Target 1</div>
+              <div className="text-sm font-bold text-emerald-600 tabular-nums">¥{score.target1.toLocaleString()}</div>
+            </div>
+          )}
+          {score.target2 != null && (
+            <div className="bg-white/70 rounded-xl p-2.5">
+              <div className="text-[10px] text-emerald-500 mb-1">Target 2</div>
+              <div className="text-sm font-bold text-emerald-600 tabular-nums">¥{score.target2.toLocaleString()}</div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Reasons */}
+      {reasons.length > 0 && (
+        <div className="space-y-1 mb-2">
+          {reasons.map((r, i) => (
+            <div key={i} className="text-xs text-slate-600 flex gap-1.5">
+              <span className="text-slate-400 shrink-0">·</span>
+              <span>{r}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Warnings */}
+      {warnings.length > 0 && (
+        <div className="space-y-1 mb-2">
+          {warnings.map((w, i) => (
+            <div key={i} className="text-xs text-amber-600 flex gap-1.5">
+              <span className="shrink-0">⚠</span>
+              <span>{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Disclaimer */}
+      <div className="text-[10px] text-slate-400 border-t border-slate-200/60 pt-2 mt-2">
+        AI Action is a rules-based signal for research only. Not financial advice.
+      </div>
+    </div>
+  );
+}
+
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = use(params);
   const decoded = decodeURIComponent(symbol);
@@ -722,6 +835,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
             return (
               <>
+                {/* V8.3 P2: AI Action — TOP of AI Tab */}
+                <AiActionCard score={aiScore} />
+
                 {/* Main Score Card — Dark Bloomberg */}
                 <div style={{ background: "#0f172a", borderRadius: 16, padding: "20px 20px", border: "1px solid #1e293b" }}>
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
@@ -875,116 +991,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     </div>
                   </div>
                 )}
-
-                {/* V8.3 P2: AI Action Trading Decision */}
-                {aiScore.tradingAction && (() => {
-                  const ACTION_CFG: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-                    BUY_NOW:       { bg: "bg-emerald-50",  text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
-                    WAIT_PULLBACK: { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500" },
-                    HOLD:          { bg: "bg-slate-50",    text: "text-slate-700",   border: "border-slate-200",   dot: "bg-slate-400" },
-                    TAKE_PROFIT:   { bg: "bg-orange-50",   text: "text-orange-700",  border: "border-orange-200",  dot: "bg-orange-500" },
-                    SELL:          { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500" },
-                    AVOID:         { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500" },
-                  };
-                  const RISK_CFG: Record<string, { color: string }> = {
-                    LOW:     { color: "text-emerald-600" },
-                    MEDIUM:  { color: "text-amber-600" },
-                    HIGH:    { color: "text-orange-600" },
-                    EXTREME: { color: "text-red-600" },
-                  };
-                  const ACTION_LABEL: Record<string, string> = {
-                    BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT PULLBACK", HOLD: "HOLD",
-                    TAKE_PROFIT: "TAKE PROFIT", SELL: "SELL", AVOID: "AVOID",
-                  };
-                  const cfg = ACTION_CFG[aiScore.tradingAction] ?? ACTION_CFG.HOLD;
-                  const riskCfg = RISK_CFG[aiScore.actionRiskLevel ?? "MEDIUM"] ?? RISK_CFG.MEDIUM;
-                  const reasons = (aiScore.actionReasons as string[]).slice(0, 3);
-                  const warnings = (aiScore.actionWarnings as string[]).slice(0, 2);
-                  return (
-                    <div className={`rounded-2xl border ${cfg.border} p-5 ${cfg.bg}`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                        <h3 className="text-xs font-semibold tracking-widest text-slate-500 uppercase">AI Action</h3>
-                      </div>
-                      {/* Action label + position */}
-                      <div className="flex items-end justify-between mb-4">
-                        <div>
-                          <div className={`text-[28px] font-extrabold tracking-tight ${cfg.text}`}>
-                            {ACTION_LABEL[aiScore.tradingAction]}
-                          </div>
-                          <div className={`text-xs font-semibold mt-0.5 ${riskCfg.color}`}>
-                            Risk: {aiScore.actionRiskLevel}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-slate-400 mb-0.5">Suggested Position</div>
-                          <div className={`text-[28px] font-extrabold tabular-nums ${cfg.text}`}>
-                            {aiScore.positionSizePct?.toFixed(0)}%
-                          </div>
-                        </div>
-                      </div>
-                      {/* Price grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                        {aiScore.entryLow != null && (
-                          <div className="bg-white/70 rounded-xl p-3">
-                            <div className="text-[10px] text-slate-400 mb-1">Entry Low</div>
-                            <div className="text-sm font-bold text-slate-800 tabular-nums">¥{aiScore.entryLow.toLocaleString()}</div>
-                          </div>
-                        )}
-                        {aiScore.entryHigh != null && (
-                          <div className="bg-white/70 rounded-xl p-3">
-                            <div className="text-[10px] text-slate-400 mb-1">Entry High</div>
-                            <div className="text-sm font-bold text-slate-800 tabular-nums">¥{aiScore.entryHigh.toLocaleString()}</div>
-                          </div>
-                        )}
-                        {aiScore.stopLoss != null && (
-                          <div className="bg-white/70 rounded-xl p-3">
-                            <div className="text-[10px] text-red-400 mb-1">Stop Loss</div>
-                            <div className="text-sm font-bold text-red-600 tabular-nums">¥{aiScore.stopLoss.toLocaleString()}</div>
-                          </div>
-                        )}
-                        {aiScore.target1 != null && (
-                          <div className="bg-white/70 rounded-xl p-3">
-                            <div className="text-[10px] text-emerald-500 mb-1">Target 1</div>
-                            <div className="text-sm font-bold text-emerald-600 tabular-nums">¥{aiScore.target1.toLocaleString()}</div>
-                          </div>
-                        )}
-                        {aiScore.target2 != null && (
-                          <div className="bg-white/70 rounded-xl p-3">
-                            <div className="text-[10px] text-emerald-500 mb-1">Target 2</div>
-                            <div className="text-sm font-bold text-emerald-600 tabular-nums">¥{aiScore.target2.toLocaleString()}</div>
-                          </div>
-                        )}
-                      </div>
-                      {/* Reasons */}
-                      {reasons.length > 0 && (
-                        <div className="space-y-1 mb-3">
-                          {reasons.map((r, i) => (
-                            <div key={i} className="text-xs text-slate-600 flex gap-1.5">
-                              <span className="text-slate-400 shrink-0">·</span>
-                              <span>{r}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {/* Warnings */}
-                      {warnings.length > 0 && (
-                        <div className="space-y-1 mb-3">
-                          {warnings.map((w, i) => (
-                            <div key={i} className="text-xs text-amber-600 flex gap-1.5">
-                              <span className="shrink-0">⚠</span>
-                              <span>{w}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {/* Disclaimer */}
-                      <div className="text-[10px] text-slate-400 border-t border-slate-200/60 pt-2 mt-2">
-                        AI Action is a rules-based signal for research only. Not financial advice.
-                      </div>
-                    </div>
-                  );
-                })()}
 
                 {/* Sub-score Detail Bars */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
