@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { buildStockUrl } from "@/lib/navigation/back";
@@ -32,6 +32,16 @@ type Stock = {
   reason: string | null;
   riskNote: string | null;
   scored: boolean;
+};
+
+type GptSummary = {
+  symbol: string;
+  finalScore: number;
+  confidence: string;
+  action: string;
+  summaryZh: string;
+  summaryJa: string;
+  summaryEn: string;
 };
 
 type ApiResponse = {
@@ -77,9 +87,10 @@ function ReturnBadge({ v }: { v: number | null }) {
   );
 }
 
-function StockRow({ s }: { s: Stock }) {
+function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) {
   const { lang, t } = useI18n();
   const pathname = usePathname();
+  const gpt = gptMap.get(s.symbol);
   const rec = getRec(s.recommendationV2);
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-3 hover:shadow-sm transition-shadow">
@@ -144,6 +155,19 @@ function StockRow({ s }: { s: Stock }) {
           )}
         </div>
       )}
+      {/* V9 P1: GPT mini badge */}
+      {gpt ? (
+        <div className="mt-1.5 flex items-center gap-2 text-[10px]">
+          <span className="bg-violet-50 text-violet-600 border border-violet-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
+            GPT {gpt.finalScore.toFixed(1)}
+          </span>
+          <span className={`font-medium ${gpt.action === "POSITIVE" ? "text-emerald-600" : gpt.action === "NEGATIVE" ? "text-red-500" : "text-slate-400"}`}>
+            {lang === "ja-JP" ? gpt.summaryJa : lang === "en-US" ? gpt.summaryEn : gpt.summaryZh}
+          </span>
+        </div>
+      ) : (
+        <div className="mt-1.5 text-[10px] text-slate-300">{t("gpt.not_generated")}</div>
+      )}
       {s.reason && lang !== "en-US" && (
         <div className="mt-1.5 text-[10px] text-slate-500 leading-relaxed line-clamp-2 bg-slate-50 rounded px-2 py-1">
           {s.reason}
@@ -167,6 +191,7 @@ export default function AiThemeDetailPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gptMap, setGptMap] = useState<Map<string, GptSummary>>(new Map());
 
   useEffect(() => {
     if (!themeKey) return;
@@ -179,6 +204,15 @@ export default function AiThemeDetailPage() {
       })
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [themeKey]);
+
+  useEffect(() => {
+    fetch("/api/gpt-score")
+      .then((r) => r.json())
+      .then((rows: GptSummary[]) => {
+        if (Array.isArray(rows)) setGptMap(new Map(rows.map((r) => [r.symbol, r])));
+      })
+      .catch(() => {});
+  }, []);
 
   if (loading) {
     return (
@@ -259,7 +293,7 @@ export default function AiThemeDetailPage() {
                     </div>
                     <div className="text-[10px] text-slate-400 mb-3">{getLayerDesc(lk, lang)}</div>
                     <div className="space-y-2">
-                      {layerStocks.map((s) => <StockRow key={s.symbol} s={s} />)}
+                      {layerStocks.map((s) => <StockRow key={s.symbol} s={s} gptMap={gptMap} />)}
                     </div>
                   </div>
                   {idx < activeLayers.length - 1 && (
@@ -286,7 +320,7 @@ export default function AiThemeDetailPage() {
                     </div>
                     <div className="text-[10px] text-slate-400 mb-3">{getLayerDesc(lk, lang)}</div>
                     <div className="space-y-2">
-                      {layerStocks.map((s) => <StockRow key={s.symbol} s={s} />)}
+                      {layerStocks.map((s) => <StockRow key={s.symbol} s={s} gptMap={gptMap} />)}
                     </div>
                   </div>
                   {idx < activeLayers.length - 1 && (
@@ -320,7 +354,7 @@ export default function AiThemeDetailPage() {
               return b.importanceScore - a.importanceScore;
             })
             .map((s) => (
-              <StockRow key={s.symbol} s={s} />
+              <StockRow key={s.symbol} s={s} gptMap={gptMap} />
             ))}
         </div>
       </div>

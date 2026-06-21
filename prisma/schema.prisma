@@ -493,6 +493,41 @@ model AITheme {
   @@map("ai_themes")
 }
 
+// V9 P1: GPT Scoring Overlay — AI chain + TOP100 only
+model GPTScore {
+  symbol      String    @id
+  model       String    @default("gpt-4o-mini")
+
+  ruleScore   Float
+  gptScore    Float
+  finalScore  Float     // ruleScore * 0.7 + gptScore * 0.3
+
+  confidence  String    // LOW | MEDIUM | HIGH
+  action      String    // POSITIVE | NEUTRAL | NEGATIVE
+
+  summaryZh   String    @db.Text
+  summaryJa   String    @db.Text
+  summaryEn   String    @db.Text
+
+  thesisZh    String    @db.Text
+  thesisJa    String    @db.Text
+  thesisEn    String    @db.Text
+
+  strengths   Json      // string[]
+  risks       Json      // string[]
+  catalysts   Json      // string[]
+
+  timeHorizon String    // 1-3M | 3-6M | 6-12M
+
+  inputHash   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([finalScore(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+  @@map("gpt_scores")
+}
+
 // Per-user AI system settings (V7.9.3 System Control)
 model UserAiSettings {
   id             Int      @id @default(autoincrement())

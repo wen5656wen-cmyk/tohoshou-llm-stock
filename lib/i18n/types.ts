@@ -508,6 +508,28 @@ export type Messages = {
   // ─── News additions ───────────────────────────────────────────────────────
   "news.no_stock_news": string;
   "news.stock_badge": string;
+
+  // ─── V9 P1: GPT Score Overlay ─────────────────────────────────────────────
+  "gpt.section_title": string;
+  "gpt.rule_score": string;
+  "gpt.gpt_score": string;
+  "gpt.final_score": string;
+  "gpt.confidence": string;
+  "gpt.insight": string;
+  "gpt.strengths": string;
+  "gpt.risks": string;
+  "gpt.catalysts": string;
+  "gpt.time_horizon": string;
+  "gpt.not_generated": string;
+  "gpt.disclaimer": string;
+  "gpt.confidence.HIGH": string;
+  "gpt.confidence.MEDIUM": string;
+  "gpt.confidence.LOW": string;
+  "gpt.action.POSITIVE": string;
+  "gpt.action.NEUTRAL": string;
+  "gpt.action.NEGATIVE": string;
+  "gpt.updated_at": string;
+  "screener.col_final_score": string;
 };
 
 export type MessageKey = keyof Messages;

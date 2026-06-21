@@ -501,6 +501,28 @@ const zhCN: Messages = {
   "news.no_stock_news": "暂无该股专属新闻，显示最新市场动态",
   "news.stock_badge": "个股",
 
+  // ─── V9 P1: GPT Score Overlay ─────────────────────────────────────────────
+  "gpt.section_title": "GPT综合评价",
+  "gpt.rule_score": "规则分",
+  "gpt.gpt_score": "GPT分",
+  "gpt.final_score": "综合分",
+  "gpt.confidence": "信心等级",
+  "gpt.insight": "GPT观点",
+  "gpt.strengths": "优势",
+  "gpt.risks": "风险",
+  "gpt.catalysts": "催化剂",
+  "gpt.time_horizon": "投资周期",
+  "gpt.not_generated": "尚未生成GPT分析",
+  "gpt.disclaimer": "仅供研究参考，不构成投资建议。",
+  "gpt.confidence.HIGH": "高",
+  "gpt.confidence.MEDIUM": "中",
+  "gpt.confidence.LOW": "低",
+  "gpt.action.POSITIVE": "正面",
+  "gpt.action.NEUTRAL": "中性",
+  "gpt.action.NEGATIVE": "负面",
+  "gpt.updated_at": "更新于",
+  "screener.col_final_score": "综合分",
+
   // ─── Financials table ─────────────────────────────────────────────────────
   "fin.period": "期间",
   "fin.revenue": "营业收入",

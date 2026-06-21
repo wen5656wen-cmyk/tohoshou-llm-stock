@@ -501,6 +501,28 @@ const enUS: Messages = {
   "news.no_stock_news": "No stock-specific news. Showing latest market news.",
   "news.stock_badge": "Stock",
 
+  // ─── V9 P1: GPT Score Overlay ─────────────────────────────────────────────
+  "gpt.section_title": "GPT Assessment",
+  "gpt.rule_score": "Rule Score",
+  "gpt.gpt_score": "GPT Score",
+  "gpt.final_score": "Final Score",
+  "gpt.confidence": "Confidence",
+  "gpt.insight": "GPT Insight",
+  "gpt.strengths": "Strengths",
+  "gpt.risks": "Risks",
+  "gpt.catalysts": "Catalysts",
+  "gpt.time_horizon": "Time Horizon",
+  "gpt.not_generated": "GPT analysis not generated",
+  "gpt.disclaimer": "For research purposes only. Not investment advice.",
+  "gpt.confidence.HIGH": "High",
+  "gpt.confidence.MEDIUM": "Medium",
+  "gpt.confidence.LOW": "Low",
+  "gpt.action.POSITIVE": "Positive",
+  "gpt.action.NEUTRAL": "Neutral",
+  "gpt.action.NEGATIVE": "Negative",
+  "gpt.updated_at": "Updated",
+  "screener.col_final_score": "Final Score",
+
   // ─── Financials table ─────────────────────────────────────────────────────
   "fin.period": "Period",
   "fin.revenue": "Revenue",

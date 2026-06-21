@@ -2,6 +2,60 @@
 
 ---
 
+## [9.0 P1] - 2026-06-21 — GPT Scoring Overlay (AI Chain + TOP100)
+
+### Overview
+在规则引擎基础上新增 GPT 评分层。GPT 只分析 AI产业链股票 + TOP100 候选，不分析全市场。
+综合分 = 规则分 × 0.7 + GPT分 × 0.3。24小时缓存 + inputHash 变化才重调。
+
+### New: GPTScore Table
+| 字段 | 说明 |
+|------|------|
+| `symbol` | @id, unique |
+| `ruleScore / gptScore / finalScore` | 三维分数 |
+| `confidence` | LOW / MEDIUM / HIGH |
+| `action` | POSITIVE / NEUTRAL / NEGATIVE |
+| `summaryZh/Ja/En` | 三语总结 |
+| `thesisZh/Ja/En` | 三语论点 |
+| `strengths / risks / catalysts` | JSON数组 |
+| `timeHorizon` | 1-3M / 3-6M / 6-12M |
+| `inputHash` | 缓存标记 |
+
+### New Scripts
+- `scripts/gpt-score-overlay.ts` — GPT评分脚本
+- `npm run gpt:score` — 默认 limit=100
+- `npm run gpt:score -- --limit=10` — 首次测试
+- `npm run gpt:score -- --force` — 强制跳过缓存
+- 脚本输出：候选数 / 调用数 / 缓存命中数 / 失败数 / 预估Token / 预估成本
+
+### New API Routes
+- `GET /api/gpt-score` — 批量获取（支持 ?symbols= 过滤）
+- `GET /api/stocks/[symbol]/gpt-score` — 单只股票 GPT 评分
+
+### Frontend Updates
+| 页面 | 改动 |
+|------|------|
+| `/stocks/[symbol]` AI Tab | 新增 `GptScoreCard` 组件：三维分数、信心等级、GPT观点、优势/风险/催化剂、投资周期、免责声明 |
+| `/screener` | 新增「综合分」可选列（有GPT数据时显示），支持按 finalScore 排序 |
+| `/ai-theme/[theme]` | 每只股票卡片显示 GPT综合分 + 一句话总结，无数据时显示「尚未生成GPT分析」 |
+
+### Safety Caps
+- stale (computed >2d ago) → finalScore ≤ 50
+- suspicious (return60d > 300%) → finalScore ≤ 50
+- return60d > 300% → finalScore ≤ 75
+- RSI > 90 → finalScore ≤ 75
+- priceCount < 60 → 不调用 GPT
+
+### Cost Control
+- 默认 limit=100（禁止全市场）
+- gpt-4o-mini + JSON mode
+- 首次运行 10 只：~4,389 tokens，~$0.002
+
+### i18n
+新增 22 个 i18n keys (gpt.*) — zh-CN / ja-JP / en-US 三语完整
+
+---
+
 ## [8.6 P2.1–P2.3] - 2026-06-21 — Banner Removal / Smart Back Nav / Sync Refresh Fix
 
 ### P2.1 Remove Legacy Merge Banners

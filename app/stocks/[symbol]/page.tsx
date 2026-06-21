@@ -40,6 +40,27 @@ type Financial = {
   reportedAt: string;
 };
 
+type GPTData = {
+  symbol: string;
+  model: string;
+  ruleScore: number;
+  gptScore: number;
+  finalScore: number;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  action: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
+  summaryZh: string;
+  summaryJa: string;
+  summaryEn: string;
+  thesisZh: string;
+  thesisJa: string;
+  thesisEn: string;
+  strengths: string[];
+  risks: string[];
+  catalysts: string[];
+  timeHorizon: string;
+  updatedAt: string;
+};
+
 type V2Score = {
   totalScore: number;
   technicalScore: number;
@@ -239,6 +260,114 @@ function fmtBillion(v: number | null, lang?: string): string {
 }
 
 
+// ── GPT Score Card (V9 P1) ───────────────────────────────────────────────────
+
+const CONFIDENCE_CFG = {
+  HIGH:   { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  MEDIUM: { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200"   },
+  LOW:    { bg: "bg-slate-50",   text: "text-slate-500",   border: "border-slate-200"   },
+};
+const ACTION_CFG = {
+  POSITIVE: { dot: "bg-emerald-400", text: "text-emerald-600" },
+  NEUTRAL:  { dot: "bg-slate-300",   text: "text-slate-500"   },
+  NEGATIVE: { dot: "bg-red-400",     text: "text-red-600"     },
+};
+
+function GptScoreCard({ gptData }: { gptData: GPTData | null | "not_found" }) {
+  const { t, lang } = useI18n();
+  if (gptData === null) return null;
+
+  if (gptData === "not_found") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-semibold tracking-widest text-slate-400 uppercase">GPT ASSESSMENT</span>
+        </div>
+        <p className="text-sm text-slate-400">{t("gpt.not_generated")}</p>
+      </div>
+    );
+  }
+
+  const confidence = gptData.confidence as "LOW" | "MEDIUM" | "HIGH";
+  const action = gptData.action as "POSITIVE" | "NEUTRAL" | "NEGATIVE";
+  const ccfg = CONFIDENCE_CFG[confidence] ?? CONFIDENCE_CFG.LOW;
+  const acfg = ACTION_CFG[action] ?? ACTION_CFG.NEUTRAL;
+
+  const summary = lang === "ja-JP" ? gptData.summaryJa : lang === "en-US" ? gptData.summaryEn : gptData.summaryZh;
+  const thesis  = lang === "ja-JP" ? gptData.thesisJa  : lang === "en-US" ? gptData.thesisEn  : gptData.thesisZh;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+        <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">{t("gpt.section_title")}</span>
+        <span className="text-[10px] text-slate-300">{gptData.model} · {t("gpt.updated_at")} {new Date(gptData.updatedAt).toLocaleDateString()}</span>
+      </div>
+
+      <div className="p-5">
+        {/* Score row */}
+        <div className="flex gap-4 mb-4">
+          {[
+            { label: t("gpt.rule_score"), val: gptData.ruleScore.toFixed(1), color: "text-slate-700" },
+            { label: t("gpt.gpt_score"),  val: gptData.gptScore.toFixed(1),  color: "text-violet-700" },
+            { label: t("gpt.final_score"), val: gptData.finalScore.toFixed(1), color: "text-blue-700" },
+          ].map((item) => (
+            <div key={item.label} className="flex-1 bg-slate-50 rounded-xl p-3 text-center">
+              <div className={`text-2xl font-bold tabular-nums ${item.color}`}>{item.val}</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">{item.label}</div>
+            </div>
+          ))}
+          <div className={`flex-1 rounded-xl p-3 text-center border ${ccfg.border} ${ccfg.bg}`}>
+            <div className={`text-sm font-bold ${ccfg.text}`}>{t(`gpt.confidence.${confidence}` as Parameters<typeof t>[0])}</div>
+            <div className={`text-[10px] mt-0.5 ${ccfg.text}`}>{t("gpt.confidence")}</div>
+          </div>
+        </div>
+
+        {/* Action + Summary */}
+        <div className="flex items-start gap-2 mb-3">
+          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${acfg.dot}`} />
+          <div>
+            <span className={`text-xs font-semibold ${acfg.text}`}>
+              {t(`gpt.action.${action}` as Parameters<typeof t>[0])}
+            </span>
+            <span className="text-xs text-slate-500 ml-1.5">{summary}</span>
+          </div>
+        </div>
+
+        {/* Thesis */}
+        <div className="bg-slate-50 rounded-xl px-3 py-2.5 mb-4 text-xs text-slate-600 leading-relaxed">
+          {thesis}
+        </div>
+
+        {/* Strengths / Risks / Catalysts */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          {[
+            { key: "gpt.strengths" as const, items: gptData.strengths as string[], color: "text-emerald-600", dot: "text-emerald-400" },
+            { key: "gpt.risks"     as const, items: gptData.risks     as string[], color: "text-red-600",     dot: "text-red-400"     },
+            { key: "gpt.catalysts" as const, items: gptData.catalysts as string[], color: "text-orange-600",  dot: "text-orange-400"  },
+          ].map((sec) => (
+            <div key={sec.key} className="bg-slate-50 rounded-xl p-3">
+              <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${sec.color}`}>{t(sec.key)}</div>
+              {sec.items.slice(0, 3).map((item, i) => (
+                <div key={i} className="flex items-start gap-1 text-[11px] text-slate-600 mb-1">
+                  <span className={`shrink-0 ${sec.dot}`}>▸</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Time horizon */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">{t("gpt.time_horizon")}: <span className="font-medium text-slate-600">{gptData.timeHorizon}</span></span>
+          <span className="text-[10px] text-slate-300">{t("gpt.disclaimer")}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── AI Action Card (v8.3 P2) ──────────────────────────────────────────────
 
 const AI_ACTION_CFG: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
@@ -380,6 +509,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [newsItems, setNewsItems] = useState<NewsItem[] | null>(null);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsIsGeneral, setNewsIsGeneral] = useState(false);
+  const [gptData, setGptData] = useState<GPTData | null | "not_found">(null);
 
   useEffect(() => {
     const s = decoded;
@@ -410,6 +540,14 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       })
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [decoded]);
+
+  useEffect(() => {
+    if (activeTab !== "ai" || gptData !== null) return;
+    fetch(`/api/stocks/${encodeURIComponent(decoded)}/gpt-score`)
+      .then((r) => r.json())
+      .then((d) => setGptData(d.notFound ? "not_found" : (d as GPTData)))
+      .catch(() => setGptData("not_found"));
+  }, [activeTab, decoded, gptData]);
 
   useEffect(() => {
     if (activeTab !== "news" || newsItems !== null) return;
@@ -879,6 +1017,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
             return (
               <>
+                {/* V9 P1: GPT Score Overlay */}
+                <GptScoreCard gptData={gptData} />
+
                 {/* V8.3 P2: AI Action — TOP of AI Tab */}
                 <AiActionCard score={aiScore} />
 

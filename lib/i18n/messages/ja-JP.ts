@@ -501,6 +501,28 @@ const jaJP: Messages = {
   "news.no_stock_news": "当銘柄専用ニュースなし。最新市場ニュースを表示中",
   "news.stock_badge": "個株",
 
+  // ─── V9 P1: GPT Score Overlay ─────────────────────────────────────────────
+  "gpt.section_title": "GPT総合評価",
+  "gpt.rule_score": "ルールスコア",
+  "gpt.gpt_score": "GPTスコア",
+  "gpt.final_score": "総合スコア",
+  "gpt.confidence": "信頼度",
+  "gpt.insight": "GPT見解",
+  "gpt.strengths": "強み",
+  "gpt.risks": "リスク",
+  "gpt.catalysts": "カタリスト",
+  "gpt.time_horizon": "投資期間",
+  "gpt.not_generated": "GPT分析は未生成です",
+  "gpt.disclaimer": "参考情報のみ。投資助言ではありません。",
+  "gpt.confidence.HIGH": "高",
+  "gpt.confidence.MEDIUM": "中",
+  "gpt.confidence.LOW": "低",
+  "gpt.action.POSITIVE": "ポジティブ",
+  "gpt.action.NEUTRAL": "中立",
+  "gpt.action.NEGATIVE": "ネガティブ",
+  "gpt.updated_at": "更新日時",
+  "screener.col_final_score": "総合スコア",
+
   // ─── Financials table ─────────────────────────────────────────────────────
   "fin.period": "期間",
   "fin.revenue": "売上高",

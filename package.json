@@ -50,7 +50,9 @@
     "test:intent-engine": "APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts",
     "test:intent-engine:dry": "SKIP_DB=1 APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts",
     "health:data": "npx tsx scripts/data-health-guard.ts",
-    "audit:data": "npx tsx scripts/audit-data-integrity.ts"
+    "audit:data": "npx tsx scripts/audit-data-integrity.ts",
+    "gpt:score": "npx tsx scripts/gpt-score-overlay.ts",
+    "gpt:score:dry": "npx tsx scripts/gpt-score-overlay.ts --limit=5"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

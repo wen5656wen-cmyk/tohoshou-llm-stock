@@ -54,7 +54,19 @@ function MktChip({ mkt }: { mkt: string | null }) {
   return <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${cls}`}>{label}</span>;
 }
 
-type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14";
+type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14" | "finalScore";
+
+type GptSummary = {
+  symbol: string;
+  gptScore: number;
+  finalScore: number;
+  confidence: string;
+  action: string;
+  summaryZh: string;
+  summaryJa: string;
+  summaryEn: string;
+  updatedAt: string;
+};
 
 export default function ScreenerPage() {
   const { t, lang } = useI18n();
@@ -65,6 +77,7 @@ export default function ScreenerPage() {
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gptMap, setGptMap] = useState<Map<string, GptSummary>>(new Map());
   const [recFilter, setRecFilter] = useState("ALL");
   const [styleFilter, setStyleFilter] = useState("ALL");
   const [mktFilter, setMktFilter] = useState("ALL");
@@ -82,6 +95,17 @@ export default function ScreenerPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetch("/api/gpt-score")
+      .then((r) => r.json())
+      .then((rows: GptSummary[]) => {
+        if (Array.isArray(rows)) {
+          setGptMap(new Map(rows.map((r) => [r.symbol, r])));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -130,6 +154,11 @@ export default function ScreenerPage() {
       bv = b.percentileRank ?? 999;
       return sortDir === "asc" ? av - bv : bv - av;
     }
+    if (sortKey === "finalScore") {
+      av = gptMap.get(a.symbol)?.finalScore ?? -999;
+      bv = gptMap.get(b.symbol)?.finalScore ?? -999;
+      return sortDir === "desc" ? bv - av : av - bv;
+    }
     av = (a[sortKey] as number | null) ?? -999;
     bv = (b[sortKey] as number | null) ?? -999;
     return sortDir === "desc" ? bv - av : av - bv;
@@ -141,6 +170,8 @@ export default function ScreenerPage() {
     if (sortKey === key) setSortDir((d) => d === "desc" ? "asc" : "desc");
     else { setSortKey(key); setSortDir(key === "percentileRank" ? "asc" : "desc"); }
   }
+
+  const hasGptScores = gptMap.size > 0;
 
   function ThBtn({ col, label }: { col: SortKey; label: string }) {
     const active = sortKey === col;
@@ -283,6 +314,7 @@ export default function ScreenerPage() {
                 <ThBtn col="adaptiveScore"    label={t("screener.col_adaptive")} />
                 <ThBtn col="percentileRank"   label={t("screener.col_percentile")} />
                 <ThBtn col="opportunityScore" label={t("screener.col_opportunity")} />
+                {hasGptScores && <ThBtn col="finalScore" label={t("screener.col_final_score")} />}
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_tech")}</th>
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_fund")}</th>
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_flow")}</th>
@@ -332,6 +364,19 @@ export default function ScreenerPage() {
                     <td className="px-2 py-2 text-right text-xs text-slate-500 tabular-nums">
                       {s.opportunityScore?.toFixed(1) ?? "—"}
                     </td>
+                    {hasGptScores && (() => {
+                      const gpt = gptMap.get(s.symbol);
+                      const actionDot = gpt?.action === "POSITIVE" ? "🟢" : gpt?.action === "NEGATIVE" ? "🔴" : "⚪";
+                      return (
+                        <td className="px-2 py-2 text-right text-xs tabular-nums">
+                          {gpt ? (
+                            <span className="font-semibold text-blue-600" title={`GPT: ${gpt.gptScore.toFixed(0)}`}>
+                              {actionDot} {gpt.finalScore.toFixed(1)}
+                            </span>
+                          ) : <span className="text-slate-300">—</span>}
+                        </td>
+                      );
+                    })()}
                     <td className="px-2 py-2 text-right text-xs text-blue-600 tabular-nums">{s.technicalScore ?? "—"}</td>
                     <td className="px-2 py-2 text-right text-xs text-emerald-600 tabular-nums">{s.fundamentalScore ?? "—"}</td>
                     <td className="px-2 py-2 text-right text-xs text-violet-600 tabular-nums">{s.moneyFlowScore ?? "—"}</td>
