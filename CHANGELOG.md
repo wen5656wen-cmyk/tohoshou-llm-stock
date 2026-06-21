@@ -2,6 +2,43 @@
 
 ---
 
+## [8.6 P2.1–P2.3] - 2026-06-21 — Banner Removal / Smart Back Nav / Sync Refresh Fix
+
+### P2.1 Remove Legacy Merge Banners
+| 页面 | 改动 |
+|------|------|
+| `/ai-picks` | 删除蓝色 Info Banner |
+| `/notifications` | 删除蓝色 Info Banner |
+| `/watchlist` | 删除蓝色 Info Banner |
+| `/indicators` | 删除蓝色 Info Banner |
+| `/stocks` | 蓝色提示框 → 单行 14px 灰色文字 |
+| `/chat` | amber 框 → 干净 LINE 绿色按钮页面 |
+
+### P2.2 Smart Back Navigation
+| 文件 | 说明 |
+|------|------|
+| `lib/navigation/back.ts` | 新建：`buildStockUrl()`/`getBackHref()`/`getBackLabel()` |
+| `app/stocks/[symbol]/page.tsx` | 读取 `returnTo`/`source` searchParams，智能返回按钮 |
+| `app/screener/page.tsx` | 所有股票链接带 `source=screener&returnTo=/screener` |
+| `app/ai-theme/page.tsx` | 所有股票链接带 `source=ai-theme` |
+| `app/ai-theme/[theme]/page.tsx` | 所有股票链接带 `source=ai-theme&returnTo=当前路径` |
+| `app/sectors/page.tsx` | 所有股票链接带 `source=sectors` |
+| `app/portfolio/page.tsx` | 所有股票链接带 `source=portfolio&returnTo=当前路径` |
+| `app/HomeStockDisplay.tsx` | 仪表盘股票链接带 `source=dashboard` |
+| `components/StockMobileCard.tsx` | 新增可选 `href` prop 供外部注入 returnTo |
+
+### P2.3 Sync Refresh Button Fix
+| 项目 | 修复前 | 修复后 |
+|------|--------|--------|
+| 点击反馈 | 无 | ↺ 旋转 + 按钮文字变「刷新中…」|
+| 成功提示 | 无 | 右上角绿色 toast 3秒自动消失 |
+| 失败提示 | 无 | 右上角红色 toast + 错误原因 |
+| 并发保护 | 无 | `refreshing` state debounce |
+| 最后刷新时间 | 无 | 标题副标题显示 HH:mm:ss |
+| 并行请求 | 串行 | `Promise.all([fetchStatus, fetchHealth])` |
+
+---
+
 ## [8.6 P2] - 2026-06-21 — Smooth Navigation & Performance
 
 ### 目标
