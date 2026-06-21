@@ -6,7 +6,7 @@ import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import StockMobileCard from "@/components/StockMobileCard";
-import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy, finalScoreColor } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 
@@ -58,6 +58,7 @@ type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentile
 
 type GptSummary = {
   symbol: string;
+  ruleScore: number;
   gptScore: number;
   finalScore: number;
   confidence: string;
@@ -81,7 +82,7 @@ export default function ScreenerPage() {
   const [recFilter, setRecFilter] = useState("ALL");
   const [styleFilter, setStyleFilter] = useState("ALL");
   const [mktFilter, setMktFilter] = useState("ALL");
-  const [sortKey, setSortKey] = useState<SortKey>("adaptiveScore");
+  const [sortKey, setSortKey] = useState<SortKey>("finalScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
 
@@ -160,8 +161,8 @@ export default function ScreenerPage() {
       return sortDir === "desc" ? bv - av : av - bv;
     }
     if (sortKey === "finalScore") {
-      av = gptMap.get(a.symbol)?.finalScore ?? -999;
-      bv = gptMap.get(b.symbol)?.finalScore ?? -999;
+      av = gptMap.get(a.symbol)?.finalScore ?? a.adaptiveScore ?? -999;
+      bv = gptMap.get(b.symbol)?.finalScore ?? b.adaptiveScore ?? -999;
       return sortDir === "desc" ? bv - av : av - bv;
     }
     av = (a[sortKey] as number | null) ?? -999;
@@ -316,11 +317,10 @@ export default function ScreenerPage() {
                 <th className="px-2 py-2.5 font-medium">{t("screener.col_style")}</th>
                 <th className="px-3 py-2.5 font-medium text-right">{t("screener.col_price")}</th>
                 <ThBtn col="return20d"        label={t("screener.col_20d")} />
-                <ThBtn col="adaptiveScore"    label={t("screener.col_adaptive")} />
+                <ThBtn col="finalScore"        label={t("score.final")} />
                 <ThBtn col="percentileRank"   label={t("screener.col_percentile")} />
                 <ThBtn col="opportunityScore" label={t("screener.col_opportunity")} />
                 {hasGptScores && <ThBtn col="gptScore" label={t("screener.col_gpt_score")} />}
-                {hasGptScores && <ThBtn col="finalScore" label={t("screener.col_final_score")} />}
                 {hasGptScores && <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_confidence")}</th>}
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_tech")}</th>
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_fund")}</th>
@@ -363,9 +363,25 @@ export default function ScreenerPage() {
                       </span>
                     </td>
                     <td className="px-2 py-2 text-right">
-                      <span className={`text-sm font-bold tabular-nums ${rec.text}`}>
-                        {s.adaptiveScore?.toFixed(0) ?? "—"}
-                      </span>
+                      {(() => {
+                        const gpt = gptMap.get(s.symbol);
+                        const displayScore = gpt?.finalScore ?? s.adaptiveScore;
+                        const hasGpt = !!gpt;
+                        return (
+                          <div>
+                            <span className={`text-sm font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
+                              {displayScore?.toFixed(0) ?? "—"}
+                            </span>
+                            {hasGpt ? (
+                              <div className="text-[9px] text-slate-400 tabular-nums">
+                                {t("score.rule")} {gpt.ruleScore?.toFixed(0)} · {t("score.gpt")} {gpt.gptScore?.toFixed(0)}
+                              </div>
+                            ) : (
+                              <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-2 py-2 text-right text-xs text-slate-500 tabular-nums">{pctRankLabel}</td>
                     <td className="px-2 py-2 text-right text-xs text-slate-500 tabular-nums">
@@ -378,9 +394,6 @@ export default function ScreenerPage() {
                         <>
                           <td className="px-2 py-2 text-right text-xs tabular-nums">
                             {gpt ? <span className="font-semibold text-violet-600">{gpt.gptScore}</span> : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="px-2 py-2 text-right text-xs tabular-nums">
-                            {gpt ? <span className="font-semibold text-blue-600">{gpt.finalScore.toFixed(1)}</span> : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="px-2 py-2 text-right text-xs tabular-nums">
                             {gpt ? (

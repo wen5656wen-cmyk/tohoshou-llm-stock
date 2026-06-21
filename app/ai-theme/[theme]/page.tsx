@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { buildStockUrl } from "@/lib/navigation/back";
-import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, finalScoreColor } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 import { getThemeLabel, getLayerLabel, getLayerDesc } from "@/lib/i18n/theme-labels";
@@ -18,6 +18,9 @@ type Stock = {
   return5d: number | null;
   return20d: number | null;
   adaptiveScore: number | null;
+  finalScore: number | null;
+  ruleScore: number | null;
+  gptScore: number | null;
   recommendationV2: string | null;
   percentileRank: number | null;
   opportunityScore: number | null;
@@ -151,7 +154,24 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
         <div className="text-right ml-2 shrink-0">
           {s.scored ? (
             <>
-              <div className="text-lg font-bold text-slate-900">{s.adaptiveScore?.toFixed(0) ?? "—"}</div>
+              {(() => {
+                const displayScore = s.finalScore ?? s.adaptiveScore;
+                const hasGpt = s.finalScore != null;
+                return (
+                  <>
+                    <div className={`text-lg font-bold ${finalScoreColor(displayScore)}`}>
+                      {displayScore?.toFixed(0) ?? "—"}
+                    </div>
+                    {hasGpt ? (
+                      <div className="text-[9px] text-slate-400 tabular-nums">
+                        R{s.ruleScore?.toFixed(0)} G{s.gptScore?.toFixed(0)}
+                      </div>
+                    ) : (
+                      <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+                    )}
+                  </>
+                );
+              })()}
               {s.percentileRank != null && (
                 <div className="text-[10px] text-slate-400">
                   {t("common.percentile_prefix")} {s.percentileRank.toFixed(1)}%

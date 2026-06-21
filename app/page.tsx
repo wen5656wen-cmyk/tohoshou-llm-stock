@@ -4,7 +4,7 @@ import { HomeDashboardClient } from "./HomeDashboardClient";
 export const dynamic = "force-dynamic";
 
 async function getDashboardData() {
-  const [stockCount, priceCount, , latestPrice, scores, scoreCount] =
+  const [stockCount, priceCount, , latestPrice, rawScores, scoreCount] =
     await Promise.all([
       prisma.stock.count(),
       prisma.dailyPrice.count(),
@@ -13,6 +13,7 @@ async function getDashboardData() {
       prisma.stockScore.findMany({
         where: { priceCount: { gte: 20 }, adaptiveScore: { not: null } },
         orderBy: { adaptiveScore: "desc" },
+        take: 200,
         select: {
           symbol: true, name: true, nameZh: true, market: true, sector: true,
           latestClose: true, latestDate: true,
@@ -27,6 +28,21 @@ async function getDashboardData() {
       }),
       prisma.stockScore.count({ where: { priceCount: { gte: 20 } } }),
     ]);
+
+  // Merge finalScore from GPTScore
+  const gptRows = await prisma.gPTScore.findMany({
+    where: { symbol: { in: rawScores.map((s) => s.symbol) } },
+    select: { symbol: true, finalScore: true, ruleScore: true, gptScore: true },
+  });
+  const gptMap = new Map(gptRows.map((g) => [g.symbol, g]));
+  const scores = rawScores
+    .map((s) => ({
+      ...s,
+      finalScore: gptMap.get(s.symbol)?.finalScore ?? null,
+      ruleScore: gptMap.get(s.symbol)?.ruleScore ?? null,
+      gptScore: gptMap.get(s.symbol)?.gptScore ?? null,
+    }))
+    .sort((a, b) => (b.finalScore ?? b.adaptiveScore ?? 0) - (a.finalScore ?? a.adaptiveScore ?? 0));
 
   const latestDateStr = latestPrice ? latestPrice.date.toISOString().split("T")[0] : "—";
   const buyCount   = scores.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY").length;

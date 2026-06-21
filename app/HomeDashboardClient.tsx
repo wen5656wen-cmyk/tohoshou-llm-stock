@@ -20,6 +20,9 @@ export type DashboardScore = {
   riskScore: number | null;
   totalScore: number | null;
   adaptiveScore: number | null;
+  finalScore: number | null;
+  ruleScore: number | null;
+  gptScore: number | null;
   recommendation: string | null;
   recommendationV2: string | null;
   percentileRank: number | null;

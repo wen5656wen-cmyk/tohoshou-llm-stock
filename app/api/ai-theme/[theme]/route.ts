@@ -60,6 +60,13 @@ export async function GET(
     });
     const scoreMap = new Map(scores.map((s) => [s.symbol, s]));
 
+    // GPTScore join for finalScore
+    const gptRows = await prisma.gPTScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, finalScore: true, ruleScore: true, gptScore: true },
+    });
+    const gptScoreMap = new Map(gptRows.map((g) => [g.symbol, g]));
+
     // Unscored fallback
     const unscoredSyms = symbols.filter((s) => !scoreMap.has(s));
     const basicRows = unscoredSyms.length
@@ -82,6 +89,9 @@ export async function GET(
         return5d: sc?.return5d ?? null,
         return20d: sc?.return20d ?? null,
         adaptiveScore: sc?.adaptiveScore ?? null,
+        finalScore: gptScoreMap.get(tr.symbol)?.finalScore ?? null,
+        ruleScore: gptScoreMap.get(tr.symbol)?.ruleScore ?? null,
+        gptScore: gptScoreMap.get(tr.symbol)?.gptScore ?? null,
         totalScore: sc?.totalScore ?? null,
         recommendationV2: sc?.recommendationV2 ?? null,
         percentileRank: sc?.percentileRank ?? null,
@@ -122,7 +132,7 @@ export async function GET(
       (s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY"
     ).length;
     const avgScore = scored.length
-      ? Math.round(scored.reduce((a, s) => a + (s.adaptiveScore ?? 0), 0) / scored.length)
+      ? Math.round(scored.reduce((a, s) => a + (s.finalScore ?? s.adaptiveScore ?? 0), 0) / scored.length)
       : 0;
     const coreCount = stocks.filter((s) => s.isCore).length;
 

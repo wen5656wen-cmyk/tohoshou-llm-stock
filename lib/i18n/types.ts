@@ -123,7 +123,6 @@ export type Messages = {
   "stock.style_label": string;
 
   // ─── Stock detail tabs ─────────────────────────────────────────────────────
-  "tab.overview": string;
   "tab.chart": string;
   "tab.financials": string;
   "tab.technical": string;
@@ -543,6 +542,57 @@ export type Messages = {
   "gpt.dim.risk": string;
   "screener.col_gpt_score": string;
   "screener.col_confidence": string;
+  // V8.5 P2: Stock detail AI-first + full i18n
+  "stock.aiScore": string;
+  "stock.gptScore": string;
+  "stock.overallScore": string;
+  "stock.confidence": string;
+  "stock.direction": string;
+  "stock.position": string;
+  "stock.gptView": string;
+  "stock.gptHorizon": string;
+  "stock.reasons": string;
+  "stock.risks": string;
+  "stock.direction.bullish": string;
+  "stock.direction.neutral": string;
+  "stock.direction.cautious": string;
+  "stock.buyZone": string;
+  "stock.watchZone": string;
+  "stock.riskZone": string;
+  "stock.aiZones": string;
+  "stock.load_error": string;
+  "score.technical": string;
+  "score.fundamental": string;
+  "score.money_flow": string;
+  "score.sentiment": string;
+  "score.trend": string;
+  "score.technical_analysis": string;
+  "score.fundamental_analysis": string;
+  "score.money_analysis": string;
+  "score.news_sentiment": string;
+  "score.dividend_yield": string;
+  "score.annual": string;
+  "score.payout_ratio": string;
+  "score.dividend_score": string;
+  "score.short_ratio_mkt": string;
+  "score.jpx_daily": string;
+  "score.real_data": string;
+  "score.details": string;
+  "score.div_short": string;
+  "score.ma_trend": string;
+  "score.macd_signal_label": string;
+  "score.rsi_pos": string;
+  "score.momentum": string;
+  "score.op_margin": string;
+  "score.equity_ratio_label": string;
+  "score.inflow": string;
+  "score.stability": string;
+  "score.short_pressure": string;
+  // v9 P1.3 Final Score Unification
+  "score.final": string;
+  "score.rule_only": string;
+  "score.rule": string;
+  "score.gpt": string;
 };
 
 export type MessageKey = keyof Messages;

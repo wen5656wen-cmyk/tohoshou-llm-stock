@@ -62,6 +62,9 @@ export type AiThemeStock = {
   return20d: number | null;
   return60d: number | null;
   adaptiveScore: number | null;
+  finalScore: number | null;
+  ruleScore: number | null;
+  gptScore: number | null;
   totalScore: number | null;
   recommendationV2: string | null;
   starsLabel: string | null;
@@ -116,6 +119,13 @@ export async function GET() {
     });
     const scoreMap = new Map(scores.map((s) => [s.symbol, s]));
 
+    // GPTScore join for finalScore
+    const gptRows = await prisma.gPTScore.findMany({
+      where: { symbol: { in: allSymbols } },
+      select: { symbol: true, finalScore: true, ruleScore: true, gptScore: true },
+    });
+    const gptScoreMap = new Map(gptRows.map((g) => [g.symbol, g]));
+
     // Fetch unscored basic info
     const unscoredSyms = allSymbols.filter((s) => !scoreMap.has(s));
     const basicRows = unscoredSyms.length
@@ -151,6 +161,9 @@ export async function GET() {
         return20d: sc?.return20d ?? null,
         return60d: sc?.return60d ?? null,
         adaptiveScore: sc?.adaptiveScore ?? null,
+        finalScore: gptScoreMap.get(tr.symbol)?.finalScore ?? null,
+        ruleScore: gptScoreMap.get(tr.symbol)?.ruleScore ?? null,
+        gptScore: gptScoreMap.get(tr.symbol)?.gptScore ?? null,
         totalScore: sc?.totalScore ?? null,
         recommendationV2: sc?.recommendationV2 ?? null,
         starsLabel: sc?.starsLabel ?? null,
@@ -187,16 +200,16 @@ export async function GET() {
       const group = stocks.filter((s) => s.theme === themeKey);
       const scoredG = group.filter((s) => s.scored);
       const avgScore = scoredG.length
-        ? Math.round(scoredG.reduce((a, s) => a + (s.adaptiveScore ?? 0), 0) / scoredG.length)
+        ? Math.round(scoredG.reduce((a, s) => a + (s.finalScore ?? s.adaptiveScore ?? 0), 0) / scoredG.length)
         : 0;
       const buyCount = scoredG.filter((s) =>
         s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY"
       ).length;
       const coreCount = group.filter((s) => s.isCore).length;
       const top3 = [...scoredG]
-        .sort((a, b) => (b.adaptiveScore ?? 0) - (a.adaptiveScore ?? 0))
+        .sort((a, b) => (b.finalScore ?? b.adaptiveScore ?? 0) - (a.finalScore ?? a.adaptiveScore ?? 0))
         .slice(0, 3)
-        .map((s) => ({ symbol: s.symbol, name: s.name, nameZh: s.nameZh, nameEn: s.nameEn, score: s.adaptiveScore }));
+        .map((s) => ({ symbol: s.symbol, name: s.name, nameZh: s.nameZh, nameEn: s.nameEn, score: s.finalScore ?? s.adaptiveScore }));
       const layers = [...new Set(group.map((s) => s.supplyChainLayer).filter(Boolean))];
       return {
         theme: themeKey,
@@ -227,7 +240,7 @@ export async function GET() {
       const scoredG = g.filter((s) => s.scored);
       const uniqSyms = [...new Set(g.map((s) => s.symbol))];
       const avgScore = scoredG.length
-        ? Math.round(scoredG.reduce((a, s) => a + (s.adaptiveScore ?? 0), 0) / scoredG.length)
+        ? Math.round(scoredG.reduce((a, s) => a + (s.finalScore ?? s.adaptiveScore ?? 0), 0) / scoredG.length)
         : 0;
       return {
         layer: lk,
@@ -248,9 +261,9 @@ export async function GET() {
       (s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY"
     ).length;
     const avgAll = uniqScored.length
-      ? Math.round(uniqScored.reduce((a, s) => a + (s.adaptiveScore ?? 0), 0) / uniqScored.length)
+      ? Math.round(uniqScored.reduce((a, s) => a + (s.finalScore ?? s.adaptiveScore ?? 0), 0) / uniqScored.length)
       : 0;
-    const topStock = uniqScored.sort((a, b) => (b.adaptiveScore ?? 0) - (a.adaptiveScore ?? 0))[0] ?? null;
+    const topStock = uniqScored.sort((a, b) => (b.finalScore ?? b.adaptiveScore ?? 0) - (a.finalScore ?? a.adaptiveScore ?? 0))[0] ?? null;
     const coreAll = stocks.filter((s) => s.isCore).length;
     const latestAt = scores.reduce<Date | null>((acc, s) => {
       if (!acc || s.computedAt > acc) return s.computedAt;
@@ -265,7 +278,7 @@ export async function GET() {
       buyCount: buyAll,
       avgScore: avgAll,
       topStock: topStock
-        ? { symbol: topStock.symbol, name: topStock.name, nameZh: topStock.nameZh, nameEn: topStock.nameEn, score: topStock.adaptiveScore }
+        ? { symbol: topStock.symbol, name: topStock.name, nameZh: topStock.nameZh, nameEn: topStock.nameEn, score: topStock.finalScore ?? topStock.adaptiveScore }
         : null,
       updatedAt: latestAt?.toISOString() ?? null,
     };

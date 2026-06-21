@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
-import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, finalScoreColor } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 import { getThemeLabel, getLayerLabel } from "@/lib/i18n/theme-labels";
@@ -22,6 +22,9 @@ type AiThemeStock = {
   return5d: number | null;
   return20d: number | null;
   adaptiveScore: number | null;
+  finalScore: number | null;
+  ruleScore: number | null;
+  gptScore: number | null;
   totalScore: number | null;
   recommendationV2: string | null;
   starsLabel: string | null;
@@ -228,9 +231,24 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
         <div className="text-right ml-2 shrink-0">
           {stock.scored ? (
             <>
-              <div className="text-xl font-bold text-slate-900 tabular-nums leading-tight">
-                {stock.adaptiveScore?.toFixed(0) ?? "—"}
-              </div>
+              {(() => {
+                const displayScore = stock.finalScore ?? stock.adaptiveScore;
+                const hasGpt = stock.finalScore != null;
+                return (
+                  <>
+                    <div className={`text-xl font-bold tabular-nums leading-tight ${finalScoreColor(displayScore)}`}>
+                      {displayScore?.toFixed(0) ?? "—"}
+                    </div>
+                    {hasGpt ? (
+                      <div className="text-[9px] text-slate-400 tabular-nums">
+                        R{stock.ruleScore?.toFixed(0)} G{stock.gptScore?.toFixed(0)}
+                      </div>
+                    ) : (
+                      <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+                    )}
+                  </>
+                );
+              })()}
               <div className="text-[10px] text-slate-400">
                 {stock.percentileRank != null
                   ? `${t("common.percentile_prefix")} ${stock.percentileRank.toFixed(1)}%`
@@ -386,7 +404,7 @@ export default function AiThemePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("ALL");
-  const [sortKey, setSortKey] = useState<string>("adaptiveScore");
+  const [sortKey, setSortKey] = useState<string>("finalScore");
   const [layerFilter, setLayerFilter] = useState<string>("");
   const [searchQ, setSearchQ] = useState<string>("");
   const [coreOnly, setCoreOnly] = useState(false);
@@ -418,6 +436,7 @@ export default function AiThemePage() {
   ], [t, lang]);
 
   const SORT_OPTIONS = useMemo(() => [
+    { key: "finalScore",       label: t("score.final") },
     { key: "adaptiveScore",    label: t("theme.sort_ai_score") },
     { key: "opportunityScore", label: t("theme.sort_opportunity") },
     { key: "importanceScore",  label: t("theme.sort_importance") },
@@ -472,6 +491,7 @@ export default function AiThemePage() {
       if (!a.scored && b.scored) return 1;
       if (a.scored && !b.scored) return -1;
       switch (sortKey) {
+        case "finalScore":       return (b.finalScore ?? b.adaptiveScore ?? 0) - (a.finalScore ?? a.adaptiveScore ?? 0);
         case "adaptiveScore":   return (b.adaptiveScore ?? 0) - (a.adaptiveScore ?? 0);
         case "opportunityScore":return (b.opportunityScore ?? 0) - (a.opportunityScore ?? 0);
         case "importanceScore": return b.importanceScore - a.importanceScore;

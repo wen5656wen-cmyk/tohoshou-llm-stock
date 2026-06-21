@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
-import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, returnColorClass, fmtPct, fmtJpy, finalScoreHex } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getNameLines } from "@/lib/i18n/stock-name";
 import { localeSector, localeMarket } from "@/lib/i18n/market-labels";
@@ -1011,13 +1011,29 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <div style={{ fontSize: 10, color: "#334155", marginBottom: 12 }}>
                         {sourceLabelFor(aiScore.scoreSource) ?? aiScore.scoreSource}
                       </div>
-                      {/* adaptiveScore (primary) */}
-                      <div className="flex items-baseline gap-3 mb-2">
-                        <span style={{ fontSize: 72, fontWeight: 900, lineHeight: 1, color: rec.color, fontVariantNumeric: "tabular-nums" }}>
-                          {aiScore.adaptiveScore != null ? aiScore.adaptiveScore.toFixed(0) : aiScore.totalScore}
-                        </span>
-                        <span style={{ fontSize: 24, color: "#475569", fontWeight: 400 }}>/100</span>
-                      </div>
+                      {/* Final Score (primary) */}
+                      {(() => {
+                        const gpt = gptData && gptData !== "not_found" ? (gptData as GPTData) : null;
+                        const displayScore = gpt != null ? gpt.finalScore : (aiScore.adaptiveScore ?? aiScore.totalScore);
+                        const scoreColor = finalScoreHex(typeof displayScore === "number" ? displayScore : null);
+                        return (
+                          <>
+                            <div className="flex items-baseline gap-3 mb-2">
+                              <span style={{ fontSize: 72, fontWeight: 900, lineHeight: 1, color: scoreColor, fontVariantNumeric: "tabular-nums" }}>
+                                {typeof displayScore === "number" ? displayScore.toFixed(0) : displayScore}
+                              </span>
+                              <span style={{ fontSize: 24, color: "#475569", fontWeight: 400 }}>/100</span>
+                            </div>
+                            {gpt != null ? (
+                              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
+                                {t("score.rule")} {gpt.ruleScore.toFixed(1)} · {t("score.gpt")} {gpt.gptScore.toFixed(1)}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 11, color: "#475569", marginBottom: 6 }}>{t("score.rule_only")}</div>
+                            )}
+                          </>
+                        );
+                      })()}
                       {/* V7.7 primary rating */}
                       <div className="flex items-center gap-3 mb-3">
                         <span style={{

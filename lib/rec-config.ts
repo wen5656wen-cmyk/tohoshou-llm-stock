@@ -85,3 +85,23 @@ export function fmtJpy(val: number | null | undefined): string {
   if (val == null) return "—";
   return `¥${val.toLocaleString()}`;
 }
+
+// Final Score color — 90+ violet / 80+ blue / 70+ emerald / 60+ amber / <60 slate
+export function finalScoreColor(score: number | null | undefined): string {
+  if (score == null) return "text-slate-400";
+  if (score >= 90) return "text-violet-600";
+  if (score >= 80) return "text-blue-600";
+  if (score >= 70) return "text-emerald-600";
+  if (score >= 60) return "text-amber-500";
+  return "text-slate-400";
+}
+
+// Hex variant for inline styles (dark card, etc.)
+export function finalScoreHex(score: number | null | undefined): string {
+  if (score == null) return "#94a3b8";
+  if (score >= 90) return "#7c3aed";
+  if (score >= 80) return "#2563eb";
+  if (score >= 70) return "#059669";
+  if (score >= 60) return "#d97706";
+  return "#94a3b8";
+}

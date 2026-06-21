@@ -4,7 +4,7 @@ import Link from "next/link";
 import { buildStockUrl } from "@/lib/navigation/back";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
-import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy, finalScoreColor } from "@/lib/rec-config";
 
 type Score = {
   symbol: string;
@@ -22,6 +22,9 @@ type Score = {
   riskScore: number | null;
   totalScore: number | null;
   adaptiveScore: number | null;
+  finalScore: number | null;
+  ruleScore: number | null;
+  gptScore: number | null;
   recommendation: string | null;
   recommendationV2: string | null;
   percentileRank: number | null;
@@ -78,14 +81,29 @@ export function HomeTop3({ top3 }: { top3: Score[] }) {
               <div className="text-[11px] text-slate-400 truncate">{secondary}</div>
             )}
             <div className="text-[11px] text-slate-500 font-mono mt-0.5 mb-2">{s.symbol}</div>
-            <div className="flex items-baseline gap-2">
-              <div className="text-2xl font-bold text-white tabular-nums">
-                {s.adaptiveScore?.toFixed(0) ?? s.totalScore}
-              </div>
-              <div className="text-slate-300 text-xs">
-                / 100{s.percentileRank != null ? ` · ${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${s.percentileRank.toFixed(1)}%` : ""}
-              </div>
-            </div>
+            {(() => {
+              const displayScore = s.finalScore ?? s.adaptiveScore ?? s.totalScore;
+              const hasGpt = s.finalScore != null;
+              return (
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <div className={`text-2xl font-bold tabular-nums ${hasGpt ? "text-white" : "text-white"}`}>
+                      {typeof displayScore === "number" ? displayScore.toFixed(0) : "—"}
+                    </div>
+                    <div className="text-slate-300 text-xs">
+                      / 100{s.percentileRank != null ? ` · ${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${s.percentileRank.toFixed(1)}%` : ""}
+                    </div>
+                  </div>
+                  {hasGpt ? (
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {t("score.rule")} {s.ruleScore?.toFixed(0)} · {t("score.gpt")} {s.gptScore?.toFixed(0)}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-500 mt-0.5">{t("score.rule_only")}</div>
+                  )}
+                </div>
+              );
+            })()}
             <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
               <div className="text-center">
                 <div className="text-blue-300 font-bold">{s.technicalScore}</div>
@@ -123,7 +141,7 @@ export function HomeScoreTable({ scores }: { scores: Score[] }) {
             <th className="px-3 py-3 font-medium">{t("table.trend")}</th>
             <th className="px-3 py-3 font-medium text-right">{t("table.tech")}</th>
             <th className="px-3 py-3 font-medium text-right">{t("table.fund")}</th>
-            <th className="px-3 py-3 font-medium text-right">{t("table.adaptive")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("score.final")}</th>
             <th className="px-3 py-3 font-medium text-center">{t("table.rating")}</th>
           </tr>
         </thead>
@@ -173,9 +191,24 @@ export function HomeScoreTable({ scores }: { scores: Score[] }) {
                   {s.fundamentalScore ?? "—"}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <span className={`text-sm font-bold tabular-nums ${rec.text}`}>
-                    {s.adaptiveScore?.toFixed(0) ?? s.totalScore ?? "—"}
-                  </span>
+                  {(() => {
+                    const displayScore = s.finalScore ?? s.adaptiveScore ?? s.totalScore;
+                    const hasGpt = s.finalScore != null;
+                    return (
+                      <div>
+                        <span className={`text-sm font-bold tabular-nums ${finalScoreColor(typeof displayScore === "number" ? displayScore : null)}`}>
+                          {typeof displayScore === "number" ? displayScore.toFixed(0) : "—"}
+                        </span>
+                        {hasGpt ? (
+                          <div className="text-[9px] text-slate-400">
+                            R{s.ruleScore?.toFixed(0)} G{s.gptScore?.toFixed(0)}
+                          </div>
+                        ) : (
+                          <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-3 py-2 text-center">
                   <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${rec.bg} ${rec.text}`}>
