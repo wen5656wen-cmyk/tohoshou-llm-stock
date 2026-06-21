@@ -2,6 +2,36 @@
 
 ---
 
+## [8.5 P1.1] - 2026-06-21 — AI Value Chain Locale Fix
+
+### 目标
+修复 /ai-theme 页面中英文日文混杂，统一三语言显示。
+
+### 核心变更
+
+| 内容 | 说明 |
+|------|------|
+| `lib/i18n/theme-labels.ts` | 新建：14主题×3语言、5层级×3语言、层级描述×3语言映射 |
+| `lib/i18n/types.ts` | 新增 48个 MessageKey（theme.*） |
+| `lib/i18n/messages/zh-CN.ts` | 48键中文翻译 |
+| `lib/i18n/messages/ja-JP.ts` | 48键日文翻译 |
+| `lib/i18n/messages/en-US.ts` | 48键英文翻译；theme.title → "AI Value Chain" |
+| `app/ai-theme/page.tsx` | 全量重写：标题/副标题/统计卡/层级/Tab/筛选/排序/股票卡片全 t() |
+| `app/ai-theme/[theme]/page.tsx` | 全量重写：breadcrumb/Header/Stats/层级结构/股票行全 t() |
+
+### 三语言验收
+- zh-CN：AI产业链 · 追踪总数/核心标的/产业链分类/供应链层 · 上游/中游/应用层 · 全部/AI硬件/半导体设备
+- ja-JP：AI投資テーマ → 実際は "AI Value Chain" / "AIバリューチェーン" 为正确标题
+- en-US：AI Value Chain · Tracked Stocks/Core Stocks/Categories · Upstream/Midstream/Applications · All/AI Hardware/Semiconductor Equipment
+- en-US 模式：role字段隐藏（含CJK字符）；reason/riskNote 隐藏
+
+### 验证
+- TypeScript: 0 错误
+- Build: 成功
+- 部署到生产 8.209.247.68 并 pm2 restart
+
+---
+
 ## [8.5 P1] - 2026-06-21 — 中文版全面汉化
 
 ### 目标

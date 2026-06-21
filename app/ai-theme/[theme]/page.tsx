@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getRec, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
+import { getThemeLabel, getLayerLabel, getLayerDesc } from "@/lib/i18n/theme-labels";
 
 type Stock = {
   symbol: string;
@@ -47,7 +48,7 @@ type ApiResponse = {
   };
 };
 
-const PENDING_REC = { label: "Pending", bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200" };
+const PENDING_REC = { bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200" };
 
 const LAYER_COLORS: Record<string, string> = {
   UPSTREAM:       "bg-green-50 border-green-200",
@@ -76,8 +77,8 @@ function ReturnBadge({ v }: { v: number | null }) {
 }
 
 function StockRow({ s }: { s: Stock }) {
-  const { lang } = useI18n();
-  const rec = s.scored ? getRec(s.recommendationV2) : PENDING_REC;
+  const { lang, t } = useI18n();
+  const rec = getRec(s.recommendationV2);
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-3 hover:shadow-sm transition-shadow">
       <div className="flex items-start justify-between">
@@ -91,10 +92,21 @@ function StockRow({ s }: { s: Stock }) {
               {getPrimaryName(s, lang)}
             </Link>
             <span className="text-[10px] text-slate-400 font-mono">{s.symbol.replace(".T", "")}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${rec.bg} ${rec.text}`}>{rec.label}</span>
-            {s.highRiskFlag && <span className="text-[10px] text-red-400">⚠高风险</span>}
+            {s.scored ? (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${rec.bg} ${rec.text}`}>
+                {getRecommendationLabel(s.recommendationV2, lang)}
+              </span>
+            ) : (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${PENDING_REC.bg} ${PENDING_REC.text}`}>
+                {t("theme.pending_score")}
+              </span>
+            )}
+            {s.highRiskFlag && (
+              <span className="text-[10px] text-red-400">⚠{t("theme.high_risk")}</span>
+            )}
           </div>
-          {s.role && (
+          {/* Role — hide in en-US if contains non-ASCII CJK */}
+          {s.role && lang !== "en-US" && (
             <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{s.role}</div>
           )}
         </div>
@@ -103,37 +115,39 @@ function StockRow({ s }: { s: Stock }) {
             <>
               <div className="text-lg font-bold text-slate-900">{s.adaptiveScore?.toFixed(0) ?? "—"}</div>
               {s.percentileRank != null && (
-                <div className="text-[10px] text-slate-400">前{s.percentileRank.toFixed(1)}%</div>
+                <div className="text-[10px] text-slate-400">
+                  {lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {s.percentileRank.toFixed(1)}%
+                </div>
               )}
             </>
           ) : (
-            <div className="text-[11px] text-slate-400">待评分</div>
+            <div className="text-[11px] text-slate-400">{t("theme.pending_score")}</div>
           )}
         </div>
       </div>
       {s.scored && (
         <div className="flex items-center gap-4 mt-1.5 text-[10px] text-slate-400">
           {s.opportunityScore != null && (
-            <span>机会 <b className="text-slate-600">{s.opportunityScore.toFixed(0)}</b></span>
+            <span>{t("card.opp")} <b className="text-slate-600">{s.opportunityScore.toFixed(0)}</b></span>
           )}
           {s.dividendScore != null && s.dividendScore > 0 && (
-            <span>配当 <b className="text-emerald-600">{s.dividendScore}</b></span>
+            <span>{t("theme.dividend_label")} <b className="text-emerald-600">{s.dividendScore}</b></span>
           )}
           {s.catalystScore != null && s.catalystScore > 0 && (
-            <span>催化 <b className="text-orange-600">{s.catalystScore.toFixed(1)}</b></span>
+            <span>{t("theme.catalyst_label")} <b className="text-orange-600">{s.catalystScore.toFixed(1)}</b></span>
           )}
-          <span>5日 <ReturnBadge v={s.return5d} /></span>
+          <span>{t("card.5d")} <ReturnBadge v={s.return5d} /></span>
           {s.latestClose != null && (
             <span>¥{s.latestClose.toLocaleString()}</span>
           )}
         </div>
       )}
-      {s.reason && (
+      {s.reason && lang !== "en-US" && (
         <div className="mt-1.5 text-[10px] text-slate-500 leading-relaxed line-clamp-2 bg-slate-50 rounded px-2 py-1">
           {s.reason}
         </div>
       )}
-      {s.riskNote && (
+      {s.riskNote && lang !== "en-US" && (
         <div className="mt-1 text-[10px] text-red-500 line-clamp-1">
           ⚠ {s.riskNote}
         </div>
@@ -146,7 +160,7 @@ export default function AiThemeDetailPage() {
   const params = useParams();
   const themeSlug = params?.theme as string | undefined;
   const themeKey = themeSlug?.toUpperCase() ?? "";
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
 
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,7 +181,7 @@ export default function AiThemeDetailPage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="text-slate-400 text-sm animate-pulse">加载产业链详情...</div>
+        <div className="text-slate-400 text-sm animate-pulse">{t("theme.loading_detail")}</div>
       </div>
     );
   }
@@ -175,46 +189,49 @@ export default function AiThemeDetailPage() {
     return (
       <div className="p-4 md:p-6">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
-          加载失败：{error ?? "主题不存在"}
+          {t("theme.error_load")}{error ?? (lang === "zh-CN" ? "主题不存在" : lang === "ja-JP" ? "テーマが見つかりません" : "Theme not found")}
         </div>
         <Link href="/ai-theme" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          ← 返回AI产业链地图
+          {t("theme.back_link")}
         </Link>
       </div>
     );
   }
 
-  const { meta, stocks, byLayer, layerLabels, stats } = data;
+  const { meta, stocks, byLayer, stats } = data;
   const activeLayers = LAYER_ORDER.filter((l) => (byLayer[l] ?? []).length > 0);
+
+  const themeDisplayLabel = getThemeLabel(themeKey, lang);
+  const unitStocks = t("theme.unit_stocks");
 
   return (
     <div className="p-4 md:p-6">
       {/* Breadcrumb */}
       <div className="text-xs text-slate-400 mb-4">
-        <Link href="/ai-theme" className="hover:text-blue-600">AI产业链地图</Link>
+        <Link href="/ai-theme" className="hover:text-blue-600">{t("theme.title")}</Link>
         <span className="mx-1.5">›</span>
-        <span className="text-slate-600 font-medium">{meta.label}</span>
+        <span className="text-slate-600 font-medium">{themeDisplayLabel}</span>
       </div>
 
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{meta.label}</h1>
+          <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{themeDisplayLabel}</h1>
           <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-            产业链详情
+            {t("theme.detail_subtitle")}
           </span>
         </div>
-        <p className="text-sm text-slate-500">{meta.desc}</p>
+        {lang !== "en-US" && <p className="text-sm text-slate-500">{meta.desc}</p>}
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {[
-          { label: "股票总数",    value: stats.total },
-          { label: "核心标的",    value: stats.coreCount },
-          { label: "已评分",      value: stats.scoredCount },
-          { label: "BUY以上",     value: stats.buyCount },
-          { label: "平均评分",    value: stats.avgScore },
+          { label: lang === "zh-CN" ? "股票总数" : lang === "ja-JP" ? "銘柄数" : "Total Stocks", value: stats.total },
+          { label: t("theme.stat_core"),     value: stats.coreCount },
+          { label: lang === "zh-CN" ? "已评分" : lang === "ja-JP" ? "評価済み" : "Scored",       value: stats.scoredCount },
+          { label: t("theme.stat_buy"),      value: stats.buyCount },
+          { label: t("theme.stat_avg_score"), value: stats.avgScore },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-4">
             <div className="text-2xl font-bold text-slate-900">{s.value}</div>
@@ -226,20 +243,19 @@ export default function AiThemeDetailPage() {
       {/* Supply chain flow */}
       {activeLayers.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-sm font-bold text-slate-700 mb-3">产业链结构</h2>
-          {/* Desktop: horizontal flow; Mobile: vertical stack */}
+          <h2 className="text-sm font-bold text-slate-700 mb-3">{t("theme.chain_structure")}</h2>
+          {/* Desktop: horizontal flow */}
           <div className="hidden md:flex gap-0 items-stretch">
             {activeLayers.map((lk, idx) => {
               const layerStocks = byLayer[lk] ?? [];
-              const info = layerLabels[lk];
               return (
                 <div key={lk} className="flex items-stretch flex-1 min-w-0">
                   <div className={`flex-1 rounded-2xl border p-4 ${LAYER_COLORS[lk] ?? "bg-slate-50 border-slate-200"}`}>
                     <div className={`text-xs font-bold mb-0.5 ${LAYER_HEADER[lk] ?? "text-slate-600"}`}>
-                      {info?.zh ?? lk}
-                      <span className="font-normal text-slate-400 ml-1">({layerStocks.length}只)</span>
+                      {getLayerLabel(lk, lang)}
+                      <span className="font-normal text-slate-400 ml-1">({layerStocks.length}{unitStocks})</span>
                     </div>
-                    <div className="text-[10px] text-slate-400 mb-3">{info?.desc ?? ""}</div>
+                    <div className="text-[10px] text-slate-400 mb-3">{getLayerDesc(lk, lang)}</div>
                     <div className="space-y-2">
                       {layerStocks.map((s) => <StockRow key={s.symbol} s={s} />)}
                     </div>
@@ -259,15 +275,14 @@ export default function AiThemeDetailPage() {
           <div className="md:hidden space-y-2">
             {activeLayers.map((lk, idx) => {
               const layerStocks = byLayer[lk] ?? [];
-              const info = layerLabels[lk];
               return (
                 <div key={lk}>
                   <div className={`rounded-2xl border p-4 ${LAYER_COLORS[lk] ?? "bg-slate-50 border-slate-200"}`}>
                     <div className={`text-xs font-bold mb-0.5 ${LAYER_HEADER[lk] ?? "text-slate-600"}`}>
-                      {info?.zh ?? lk}
-                      <span className="font-normal text-slate-400 ml-1">({layerStocks.length}只)</span>
+                      {getLayerLabel(lk, lang)}
+                      <span className="font-normal text-slate-400 ml-1">({layerStocks.length}{unitStocks})</span>
                     </div>
-                    <div className="text-[10px] text-slate-400 mb-3">{info?.desc ?? ""}</div>
+                    <div className="text-[10px] text-slate-400 mb-3">{getLayerDesc(lk, lang)}</div>
                     <div className="space-y-2">
                       {layerStocks.map((s) => <StockRow key={s.symbol} s={s} />)}
                     </div>
@@ -289,7 +304,11 @@ export default function AiThemeDetailPage() {
       {/* All stocks list */}
       <div>
         <h2 className="text-sm font-bold text-slate-700 mb-3">
-          全部 {stocks.length} 只 · 按产业链重要度排序
+          {lang === "zh-CN"
+            ? `全部 ${stocks.length} 只 · ${t("theme.detail_sorted")}`
+            : lang === "ja-JP"
+            ? `全${stocks.length}銘柄 · ${t("theme.detail_sorted")}`
+            : `All ${stocks.length} stocks · ${t("theme.detail_sorted")}`}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[...stocks]
@@ -306,7 +325,7 @@ export default function AiThemeDetailPage() {
 
       <div className="mt-6 pt-4 border-t border-slate-200">
         <Link href="/ai-theme" className="text-sm text-blue-600 hover:underline">
-          ← 返回AI产业链地图
+          {t("theme.back_link")}
         </Link>
       </div>
     </div>

@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getRec, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
+import { getThemeLabel, getLayerLabel } from "@/lib/i18n/theme-labels";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,6 @@ type AiThemeStock = {
   catalystScore: number | null;
   highRiskFlag: boolean;
   scoreSource: string | null;
-  // theme metadata
   theme: string;
   subTheme: string | null;
   role: string | null;
@@ -94,55 +94,7 @@ const THEME_ORDER = [
   "SECURITY_VISION", "POWER_INFRA",
 ];
 
-const THEME_LABELS: Record<string, string> = {
-  CHIP_DESIGN: "AI芯片设计", SEMI_EQUIPMENT: "半导体设备",
-  TEST_EQUIPMENT: "测试设备", CHIP_MATERIAL: "芯片材料",
-  HBM_PACKAGING: "HBM封装", SENSOR_PRECISION: "传感器",
-  SERVER_DC: "服务器・DC", NETWORK: "网络通信",
-  ROBOT_AUTO: "机器人", SOFTWARE_CLOUD: "软件・云",
-  INTERNET_PLATFORM: "互联网平台", MEDICAL_LIFE: "医疗AI",
-  SECURITY_VISION: "安防・视觉", POWER_INFRA: "能源基础设施",
-};
-
-// Tab groups: "ALL" | "HARDWARE" | individual themes | layer filters
-const TABS = [
-  { key: "ALL",              label: "全部" },
-  { key: "HARDWARE",        label: "AI硬件" },
-  { key: "SEMI_EQUIPMENT",  label: "半导体设备" },
-  { key: "TEST_EQUIPMENT",  label: "测试设备" },
-  { key: "CHIP_MATERIAL",   label: "芯片材料" },
-  { key: "HBM_PACKAGING",   label: "HBM封装" },
-  { key: "SERVER_DC",       label: "数据中心" },
-  { key: "ROBOT_AUTO",      label: "机器人" },
-  { key: "SOFTWARE_CLOUD",  label: "软件云" },
-  { key: "MEDICAL_LIFE",    label: "医疗AI" },
-  { key: "POWER_INFRA",     label: "能源基础设施" },
-];
-
 const HARDWARE_THEMES = new Set(["CHIP_DESIGN", "SEMI_EQUIPMENT", "TEST_EQUIPMENT", "CHIP_MATERIAL", "HBM_PACKAGING", "SENSOR_PRECISION"]);
-
-const SORT_OPTIONS = [
-  { key: "adaptiveScore", label: "AI评分" },
-  { key: "opportunityScore", label: "机会分" },
-  { key: "importanceScore", label: "重要度" },
-  { key: "percentileRank", label: "排名" },
-  { key: "dividendScore", label: "股息分" },
-  { key: "catalystScore", label: "催化分" },
-];
-
-const LAYER_OPTIONS = [
-  { key: "", label: "所有层级" },
-  { key: "UPSTREAM", label: "上游" },
-  { key: "MIDSTREAM", label: "中游" },
-  { key: "DOWNSTREAM", label: "下游" },
-  { key: "INFRASTRUCTURE", label: "基础设施" },
-  { key: "APPLICATION", label: "应用层" },
-];
-
-const LAYER_LABELS: Record<string, string> = {
-  UPSTREAM: "上游", MIDSTREAM: "中游", DOWNSTREAM: "下游",
-  INFRASTRUCTURE: "基础设施", APPLICATION: "应用层",
-};
 
 const COLOR_MAP: Record<string, { chip: string; border: string; bg: string }> = {
   indigo:  { chip: "bg-indigo-100 text-indigo-700 border-indigo-200",  border: "border-indigo-200",  bg: "bg-indigo-50" },
@@ -170,7 +122,7 @@ const THEME_COLORS: Record<string, string> = {
   SECURITY_VISION: "red", POWER_INFRA: "yellow",
 };
 
-const PENDING_REC = { label: "Pending", bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200" };
+const PENDING_REC = { bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200" };
 
 const LAYER_BADGE: Record<string, string> = {
   UPSTREAM:       "bg-green-100 text-green-700",
@@ -225,11 +177,14 @@ function ImportanceStars({ score }: { score: number }) {
 }
 
 function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boolean }) {
-  const { lang } = useI18n();
-  const rec = stock.scored ? getRec(stock.recommendationV2) : PENDING_REC;
+  const { lang, t } = useI18n();
+  const rec = getRec(stock.recommendationV2);
   const color = THEME_COLORS[stock.theme] ?? "slate";
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
   const layer = stock.supplyChainLayer;
+
+  const scoreBarLabel = (zh: string, ja: string, en: string) =>
+    lang === "zh-CN" ? zh : lang === "ja-JP" ? ja : en;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all p-4">
@@ -237,9 +192,7 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            {stock.isCore && (
-              <span className="text-amber-400 text-[11px]">⭐</span>
-            )}
+            {stock.isCore && <span className="text-amber-400 text-[11px]">⭐</span>}
             <Link
               href={`/stocks/${encodeURIComponent(stock.symbol)}`}
               className="text-[14px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
@@ -249,17 +202,23 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
             <span className="text-[11px] text-slate-400 font-mono">{stock.symbol.replace(".T", "")}</span>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
-              {rec.label}
-            </span>
+            {stock.scored ? (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
+                {getRecommendationLabel(stock.recommendationV2, lang)}
+              </span>
+            ) : (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${PENDING_REC.border} ${PENDING_REC.text} ${PENDING_REC.bg}`}>
+                {t("theme.pending_score")}
+              </span>
+            )}
             {showTheme && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${colors.chip}`}>
-                {THEME_LABELS[stock.theme]}
+                {getThemeLabel(stock.theme, lang)}
               </span>
             )}
             {layer && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded ${LAYER_BADGE[layer] ?? "bg-slate-100 text-slate-500"}`}>
-                {LAYER_LABELS[layer]}
+                {getLayerLabel(layer, lang)}
               </span>
             )}
             {stock.highRiskFlag && (
@@ -274,17 +233,19 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
                 {stock.adaptiveScore?.toFixed(0) ?? "—"}
               </div>
               <div className="text-[10px] text-slate-400">
-                {stock.percentileRank != null ? `前${stock.percentileRank.toFixed(1)}%` : ""}
+                {stock.percentileRank != null
+                  ? `${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${stock.percentileRank.toFixed(1)}%`
+                  : ""}
               </div>
             </>
           ) : (
-            <div className="text-[12px] text-slate-400">待评分</div>
+            <div className="text-[12px] text-slate-400">{t("theme.pending_score")}</div>
           )}
         </div>
       </div>
 
-      {/* Role */}
-      {stock.role && (
+      {/* Role — hide in en-US if contains non-ASCII CJK chars */}
+      {stock.role && lang !== "en-US" && (
         <div className="text-[11px] text-slate-500 mb-2 leading-tight line-clamp-1 italic">
           {stock.role}
         </div>
@@ -295,19 +256,19 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
           {/* Score bars */}
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5">
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">技術/30</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("技术", "テク", "Tech")}/30</div>
               <MiniBar val={stock.technicalScore} max={30} color="bg-blue-400" />
             </div>
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">基本/25</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("基本", "基本", "Fund")}/25</div>
               <MiniBar val={stock.fundamentalScore} max={25} color="bg-emerald-400" />
             </div>
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">資金/20</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("资金", "資金", "Flow")}/20</div>
               <MiniBar val={stock.moneyFlowScore} max={20} color="bg-violet-400" />
             </div>
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">感情/15</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("情绪", "感情", "News")}/15</div>
               <MiniBar val={stock.newsSentimentScore} max={15} color="bg-amber-400" />
             </div>
           </div>
@@ -316,33 +277,33 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
           <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-2">
             <div className="flex items-center gap-3">
               <div>
-                <span className="text-slate-400">机会</span>
+                <span className="text-slate-400">{t("card.opp")}</span>
                 <span className="ml-1 font-medium text-slate-700">
                   {stock.opportunityScore?.toFixed(0) ?? "—"}
                 </span>
               </div>
               {stock.dividendScore != null && stock.dividendScore > 0 && (
                 <div>
-                  <span className="text-slate-400">配当</span>
+                  <span className="text-slate-400">{t("theme.dividend_label")}</span>
                   <span className="ml-1 font-medium text-emerald-600">{stock.dividendScore}</span>
                 </div>
               )}
               {stock.catalystScore != null && stock.catalystScore > 0 && (
                 <div>
-                  <span className="text-slate-400">催化</span>
+                  <span className="text-slate-400">{t("theme.catalyst_label")}</span>
                   <span className="ml-1 font-medium text-orange-600">{stock.catalystScore.toFixed(1)}</span>
                 </div>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-slate-400">5日</span>
+              <span className="text-slate-400">{t("card.5d")}</span>
               <ReturnBadge v={stock.return5d} />
-              <span className="text-slate-400">20日</span>
+              <span className="text-slate-400">{t("card.20d")}</span>
               <ReturnBadge v={stock.return20d} />
             </div>
           </div>
 
-          {/* Importance + source */}
+          {/* Importance + price */}
           <div className="flex items-center justify-between mt-1.5">
             <ImportanceStars score={stock.importanceScore} />
             {stock.latestClose != null && (
@@ -354,7 +315,7 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
         </>
       ) : (
         <p className="text-[11px] text-slate-400 mt-1">
-          待 AI 评分计算，下次运行后自动更新。
+          {t("theme.pending_calc")}
         </p>
       )}
     </div>
@@ -362,12 +323,12 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
 }
 
 function ThemeCard({
-  t, isActive, onClick,
+  theme, isActive, onClick,
 }: {
-  t: ThemeSummary; isActive: boolean; onClick: () => void;
+  theme: ThemeSummary; isActive: boolean; onClick: () => void;
 }) {
-  const { lang } = useI18n();
-  const color = t.color ?? "slate";
+  const { lang, t } = useI18n();
+  const color = theme.color ?? "slate";
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
   return (
     <button
@@ -378,30 +339,34 @@ function ThemeCard({
     >
       <div className="flex items-center justify-between mb-1">
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${colors.chip}`}>
-          {t.label}
+          {getThemeLabel(theme.theme, lang)}
         </span>
         <Link
-          href={`/ai-theme/${t.theme.toLowerCase()}`}
+          href={`/ai-theme/${theme.theme.toLowerCase()}`}
           onClick={(e) => e.stopPropagation()}
           className="text-[10px] text-slate-400 hover:text-blue-600 underline-offset-2 hover:underline"
         >
-          详情→
+          {t("theme.detail_link")}
         </Link>
       </div>
-      <div className="text-[10px] text-slate-400 leading-tight mb-1.5 line-clamp-1">{t.desc}</div>
+      <div className="text-[10px] text-slate-400 leading-tight mb-1.5 line-clamp-1">{theme.desc}</div>
       <div className="flex items-end justify-between">
         <div>
-          <span className="text-lg font-bold text-slate-800">{t.avgScore}</span>
-          <span className="text-[10px] text-slate-400 ml-1">均分</span>
+          <span className="text-lg font-bold text-slate-800">{theme.avgScore}</span>
+          <span className="text-[10px] text-slate-400 ml-1">{t("theme.avg_score_label")}</span>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-orange-600 font-medium">BUY {t.buyCount}</div>
-          <div className="text-[10px] text-slate-400">{t.count}只 / ⭐{t.coreCount}</div>
+          <div className="text-[10px] text-orange-600 font-medium">
+            {getRecommendationLabel("BUY", lang)} {theme.buyCount}
+          </div>
+          <div className="text-[10px] text-slate-400">
+            {theme.count}{t("theme.unit_stocks")} / ⭐{theme.coreCount}
+          </div>
         </div>
       </div>
-      {t.top3.length > 0 && (
+      {theme.top3.length > 0 && (
         <div className="mt-1.5 pt-1.5 border-t border-slate-100">
-          {t.top3.map((s) => (
+          {theme.top3.map((s) => (
             <div key={s.symbol} className="flex items-center justify-between text-[10px]">
               <span className="text-slate-500 truncate max-w-[100px]">{getPrimaryName({ ...s, name: s.name }, lang)}</span>
               <span className="text-slate-400 tabular-nums ml-1">{s.score?.toFixed(0) ?? "—"}</span>
@@ -428,6 +393,39 @@ export default function AiThemePage() {
   const [recFilter, setRecFilter] = useState<string>("");
   const [showThemeCards, setShowThemeCards] = useState(false);
 
+  // Locale-aware tabs (computed inside component so t() is available)
+  const TABS = useMemo(() => [
+    { key: "ALL",              label: t("theme.tab_all") },
+    { key: "HARDWARE",        label: t("theme.tab_hardware") },
+    { key: "SEMI_EQUIPMENT",  label: t("theme.tab_semi_eq") },
+    { key: "TEST_EQUIPMENT",  label: t("theme.tab_test_eq") },
+    { key: "CHIP_MATERIAL",   label: t("theme.tab_chip_mat") },
+    { key: "HBM_PACKAGING",   label: t("theme.tab_hbm") },
+    { key: "SERVER_DC",       label: t("theme.tab_server_dc") },
+    { key: "ROBOT_AUTO",      label: t("theme.tab_robot") },
+    { key: "SOFTWARE_CLOUD",  label: t("theme.tab_sw_cloud") },
+    { key: "MEDICAL_LIFE",    label: t("theme.tab_medical") },
+    { key: "POWER_INFRA",     label: t("theme.tab_energy") },
+  ], [t]);
+
+  const LAYER_OPTIONS = useMemo(() => [
+    { key: "", label: t("theme.layer_all") },
+    { key: "UPSTREAM",       label: getLayerLabel("UPSTREAM", lang) },
+    { key: "MIDSTREAM",      label: getLayerLabel("MIDSTREAM", lang) },
+    { key: "DOWNSTREAM",     label: getLayerLabel("DOWNSTREAM", lang) },
+    { key: "INFRASTRUCTURE", label: getLayerLabel("INFRASTRUCTURE", lang) },
+    { key: "APPLICATION",    label: getLayerLabel("APPLICATION", lang) },
+  ], [t, lang]);
+
+  const SORT_OPTIONS = useMemo(() => [
+    { key: "adaptiveScore",    label: t("theme.sort_ai_score") },
+    { key: "opportunityScore", label: t("theme.sort_opportunity") },
+    { key: "importanceScore",  label: t("theme.sort_importance") },
+    { key: "percentileRank",   label: t("theme.sort_rank") },
+    { key: "dividendScore",    label: t("theme.sort_dividend") },
+    { key: "catalystScore",    label: t("theme.sort_catalyst") },
+  ], [t]);
+
   useEffect(() => {
     fetch("/api/ai-theme")
       .then((r) => r.json())
@@ -439,25 +437,16 @@ export default function AiThemePage() {
     if (!data) return [];
     let stocks = data.stocks;
 
-    // Tab filter
     if (activeTab === "HARDWARE") {
       stocks = stocks.filter((s) => HARDWARE_THEMES.has(s.theme));
     } else if (activeTab !== "ALL") {
       stocks = stocks.filter((s) => s.theme === activeTab);
     }
 
-    // Layer filter
-    if (layerFilter) {
-      stocks = stocks.filter((s) => s.supplyChainLayer === layerFilter);
-    }
-
-    // Core filter
+    if (layerFilter) stocks = stocks.filter((s) => s.supplyChainLayer === layerFilter);
     if (coreOnly) stocks = stocks.filter((s) => s.isCore);
-
-    // Rec filter
     if (recFilter) stocks = stocks.filter((s) => s.recommendationV2 === recFilter || (!s.scored && recFilter === "PENDING"));
 
-    // Search
     if (searchQ.trim()) {
       const q = searchQ.toLowerCase();
       stocks = stocks.filter((s) =>
@@ -470,19 +459,15 @@ export default function AiThemePage() {
       );
     }
 
-    // Dedup: in ALL tab, keep only the highest-importanceScore entry per symbol
     if (activeTab === "ALL" || activeTab === "HARDWARE") {
       const best = new Map<string, AiThemeStock>();
       for (const s of stocks) {
         const existing = best.get(s.symbol);
-        if (!existing || s.importanceScore > existing.importanceScore) {
-          best.set(s.symbol, s);
-        }
+        if (!existing || s.importanceScore > existing.importanceScore) best.set(s.symbol, s);
       }
       stocks = [...best.values()];
     }
 
-    // Sort
     return [...stocks].sort((a, b) => {
       if (!a.scored && b.scored) return 1;
       if (a.scored && !b.scored) return -1;
@@ -501,7 +486,7 @@ export default function AiThemePage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="text-slate-400 text-sm animate-pulse">加载AI产业链地图...</div>
+        <div className="text-slate-400 text-sm animate-pulse">{t("theme.loading")}</div>
       </div>
     );
   }
@@ -509,7 +494,7 @@ export default function AiThemePage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
-          加载失败：{error ?? "未知错误"}
+          {t("theme.error_load")}{error ?? "—"}
         </div>
       </div>
     );
@@ -519,11 +504,34 @@ export default function AiThemePage() {
 
   const tabCounts: Record<string, number> = { ALL: summary.uniqueSymbols };
   let hardwareCount = 0;
-  for (const t of themes) {
-    tabCounts[t.theme] = t.count;
-    if (HARDWARE_THEMES.has(t.theme)) hardwareCount += t.count;
+  for (const th of themes) {
+    tabCounts[th.theme] = th.count;
+    if (HARDWARE_THEMES.has(th.theme)) hardwareCount += th.count;
   }
   tabCounts["HARDWARE"] = hardwareCount;
+
+  const subtitleDate = summary.updatedAt
+    ? new Date(summary.updatedAt).toLocaleString(
+        lang === "zh-CN" ? "zh-CN" : lang === "ja-JP" ? "ja-JP" : "en-US",
+        { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }
+      )
+    : null;
+
+  const subtitle =
+    lang === "zh-CN"
+      ? `14个分类 · ${summary.uniqueSymbols}只追踪 · ${summary.coreStocks}个核心标的`
+      : lang === "ja-JP"
+      ? `14分類・${summary.uniqueSymbols}銘柄を追跡・${summary.coreStocks}銘柄が中核`
+      : `14 categories · ${summary.uniqueSymbols} tracked stocks · ${summary.coreStocks} core stocks`;
+
+  const showCount =
+    lang === "zh-CN"
+      ? `显示 ${filtered.length} 只`
+      : lang === "ja-JP"
+      ? `${filtered.length}銘柄を表示`
+      : `Showing ${filtered.length} stocks`;
+
+  const unitStocks = t("theme.unit_stocks");
 
   return (
     <div className="p-4 md:p-6">
@@ -535,13 +543,10 @@ export default function AiThemePage() {
           <span className="text-xs font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-full">v8.0</span>
         </div>
         <p className="text-sm text-slate-500">
-          14细分主题 · {summary.uniqueSymbols}只追踪 · {summary.coreStocks}个核心标的
-          {summary.updatedAt && (
+          {subtitle}
+          {subtitleDate && (
             <span className="ml-2 text-slate-400 text-xs">
-              评分：{new Date(summary.updatedAt).toLocaleString("zh-CN", {
-                timeZone: "Asia/Tokyo", month: "numeric", day: "numeric",
-                hour: "2-digit", minute: "2-digit",
-              })} JST
+              {lang === "zh-CN" ? "评分：" : lang === "ja-JP" ? "評価：" : "Scored:"} {subtitleDate} JST
             </span>
           )}
         </p>
@@ -549,25 +554,25 @@ export default function AiThemePage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-2.5 mb-5">
-        <StatCard label="追踪总数" value={summary.uniqueSymbols} sub="只股票" />
-        <StatCard label="核心标的" value={summary.coreStocks} sub="⭐ isCore" />
-        <StatCard label="BUY以上" value={summary.buyCount} sub="recommendationV2" />
-        <StatCard label="平均评分" value={summary.avgScore} sub="adaptiveScore" />
-        <StatCard label="产业链分类" value={14} sub="14细分主题" />
-        <StatCard label="供应链层" value={layers.filter((l) => l.symbolCount > 0).length} sub="活跃层级" />
+        <StatCard label={t("theme.stat_tracked")} value={summary.uniqueSymbols} sub={unitStocks} />
+        <StatCard label={t("theme.stat_core")} value={summary.coreStocks} sub="⭐ isCore" />
+        <StatCard label={t("theme.stat_buy")} value={summary.buyCount} sub="recommendationV2" />
+        <StatCard label={t("theme.stat_avg_score")} value={summary.avgScore} sub="adaptiveScore" />
+        <StatCard label={t("theme.stat_categories")} value={14} sub={`14 ${lang === "zh-CN" ? "细分主题" : lang === "ja-JP" ? "細分テーマ" : "subcategories"}`} />
+        <StatCard label={t("theme.stat_layers")} value={layers.filter((l) => l.symbolCount > 0).length} sub={lang === "zh-CN" ? "活跃层级" : lang === "ja-JP" ? "アクティブ層" : "active layers"} />
         <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
           <div className="text-sm font-bold text-slate-900 truncate leading-tight">
             {summary.topStock ? getPrimaryName(summary.topStock, lang) : "—"}
           </div>
           <div className="text-xs text-slate-500 mt-0.5">
-            最高分 <span className="font-semibold text-blue-700">{summary.topStock?.score?.toFixed(0) ?? "—"}</span>
+            {t("theme.stat_top_score")} <span className="font-semibold text-blue-700">{summary.topStock?.score?.toFixed(0) ?? "—"}</span>
           </div>
         </div>
       </div>
 
       {/* Supply chain layer visual */}
       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
-        <div className="text-[10px] text-slate-400 font-medium mb-2">AI产业链结构</div>
+        <div className="text-[10px] text-slate-400 font-medium mb-2">{t("theme.chain_title")}</div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {layers.map((l, i) => (
             <div key={l.layer} className="flex items-center gap-1.5">
@@ -579,12 +584,10 @@ export default function AiThemePage() {
                     : "bg-white border-slate-200 text-slate-600 hover:border-blue-300"
                 }`}
               >
-                <span className="font-bold">{l.label}</span>
-                <span className="opacity-70">{l.symbolCount}只</span>
+                <span className="font-bold">{getLayerLabel(l.layer, lang)}</span>
+                <span className="opacity-70">{l.symbolCount}{unitStocks}</span>
               </button>
-              {i < layers.length - 1 && (
-                <span className="text-slate-300 text-sm">→</span>
-              )}
+              {i < layers.length - 1 && <span className="text-slate-300 text-sm">→</span>}
             </div>
           ))}
           {layerFilter && (
@@ -592,7 +595,7 @@ export default function AiThemePage() {
               onClick={() => setLayerFilter("")}
               className="text-[10px] text-blue-600 hover:underline ml-1"
             >
-              ✕ 清除
+              ✕ {lang === "zh-CN" ? "清除" : lang === "ja-JP" ? "クリア" : "Clear"}
             </button>
           )}
         </div>
@@ -605,16 +608,16 @@ export default function AiThemePage() {
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 mb-3 hover:text-blue-600"
         >
           <span>{showThemeCards ? "▾" : "▸"}</span>
-          14分类概览
+          {t("theme.categories_overview")}
         </button>
         {showThemeCards && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-2 md:gap-2.5">
-            {themes.map((t) => (
+            {themes.map((th) => (
               <ThemeCard
-                key={t.theme}
-                t={t}
-                isActive={activeTab === t.theme}
-                onClick={() => setActiveTab(activeTab === t.theme ? "ALL" : t.theme)}
+                key={th.theme}
+                theme={th}
+                isActive={activeTab === th.theme}
+                onClick={() => setActiveTab(activeTab === th.theme ? "ALL" : th.theme)}
               />
             ))}
           </div>
@@ -628,7 +631,7 @@ export default function AiThemePage() {
           {TABS.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => { setActiveTab(key); }}
+              onClick={() => setActiveTab(key)}
               className={`px-3 py-1.5 text-xs rounded-md transition-all font-medium whitespace-nowrap ${
                 activeTab === key
                   ? "bg-white text-slate-900 shadow-sm"
@@ -643,16 +646,14 @@ export default function AiThemePage() {
 
         {/* Filter + sort row */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Search */}
           <input
             type="text"
-            placeholder="搜索股票名/symbol/角色/HBM/封装/测试…"
+            placeholder={t("theme.search_placeholder")}
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs w-60 focus:outline-none focus:border-blue-400"
           />
 
-          {/* Layer dropdown */}
           <select
             value={layerFilter}
             onChange={(e) => setLayerFilter(e.target.value)}
@@ -663,21 +664,19 @@ export default function AiThemePage() {
             ))}
           </select>
 
-          {/* Rec filter */}
           <select
             value={recFilter}
             onChange={(e) => setRecFilter(e.target.value)}
             className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
           >
-            <option value="">所有评级</option>
-            <option value="STRONG_BUY">强烈买入</option>
-            <option value="BUY">买入</option>
-            <option value="HOLD">持有</option>
-            <option value="WATCH">关注</option>
-            <option value="AVOID">回避</option>
+            <option value="">{t("theme.rec_all")}</option>
+            <option value="STRONG_BUY">{getRecommendationLabel("STRONG_BUY", lang)}</option>
+            <option value="BUY">{getRecommendationLabel("BUY", lang)}</option>
+            <option value="HOLD">{getRecommendationLabel("HOLD", lang)}</option>
+            <option value="WATCH">{getRecommendationLabel("WATCH", lang)}</option>
+            <option value="AVOID">{getRecommendationLabel("AVOID", lang)}</option>
           </select>
 
-          {/* Core only toggle */}
           <button
             onClick={() => setCoreOnly((v) => !v)}
             className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
@@ -686,11 +685,11 @@ export default function AiThemePage() {
                 : "bg-white text-slate-600 border-slate-200 hover:border-amber-300"
             }`}
           >
-            ⭐ 核心标的
+            ⭐ {t("theme.core_toggle")}
           </button>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400">排序：</span>
+            <span className="text-[11px] text-slate-400">{t("theme.sort_label")}</span>
             {SORT_OPTIONS.map((o) => (
               <button
                 key={o.key}
@@ -710,19 +709,23 @@ export default function AiThemePage() {
 
       {/* Result count */}
       <div className="text-xs text-slate-400 mb-3">
-        显示 <span className="font-semibold text-slate-600">{filtered.length}</span> 只
-        {searchQ && <span className="ml-1">（搜索：{searchQ}）</span>}
-        {coreOnly && <span className="ml-1">· 仅核心</span>}
-        {layerFilter && <span className="ml-1">· {LAYER_LABELS[layerFilter]}</span>}
+        {showCount}
+        {searchQ && <span className="ml-1">（{t("theme.search_label")}{searchQ}）</span>}
+        {coreOnly && <span className="ml-1">· {t("theme.core_only_label")}</span>}
+        {layerFilter && <span className="ml-1">· {getLayerLabel(layerFilter, lang)}</span>}
       </div>
 
       {/* Stock grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400 text-sm">
-          暂无数据。请运行：
-          <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">
-            npx tsx scripts/seed-ai-themes.ts
-          </code>
+          {t("theme.empty_data")}。{lang !== "en-US" && (
+            <>
+              {lang === "zh-CN" ? "请运行：" : "実行してください："}
+              <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">
+                npx tsx scripts/seed-ai-themes.ts
+              </code>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -735,10 +738,10 @@ export default function AiThemePage() {
       {/* Footer */}
       {filtered.length > 0 && (
         <div className="mt-6 pt-4 border-t border-slate-200 flex items-center gap-6 text-xs text-slate-400 flex-wrap">
-          <span>显示 {filtered.length} 只</span>
-          <span>总记录 {summary.totalStocks} · 唯一 {summary.uniqueSymbols}</span>
-          <span>BUY以上 {summary.buyCount} · 均分 {summary.avgScore}</span>
-          <span>核心标的 {summary.coreStocks}</span>
+          <span>{showCount}</span>
+          <span>{lang === "zh-CN" ? `总记录 ${summary.totalStocks} · 唯一 ${summary.uniqueSymbols}` : lang === "ja-JP" ? `総数 ${summary.totalStocks} · ユニーク ${summary.uniqueSymbols}` : `Total ${summary.totalStocks} · Unique ${summary.uniqueSymbols}`}</span>
+          <span>{getRecommendationLabel("BUY", lang)}+ {summary.buyCount} · {t("theme.avg_score_label")} {summary.avgScore}</span>
+          <span>{t("theme.stat_core")} {summary.coreStocks}</span>
         </div>
       )}
     </div>

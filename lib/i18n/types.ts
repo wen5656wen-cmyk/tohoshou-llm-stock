@@ -394,6 +394,57 @@ export type Messages = {
 
   // ─── Sectors page ─────────────────────────────────────────────────────────
   "sectors.screener_link": string;
+
+  // ─── AI Value Chain (ai-theme) ────────────────────────────────────────────
+  "theme.stat_tracked": string;
+  "theme.stat_core": string;
+  "theme.stat_buy": string;
+  "theme.stat_avg_score": string;
+  "theme.stat_categories": string;
+  "theme.stat_layers": string;
+  "theme.stat_top_score": string;
+  "theme.unit_stocks": string;
+  "theme.chain_title": string;
+  "theme.search_placeholder": string;
+  "theme.layer_all": string;
+  "theme.rec_all": string;
+  "theme.core_toggle": string;
+  "theme.sort_label": string;
+  "theme.sort_ai_score": string;
+  "theme.sort_opportunity": string;
+  "theme.sort_importance": string;
+  "theme.sort_rank": string;
+  "theme.sort_dividend": string;
+  "theme.sort_catalyst": string;
+  "theme.categories_overview": string;
+  "theme.detail_subtitle": string;
+  "theme.detail_link": string;
+  "theme.loading": string;
+  "theme.loading_detail": string;
+  "theme.error_load": string;
+  "theme.back_link": string;
+  "theme.chain_structure": string;
+  "theme.pending_score": string;
+  "theme.pending_calc": string;
+  "theme.high_risk": string;
+  "theme.dividend_label": string;
+  "theme.catalyst_label": string;
+  "theme.avg_score_label": string;
+  "theme.detail_sorted": string;
+  "theme.search_label": string;
+  "theme.core_only_label": string;
+  "theme.empty_data": string;
+  "theme.tab_all": string;
+  "theme.tab_hardware": string;
+  "theme.tab_semi_eq": string;
+  "theme.tab_test_eq": string;
+  "theme.tab_chip_mat": string;
+  "theme.tab_hbm": string;
+  "theme.tab_server_dc": string;
+  "theme.tab_robot": string;
+  "theme.tab_sw_cloud": string;
+  "theme.tab_medical": string;
+  "theme.tab_energy": string;
 };
 
 export type MessageKey = keyof Messages;
