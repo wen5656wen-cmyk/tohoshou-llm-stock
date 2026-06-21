@@ -2,6 +2,39 @@
 
 ---
 
+## [8.5 P3] - 2026-06-21 — Legacy Route Cleanup & /stocks Loading Fix
+
+### 目标
+修复 /stocks 合并后永久 loading 问题；旧路由统一添加合并提示引导至新主入口；/chat 改为 LINE Bot 迁移说明页；补充 15 个 i18n keys。
+
+### 核心变更
+
+| 文件 | 说明 |
+|------|------|
+| `app/stocks/page.tsx` | 修复永久 loading（加 15s timeout + clearTimeout）；表头全 `table.*` 本地化；MaBadge/MacdBadge 通过 `trend.*/macd.*` 本地化；技术指标按钮改为 `/screener?sort=technical` |
+| `app/chat/page.tsx` | 完全替换为 LINE Bot 迁移提示页，移除旧聊天 UI |
+| `app/ai-picks/page.tsx` | 修复 loading/error 硬编码；mode tabs → `picks.mode_*`；filter tabs → `getRecommendationLabel()` |
+| `app/notifications/page.tsx` | 新增合并提示 → `/portfolio?tab=alerts` |
+| `app/indicators/page.tsx` | 新增合并提示 → `/screener?sort=technical` |
+| `app/screener/page.tsx` | 标题下新增 `screener.combined_description` 副标题 |
+| `lib/i18n/types.ts` + 三语言文件 | 新增 15 keys（page.stocks_top500_desc/loading_failed_screener/back_to_dashboard, table.date/ma_trend/financials/detail, screener.combined_description, stocks.view_technicals, picks.mode_top/opp/risk） |
+
+### 旧路由引导对照
+
+| 旧路由 | 新入口 | 方式 |
+|--------|--------|------|
+| /stocks | /screener | 合并提示 Banner |
+| /ai-picks | /screener | 合并提示 Banner（已有）|
+| /indicators | /screener?sort=technical | 合并提示 Banner |
+| /watchlist | /portfolio | 合并提示 Banner（已有）|
+| /notifications | /portfolio?tab=alerts | 合并提示 Banner |
+| /chat | / | 迁移说明页 + 返回仪表盘 |
+
+### /stocks 加载 bug 根因
+`/api/indicators` 请求若超时或挂起，旧代码无 timeout 机制导致 loading 永不置 false；修复方案：`setTimeout 15s` 兜底 + `clearTimeout` 正常路径清除。
+
+---
+
 ## [8.5 P2] - 2026-06-21 — Native Locale Final Cleanup（五页面三语言彻底清洁）
 
 ### 目标
