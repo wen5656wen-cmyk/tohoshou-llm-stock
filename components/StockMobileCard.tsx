@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { getTradingActionLabel } from "@/lib/trading-action";
 import { useI18n } from "@/lib/i18n";
+import { getPrimaryName } from "@/lib/i18n/stock-name";
 
 type StockRow = {
   symbol: string;
@@ -35,6 +36,7 @@ const ACTION_COLOR: Record<string, string> = {
 
 export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: number }) {
   const { lang } = useI18n();
+  const primaryName = getPrimaryName(s, lang);
   const rec = getRec(s.recommendationV2);
 
   return (
@@ -50,7 +52,7 @@ export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: numbe
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="font-bold text-slate-900 text-[15px] leading-tight truncate">
-                {s.nameZh || s.name}
+                {primaryName}
                 {s.highRiskFlag && <span className="ml-1 text-[10px] text-red-400">⚠</span>}
               </div>
               <div className="text-[11px] text-slate-400 font-mono mt-0.5">

@@ -2,6 +2,66 @@
 
 ---
 
+## [8.4 P3] - 2026-06-21 — Full Native Locale Refactor (Phase 3)
+
+### 目标
+扩展 i18n 系统，新增 market-labels/stock-name 工具库，全面更新页面显示文本三语言化。
+
+### 核心变更
+
+| 内容 | 说明 |
+|------|------|
+| `lib/i18n/types.ts` | 新增 55 个 MessageKey（picks/sectors/home/watchlist/portfolio/notif/chat/theme/stocks/empty/error/sync/ai_action/screener/ind 追加） |
+| `lib/i18n/messages/zh-CN.ts` | 新增 55 键中文翻译 |
+| `lib/i18n/messages/ja-JP.ts` | 新增 55 键日文翻译 |
+| `lib/i18n/messages/en-US.ts` | 新增 55 键英文翻译 |
+| `lib/i18n/market-labels.ts` | 新建：33种行业×3语言 + 3种市场×3语言映射，localeSector/localeMarket 函数 |
+| `lib/i18n/stock-name.ts` | 新建：getPrimaryName/getSecondaryName/getNameLines，按语言优先级返回股票名称 |
+| `components/StockMobileCard.tsx` | 使用 getPrimaryName() 根据 lang 返回主名称 |
+| `app/stocks/[symbol]/page.tsx` | 使用 getNameLines() 显示分层股票名，market/sector 使用 localeMarket/localeSector |
+| `app/sectors/page.tsx` | 完整 i18n：标题/列头/行业名称（localeSector）/按钮全三语言 |
+| `app/ai-picks/page.tsx` | 标题使用 t("picks.title") |
+| `app/watchlist/page.tsx` | 标题/空状态使用 t() |
+| `app/sync/page.tsx` | 页面标题/刷新按钮/全部同步按钮使用 t() |
+| `app/chat/page.tsx` | 标题/输入框占位符/发送按钮使用 t() |
+| `app/ai-theme/page.tsx` | 标题使用 t("theme.title") |
+
+### 验证
+- TypeScript: 0 错误
+- Build: 成功
+- 部署到生产 8.209.247.68 并 pm2 restart
+
+---
+
+## [8.4] - 2026-06-21 — Full Locale Mode (True Three-Language)
+
+### 目标
+全站真正三语言：zh-CN ≥95% 中文、ja-JP ≥95% 日文、en-US ≥95% 英文。
+
+### 核心变更
+
+| 内容 | 说明 |
+|------|------|
+| `lib/i18n/types.ts` | 扩展至 188 个 MessageKey（含 RSI/MACD/维度/风格/股票详情/Screener/News/Health/Indicators） |
+| `lib/i18n/messages/zh-CN.ts` | 全量 188 键中文翻译 |
+| `lib/i18n/messages/ja-JP.ts` | 全量 188 键日文翻译（完整重写） |
+| `lib/i18n/messages/en-US.ts` | 全量 188 键英文翻译（完整重写） |
+| `components/HtmlLangSync.tsx` | 新增：语言切换时同步 `document.documentElement.lang` |
+| `app/layout.tsx` | 加入 `<HtmlLangSync />` |
+| `app/screener/page.tsx` | 全局 i18n：标题/Placeholder/列头/风格/市场/提示 |
+| `app/news/page.tsx` | 全局 i18n：标题/情绪/分类/来源标签 |
+| `app/sync/page.tsx` | 健康状态标签 i18n |
+| `app/indicators/page.tsx` | RSI级别/MACD趋势/列头/统计卡片全 i18n（MaTrend/RsiBar/MacdTrendBadge接收`t`参数） |
+| `app/stocks/[symbol]/page.tsx` | 数据提醒/涨跌标签/52周高低/AI评分页风险/风格/来源/排名标签全 i18n |
+
+### 验证
+- TypeScript: 0 错误
+- Build: 成功（所有 Static 页正常编译）
+- 3个 locale 文件 key 数一致（188:188:188）
+- 部署到生产并验证 HTTP 200
+
+---
+
 ## [8.3 P2.3] - 2026-06-21 — Technical Signal / AI Action Alignment
 
 ### 目标

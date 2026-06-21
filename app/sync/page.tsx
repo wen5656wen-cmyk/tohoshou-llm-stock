@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/zh-cn";
+import { useI18n } from "@/lib/i18n";
 
 dayjs.extend(relativeTime);
 dayjs.locale("zh-cn");
@@ -268,6 +269,7 @@ const CRON_SCHEDULE = [
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function SyncPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<StatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
@@ -374,9 +376,9 @@ export default function SyncPage() {
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">数据同步中心</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("sync.title")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            TOHOSHOU AI v7.7 · 全数据源权威状态 · 手动同步控制
+            TOHOSHOU AI v7.7
           </p>
         </div>
         <div className="flex gap-2">
@@ -385,14 +387,14 @@ export default function SyncPage() {
             disabled={loading}
             className="text-sm px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
           >
-            {loading ? "刷新中…" : "↺ 刷新状态"}
+            {loading ? t("sync.refreshing") : t("sync.refresh")}
           </button>
           <button
             onClick={runAll}
             disabled={anySyncing || !data}
             className="text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-300 font-medium transition-colors"
           >
-            {anySyncing ? <span className="animate-pulse">同步中…</span> : "▶ 全部同步"}
+            {anySyncing ? <span className="animate-pulse">{t("sync.syncing")}</span> : t("sync.run_all")}
           </button>
         </div>
       </div>
@@ -478,7 +480,7 @@ export default function SyncPage() {
                   {statusLabel}
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-700">Data Health Guard</div>
+                  <div className="text-xs font-semibold text-slate-700">{t("health.title")}</div>
                   <div className="text-xs text-slate-400 mt-0.5">
                     {health.auditAt
                       ? `${dayjs(health.auditAt).format("M/D HH:mm")} · CRITICAL ${health.criticalCount ?? "—"} · WARNING ${health.warningCount ?? "—"} · adjClose ${health.adjCoveragePct?.toFixed(1) ?? "—"}%`
@@ -486,8 +488,8 @@ export default function SyncPage() {
                   </div>
                   {!isNeverRun && (
                     health.allowRecommendation
-                      ? <div className="text-xs font-semibold text-emerald-600 mt-1">Recommendations allowed</div>
-                      : <div className="text-xs font-semibold text-red-600 mt-1">AI recommendations blocked</div>
+                      ? <div className="text-xs font-semibold text-emerald-600 mt-1">{t("health.allowed")}</div>
+                      : <div className="text-xs font-semibold text-red-600 mt-1">{t("health.blocked")}</div>
                   )}
                 </div>
               </div>
@@ -510,7 +512,7 @@ export default function SyncPage() {
 
       {/* ── Source cards ── */}
       {loading && !data && (
-        <div className="text-center py-16 text-slate-400">加载中…</div>
+        <div className="text-center py-16 text-slate-400">{t("common.loading")}</div>
       )}
 
       {data && (

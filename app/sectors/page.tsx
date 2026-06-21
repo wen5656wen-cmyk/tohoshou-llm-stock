@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
+import { localeSector } from "@/lib/i18n/market-labels";
 
 type SectorStat = {
   sector: string;
@@ -58,6 +60,7 @@ const REC_CFG: Record<string, { text: string }> = {
 };
 
 export default function SectorsPage() {
+  const { t, lang } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("avgTotalScore");
@@ -73,12 +76,12 @@ export default function SectorsPage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="text-slate-400 text-sm animate-pulse">業種分析読み込み中...</div>
+        <div className="text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
       </div>
     );
   }
   if (!data) {
-    return <div className="p-6 text-red-500">読み込みエラー</div>;
+    return <div className="p-6 text-red-500">{t("common.load_error")}</div>;
   }
 
   const { sectors } = data;
@@ -96,17 +99,17 @@ export default function SectorsPage() {
   return (
     <div className="p-6 max-w-[1400px]">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">業種別分析</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("sectors.title")}</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          {sectors.length}業種　{data.totalScored.toLocaleString()}銘柄対象
-          　算出：{new Date(data.computedAt).toLocaleString("ja-JP")}
+          {sectors.length}{lang === "en-US" ? " sectors" : lang === "ja-JP" ? "業種" : "个行业"}　{data.totalScored.toLocaleString()}{lang === "en-US" ? " stocks" : lang === "ja-JP" ? "銘柄対象" : "只股票"}
+          　{new Date(data.computedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : lang === "en-US" ? "en-US" : "zh-CN")}
         </p>
       </div>
 
       {/* Summary cards – top sectors */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-700">AI スコア上位業種 TOP5</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("sectors.hot")} TOP5</h2>
           <Link href="/screener" className="text-xs text-blue-600 hover:underline">
             個別銘柄スクリーナー →
           </Link>
@@ -120,16 +123,16 @@ export default function SectorsPage() {
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-slate-400 text-xs font-mono">#{i + 1}</span>
-                <span className="text-xs text-slate-500 truncate">{sec.sector}</span>
+                <span className="text-xs text-slate-500 truncate">{localeSector(sec.sector, lang)}</span>
               </div>
               <div className="text-2xl font-bold tabular-nums text-slate-900">
                 {sec.avgTotalScore ?? "—"}
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">平均AIスコア</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">{t("sectors.avg_score")}</div>
               <div className="mt-2 flex gap-1 text-[10px]">
-                <span className="bg-red-50 text-red-600 px-1 rounded">買{sec.buyCount}</span>
-                <span className="bg-yellow-50 text-yellow-600 px-1 rounded">注{sec.watchCount}</span>
-                <span className="bg-slate-100 text-slate-500 px-1 rounded">{sec.count}銘柄</span>
+                <span className="bg-red-50 text-red-600 px-1 rounded">{t("sectors.buy_count")} {sec.buyCount}</span>
+                <span className="bg-yellow-50 text-yellow-600 px-1 rounded">W {sec.watchCount}</span>
+                <span className="bg-slate-100 text-slate-500 px-1 rounded">{sec.count}</span>
               </div>
             </div>
           ))}
@@ -139,17 +142,17 @@ export default function SectorsPage() {
       {/* Bottom performers */}
       {bottom.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-3">注意業種</h2>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">{t("sectors.weak")}</h2>
           <div className="grid grid-cols-3 gap-3">
             {bottom.map((sec) => (
               <div key={sec.sector} className="bg-blue-50 rounded-xl border border-blue-100 p-4">
-                <div className="text-xs text-blue-600 font-medium mb-1">{sec.sector}</div>
+                <div className="text-xs text-blue-600 font-medium mb-1">{localeSector(sec.sector, lang)}</div>
                 <div className="text-xl font-bold tabular-nums text-blue-700">
                   {sec.avgTotalScore ?? "—"}
                 </div>
-                <div className="text-[10px] text-blue-500 mt-0.5">平均スコア</div>
+                <div className="text-[10px] text-blue-500 mt-0.5">{t("sectors.avg_score")}</div>
                 <div className="mt-1 text-xs text-blue-500">
-                  20日平均: <RetBadge val={sec.avgReturn20d} />
+                  {t("sectors.avg_20d")}: <RetBadge val={sec.avgReturn20d} />
                 </div>
               </div>
             ))}
@@ -159,13 +162,13 @@ export default function SectorsPage() {
 
       {/* Sort controls */}
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-xs text-slate-500">並べ替え：</span>
+        <span className="text-xs text-slate-500">{t("common.filter")}：</span>
         <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
           {[
-            { k: "avgTotalScore" as const, label: "AIスコア" },
-            { k: "avgReturn20d" as const, label: "20日騰落" },
-            { k: "buyRate" as const, label: "買い率" },
-            { k: "count" as const, label: "銘柄数" },
+            { k: "avgTotalScore" as const, label: t("sectors.avg_score") },
+            { k: "avgReturn20d" as const, label: t("sectors.avg_20d") },
+            { k: "buyRate" as const, label: t("sectors.buy_rate") },
+            { k: "count" as const, label: t("sectors.stock_count") },
           ].map(({ k, label }) => (
             <button
               key={k}
@@ -188,17 +191,17 @@ export default function SectorsPage() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100 text-left text-xs text-slate-400">
               <th className="px-4 py-3 font-medium w-6 text-center">#</th>
-              <th className="px-4 py-3 font-medium">業種</th>
-              <th className="px-3 py-3 font-medium text-center">銘柄数</th>
-              <th className="px-3 py-3 font-medium text-right">AI平均</th>
-              <th className="px-3 py-3 font-medium text-right">技術</th>
-              <th className="px-3 py-3 font-medium text-right">基本面</th>
-              <th className="px-3 py-3 font-medium text-right">安全</th>
-              <th className="px-3 py-3 font-medium text-right">20日</th>
-              <th className="px-3 py-3 font-medium text-right">60日</th>
-              <th className="px-3 py-3 font-medium text-center">買い数</th>
-              <th className="px-3 py-3 font-medium text-center">買い率</th>
-              <th className="px-3 py-3 font-medium">TOP3</th>
+              <th className="px-4 py-3 font-medium">{t("common.sector")}</th>
+              <th className="px-3 py-3 font-medium text-center">{t("sectors.stock_count")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("sectors.avg_score")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("dim.technical")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("dim.fundamental")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("dim.money_flow")}</th>
+              <th className="px-3 py-3 font-medium text-right">20D</th>
+              <th className="px-3 py-3 font-medium text-right">60D</th>
+              <th className="px-3 py-3 font-medium text-center">{t("sectors.buy_count")}</th>
+              <th className="px-3 py-3 font-medium text-center">{t("sectors.buy_rate")}</th>
+              <th className="px-3 py-3 font-medium">{t("sectors.top_stocks")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -212,7 +215,7 @@ export default function SectorsPage() {
                     onClick={() => setExpanded(isExp ? null : sec.sector)}
                   >
                     <td className="px-4 py-2.5 text-center text-xs text-slate-300 tabular-nums">{idx + 1}</td>
-                    <td className="px-4 py-2.5 font-medium text-slate-900">{sec.sector}</td>
+                    <td className="px-4 py-2.5 font-medium text-slate-900">{localeSector(sec.sector, lang)}</td>
                     <td className="px-3 py-2.5 text-center text-xs text-slate-500 tabular-nums">{sec.count}</td>
                     <td className="px-3 py-2.5 text-right">
                       <ScoreHeat score={sec.avgTotalScore} />
@@ -272,18 +275,18 @@ export default function SectorsPage() {
                     <tr key={`${sec.sector}-detail`}>
                       <td colSpan={12} className="px-6 py-3 bg-slate-50 border-b border-slate-100">
                         <div className="text-xs text-slate-500 mb-1 font-medium">
-                          {sec.sector} — スコア上位銘柄
+                          {localeSector(sec.sector, lang)} — {t("sectors.top_stocks")}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {sec.top3.map((t) => {
-                            const rc = REC_CFG[t.recommendation ?? "HOLD"];
+                          {sec.top3.map((topStock) => {
+                            const rc = REC_CFG[topStock.recommendation ?? "HOLD"];
                             return (
                               <Link
-                                key={t.symbol}
-                                href={`/stocks/${encodeURIComponent(t.symbol)}`}
+                                key={topStock.symbol}
+                                href={`/stocks/${encodeURIComponent(topStock.symbol)}`}
                                 className={`text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-300 ${rc?.text ?? "text-slate-600"}`}
                               >
-                                {t.name}（{t.totalScore}点）
+                                {topStock.name}（{topStock.totalScore}）
                               </Link>
                             );
                           })}
@@ -291,7 +294,7 @@ export default function SectorsPage() {
                             href={`/screener?sector=${encodeURIComponent(sec.sector)}`}
                             className="text-xs px-2 py-1 rounded border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
                           >
-                            全銘柄を見る →
+                            {t("home.view_all")} →
                           </Link>
                         </div>
                       </td>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 type Role = "user" | "assistant";
 
@@ -132,6 +133,7 @@ function TypingIndicator() {
 }
 
 export default function ChatPage() {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -232,7 +234,7 @@ export default function ChatPage() {
             ✦
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 text-sm leading-tight">TOHOSHOU AI 对话</h1>
+            <h1 className="font-bold text-slate-900 text-sm leading-tight">{t("chat.title")}</h1>
             <p className="text-xs text-slate-500">GPT Phase 2 · 严格真实数据模式</p>
           </div>
           <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
@@ -300,7 +302,7 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
-                placeholder="输入股票代码（如 7203）或问题…　Enter 发送　Shift+Enter 换行"
+                placeholder={t("chat.placeholder")}
                 rows={1}
                 className="w-full resize-none border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition-all"
                 style={{ maxHeight: "120px", overflowY: "auto" }}
@@ -319,7 +321,7 @@ export default function ChatPage() {
               {loading ? (
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>发送 ↑</>
+                <>{t("chat.send")} ↑</>
               )}
             </button>
           </div>

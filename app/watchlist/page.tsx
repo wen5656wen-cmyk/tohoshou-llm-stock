@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 type WatchScore = {
   latestClose: number | null;
@@ -172,6 +173,7 @@ function AddStockModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
 }
 
 export default function WatchListPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<WatchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -203,8 +205,8 @@ export default function WatchListPage() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">自选股</h1>
-          <p className="text-sm text-slate-500 mt-0.5">关注的股票 AI评分一览</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t("watchlist.title")}</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{t("common.ai_score_tab")}</p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
@@ -246,9 +248,9 @@ export default function WatchListPage() {
       ) : items.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-16 text-center">
           <div className="text-4xl mb-3">★</div>
-          <div className="text-slate-900 font-medium mb-2">自选股列表为空</div>
+          <div className="text-slate-900 font-medium mb-2">{t("watchlist.empty")}</div>
           <p className="text-sm text-slate-500 mb-4">
-            添加感兴趣的股票，一键查看 AI评分汇总
+            {t("common.ai_score_tab")}
           </p>
           <button
             onClick={() => setShowAdd(true)}

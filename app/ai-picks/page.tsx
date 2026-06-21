@@ -290,7 +290,7 @@ function MarketTemperatureBanner({ stats }: { stats: MarketStats }) {
 }
 
 export default function AiPicksPage() {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -338,9 +338,9 @@ export default function AiPicksPage() {
   return (
     <div className="p-4 md:p-6 max-w-6xl">
       <div className="mb-4">
-        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">AI Picks</h1>
+        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("picks.title")}</h1>
         <p className="text-sm font-medium text-slate-500 mt-1">
-          双门槛评级（Adaptive + Percentile）· 更新：{new Date(data.updatedAt).toLocaleString("zh-CN")}
+          {new Date(data.updatedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : lang === "en-US" ? "en-US" : "zh-CN")}
         </p>
       </div>
 

@@ -5,6 +5,8 @@ import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
 import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
+import { getNameLines } from "@/lib/i18n/stock-name";
+import { localeSector, localeMarket } from "@/lib/i18n/market-labels";
 
 type PricePoint = { date: string; open?: number; high?: number; low?: number; close: number; volume?: number };
 
@@ -351,7 +353,7 @@ function AiActionCard({ score }: { score: {
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = use(params);
   const decoded = decodeURIComponent(symbol);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -451,8 +453,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
   const tabs = [
     { key: "overview",   label: t("tab.overview") },
-    { key: "chart",      label: "Price Chart" },
-    { key: "financials", label: `${t("tab.fundamental")} (${financials.length})` },
+    { key: "chart",      label: t("tab.chart") },
+    { key: "financials", label: `${t("tab.financials")} (${financials.length})` },
     { key: "indicators", label: t("tab.technical") },
     { key: "ai",         label: aiScore ? `${t("tab.ai")} ${aiScore.adaptiveScore?.toFixed(0) ?? aiScore.totalScore}` : t("tab.ai") },
     { key: "news",       label: t("tab.news") },
@@ -463,7 +465,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <Link href="/stocks" className="text-xs text-slate-400 hover:text-slate-600">← 股票列表</Link>
+          <Link href="/stocks" className="text-xs text-slate-400 hover:text-slate-600">{t("stock.back_to_list")}</Link>
           <button
             onClick={toggleWatch}
             disabled={watchLoading}
@@ -479,24 +481,31 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 style={{ fontSize: 32, fontWeight: 700, color: "#111827", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
-              {stock.nameZh || stock.name}
-            </h1>
-            {stock.nameZh && stock.nameZh !== stock.name && (
-              <p style={{ fontSize: 18, fontWeight: 500, color: "#64748b", marginTop: 2 }}>{stock.name}</p>
-            )}
-            {stock.nameEn && (
-              <p style={{ fontSize: 16, fontWeight: 400, color: "#94a3b8", marginTop: 2 }}>{stock.nameEn}</p>
-            )}
+            {(() => {
+              const nameLines = getNameLines(stock, lang);
+              return (
+                <>
+                  <h1 style={{ fontSize: 32, fontWeight: 700, color: "#111827", lineHeight: 1.2, letterSpacing: "-0.02em" }}>
+                    {nameLines[0]}
+                  </h1>
+                  {nameLines[1] && (
+                    <p style={{ fontSize: 18, fontWeight: 500, color: "#64748b", marginTop: 2 }}>{nameLines[1]}</p>
+                  )}
+                  {nameLines[2] && (
+                    <p style={{ fontSize: 16, fontWeight: 400, color: "#94a3b8", marginTop: 2 }}>{nameLines[2]}</p>
+                  )}
+                </>
+              );
+            })()}
             <div className="flex items-center gap-2 mt-2">
               <span className="font-mono text-sm font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg tracking-wide">
                 {stock.symbol}
               </span>
               {stock.market && (
-                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{stock.market}</span>
+                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{localeMarket(stock.market, lang)}</span>
               )}
               {stock.sector && (
-                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{stock.sector}</span>
+                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{localeSector(stock.sector, lang)}</span>
               )}
             </div>
           </div>
@@ -517,8 +526,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 mb-4 flex items-start gap-2 text-sm text-amber-800">
           <span className="text-lg leading-none mt-0.5">⚠️</span>
           <div>
-            <span className="font-semibold">数据提醒</span>
-            <span className="ml-1">该股票近期存在大幅价格波动（60日涨跌幅 {(ind.return60d ?? 0).toFixed(1)}%），AI评分已使用复权价格处理，仅供参考。</span>
+            <span className="font-semibold">{t("stock.data_notice")}</span>
+            <span className="ml-1">{t("stock.large_move_warning")}</span>
           </div>
         </div>
       )}
@@ -526,21 +535,21 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* Return Strip */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5">
         <div className="flex items-center justify-around">
-          <ReturnBadge label="5日涨跌"  val={ind.return5d}  />
+          <ReturnBadge label={t("stock.5d_return")}  val={ind.return5d}  />
           <div className="w-px h-8 bg-slate-100" />
-          <ReturnBadge label="20日涨跌" val={ind.return20d} />
+          <ReturnBadge label={t("stock.20d_return")} val={ind.return20d} />
           <div className="w-px h-8 bg-slate-100" />
-          <ReturnBadge label="60日涨跌" val={ind.return60d} />
+          <ReturnBadge label={t("stock.60d_return")} val={ind.return60d} />
           <div className="w-px h-8 bg-slate-100" />
           <div className="text-center">
-            <div className="text-xs text-slate-500 mb-0.5">52W High</div>
+            <div className="text-xs text-slate-500 mb-0.5">{t("stock.52w_high")}</div>
             <div className="text-sm font-bold text-slate-900 tabular-nums">
               {fmtJpy(stock.high52w)}
             </div>
           </div>
           <div className="w-px h-8 bg-slate-100" />
           <div className="text-center">
-            <div className="text-xs text-slate-500 mb-0.5">52W Low</div>
+            <div className="text-xs text-slate-500 mb-0.5">{t("stock.52w_low")}</div>
             <div className="text-sm font-bold text-slate-900 tabular-nums">
               {fmtJpy(stock.low52w)}
             </div>
@@ -832,15 +841,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             const rv2 = aiScore.recommendationV2 ?? aiScore.recommendation;
             const rec = getRec(rv2);
             const riskColors = { LOW: "#10b981", MEDIUM: "#f59e0b", HIGH: "#ef4444" };
-            const riskLabels = { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险" };
-            const STYLE_LABEL: Record<string, string> = {
-              QUALITY_COMPOUNDER: "质优复利", GROWTH_MOMENTUM: "成长动能",
-              CYCLICAL_EXPORTER: "出口周期", VALUE_DEFENSIVE: "价值防御",
-              DOMESTIC_DEFENSIVE: "内需防御", SPECULATIVE_MOMENTUM: "投机动能",
-            };
-            const SOURCE_LABEL: Record<string, string> = {
-              REAL: "✅ J-Quants 真实数据", PARTIAL: "⚠️ 部分真实", FALLBACK: "🔴 回测估算",
-            };
+            const riskLabelFor = (k: string) => t(`risk.${k}` as Parameters<typeof t>[0]);
+            const styleLabelFor = (k: string) => t(`style.${k}` as Parameters<typeof t>[0]);
+            const sourceLabelFor = (k: string) => t(`stock.score_source.${k}` as Parameters<typeof t>[0]);
 
             return (
               <>
@@ -856,7 +859,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         TOHOSHOU AI V7.7
                       </div>
                       <div style={{ fontSize: 10, color: "#334155", marginBottom: 12 }}>
-                        {SOURCE_LABEL[aiScore.scoreSource] ?? aiScore.scoreSource}
+                        {sourceLabelFor(aiScore.scoreSource) ?? aiScore.scoreSource}
                       </div>
                       {/* adaptiveScore (primary) */}
                       <div className="flex items-baseline gap-3 mb-2">
@@ -875,36 +878,36 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                           {rec.label}
                         </span>
                         {aiScore.highRiskFlag && (
-                          <span style={{ fontSize: 11, color: "#ef4444", background: "#ef444420", padding: "2px 8px", borderRadius: 6, border: "1px solid #ef444440" }}>⚠ 高风险</span>
+                          <span style={{ fontSize: 11, color: "#ef4444", background: "#ef444420", padding: "2px 8px", borderRadius: 6, border: "1px solid #ef444440" }}>⚠ {t("stock.high_risk")}</span>
                         )}
                       </div>
                       {/* Rank row */}
                       <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
                         {aiScore.percentileRank != null && (
                           <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                            市场排名：前 <strong style={{ color: "#f8fafc" }}>{aiScore.percentileRank.toFixed(1)}%</strong>（第 {aiScore.marketRank} 位）
+                            {t("stock.market_rank")}：<strong style={{ color: "#f8fafc" }}>{aiScore.percentileRank.toFixed(1)}%</strong>（#{aiScore.marketRank}）
                           </span>
                         )}
                         {aiScore.opportunityScore != null && (
                           <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                            机会分：<strong style={{ color: "#f8fafc" }}>{aiScore.opportunityScore.toFixed(1)}</strong>
-                            {aiScore.opportunityLabel && <span style={{ color: "#64748b" }}> · {aiScore.opportunityLabel === "STEADY" ? "稳健" : "高风险"}</span>}
+                            {t("stock.opportunity_score")}：<strong style={{ color: "#f8fafc" }}>{aiScore.opportunityScore.toFixed(1)}</strong>
+                            {aiScore.opportunityLabel && <span style={{ color: "#64748b" }}> · {aiScore.opportunityLabel === "STEADY" ? t("stock.steady") : t("stock.high_risk")}</span>}
                           </span>
                         )}
                       </div>
                       {aiScore.stockStyle && (
                         <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
-                          风格：{STYLE_LABEL[aiScore.stockStyle] ?? aiScore.stockStyle}
+                          {t("stock.style_label")}：{styleLabelFor(aiScore.stockStyle)}
                         </div>
                       )}
                       <div className="flex items-center gap-2">
                         <span style={{
-                          fontSize: 11, fontWeight: 600, color: riskColors[aiScore.riskLevel],
-                          background: `${riskColors[aiScore.riskLevel]}20`,
+                          fontSize: 11, fontWeight: 600, color: riskColors[aiScore.riskLevel as keyof typeof riskColors],
+                          background: `${riskColors[aiScore.riskLevel as keyof typeof riskColors]}20`,
                           padding: "2px 8px", borderRadius: 6,
-                          border: `1px solid ${riskColors[aiScore.riskLevel]}40`,
+                          border: `1px solid ${riskColors[aiScore.riskLevel as keyof typeof riskColors]}40`,
                         }}>
-                          {riskLabels[aiScore.riskLevel]}
+                          {riskLabelFor(aiScore.riskLevel)}
                         </span>
                       </div>
                       <p style={{ color: "#64748b", fontSize: 12, marginTop: 12, lineHeight: 1.6, maxWidth: 280 }}>

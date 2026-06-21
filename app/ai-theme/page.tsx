@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getRec, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -411,6 +412,7 @@ function ThemeCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AiThemePage() {
+  const { t } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -525,7 +527,7 @@ export default function AiThemePage() {
       <div className="mb-5">
         <div className="flex items-center gap-3 mb-1">
           <span className="text-2xl">🗾</span>
-          <h1 className="text-[32px] font-bold text-slate-900 leading-tight">AI Theme Map</h1>
+          <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("theme.title")}</h1>
           <span className="text-xs font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-full">v8.0</span>
         </div>
         <p className="text-sm text-slate-500">
