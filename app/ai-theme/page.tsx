@@ -183,9 +183,6 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
   const layer = stock.supplyChainLayer;
 
-  const scoreBarLabel = (zh: string, ja: string, en: string) =>
-    lang === "zh-CN" ? zh : lang === "ja-JP" ? ja : en;
-
   return (
     <div className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all p-4">
       {/* Header */}
@@ -234,7 +231,7 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
               </div>
               <div className="text-[10px] text-slate-400">
                 {stock.percentileRank != null
-                  ? `${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${stock.percentileRank.toFixed(1)}%`
+                  ? `${t("common.percentile_prefix")} ${stock.percentileRank.toFixed(1)}%`
                   : ""}
               </div>
             </>
@@ -256,19 +253,19 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
           {/* Score bars */}
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5">
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("技术", "テク", "Tech")}/30</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.tech_short")}/30</div>
               <MiniBar val={stock.technicalScore} max={30} color="bg-blue-400" />
             </div>
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("基本", "基本", "Fund")}/25</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.fund_short")}/25</div>
               <MiniBar val={stock.fundamentalScore} max={25} color="bg-emerald-400" />
             </div>
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("资金", "資金", "Flow")}/20</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.flow_short")}/20</div>
               <MiniBar val={stock.moneyFlowScore} max={20} color="bg-violet-400" />
             </div>
             <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{scoreBarLabel("情绪", "感情", "News")}/15</div>
+              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.news_short")}/15</div>
               <MiniBar val={stock.newsSentimentScore} max={15} color="bg-amber-400" />
             </div>
           </div>
@@ -546,7 +543,7 @@ export default function AiThemePage() {
           {subtitle}
           {subtitleDate && (
             <span className="ml-2 text-slate-400 text-xs">
-              {lang === "zh-CN" ? "评分：" : lang === "ja-JP" ? "評価：" : "Scored:"} {subtitleDate} JST
+              {t("theme.scored_prefix")} {subtitleDate} JST
             </span>
           )}
         </p>
@@ -558,8 +555,8 @@ export default function AiThemePage() {
         <StatCard label={t("theme.stat_core")} value={summary.coreStocks} sub="⭐ isCore" />
         <StatCard label={t("theme.stat_buy")} value={summary.buyCount} sub="recommendationV2" />
         <StatCard label={t("theme.stat_avg_score")} value={summary.avgScore} sub="adaptiveScore" />
-        <StatCard label={t("theme.stat_categories")} value={14} sub={`14 ${lang === "zh-CN" ? "细分主题" : lang === "ja-JP" ? "細分テーマ" : "subcategories"}`} />
-        <StatCard label={t("theme.stat_layers")} value={layers.filter((l) => l.symbolCount > 0).length} sub={lang === "zh-CN" ? "活跃层级" : lang === "ja-JP" ? "アクティブ層" : "active layers"} />
+        <StatCard label={t("theme.stat_categories")} value={14} sub={`14 ${t("theme.sub_categories")}`} />
+        <StatCard label={t("theme.stat_layers")} value={layers.filter((l) => l.symbolCount > 0).length} sub={t("theme.active_layers")} />
         <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
           <div className="text-sm font-bold text-slate-900 truncate leading-tight">
             {summary.topStock ? getPrimaryName(summary.topStock, lang) : "—"}
@@ -595,7 +592,7 @@ export default function AiThemePage() {
               onClick={() => setLayerFilter("")}
               className="text-[10px] text-blue-600 hover:underline ml-1"
             >
-              ✕ {lang === "zh-CN" ? "清除" : lang === "ja-JP" ? "クリア" : "Clear"}
+              ✕ {t("common.clear_filter")}
             </button>
           )}
         </div>
@@ -720,7 +717,7 @@ export default function AiThemePage() {
         <div className="text-center py-16 text-slate-400 text-sm">
           {t("theme.empty_data")}。{lang !== "en-US" && (
             <>
-              {lang === "zh-CN" ? "请运行：" : "実行してください："}
+              {t("theme.run_cmd")}
               <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">
                 npx tsx scripts/seed-ai-themes.ts
               </code>

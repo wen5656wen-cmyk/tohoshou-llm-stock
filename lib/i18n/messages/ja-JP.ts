@@ -462,6 +462,41 @@ const jaJP: Messages = {
   "theme.tab_sw_cloud": "ソフトウェア・クラウド",
   "theme.tab_medical": "医療AI",
   "theme.tab_energy": "エネルギーインフラ",
+
+  // ─── Common additions ────────────────────────────────────────────────────
+  "common.percentile_prefix": "上位",
+  "common.clear_filter": "クリア",
+
+  // ─── Theme page additions ─────────────────────────────────────────────────
+  "theme.sub_categories": "細分テーマ",
+  "theme.active_layers": "アクティブ層",
+  "theme.scored_prefix": "評価：",
+  "theme.run_cmd": "実行してください：",
+  "theme.not_found": "テーマが見つかりません",
+  "theme.total_stocks": "銘柄数",
+  "theme.scored_count_label": "評価済み",
+
+  // ─── Sectors page additions ───────────────────────────────────────────────
+  "sectors.unit_sector": "業種",
+  "sectors.unit_stock_suffix": "銘柄対象",
+
+  // ─── Stock page additions ─────────────────────────────────────────────────
+  "stock.hist_label": "ヒスト",
+  "stock.returns_label": "期間リターン",
+  "stock.no_financials": "財務データなし",
+
+  // ─── News additions ───────────────────────────────────────────────────────
+  "news.no_stock_news": "当銘柄専用ニュースなし。最新市場ニュースを表示中",
+  "news.stock_badge": "個株",
+
+  // ─── Financials table ─────────────────────────────────────────────────────
+  "fin.period": "期間",
+  "fin.revenue": "売上高",
+  "fin.op_profit": "営業利益",
+  "fin.net_profit": "純利益",
+  "fin.equity_ratio": "自己資本比率",
+  "fin.reported_at": "発表日",
+  "fin.full_year": "通年",
 };
 
 export default jaJP;

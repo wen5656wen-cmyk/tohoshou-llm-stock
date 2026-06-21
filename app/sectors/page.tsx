@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { localeSector } from "@/lib/i18n/market-labels";
 import { getPrimaryName } from "@/lib/company-name";
+import { getRec, getRecommendationLabel, returnColorClass } from "@/lib/rec-config";
 
 type SectorStat = {
   sector: string;
@@ -35,7 +36,7 @@ function RetBadge({ val }: { val: number | null }) {
   if (val == null) return <span className="text-slate-300 text-xs">—</span>;
   const up = val >= 0;
   return (
-    <span className={`text-xs font-medium tabular-nums ${up ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
+    <span className={`text-xs font-medium tabular-nums ${returnColorClass(val)}`}>
       {up ? "▲" : "▼"}{Math.abs(val).toFixed(1)}%
     </span>
   );
@@ -52,13 +53,6 @@ function ScoreHeat({ score }: { score: number | null }) {
   return <span className={`tabular-nums text-sm ${color}`}>{score}</span>;
 }
 
-const REC_CFG: Record<string, { text: string }> = {
-  STRONG_BUY: { text: "text-red-600" },
-  BUY:        { text: "text-orange-600" },
-  WATCH:      { text: "text-yellow-600" },
-  HOLD:       { text: "text-slate-500" },
-  AVOID:      { text: "text-blue-500" },
-};
 
 export default function SectorsPage() {
   const { t, lang } = useI18n();
@@ -102,7 +96,7 @@ export default function SectorsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">{t("sectors.title")}</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          {sectors.length}{lang === "en-US" ? " sectors" : lang === "ja-JP" ? "業種" : "个行业"}　{data.totalScored.toLocaleString()}{lang === "en-US" ? " stocks" : lang === "ja-JP" ? "銘柄対象" : "只股票"}
+          {sectors.length}{t("sectors.unit_sector")}　{data.totalScored.toLocaleString()}{t("sectors.unit_stock_suffix")}
           　{new Date(data.computedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : lang === "en-US" ? "en-US" : "zh-CN")}
         </p>
       </div>
@@ -132,7 +126,7 @@ export default function SectorsPage() {
               <div className="text-[10px] text-slate-400 mt-0.5">{t("sectors.avg_score")}</div>
               <div className="mt-2 flex gap-1 text-[10px]">
                 <span className="bg-red-50 text-red-600 px-1 rounded">{t("sectors.buy_count")} {sec.buyCount}</span>
-                <span className="bg-yellow-50 text-yellow-600 px-1 rounded">W {sec.watchCount}</span>
+                <span className="bg-yellow-50 text-yellow-600 px-1 rounded">{getRecommendationLabel("WATCH", lang)} {sec.watchCount}</span>
                 <span className="bg-slate-100 text-slate-500 px-1 rounded">{sec.count}</span>
               </div>
             </div>
@@ -254,18 +248,18 @@ export default function SectorsPage() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1 flex-wrap">
-                        {sec.top3.map((t) => {
-                          const rc = REC_CFG[t.recommendation ?? "HOLD"];
+                        {sec.top3.map((tk) => {
+                          const rc = getRec(tk.recommendation);
                           return (
                             <Link
-                              key={t.symbol}
-                              href={`/stocks/${encodeURIComponent(t.symbol)}`}
+                              key={tk.symbol}
+                              href={`/stocks/${encodeURIComponent(tk.symbol)}`}
                               onClick={(e) => e.stopPropagation()}
-                              className={`text-[10px] hover:underline ${rc?.text ?? "text-slate-600"}`}
-                              title={t.name}
+                              className={`text-[10px] hover:underline ${rc.text}`}
+                              title={tk.name}
                             >
-                              {t.symbol.replace(".T", "")}
-                              {t.totalScore != null && <span className="text-slate-400">({t.totalScore})</span>}
+                              {tk.symbol.replace(".T", "")}
+                              {tk.totalScore != null && <span className="text-slate-400">({tk.totalScore})</span>}
                             </Link>
                           );
                         })}
@@ -280,12 +274,12 @@ export default function SectorsPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {sec.top3.map((topStock) => {
-                            const rc = REC_CFG[topStock.recommendation ?? "HOLD"];
+                            const rc = getRec(topStock.recommendation);
                             return (
                               <Link
                                 key={topStock.symbol}
                                 href={`/stocks/${encodeURIComponent(topStock.symbol)}`}
-                                className={`text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-300 ${rc?.text ?? "text-slate-600"}`}
+                                className={`text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-300 ${rc.text}`}
                               >
                                 {getPrimaryName(topStock, lang)}（{topStock.totalScore}）
                               </Link>

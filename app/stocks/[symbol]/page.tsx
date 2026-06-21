@@ -634,7 +634,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   <div className="flex items-center gap-2 text-xs tabular-nums text-slate-700">
                     <span>MACD: <b>{ind.macd?.toFixed(2) ?? "—"}</b></span>
                     <span className="text-slate-300">|</span>
-                    <span>{lang === "zh-CN" ? "柱状" : "Hist"}: <b className={returnColorClass(ind.macdHist)}>
+                    <span>{t("stock.hist_label")}: <b className={returnColorClass(ind.macdHist)}>
                       {ind.macdHist != null ? fmtPct(ind.macdHist, 2).replace("%","") : "—"}
                     </b></span>
                   </div>
@@ -691,20 +691,20 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             <h3 className="text-sm font-semibold text-slate-700">{t("stock.financials_title")}</h3>
           </div>
           {financials.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">暂无财务数据</div>
+            <div className="p-8 text-center text-slate-400 text-sm">{t("stock.no_financials")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
-                    <th className="px-5 py-2.5 font-medium">期间</th>
-                    <th className="px-3 py-2.5 font-medium text-right">营业收入</th>
-                    <th className="px-3 py-2.5 font-medium text-right">营业利润</th>
-                    <th className="px-3 py-2.5 font-medium text-right">净利润</th>
+                    <th className="px-5 py-2.5 font-medium">{t("fin.period")}</th>
+                    <th className="px-3 py-2.5 font-medium text-right">{t("fin.revenue")}</th>
+                    <th className="px-3 py-2.5 font-medium text-right">{t("fin.op_profit")}</th>
+                    <th className="px-3 py-2.5 font-medium text-right">{t("fin.net_profit")}</th>
                     <th className="px-3 py-2.5 font-medium text-right">EPS</th>
                     <th className="px-3 py-2.5 font-medium text-right">ROE</th>
-                    <th className="px-3 py-2.5 font-medium text-right">自有资本比率</th>
-                    <th className="px-3 py-2.5 font-medium text-right">发布日</th>
+                    <th className="px-3 py-2.5 font-medium text-right">{t("fin.equity_ratio")}</th>
+                    <th className="px-3 py-2.5 font-medium text-right">{t("fin.reported_at")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -713,7 +713,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     .map((f) => (
                       <tr key={f.id} className="hover:bg-slate-50">
                         <td className="px-5 py-2.5 text-sm font-medium text-slate-900">
-                          {f.fiscalYear}年{f.quarter ? ` Q${f.quarter}` : " 全年"}
+                          {lang === "ja-JP"
+                            ? `${f.fiscalYear}年${f.quarter ? `Q${f.quarter}` : t("fin.full_year")}`
+                            : lang === "en-US"
+                            ? `FY${f.fiscalYear}${f.quarter ? ` Q${f.quarter}` : ""}`
+                            : `${f.fiscalYear}年${f.quarter ? ` Q${f.quarter}` : t("fin.full_year")}`}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.revenue, lang)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.operatingProfit, lang)}</td>
@@ -728,7 +732,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                           {f.equityRatio != null ? `${(f.equityRatio * 100).toFixed(1)}%` : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right text-xs text-slate-400 tabular-nums">
-                          {f.reportedAt ? new Date(f.reportedAt).toLocaleDateString("zh-CN") : "—"}
+                          {f.reportedAt ? new Date(f.reportedAt).toLocaleDateString(lang) : "—"}
                         </td>
                       </tr>
                     ))}
@@ -799,7 +803,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               {[
                 { label: "MACD",                                      val: ind.macd },
                 { label: t("macd.trend_label"),                       val: ind.macdSignal },
-                { label: lang === "zh-CN" ? "柱状" : lang === "ja-JP" ? "ヒスト" : "Hist", val: ind.macdHist },
+                { label: t("stock.hist_label"), val: ind.macdHist },
               ].map(({ label, val }) => (
                 <div key={label} className="bg-slate-50 rounded-xl p-3">
                   <div className="text-xs text-slate-500 mb-1">{label}</div>
@@ -818,7 +822,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">{lang === "zh-CN" ? "阶段涨跌" : lang === "ja-JP" ? "期間リターン" : "Returns"}</h3>
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">{t("stock.returns_label")}</h3>
             <div className="grid grid-cols-3 gap-4">
               {[
                 { label: t("stock.5d_return"),  val: ind.return5d },
@@ -1054,16 +1058,16 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {activeTab === "news" && (
         <div className="space-y-3">
           {newsLoading && (
-            <div className="text-center py-12 text-slate-400 text-sm animate-pulse">新闻加载中...</div>
+            <div className="text-center py-12 text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
           )}
           {newsIsGeneral && newsItems && newsItems.length > 0 && (
             <div className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2 mb-1">
-              暂无该股专属新闻，显示最新市场动态
+              {t("news.no_stock_news")}
             </div>
           )}
           {!newsLoading && newsItems !== null && newsItems.length === 0 && (
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
-              <div className="text-slate-400 text-sm">暂无新闻数据</div>
+              <div className="text-slate-400 text-sm">{t("news.no_data")}</div>
             </div>
           )}
           {!newsLoading && newsItems && newsItems.map((item) => {
@@ -1075,8 +1079,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               item.sentiment === "POSITIVE" ? "🟢" : item.sentiment === "NEGATIVE" ? "🔴" : "⚪";
 
             const categoryLabel: Record<string, string> = {
-              EARNINGS: "決算", GUIDANCE: "業績修正", DIVIDEND: "配当",
-              BUYBACK: "自己株", IR: "IR開示", MARKET: "市場", OTHER: "",
+              EARNINGS: t("news.earnings"), GUIDANCE: t("news.guidance"), DIVIDEND: t("news.dividend"),
+              BUYBACK: t("news.buyback"), IR: t("news.ir"), MARKET: t("news.market_cat"), OTHER: "",
             };
             const categoryColor: Record<string, string> = {
               EARNINGS: "bg-purple-50 text-purple-700 border-purple-100",
@@ -1116,7 +1120,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         <span className={`w-1.5 h-1.5 rounded-full ${impDot}`} />
                       )}
                       {item.relatedSymbolConfidence >= 70 && (
-                        <span className="text-[10px] text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">個株</span>
+                        <span className="text-[10px] text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">{t("news.stock_badge")}</span>
                       )}
                     </div>
                     <div className="text-sm font-medium text-slate-900 leading-snug line-clamp-2 mb-2">{item.title}</div>
@@ -1126,7 +1130,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     <div className="flex items-center gap-2 text-xs text-slate-400">
                       <span>{item.source}</span>
                       <span>·</span>
-                      <span>{new Date(item.publishedAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>{new Date(item.publishedAt).toLocaleDateString(lang, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                   </div>
                   <div className={`shrink-0 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border ${sentimentColor}`}>

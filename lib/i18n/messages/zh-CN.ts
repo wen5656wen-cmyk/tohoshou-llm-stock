@@ -462,6 +462,41 @@ const zhCN: Messages = {
   "theme.tab_sw_cloud": "软件云",
   "theme.tab_medical": "医疗AI",
   "theme.tab_energy": "能源基础设施",
+
+  // ─── Common additions ────────────────────────────────────────────────────
+  "common.percentile_prefix": "前",
+  "common.clear_filter": "清除",
+
+  // ─── Theme page additions ─────────────────────────────────────────────────
+  "theme.sub_categories": "细分主题",
+  "theme.active_layers": "活跃层级",
+  "theme.scored_prefix": "评分：",
+  "theme.run_cmd": "请运行：",
+  "theme.not_found": "主题不存在",
+  "theme.total_stocks": "股票总数",
+  "theme.scored_count_label": "已评分",
+
+  // ─── Sectors page additions ───────────────────────────────────────────────
+  "sectors.unit_sector": "个行业",
+  "sectors.unit_stock_suffix": "只股票",
+
+  // ─── Stock page additions ─────────────────────────────────────────────────
+  "stock.hist_label": "柱状",
+  "stock.returns_label": "阶段涨跌",
+  "stock.no_financials": "暂无财务数据",
+
+  // ─── News additions ───────────────────────────────────────────────────────
+  "news.no_stock_news": "暂无该股专属新闻，显示最新市场动态",
+  "news.stock_badge": "个股",
+
+  // ─── Financials table ─────────────────────────────────────────────────────
+  "fin.period": "期间",
+  "fin.revenue": "营业收入",
+  "fin.op_profit": "营业利润",
+  "fin.net_profit": "净利润",
+  "fin.equity_ratio": "自有资本比率",
+  "fin.reported_at": "发布日",
+  "fin.full_year": "全年",
 };
 
 export default zhCN;

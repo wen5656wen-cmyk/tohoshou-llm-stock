@@ -289,7 +289,7 @@ export default function ScreenerPage() {
               {filtered.slice(0, 200).map((s, idx) => {
                 const rec = getRec(s.recommendationV2);
                 const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-700";
-                const pctRankLabel = s.percentileRank != null ? `${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${s.percentileRank.toFixed(1)}%` : "—";
+                const pctRankLabel = s.percentileRank != null ? `${t("common.percentile_prefix")} ${s.percentileRank.toFixed(1)}%` : "—";
 
                 return (
                   <tr key={s.symbol} className={`hover:bg-slate-50 transition-colors ${s.highRiskFlag ? "bg-red-50/30" : ""}`}>

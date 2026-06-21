@@ -116,7 +116,7 @@ function StockRow({ s }: { s: Stock }) {
               <div className="text-lg font-bold text-slate-900">{s.adaptiveScore?.toFixed(0) ?? "—"}</div>
               {s.percentileRank != null && (
                 <div className="text-[10px] text-slate-400">
-                  {lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {s.percentileRank.toFixed(1)}%
+                  {t("common.percentile_prefix")} {s.percentileRank.toFixed(1)}%
                 </div>
               )}
             </>
@@ -189,7 +189,7 @@ export default function AiThemeDetailPage() {
     return (
       <div className="p-4 md:p-6">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
-          {t("theme.error_load")}{error ?? (lang === "zh-CN" ? "主题不存在" : lang === "ja-JP" ? "テーマが見つかりません" : "Theme not found")}
+          {t("theme.error_load")}{error ?? t("theme.not_found")}
         </div>
         <Link href="/ai-theme" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
           {t("theme.back_link")}
@@ -227,9 +227,9 @@ export default function AiThemeDetailPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {[
-          { label: lang === "zh-CN" ? "股票总数" : lang === "ja-JP" ? "銘柄数" : "Total Stocks", value: stats.total },
-          { label: t("theme.stat_core"),     value: stats.coreCount },
-          { label: lang === "zh-CN" ? "已评分" : lang === "ja-JP" ? "評価済み" : "Scored",       value: stats.scoredCount },
+          { label: t("theme.total_stocks"), value: stats.total },
+          { label: t("theme.stat_core"),   value: stats.coreCount },
+          { label: t("theme.scored_count_label"), value: stats.scoredCount },
           { label: t("theme.stat_buy"),      value: stats.buyCount },
           { label: t("theme.stat_avg_score"), value: stats.avgScore },
         ].map((s) => (

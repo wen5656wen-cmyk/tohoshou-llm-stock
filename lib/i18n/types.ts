@@ -411,6 +411,15 @@ export type Messages = {
   // ─── Sectors page ─────────────────────────────────────────────────────────
   "sectors.screener_link": string;
 
+  // ─── Financials table ─────────────────────────────────────────────────────
+  "fin.period": string;
+  "fin.revenue": string;
+  "fin.op_profit": string;
+  "fin.net_profit": string;
+  "fin.equity_ratio": string;
+  "fin.reported_at": string;
+  "fin.full_year": string;
+
   // ─── AI Value Chain (ai-theme) ────────────────────────────────────────────
   "theme.stat_tracked": string;
   "theme.stat_core": string;
@@ -461,6 +470,32 @@ export type Messages = {
   "theme.tab_sw_cloud": string;
   "theme.tab_medical": string;
   "theme.tab_energy": string;
+
+  // ─── Common additions ─────────────────────────────────────────────────────
+  "common.percentile_prefix": string;
+  "common.clear_filter": string;
+
+  // ─── Theme page additions ─────────────────────────────────────────────────
+  "theme.sub_categories": string;
+  "theme.active_layers": string;
+  "theme.scored_prefix": string;
+  "theme.run_cmd": string;
+  "theme.not_found": string;
+  "theme.total_stocks": string;
+  "theme.scored_count_label": string;
+
+  // ─── Sectors page additions ───────────────────────────────────────────────
+  "sectors.unit_sector": string;
+  "sectors.unit_stock_suffix": string;
+
+  // ─── Stock page additions ─────────────────────────────────────────────────
+  "stock.hist_label": string;
+  "stock.returns_label": string;
+  "stock.no_financials": string;
+
+  // ─── News additions ───────────────────────────────────────────────────────
+  "news.no_stock_news": string;
+  "news.stock_badge": string;
 };
 
 export type MessageKey = keyof Messages;

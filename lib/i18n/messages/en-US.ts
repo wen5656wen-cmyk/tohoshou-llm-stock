@@ -462,6 +462,41 @@ const enUS: Messages = {
   "theme.tab_sw_cloud": "Software & Cloud",
   "theme.tab_medical": "Medical AI",
   "theme.tab_energy": "Energy Infrastructure",
+
+  // ─── Common additions ────────────────────────────────────────────────────
+  "common.percentile_prefix": "Top",
+  "common.clear_filter": "Clear",
+
+  // ─── Theme page additions ─────────────────────────────────────────────────
+  "theme.sub_categories": "subcategories",
+  "theme.active_layers": "active layers",
+  "theme.scored_prefix": "Scored:",
+  "theme.run_cmd": "Run:",
+  "theme.not_found": "Theme not found",
+  "theme.total_stocks": "Total Stocks",
+  "theme.scored_count_label": "Scored",
+
+  // ─── Sectors page additions ───────────────────────────────────────────────
+  "sectors.unit_sector": " sectors",
+  "sectors.unit_stock_suffix": " stocks",
+
+  // ─── Stock page additions ─────────────────────────────────────────────────
+  "stock.hist_label": "Hist",
+  "stock.returns_label": "Returns",
+  "stock.no_financials": "No financial data",
+
+  // ─── News additions ───────────────────────────────────────────────────────
+  "news.no_stock_news": "No stock-specific news. Showing latest market news.",
+  "news.stock_badge": "Stock",
+
+  // ─── Financials table ─────────────────────────────────────────────────────
+  "fin.period": "Period",
+  "fin.revenue": "Revenue",
+  "fin.op_profit": "Op. Profit",
+  "fin.net_profit": "Net Profit",
+  "fin.equity_ratio": "Equity Ratio",
+  "fin.reported_at": "Reported",
+  "fin.full_year": "Full Year",
 };
 
 export default enUS;
