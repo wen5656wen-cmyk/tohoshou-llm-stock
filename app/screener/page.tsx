@@ -24,6 +24,8 @@ type Score = {
   recommendationV2: string | null;
   opportunityScore: number | null;
   opportunityLabel: string | null;
+  tradingAction?: string | null;
+  positionSizePct?: number | null;
 };
 
 type Stats = {

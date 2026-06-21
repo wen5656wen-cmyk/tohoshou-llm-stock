@@ -1,11 +1,12 @@
 #!/usr/bin/env npx tsx
 /**
- * 全量AI评分计算脚本 V7.7
+ * 全量AI评分计算脚本 V8.3 P2
  *
  * Pass 1: 逐只股票计算技术/基本面/资金面/情绪/全球 五维评分 + adaptiveScore
  * Pass 2: 全市场排名 → percentileRank + marketRank
  *          双门槛评级 → recommendationV2
  *          机会分 → opportunityScore + opportunityRank
+ * Pass 3: AI Action 交易决策层（BUY_NOW/WAIT_PULLBACK/HOLD/TAKE_PROFIT/SELL/AVOID）
  *
  * 用法：npm run compute-scores
  */
@@ -15,6 +16,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { calcIndicators } from "../lib/indicators";
 import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData, computeCatalystScore, calcDividendScore } from "../lib/ai-score";
+import { computeTradingAction } from "../lib/trading-action";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -395,6 +397,119 @@ async function main() {
   console.log("=== V7.7 recommendationV2 分布 ===");
   console.log(`STRONG_BUY: ${sb}  BUY: ${b}  HOLD: ${h}  WATCH: ${w}  AVOID: ${av}`);
   console.log(`买入合计: ${sb + b}（${bullRate}%）  市场温度: ${temp}`);
+
+  // ── Pass 3: AI Action 交易决策层 ──────────────────────────────────────────
+  console.log("\nPass 3: AI Action 交易决策计算...");
+  const pass3start = Date.now();
+
+  // Load all scores with required fields
+  const actionCandidates = await prisma.stockScore.findMany({
+    where: { priceCount: { gte: MIN_PRICE_COUNT } },
+    select: {
+      symbol: true,
+      latestClose: true, return5d: true, return20d: true, return60d: true,
+      rsi14: true,
+      adaptiveScore: true, opportunityScore: true, percentileRank: true,
+      recommendationV2: true, highRiskFlag: true,
+      computedAt: true,
+    },
+  });
+
+  // Load Stock table for high52w / low52w / ma20 / ma60
+  const stockMap = new Map(
+    (await prisma.stock.findMany({ select: { symbol: true, high52w: true, low52w: true } }))
+      .map((s) => [s.symbol, s])
+  );
+
+  // We need ma20/ma60 — re-read from StockScore isn't enough (ma20/ma60 not stored).
+  // Instead: compute from pre-stored indicators in StockScore.
+  // Strategy: for each stock, load ma20/ma60 from a quick indicator proxy.
+  // Since indicators run in Pass 1 already, we store ma5/ma20/ma60 in StockScore? No — check schema.
+  // Schema does NOT store ma20/ma60 directly. We must query DailyPrice per batch.
+  // For speed: batch 200, parallel.
+
+  const BATCH3 = 100;
+  let pass3Updated = 0;
+
+  for (let i = 0; i < actionCandidates.length; i += BATCH3) {
+    const batch = actionCandidates.slice(i, i + BATCH3);
+    await Promise.all(batch.map(async (sc) => {
+      try {
+        // Fetch recent prices for ma20/ma60
+        const pricesDesc = await prisma.dailyPrice.findMany({
+          where: { symbol: sc.symbol },
+          orderBy: { date: "desc" },
+          select: { close: true, adjClose: true },
+          take: 70,
+        });
+        const closes = pricesDesc.reverse().map((p) => (p.adjClose != null ? Number(p.adjClose) : Number(p.close)));
+        const sma = (n: number) => closes.length >= n
+          ? closes.slice(-n).reduce((a, b) => a + b, 0) / n
+          : null;
+        const ma20 = sma(20);
+        const ma60 = sma(60);
+
+        const stockInfo = stockMap.get(sc.symbol);
+        const ageDays = (Date.now() - sc.computedAt.getTime()) / 86400000;
+        const stale = ageDays > 7;
+
+        const action = computeTradingAction({
+          latestPrice: sc.latestClose,
+          return5d: sc.return5d,
+          return20d: sc.return20d,
+          return60d: sc.return60d,
+          high52w: stockInfo?.high52w ?? null,
+          low52w: stockInfo?.low52w ?? null,
+          ma5: null,
+          ma20,
+          ma60,
+          rsi14: sc.rsi14,
+          volatility: null,
+          adaptiveScore: sc.adaptiveScore,
+          opportunityScore: sc.opportunityScore,
+          percentileRank: sc.percentileRank,
+          recommendationV2: sc.recommendationV2,
+          suspicious: false,
+          stale,
+        });
+
+        await prisma.stockScore.update({
+          where: { symbol: sc.symbol },
+          data: {
+            tradingAction:   action.action,
+            positionSizePct: action.positionSizePct,
+            entryLow:        action.entryLow,
+            entryHigh:       action.entryHigh,
+            stopLoss:        action.stopLoss,
+            target1:         action.target1,
+            target2:         action.target2,
+            actionRiskLevel: action.riskLevel,
+            actionReasons:   action.reasons,
+            actionWarnings:  action.warnings,
+          },
+        });
+        pass3Updated++;
+      } catch {
+        // non-fatal
+      }
+    }));
+    process.stdout.write(`\r  Pass3: [${Math.min(i + BATCH3, actionCandidates.length)}/${actionCandidates.length}] ${Math.round((Math.min(i + BATCH3, actionCandidates.length) / actionCandidates.length) * 100)}%`);
+  }
+
+  const pass3s = ((Date.now() - pass3start) / 1000).toFixed(1);
+  console.log(`\n  Pass 3 完成（${pass3s}s，${pass3Updated} 只更新）\n`);
+
+  // ── Pass 3 Action 分布 ───────────────────────────────────────────────────
+  const [buyNow, waitPull, holdN, takeProfit, sellN, avoidN] = await Promise.all([
+    prisma.stockScore.count({ where: { tradingAction: "BUY_NOW" } }),
+    prisma.stockScore.count({ where: { tradingAction: "WAIT_PULLBACK" } }),
+    prisma.stockScore.count({ where: { tradingAction: "HOLD" } }),
+    prisma.stockScore.count({ where: { tradingAction: "TAKE_PROFIT" } }),
+    prisma.stockScore.count({ where: { tradingAction: "SELL" } }),
+    prisma.stockScore.count({ where: { tradingAction: "AVOID" } }),
+  ]);
+  console.log("=== AI Action 分布 ===");
+  console.log(`BUY_NOW: ${buyNow}  WAIT_PULLBACK: ${waitPull}  HOLD: ${holdN}  TAKE_PROFIT: ${takeProfit}  SELL: ${sellN}  AVOID: ${avoidN}`);
 
   // ── TOP20 adaptiveScore ────────────────────────────────────────────────────
   const top20 = await prisma.stockScore.findMany({

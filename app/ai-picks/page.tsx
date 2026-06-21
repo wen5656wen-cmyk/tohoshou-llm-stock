@@ -31,6 +31,10 @@ type AiScore = {
   recommendationReason: string | null;
   opportunityScore: number | null;
   opportunityLabel: string | null;
+  // V8.3 P2: AI Action
+  tradingAction: string | null;
+  positionSizePct: number | null;
+  actionRiskLevel: string | null;
 };
 
 type MarketStats = {
@@ -115,6 +119,23 @@ function DetailCard({ score }: { score: AiScore }) {
                 {score.highRiskFlag && (
                   <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">⚠ High Risk</span>
                 )}
+                {score.tradingAction && (() => {
+                  const A: Record<string, string> = {
+                    BUY_NOW: "bg-emerald-100 text-emerald-700 border-emerald-200",
+                    WAIT_PULLBACK: "bg-amber-100 text-amber-700 border-amber-200",
+                    HOLD: "bg-slate-100 text-slate-600 border-slate-200",
+                    TAKE_PROFIT: "bg-orange-100 text-orange-700 border-orange-200",
+                    SELL: "bg-red-100 text-red-700 border-red-200",
+                    AVOID: "bg-red-100 text-red-700 border-red-200",
+                  };
+                  const L: Record<string, string> = { BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT", HOLD: "HOLD", TAKE_PROFIT: "PROFIT", SELL: "SELL", AVOID: "AVOID" };
+                  return (
+                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${A[score.tradingAction] ?? A.HOLD}`}>
+                      {L[score.tradingAction] ?? score.tradingAction}
+                      {score.positionSizePct != null && <span className="ml-1 font-normal opacity-70">{score.positionSizePct}%</span>}
+                    </span>
+                  );
+                })()}
                 {score.stockStyle && (
                   <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
                     {STYLE_LABEL[score.stockStyle] ?? score.stockStyle}

@@ -68,6 +68,8 @@ export async function GET(request: Request) {
         percentileRank: true, marketRank: true,
         recommendationV2: true, recommendationReason: true,
         opportunityScore: true, opportunityRank: true, opportunityLabel: true,
+        // V8.3 P2: AI Action
+        tradingAction: true, positionSizePct: true, actionRiskLevel: true,
       },
     }),
     prisma.stockScore.count({ where: { recommendationV2: "STRONG_BUY", priceCount: { gte: 20 } } }),
@@ -115,6 +117,10 @@ export async function GET(request: Request) {
     opportunityScore: s.opportunityScore ?? null,
     opportunityRank: s.opportunityRank ?? null,
     opportunityLabel: s.opportunityLabel ?? null,
+    // V8.3 P2: AI Action
+    tradingAction: s.tradingAction ?? null,
+    positionSizePct: s.positionSizePct ?? null,
+    actionRiskLevel: s.actionRiskLevel ?? null,
   }));
 
   return NextResponse.json({

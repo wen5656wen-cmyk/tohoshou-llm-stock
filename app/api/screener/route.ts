@@ -85,6 +85,8 @@ export async function GET(req: NextRequest) {
         percentileRank: true, marketRank: true,
         recommendationV2: true, recommendationReason: true,
         opportunityScore: true, opportunityRank: true, opportunityLabel: true,
+        // V8.3 P2: AI Action
+        tradingAction: true, positionSizePct: true, actionRiskLevel: true,
       },
     }),
     prisma.stockScore.findFirst({ orderBy: { computedAt: "desc" }, select: { computedAt: true } }),

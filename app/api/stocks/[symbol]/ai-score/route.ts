@@ -112,6 +112,10 @@ export async function GET(
         recommendationV2: true, recommendationReason: true,
         opportunityScore: true, opportunityRank: true, opportunityLabel: true,
         dividendScore: true, shortSellingSource: true,
+        // V8.3 P2: AI Action fields
+        tradingAction: true, positionSizePct: true,
+        entryLow: true, entryHigh: true, stopLoss: true, target1: true, target2: true,
+        actionRiskLevel: true, actionReasons: true, actionWarnings: true,
       },
     }),
   ]);
@@ -146,5 +150,16 @@ export async function GET(
     shortSellingRatio:   latestShortSell?.shortSellRatio ?? null,
     shortSellingDate:    isoDate(latestShortSell?.date ?? null),
     shortSellingSource:  precomputed?.shortSellingSource ?? (latestShortSell ? "jpx_real" : "fallback"),
+    // V8.3 P2: AI Action trading decision
+    tradingAction:    precomputed?.tradingAction ?? null,
+    positionSizePct:  precomputed?.positionSizePct ?? null,
+    entryLow:         precomputed?.entryLow ?? null,
+    entryHigh:        precomputed?.entryHigh ?? null,
+    stopLoss:         precomputed?.stopLoss ?? null,
+    target1:          precomputed?.target1 ?? null,
+    target2:          precomputed?.target2 ?? null,
+    actionRiskLevel:  precomputed?.actionRiskLevel ?? null,
+    actionReasons:    precomputed?.actionReasons ?? [],
+    actionWarnings:   precomputed?.actionWarnings ?? [],
   });
 }

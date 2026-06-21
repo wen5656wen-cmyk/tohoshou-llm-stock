@@ -2,6 +2,58 @@
 
 ---
 
+## [8.3 P2] - 2026-06-21 — AI Action Trading Decision
+
+### 目标
+把评分系统从"评分展示"升级为"交易决策提示"，新增独立的 AI Action 层。
+
+### 新增文件（1个）
+| 文件 | 说明 |
+|------|------|
+| `lib/trading-action.ts` | 交易动作引擎：BUY_NOW/WAIT_PULLBACK/HOLD/TAKE_PROFIT/SELL/AVOID，计算价格区间/止损/目标价 |
+
+### 修改文件（7个）
+| 文件 | 修改内容 |
+|------|---------|
+| `prisma/schema.prisma` | StockScore 新增 10 字段：tradingAction/positionSizePct/entryLow/entryHigh/stopLoss/target1/target2/actionRiskLevel/actionReasons/actionWarnings |
+| `scripts/compute-scores.ts` | 新增 Pass 3：全量计算 AI Action（3714只，8.2s）|
+| `app/api/ai-scores/route.ts` | 返回 tradingAction/positionSizePct/actionRiskLevel |
+| `app/api/stocks/[symbol]/ai-score/route.ts` | 返回全部 AI Action 字段 |
+| `app/api/screener/route.ts` | 新增 tradingAction/positionSizePct/actionRiskLevel 字段 |
+| `app/stocks/[symbol]/page.tsx` | AI Tab 新增 AI Action 卡片（大标签+仓位+价格区间+止损+目标+理由+免责声明）|
+| `app/ai-picks/page.tsx` | 每张卡片显示 Action badge（BUY NOW/WAIT/HOLD/PROFIT/SELL/AVOID +仓位%）|
+| `components/StockMobileCard.tsx` | 新增小 Action badge |
+
+### AI Action 规则摘要
+- **BUY_NOW**：STRONG_BUY/BUY + adaptiveScore≥70 + opp≥65 + percentileRank≤10 + price>MA20 + RSI 45-75 + 5D≤20%
+- **WAIT_PULLBACK**：评级好但 5D>20%/RSI>75/price>MA20×1.12/60D>100%
+- **HOLD**：adaptiveScore 55-70，趋势中性
+- **TAKE_PROFIT**：60D>150%+RSI>80 / 20D>60%+RSI>75 / 近52W高+RSI>78 / 5D>30%
+- **SELL**：price<MA60+score<55 / 死叉+20D<-10% / RSI<35+20D<-15%
+- **AVOID**：stale/suspicious/score<45/AVOID评级
+
+### 建议仓位
+- STRONG_BUY+BUY_NOW → 60%；BUY+BUY_NOW → 40%；WAIT_PULLBACK → 20%；HOLD → 30%；TAKE_PROFIT → 30%（剩余）；SELL/AVOID → 0%
+
+### 验证样本（生产）
+| 股票 | 评级 | AI Action | 仓位 |
+|------|------|-----------|------|
+| 9552.T (STRONG_BUY) | STRONG_BUY | **BUY_NOW** | 60% |
+| 285A.T (+405% 60D) | WATCH | **TAKE_PROFIT** | 30% |
+| 4062.T (+225% 60D) | HOLD | **WAIT_PULLBACK** | 20% |
+| 8035.T (+96% 60D) | HOLD | **WAIT_PULLBACK** | 20% |
+| 7012.T (拆股修正) | WATCH | **HOLD** | 30% |
+| 9984.T/5803.T/6758.T | AVOID | **AVOID** | 0% |
+
+### 生产分布（3714只）
+BUY_NOW: 30 · WAIT_PULLBACK: 195 · HOLD: 1143 · TAKE_PROFIT: 49 · SELL: 639 · AVOID: 1658
+
+### 免责声明
+所有前端展示底部均标注：
+"AI Action is a rules-based signal for research only. Not financial advice."
+
+---
+
 ## [8.2.5] - 2026-06-21 — Health Guard 阈值调优
 
 ### 目标

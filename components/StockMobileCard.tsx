@@ -16,6 +16,8 @@ type StockRow = {
   dividendScore?: number | null;
   catalystScore?: number | null;
   highRiskFlag: boolean;
+  tradingAction?: string | null;
+  positionSizePct?: number | null;
 };
 
 export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: number }) {
@@ -72,6 +74,24 @@ export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: numbe
               </div>
             </div>
           </div>
+
+          {s.tradingAction && (() => {
+            const A: Record<string, string> = {
+              BUY_NOW: "bg-emerald-100 text-emerald-700",
+              WAIT_PULLBACK: "bg-amber-100 text-amber-700",
+              HOLD: "bg-slate-100 text-slate-600",
+              TAKE_PROFIT: "bg-orange-100 text-orange-700",
+              SELL: "bg-red-100 text-red-700",
+              AVOID: "bg-red-100 text-red-700",
+            };
+            const L: Record<string, string> = { BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT", HOLD: "HOLD", TAKE_PROFIT: "PROFIT", SELL: "SELL", AVOID: "AVOID" };
+            return (
+              <div className={`mt-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${A[s.tradingAction] ?? A.HOLD}`}>
+                {L[s.tradingAction] ?? s.tradingAction}
+                {s.positionSizePct != null && <span className="font-normal opacity-70">{s.positionSizePct}%</span>}
+              </div>
+            );
+          })()}
 
           {(s.opportunityScore != null || (s.dividendScore != null && s.dividendScore > 0) || (s.catalystScore != null && s.catalystScore > 0)) && (
             <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">

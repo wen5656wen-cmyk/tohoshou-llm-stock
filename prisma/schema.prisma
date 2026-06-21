@@ -278,6 +278,17 @@ model StockScore {
   // V7.8: dividend & short selling
   dividendScore      Int?      // 0-10 dividend quality score
   shortSellingSource String?   // "jpx_real" | "fallback"
+  // V8.3 P2: AI Action trading decision layer
+  tradingAction      String?   // BUY_NOW | WAIT_PULLBACK | HOLD | TAKE_PROFIT | SELL | AVOID
+  positionSizePct    Float?    // recommended position size %
+  entryLow           Float?    // entry price lower bound
+  entryHigh          Float?    // entry price upper bound
+  stopLoss           Float?    // stop-loss price
+  target1            Float?    // first target price
+  target2            Float?    // second target price
+  actionRiskLevel    String?   // LOW | MEDIUM | HIGH | EXTREME
+  actionReasons      Json?     // string[]
+  actionWarnings     Json?     // string[]
 
   @@index([totalScore(sort: Desc)])
   @@index([adaptiveScore(sort: Desc)])
