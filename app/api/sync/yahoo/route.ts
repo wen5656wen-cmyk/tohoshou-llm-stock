@@ -24,7 +24,7 @@ export async function POST() {
   // Only update current quote — historical prices are handled by J-Quants sync
   const scored = await prisma.stockScore.findMany({
     select: { symbol: true },
-    orderBy: { totalScore: "desc" },
+    orderBy: { adaptiveScore: "desc" },
     take: 300,
   });
 

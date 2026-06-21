@@ -11,7 +11,7 @@ import { getRec, getRecommendationLabel, returnColorClass } from "@/lib/rec-conf
 type SectorStat = {
   sector: string;
   count: number;
-  avgTotalScore: number | null;
+  avgAdaptiveScore: number | null;
   avgTechnicalScore: number | null;
   avgFundamentalScore: number | null;
   avgRiskScore: number | null;
@@ -22,7 +22,7 @@ type SectorStat = {
   watchCount: number;
   avoidCount: number;
   buyRate: number;
-  top3: { symbol: string; name: string; nameZh: string | null; nameEn: string | null; totalScore: number | null; recommendation: string | null }[];
+  top3: { symbol: string; name: string; nameZh: string | null; nameEn: string | null; adaptiveScore: number | null; recommendationV2: string | null }[];
 };
 
 type ApiResponse = {
@@ -31,7 +31,7 @@ type ApiResponse = {
   computedAt: string;
 };
 
-type SortKey = "avgTotalScore" | "avgReturn20d" | "buyRate" | "count";
+type SortKey = "avgAdaptiveScore" | "avgReturn20d" | "buyRate" | "count";
 
 function RetBadge({ val }: { val: number | null }) {
   if (val == null) return <span className="text-slate-300 text-xs">—</span>;
@@ -59,7 +59,7 @@ export default function SectorsPage() {
   const { t, lang } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("avgTotalScore");
+  const [sortKey, setSortKey] = useState<SortKey>("avgAdaptiveScore");
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function SectorsPage() {
                 <span className="text-xs text-slate-500 truncate">{localeSector(sec.sector, lang)}</span>
               </div>
               <div className="text-2xl font-bold tabular-nums text-slate-900">
-                {sec.avgTotalScore ?? "—"}
+                {sec.avgAdaptiveScore ?? "—"}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">{t("sectors.avg_score")}</div>
               <div className="mt-2 flex gap-1 text-[10px]">
@@ -144,7 +144,7 @@ export default function SectorsPage() {
               <div key={sec.sector} className="bg-blue-50 rounded-xl border border-blue-100 p-4">
                 <div className="text-xs text-blue-600 font-medium mb-1">{localeSector(sec.sector, lang)}</div>
                 <div className="text-xl font-bold tabular-nums text-blue-700">
-                  {sec.avgTotalScore ?? "—"}
+                  {sec.avgAdaptiveScore ?? "—"}
                 </div>
                 <div className="text-[10px] text-blue-500 mt-0.5">{t("sectors.avg_score")}</div>
                 <div className="mt-1 text-xs text-blue-500">
@@ -161,7 +161,7 @@ export default function SectorsPage() {
         <span className="text-xs text-slate-500">{t("common.filter")}：</span>
         <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
           {[
-            { k: "avgTotalScore" as const, label: t("sectors.avg_score") },
+            { k: "avgAdaptiveScore" as const, label: t("sectors.avg_score") },
             { k: "avgReturn20d" as const, label: t("sectors.avg_20d") },
             { k: "buyRate" as const, label: t("sectors.buy_rate") },
             { k: "count" as const, label: t("sectors.stock_count") },
@@ -214,7 +214,7 @@ export default function SectorsPage() {
                     <td className="px-4 py-2.5 font-medium text-slate-900">{localeSector(sec.sector, lang)}</td>
                     <td className="px-3 py-2.5 text-center text-xs text-slate-500 tabular-nums">{sec.count}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <ScoreHeat score={sec.avgTotalScore} />
+                      <ScoreHeat score={sec.avgAdaptiveScore} />
                     </td>
                     <td className="px-3 py-2.5 text-right text-xs text-blue-600 font-medium tabular-nums">
                       {sec.avgTechnicalScore ?? "—"}
@@ -250,7 +250,7 @@ export default function SectorsPage() {
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1 flex-wrap">
                         {sec.top3.map((tk) => {
-                          const rc = getRec(tk.recommendation);
+                          const rc = getRec(tk.recommendationV2 ?? "");
                           return (
                             <Link
                               key={tk.symbol}
@@ -260,7 +260,7 @@ export default function SectorsPage() {
                               title={tk.name}
                             >
                               {tk.symbol.replace(".T", "")}
-                              {tk.totalScore != null && <span className="text-slate-400">({tk.totalScore})</span>}
+                              {tk.adaptiveScore != null && <span className="text-slate-400">({tk.adaptiveScore})</span>}
                             </Link>
                           );
                         })}
@@ -275,14 +275,14 @@ export default function SectorsPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {sec.top3.map((topStock) => {
-                            const rc = getRec(topStock.recommendation);
+                            const rc = getRec(topStock.recommendationV2 ?? "");
                             return (
                               <Link
                                 key={topStock.symbol}
                                 href={buildStockUrl(topStock.symbol, "sectors", "/sectors")}
                                 className={`text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-300 ${rc.text}`}
                               >
-                                {getPrimaryName(topStock, lang)}（{topStock.totalScore}）
+                                {getPrimaryName(topStock, lang)}（{topStock.adaptiveScore}）
                               </Link>
                             );
                           })}

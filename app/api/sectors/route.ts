@@ -8,8 +8,8 @@ export async function GET() {
     where: { priceCount: { gte: 20 }, sector: { not: null } },
     select: {
       symbol: true, name: true, nameZh: true, sector: true, market: true,
-      totalScore: true, technicalScore: true, fundamentalScore: true, riskScore: true,
-      recommendation: true, return5d: true, return20d: true, return60d: true,
+      adaptiveScore: true, technicalScore: true, fundamentalScore: true, riskScore: true,
+      recommendationV2: true, return5d: true, return20d: true, return60d: true,
       rsi14: true, latestClose: true,
     },
   });
@@ -43,19 +43,19 @@ export async function GET() {
         : null;
     };
 
-    const buyCount    = stocks.filter((s) => s.recommendation === "STRONG_BUY" || s.recommendation === "BUY").length;
-    const watchCount  = stocks.filter((s) => s.recommendation === "WATCH").length;
-    const avoidCount  = stocks.filter((s) => s.recommendation === "AVOID" || s.recommendation === "HOLD").length;
+    const buyCount    = stocks.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY").length;
+    const watchCount  = stocks.filter((s) => s.recommendationV2 === "WATCH").length;
+    const avoidCount  = stocks.filter((s) => s.recommendationV2 === "AVOID" || s.recommendationV2 === "HOLD").length;
 
     const top3 = [...stocks]
-      .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
+      .sort((a, b) => (b.adaptiveScore ?? 0) - (a.adaptiveScore ?? 0))
       .slice(0, 3)
-      .map((s) => ({ symbol: s.symbol, name: s.name, nameZh: s.nameZh ?? null, nameEn: sectorNameEnMap.get(s.symbol) ?? null, totalScore: s.totalScore, recommendation: s.recommendation }));
+      .map((s) => ({ symbol: s.symbol, name: s.name, nameZh: s.nameZh ?? null, nameEn: sectorNameEnMap.get(s.symbol) ?? null, adaptiveScore: s.adaptiveScore, recommendationV2: s.recommendationV2 }));
 
     return {
       sector,
       count: n,
-      avgTotalScore:      avg(stocks.map((s) => s.totalScore)),
+      avgAdaptiveScore:   avg(stocks.map((s) => s.adaptiveScore)),
       avgTechnicalScore:  avg(stocks.map((s) => s.technicalScore)),
       avgFundamentalScore: avg(stocks.map((s) => s.fundamentalScore)),
       avgRiskScore:       avg(stocks.map((s) => s.riskScore)),
@@ -70,8 +70,8 @@ export async function GET() {
     };
   });
 
-  // Sort by avgTotalScore descending
-  sectorStats.sort((a, b) => (b.avgTotalScore ?? 0) - (a.avgTotalScore ?? 0));
+  // Sort by avgAdaptiveScore descending
+  sectorStats.sort((a, b) => (b.avgAdaptiveScore ?? 0) - (a.avgAdaptiveScore ?? 0));
 
   return NextResponse.json({
     totalScored: scores.length,

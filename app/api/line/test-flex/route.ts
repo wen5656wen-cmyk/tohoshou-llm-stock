@@ -16,24 +16,26 @@ export async function POST(req: NextRequest) {
   let flexMessage;
 
   if (type === "morning") {
-    const picks = await prisma.stockScore.findMany({
-      where: { priceCount: { gte: 20 }, recommendation: { in: ["STRONG_BUY", "BUY", "HOLD"] }, totalScore: { gte: 65 } },
-      orderBy: [{ totalScore: "desc" }],
+    const rawPicks = await prisma.stockScore.findMany({
+      where: { priceCount: { gte: 20 }, recommendationV2: { in: ["STRONG_BUY", "BUY", "HOLD"] }, adaptiveScore: { gte: 65 } },
+      orderBy: [{ adaptiveScore: "desc" }],
       take: 5,
-      select: { symbol: true, name: true, nameZh: true, totalScore: true, recommendation: true, latestClose: true, return5d: true, summaryReason: true },
+      select: { symbol: true, name: true, nameZh: true, adaptiveScore: true, recommendationV2: true, latestClose: true, return5d: true, summaryReason: true },
     });
     const now = new Date();
     const tokyoDate = new Date(now.getTime() + 9 * 3600000);
     const dateStr = tokyoDate.toISOString().split("T")[0];
     const dow = ["日", "月", "火", "水", "木", "金", "土"][tokyoDate.getUTCDay()];
+    const picks = rawPicks.map((p) => ({ ...p, totalScore: p.adaptiveScore, recommendation: p.recommendationV2 }));
     flexMessage = buildMorningReportFlex(picks.length > 0 ? picks : [{ symbol: "TEST.T", name: "テスト株式", nameZh: "测试股票", totalScore: 72, recommendation: "HOLD", latestClose: 1234, return5d: 2.1, summaryReason: "テスト送信" }], dateStr, dow);
   } else if (type === "stock") {
     const symbol = body.symbol ?? "8035.T";
-    const stock = await prisma.stockScore.findUnique({
+    const rawStock = await prisma.stockScore.findUnique({
       where: { symbol },
-      select: { symbol: true, name: true, nameZh: true, totalScore: true, recommendation: true, latestClose: true, return5d: true, return20d: true, summaryReason: true, technicalScore: true, fundamentalScore: true, moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true },
+      select: { symbol: true, name: true, nameZh: true, adaptiveScore: true, recommendationV2: true, latestClose: true, return5d: true, return20d: true, summaryReason: true, technicalScore: true, fundamentalScore: true, moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true },
     });
-    if (!stock) return NextResponse.json({ error: `Symbol ${symbol} not found` }, { status: 404 });
+    if (!rawStock) return NextResponse.json({ error: `Symbol ${symbol} not found` }, { status: 404 });
+    const stock = { ...rawStock, totalScore: rawStock.adaptiveScore, recommendation: rawStock.recommendationV2 };
     flexMessage = buildStockCard(stock);
   } else {
     flexMessage = buildTestFlex(message);

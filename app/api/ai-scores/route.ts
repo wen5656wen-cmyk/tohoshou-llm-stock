@@ -58,7 +58,7 @@ export async function GET(request: Request) {
         latestClose: true, latestDate: true,
         technicalScore: true, fundamentalScore: true,
         moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true,
-        riskScore: true, totalScore: true,
+        riskScore: true,
         recommendation: true, starsLabel: true, summaryReason: true,
         return5d: true, return20d: true, scoreSource: true,
         // V7.5
@@ -103,7 +103,6 @@ export async function GET(request: Request) {
     newsSentimentScore: s.newsSentimentScore ?? 0,
     globalTrendScore: s.globalTrendScore ?? 0,
     riskScore: s.riskScore ?? 0,
-    totalScore: s.totalScore ?? 0,
     stars: starsFromRec(s.recommendationV2 ?? s.recommendation),
     starsLabel: s.starsLabel ?? "★☆☆☆☆",
     recommendation: (s.recommendationV2 ?? s.recommendation ?? "HOLD") as string,
@@ -112,8 +111,8 @@ export async function GET(request: Request) {
     return20d: s.return20d ?? null,
     scoreSource: s.scoreSource ?? "FALLBACK",
     // V7.5
-    rawScore: s.rawScore ?? s.totalScore ?? 0,
-    adaptiveScore: s.adaptiveScore ?? s.totalScore ?? 0,
+    rawScore: s.rawScore ?? 0,
+    adaptiveScore: s.adaptiveScore ?? 0,
     stockStyle: s.stockStyle ?? "DOMESTIC_DEFENSIVE",
     highRiskFlag: s.highRiskFlag ?? false,
     fxSensitivity: s.fxSensitivity ?? "DOMESTIC_NEUTRAL",

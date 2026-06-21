@@ -71,7 +71,7 @@ export async function POST() {
 
   const scored = await prisma.stockScore.findMany({
     select: { symbol: true },
-    orderBy: { totalScore: "desc" },
+    orderBy: { adaptiveScore: "desc" },
     take: 200,
   });
 

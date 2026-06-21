@@ -14,25 +14,26 @@ export async function POST() {
   const dateStr = tokyoDate.toISOString().split("T")[0];
   const dow = ["日", "月", "火", "水", "木", "金", "土"][tokyoDate.getUTCDay()];
 
-  const picks = await prisma.stockScore.findMany({
+  const rawPicks = await prisma.stockScore.findMany({
     where: {
       priceCount: { gte: 20 },
-      recommendation: { in: ["STRONG_BUY", "BUY", "HOLD"] },
-      totalScore: { gte: 65 },
+      recommendationV2: { in: ["STRONG_BUY", "BUY", "HOLD"] },
+      adaptiveScore: { gte: 65 },
     },
-    orderBy: [{ totalScore: "desc" }],
+    orderBy: [{ adaptiveScore: "desc" }],
     take: 5,
     select: {
       symbol: true, name: true, nameZh: true,
-      totalScore: true, recommendation: true,
+      adaptiveScore: true, recommendationV2: true,
       latestClose: true, return5d: true, summaryReason: true,
     },
   });
 
-  if (picks.length === 0) {
+  if (rawPicks.length === 0) {
     return NextResponse.json({ error: "推薦銘柄なし" }, { status: 404 });
   }
 
+  const picks = rawPicks.map((p) => ({ ...p, totalScore: p.adaptiveScore, recommendation: p.recommendationV2 }));
   const flexMessage = buildMorningReportFlex(picks, dateStr, dow);
 
   try {

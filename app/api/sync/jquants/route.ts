@@ -59,7 +59,7 @@ export async function POST() {
   // Determine stocks to sync (Top 200 by score)
   const scored = await prisma.stockScore.findMany({
     select: { symbol: true },
-    orderBy: { totalScore: "desc" },
+    orderBy: { adaptiveScore: "desc" },
     take: 200,
   });
 

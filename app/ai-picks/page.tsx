@@ -19,7 +19,6 @@ type AiScore = {
   moneyFlowScore: number;
   newsSentimentScore: number;
   globalTrendScore: number;
-  totalScore: number;
   recommendation: string;
   summaryReason: string;
   return5d: number | null;
@@ -326,9 +325,9 @@ export default function AiPicksPage() {
   }
 
   const { scores, marketStats } = data;
-  const buyCount   = scores.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY").length;
-  const watchCount = scores.filter((s) => s.recommendationV2 === "WATCH").length;
-  const avoidCount = scores.filter((s) => s.recommendationV2 === "HOLD" || s.recommendationV2 === "AVOID").length;
+  const buyCount   = marketStats.strongBuy + marketStats.buy;
+  const watchCount = marketStats.watch;
+  const avoidCount = marketStats.hold + marketStats.avoid;
 
   const filtered =
     filter === "BUY"   ? scores.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY")

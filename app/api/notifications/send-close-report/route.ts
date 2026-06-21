@@ -17,27 +17,29 @@ export async function POST() {
   const [total, strongBuy, buy, hold, watch, avoid, avgAgg, topPerformers, fishingCandidates] =
     await Promise.all([
       prisma.stockScore.count({ where: { priceCount: { gte: 20 } } }),
-      prisma.stockScore.count({ where: { recommendation: "STRONG_BUY", priceCount: { gte: 20 } } }),
-      prisma.stockScore.count({ where: { recommendation: "BUY", priceCount: { gte: 20 } } }),
-      prisma.stockScore.count({ where: { recommendation: "HOLD", priceCount: { gte: 20 } } }),
-      prisma.stockScore.count({ where: { recommendation: "WATCH", priceCount: { gte: 20 } } }),
-      prisma.stockScore.count({ where: { recommendation: "AVOID", priceCount: { gte: 20 } } }),
-      prisma.stockScore.aggregate({ _avg: { totalScore: true }, where: { priceCount: { gte: 20 } } }),
+      prisma.stockScore.count({ where: { recommendationV2: "STRONG_BUY", priceCount: { gte: 20 } } }),
+      prisma.stockScore.count({ where: { recommendationV2: "BUY", priceCount: { gte: 20 } } }),
+      prisma.stockScore.count({ where: { recommendationV2: "HOLD", priceCount: { gte: 20 } } }),
+      prisma.stockScore.count({ where: { recommendationV2: "WATCH", priceCount: { gte: 20 } } }),
+      prisma.stockScore.count({ where: { recommendationV2: "AVOID", priceCount: { gte: 20 } } }),
+      prisma.stockScore.aggregate({ _avg: { adaptiveScore: true }, where: { priceCount: { gte: 20 } } }),
       prisma.stockScore.findMany({
-        where: { priceCount: { gte: 20 }, recommendation: { in: ["STRONG_BUY", "BUY", "HOLD"] }, totalScore: { gte: 65 } },
-        orderBy: { totalScore: "desc" },
+        where: { priceCount: { gte: 20 }, recommendationV2: { in: ["STRONG_BUY", "BUY", "HOLD"] }, adaptiveScore: { gte: 65 } },
+        orderBy: { adaptiveScore: "desc" },
         take: 5,
-        select: { symbol: true, name: true, nameZh: true, totalScore: true, recommendation: true, return5d: true },
+        select: { symbol: true, name: true, nameZh: true, adaptiveScore: true, recommendationV2: true, return5d: true },
       }),
       prisma.stockScore.findMany({
-        where: { priceCount: { gte: 20 }, rsi14: { gte: 35, lte: 52 }, fundamentalScore: { gte: 18 }, totalScore: { gte: 55 }, return5d: { lte: -1 } },
+        where: { priceCount: { gte: 20 }, rsi14: { gte: 35, lte: 52 }, fundamentalScore: { gte: 18 }, adaptiveScore: { gte: 55 }, return5d: { lte: -1 } },
         orderBy: { fundamentalScore: "desc" },
         take: 3,
-        select: { symbol: true, name: true, nameZh: true, totalScore: true, rsi14: true, return5d: true },
+        select: { symbol: true, name: true, nameZh: true, adaptiveScore: true, rsi14: true, return5d: true },
       }),
     ]);
 
-  const flexMessage = buildCloseReportFlex({ dateStr, dowLabel: dow, total, strongBuy, buy, hold, watch, avoid, avgScore: Math.round(avgAgg._avg.totalScore ?? 0), topPerformers, fishingCandidates });
+  const topPerformersForFlex = topPerformers.map((p) => ({ ...p, totalScore: p.adaptiveScore, recommendation: p.recommendationV2 }));
+  const fishingForFlex = fishingCandidates.map((p) => ({ ...p, totalScore: p.adaptiveScore }));
+  const flexMessage = buildCloseReportFlex({ dateStr, dowLabel: dow, total, strongBuy, buy, hold, watch, avoid, avgScore: Math.round(avgAgg._avg.adaptiveScore ?? 0), topPerformers: topPerformersForFlex, fishingCandidates: fishingForFlex });
 
   try {
     const groupIds = await prisma.lineGroup

@@ -13,8 +13,8 @@ function rsiSignal(rsi: number | null): string {
 // Read from pre-computed StockScore — no real-time 3716-stock recomputation
 export async function GET() {
   const scores = await prisma.stockScore.findMany({
-    where: { priceCount: { gte: 20 }, totalScore: { not: null } },
-    orderBy: { totalScore: "desc" },
+    where: { priceCount: { gte: 20 }, adaptiveScore: { not: null } },
+    orderBy: { adaptiveScore: "desc" },
     take: 500,
     select: {
       symbol: true,
