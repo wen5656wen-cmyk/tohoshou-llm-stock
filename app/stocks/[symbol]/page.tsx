@@ -306,7 +306,7 @@ function GptScoreCard({ gptData }: { gptData: GPTData | null | "not_found" }) {
 
       <div className="p-5">
         {/* Score row */}
-        <div className="flex gap-4 mb-4">
+        <div className="flex gap-3 mb-2">
           {[
             { label: t("gpt.rule_score"), val: gptData.ruleScore.toFixed(1), color: "text-slate-700" },
             { label: t("gpt.gpt_score"),  val: gptData.gptScore.toFixed(1),  color: "text-violet-700" },
@@ -321,6 +321,20 @@ function GptScoreCard({ gptData }: { gptData: GPTData | null | "not_found" }) {
             <div className={`text-sm font-bold ${ccfg.text}`}>{t(`gpt.confidence.${confidence}` as Parameters<typeof t>[0])}</div>
             <div className={`text-[10px] mt-0.5 ${ccfg.text}`}>{t("gpt.confidence")}</div>
           </div>
+        </div>
+
+        {/* Score explanation row */}
+        <div className="flex gap-3 mb-4">
+          <div className="flex-1 text-[10px] text-slate-400 px-1">
+            {t("gpt.rule_score_desc")}
+          </div>
+          <div className="flex-1 text-[10px] text-slate-400 px-1">
+            {t("gpt.gpt_score_desc")}
+          </div>
+          <div className="flex-1 text-[10px] text-slate-400 px-1">
+            {t("gpt.final_score_desc")}
+          </div>
+          <div className="flex-1" />
         </div>
 
         {/* Action + Summary */}

@@ -521,6 +521,9 @@ const enUS: Messages = {
   "gpt.action.NEUTRAL": "Neutral",
   "gpt.action.NEGATIVE": "Negative",
   "gpt.updated_at": "Updated",
+  "gpt.rule_score_desc": "Quantitative rules: technical, money flow & fundamentals",
+  "gpt.gpt_score_desc": "Independent GPT assessment: business quality, valuation, growth, risk & catalysts",
+  "gpt.final_score_desc": "Rule Score 70% + GPT Score 30%",
   "screener.col_final_score": "Final Score",
 
   // ─── Financials table ─────────────────────────────────────────────────────

@@ -521,6 +521,9 @@ const zhCN: Messages = {
   "gpt.action.NEUTRAL": "中性",
   "gpt.action.NEGATIVE": "负面",
   "gpt.updated_at": "更新于",
+  "gpt.rule_score_desc": "基于量化指标与技术/资金/财务规则计算",
+  "gpt.gpt_score_desc": "基于商业逻辑、估值、成长、风险与催化剂独立评估",
+  "gpt.final_score_desc": "规则分70% + GPT分30%",
   "screener.col_final_score": "综合分",
 
   // ─── Financials table ─────────────────────────────────────────────────────

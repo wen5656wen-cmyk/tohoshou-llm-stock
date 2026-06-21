@@ -529,6 +529,9 @@ export type Messages = {
   "gpt.action.NEUTRAL": string;
   "gpt.action.NEGATIVE": string;
   "gpt.updated_at": string;
+  "gpt.rule_score_desc": string;
+  "gpt.gpt_score_desc": string;
+  "gpt.final_score_desc": string;
   "screener.col_final_score": string;
 };
 

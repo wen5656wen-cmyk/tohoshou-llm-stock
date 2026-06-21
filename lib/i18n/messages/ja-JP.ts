@@ -521,6 +521,9 @@ const jaJP: Messages = {
   "gpt.action.NEUTRAL": "中立",
   "gpt.action.NEGATIVE": "ネガティブ",
   "gpt.updated_at": "更新日時",
+  "gpt.rule_score_desc": "テクニカル・資金・財務指標によるルールベース計算",
+  "gpt.gpt_score_desc": "ビジネス品質・バリュエーション・成長・リスク・カタリストの独立評価",
+  "gpt.final_score_desc": "ルールスコア70% + GPTスコア30%",
   "screener.col_final_score": "総合スコア",
 
   // ─── Financials table ─────────────────────────────────────────────────────

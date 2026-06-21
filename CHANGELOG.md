@@ -2,6 +2,44 @@
 
 ---
 
+## [9.0 P1.1] - 2026-06-21 — GPT Score Independence Fix
+
+### Problem
+P1.0 测试中 10 只股票的 GPT 分与规则分完全相同（avgAbsDiff = 0），原因是 prompt 中直接暴露了 adaptiveScore / percentileRank / recommendationV2 / tradingAction 等系统评分，导致 GPT 锚定。
+
+### Fix
+**scripts/gpt-score-overlay.ts**
+- 移除 GPT 输入：`adaptiveScore`、`percentileRank`、`opportunityScore`、`recommendationV2`、`tradingAction`
+- 新增 GPT 输入：PER、PBR、ROE、dividend yield、marketCap、52w高低位置、operating margin、revenue、net profit、EPS（来自 Stock + Financial 表）
+- MA trend → 描述性文字（"MA5 > MA20 > MA60 — all moving averages aligned upward"）
+- MACD → 描述性文字（"MACD line above signal line"）
+- 52w range → 计算当前价在 52w 区间的百分位并描述
+- temperature: 0.3 → 0.6（鼓励独立推理）
+- 明确指令：「Do NOT anchor to any external rating」
+- 批量查询 Stock 和 Financial 表，不再只查 StockScore
+- 新增 `avgAbsDiff` 统计 + WARNING（< 3 时报警）
+- 输出格式增加 rule/gpt/diff 对比列
+
+**app/stocks/[symbol]/page.tsx**
+- GptScoreCard 三个分数下方增加说明文字行
+- 使用 `gpt.rule_score_desc` / `gpt.gpt_score_desc` / `gpt.final_score_desc`
+
+### Result (10只 --force 重测)
+| 股票 | 规则分 | GPT分 | 差值 |
+|------|-------|-------|------|
+| 6758.T | 47 | 68 | +21 |
+| 6861.T | 53 | 75 | +22 |
+| 9432.T | 40 | 65 | +25 |
+| 2127.T | 75 | 55 | -20 |
+| 2300.T | 73 | 65 | -8  |
+| 9983.T | 67 | 82 | +15 |
+**avgAbsDiff = 14.4 pts — Independence check PASSED**
+
+### New i18n Keys (3 keys × 3 locales)
+- `gpt.rule_score_desc` / `gpt.gpt_score_desc` / `gpt.final_score_desc`
+
+---
+
 ## [9.0 P1] - 2026-06-21 — GPT Scoring Overlay (AI Chain + TOP100)
 
 ### Overview
