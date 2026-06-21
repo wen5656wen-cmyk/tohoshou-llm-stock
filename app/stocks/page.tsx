@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n/types";
 import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
+import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 
 type StockRow = {
   symbol: string;
@@ -31,6 +33,8 @@ type StockRow = {
 
 type SortKey = "latestClose" | "return5d" | "return20d" | "return60d" | "rsi14";
 
+const ROW_HEIGHT = 56;
+
 function ReturnCell({ val }: { val: number | null }) {
   if (val === null) return <span className="text-slate-300">—</span>;
   return (
@@ -55,9 +59,11 @@ function MaBadge({ trend, t }: { trend: string; t: (k: MessageKey) => string }) 
     BEARISH: "trend.bearish",
     DEAD:    "trend.dead",
   };
-  const cls = cfg[trend] ?? cfg.NEUTRAL;
-  const label = t((labelKey[trend] ?? "trend.neutral") as MessageKey);
-  return <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${cls}`}>{label}</span>;
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${cfg[trend] ?? cfg.NEUTRAL}`}>
+      {t((labelKey[trend] ?? "trend.neutral") as MessageKey)}
+    </span>
+  );
 }
 
 function MacdBadge({ sig, t }: { sig: string; t: (k: MessageKey) => string }) {
@@ -86,12 +92,16 @@ function RsiBar({ val }: { val: number | null }) {
 
 export default function StocksPage() {
   const { t, lang } = useI18n();
+  useScrollRestoration("stocks");
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("return5d");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
+
+  // Virtual scroll container
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -134,6 +144,15 @@ export default function StocksPage() {
       const bv = b[sort] ?? -Infinity;
       return order === "desc" ? (bv as number) - (av as number) : (av as number) - (bv as number);
     });
+
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   const toggleSort = (col: SortKey) => {
     if (sort === col) setOrder(order === "desc" ? "asc" : "desc");
@@ -179,7 +198,7 @@ export default function StocksPage() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search + controls */}
       {!error && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5 flex gap-3">
           <input
@@ -198,80 +217,149 @@ export default function StocksPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Virtualized table */}
       {!error && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 text-sm text-slate-500">
-            {loading ? t("common.loading") : `${filtered.length} ${t("screener.result_count")}`}
+            {loading
+              ? t("common.loading")
+              : `${filtered.length} ${t("screener.result_count")}`}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
-                  <th className="px-5 py-3 font-medium">{t("table.stock")}</th>
-                  <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("latestClose")}>
-                    {t("table.price")}<SortIcon col="latestClose" />
-                  </th>
-                  <th className="px-3 py-3 font-medium text-center">{t("table.date")}</th>
-                  <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return5d")}>
-                    5D<SortIcon col="return5d" />
-                  </th>
-                  <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return20d")}>
-                    20D<SortIcon col="return20d" />
-                  </th>
-                  <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return60d")}>
-                    60D<SortIcon col="return60d" />
-                  </th>
-                  <th className="px-3 py-3 font-medium text-center">{t("table.ma_trend")}</th>
-                  <th className="px-3 py-3 font-medium text-left cursor-pointer hover:text-slate-700" onClick={() => toggleSort("rsi14")}>
-                    RSI(14)<SortIcon col="rsi14" />
-                  </th>
-                  <th className="px-3 py-3 font-medium text-center">MACD</th>
-                  <th className="px-3 py-3 font-medium text-right">{t("table.financials")}</th>
-                  <th className="px-3 py-3 font-medium text-right">{t("table.detail")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {loading ? (
-                  <tr>
-                    <td colSpan={11} className="px-5 py-12 text-center text-slate-400 text-sm">
-                      {t("common.loading")}
-                    </td>
+
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 text-sm">{t("common.loading")}</div>
+          ) : (
+            <div
+              ref={tableContainerRef}
+              className="overflow-auto"
+              style={{ height: "calc(100vh - 380px)", minHeight: 320 }}
+            >
+              <table className="w-full" style={{ tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: 220 }} />
+                  <col style={{ width: 90 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 72 }} />
+                  <col style={{ width: 72 }} />
+                  <col style={{ width: 72 }} />
+                  <col style={{ width: 90 }} />
+                  <col style={{ width: 110 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 60 }} />
+                  <col style={{ width: 60 }} />
+                </colgroup>
+                <thead className="sticky top-0 z-10 bg-slate-50">
+                  <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                    <th className="px-5 py-3 font-medium">{t("table.stock")}</th>
+                    <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("latestClose")}>
+                      {t("table.price")}<SortIcon col="latestClose" />
+                    </th>
+                    <th className="px-3 py-3 font-medium text-center">{t("table.date")}</th>
+                    <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return5d")}>
+                      5D<SortIcon col="return5d" />
+                    </th>
+                    <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return20d")}>
+                      20D<SortIcon col="return20d" />
+                    </th>
+                    <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return60d")}>
+                      60D<SortIcon col="return60d" />
+                    </th>
+                    <th className="px-3 py-3 font-medium text-center">{t("table.ma_trend")}</th>
+                    <th className="px-3 py-3 font-medium text-left cursor-pointer hover:text-slate-700" onClick={() => toggleSort("rsi14")}>
+                      RSI(14)<SortIcon col="rsi14" />
+                    </th>
+                    <th className="px-3 py-3 font-medium text-center">MACD</th>
+                    <th className="px-3 py-3 font-medium text-right">{t("table.financials")}</th>
+                    <th className="px-3 py-3 font-medium text-right">{t("table.detail")}</th>
                   </tr>
-                ) : filtered.map((s) => (
-                  <tr key={s.symbol} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-5 py-3">
-                      <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
-                        <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
-                          {getPrimaryName(s, lang)}
-                        </div>
-                        {getSecondaryName(s, lang) && (
-                          <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{getSecondaryName(s, lang)}</div>
-                        )}
-                        <div className="text-[12px] text-[#64748b] font-mono mt-0.5">{s.symbol}</div>
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums font-medium text-sm text-slate-900">
-                      {fmtJpy(s.latestClose)}
-                    </td>
-                    <td className="px-3 py-3 text-center text-xs text-slate-500 tabular-nums">{s.latestDate}</td>
-                    <td className="px-3 py-3 text-right text-sm"><ReturnCell val={s.return5d} /></td>
-                    <td className="px-3 py-3 text-right text-sm"><ReturnCell val={s.return20d} /></td>
-                    <td className="px-3 py-3 text-right text-sm"><ReturnCell val={s.return60d} /></td>
-                    <td className="px-3 py-3 text-center"><MaBadge trend={s.maTrend} t={t} /></td>
-                    <td className="px-3 py-3"><RsiBar val={s.rsi14} /></td>
-                    <td className="px-3 py-3 text-center"><MacdBadge sig={s.macdSignalLabel} t={t} /></td>
-                    <td className="px-3 py-3 text-right text-sm text-slate-600 tabular-nums">{s.finCount}</td>
-                    <td className="px-3 py-3 text-right">
-                      <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="text-xs text-blue-600 hover:underline">
-                        {t("table.detail")} →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    position: "relative",
+                    display: "block",
+                  }}
+                >
+                  {virtualItems.map((virtualRow) => {
+                    const s = filtered[virtualRow.index];
+                    return (
+                      <tr
+                        key={s.symbol}
+                        data-index={virtualRow.index}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${ROW_HEIGHT}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          display: "flex",
+                          alignItems: "center",
+                          borderBottom: "1px solid #f8fafc",
+                        }}
+                        className="hover:bg-blue-50/30 transition-colors"
+                      >
+                        {/* Stock */}
+                        <td style={{ width: 220, minWidth: 220, padding: "0 8px 0 20px" }}>
+                          <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
+                            <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight truncate">
+                              {getPrimaryName(s, lang)}
+                            </div>
+                            {getSecondaryName(s, lang) && (
+                              <div className="text-[11px] text-[#94a3b8] truncate">{getSecondaryName(s, lang)}</div>
+                            )}
+                            <div className="text-[11px] text-[#64748b] font-mono">{s.symbol}</div>
+                          </Link>
+                        </td>
+                        {/* Price */}
+                        <td style={{ width: 90, minWidth: 90, padding: "0 8px", textAlign: "right" }}>
+                          <span className="tabular-nums font-medium text-sm text-slate-900">{fmtJpy(s.latestClose)}</span>
+                        </td>
+                        {/* Date */}
+                        <td style={{ width: 80, minWidth: 80, padding: "0 8px", textAlign: "center" }}>
+                          <span className="text-xs text-slate-500 tabular-nums">{s.latestDate}</span>
+                        </td>
+                        {/* 5D */}
+                        <td style={{ width: 72, minWidth: 72, padding: "0 8px", textAlign: "right" }}>
+                          <ReturnCell val={s.return5d} />
+                        </td>
+                        {/* 20D */}
+                        <td style={{ width: 72, minWidth: 72, padding: "0 8px", textAlign: "right" }}>
+                          <ReturnCell val={s.return20d} />
+                        </td>
+                        {/* 60D */}
+                        <td style={{ width: 72, minWidth: 72, padding: "0 8px", textAlign: "right" }}>
+                          <ReturnCell val={s.return60d} />
+                        </td>
+                        {/* MA Trend */}
+                        <td style={{ width: 90, minWidth: 90, padding: "0 8px", textAlign: "center" }}>
+                          <MaBadge trend={s.maTrend} t={t} />
+                        </td>
+                        {/* RSI */}
+                        <td style={{ width: 110, minWidth: 110, padding: "0 8px" }}>
+                          <RsiBar val={s.rsi14} />
+                        </td>
+                        {/* MACD */}
+                        <td style={{ width: 80, minWidth: 80, padding: "0 8px", textAlign: "center" }}>
+                          <MacdBadge sig={s.macdSignalLabel} t={t} />
+                        </td>
+                        {/* Fin */}
+                        <td style={{ width: 60, minWidth: 60, padding: "0 8px", textAlign: "right" }}>
+                          <span className="text-sm text-slate-600 tabular-nums">{s.finCount}</span>
+                        </td>
+                        {/* Detail */}
+                        <td style={{ width: 60, minWidth: 60, padding: "0 8px 0 0", textAlign: "right" }}>
+                          <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="text-xs text-blue-600 hover:underline">
+                            {t("table.detail")} →
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

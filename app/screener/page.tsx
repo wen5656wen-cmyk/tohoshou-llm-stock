@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import Link from "next/link";
 import StockMobileCard from "@/components/StockMobileCard";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
@@ -55,6 +56,7 @@ type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentile
 
 export default function ScreenerPage() {
   const { t, lang } = useI18n();
+  useScrollRestoration("screener");
   const [data, setData] = useState<ApiResponse | null>(null);
   const [searchData, setSearchData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);

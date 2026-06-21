@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import Link from "next/link";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
@@ -379,6 +380,7 @@ function ThemeCard({
 
 export default function AiThemePage() {
   const { t, lang } = useI18n();
+  useScrollRestoration("ai-theme");
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

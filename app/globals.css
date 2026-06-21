@@ -32,3 +32,40 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: page-fade-in 180ms ease-out both;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.skeleton {
+  background: #e2e8f0;
+  border-radius: 6px;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes nav-progress {
+  0%   { width: 0%; opacity: 1; }
+  70%  { width: 85%; opacity: 1; }
+  100% { width: 100%; opacity: 0; }
+}
+
+.nav-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  z-index: 9999;
+  pointer-events: none;
+  animation: nav-progress 600ms ease-out forwards;
+}

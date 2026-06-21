@@ -42,7 +42,8 @@ export default function Sidebar() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+            prefetch={true}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all active:opacity-70 active:scale-[0.98] ${
               isActive(href)
                 ? "bg-blue-600/20 text-blue-300 font-medium"
                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
@@ -68,7 +69,8 @@ export default function Sidebar() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+            prefetch={true}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all active:opacity-70 active:scale-[0.98] ${
               isActive(href)
                 ? "bg-blue-600/20 text-blue-300 font-medium"
                 : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/30"
