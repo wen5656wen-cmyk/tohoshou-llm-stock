@@ -2,6 +2,44 @@
 
 ---
 
+## [8.6 P2] - 2026-06-21 — Smooth Navigation & Performance
+
+### 目标
+提升全站页面切换流畅度，消灭白屏，增加骨架屏，TOP500 虚拟滚动，滚动位置保存恢复。
+
+### 核心变更
+
+| 文件 | 说明 |
+|------|------|
+| `components/PageTransition.tsx` | 新建：pathname 变化时 180ms fade-in + nav-progress-bar（蓝紫渐变，顶部 2px） |
+| `app/layout.tsx` | 引入 PageTransition 包裹 {children} |
+| `app/globals.css` | 新增 page-fade-in / skeleton-pulse / nav-progress 三个 keyframe 动画 |
+| `components/Skeleton.tsx` | 新建：SkeletonLine/SkeletonCard/SkeletonTableRows/SkeletonStat/SkeletonNewsCard 复用组件 |
+| `app/loading.tsx` | 新建：仪表盘骨架屏（4统计卡 + 3选股卡 + 10行表格） |
+| `app/screener/loading.tsx` | 新建：筛选器骨架屏（filter chips + 12行表格） |
+| `app/ai-theme/loading.tsx` | 新建：AI产业链骨架屏（tab行 + 6个主题卡） |
+| `app/sectors/loading.tsx` | 新建：行业分析骨架屏（sort chips + 15行表格） |
+| `app/portfolio/loading.tsx` | 新建：投资组合骨架屏（tab栏 + 4统计卡 + 8行表格） |
+| `app/news/loading.tsx` | 新建：新闻骨架屏（filter chips + 8条新闻卡） |
+| `hooks/useScrollRestoration.ts` | 新建：sessionStorage 保存/恢复滚动位置（mount恢复 + unmount保存） |
+| `app/ai-theme/page.tsx` | 引入 useScrollRestoration("ai-theme") |
+| `app/screener/page.tsx` | 引入 useScrollRestoration("screener") |
+| `app/stocks/page.tsx` | 引入 useScrollRestoration("stocks") + 全虚拟滚动（@tanstack/react-virtual，只渲染可见行，ROW_HEIGHT=56px） |
+| `components/Sidebar.tsx` | 所有 Link 加 prefetch={true} + active:scale-[0.98] 点击即时反馈 |
+| `package.json` | 新增 @tanstack/react-virtual ^3.14.3 |
+
+### 性能改进对照
+
+| 项目 | 改进前 | 改进后 |
+|------|--------|--------|
+| 页面切换 | 白屏 ~200ms | 180ms fade-in 无白屏 |
+| 导航反馈 | 无 | 顶部进度条 + 按钮缩放 |
+| 初始加载 | 空白/spinner | Skeleton 骨架屏 |
+| TOP500 渲染 | 全部 ~3700 行 DOM | 仅渲染可见 ~15 行 |
+| 返回滚动位置 | 回顶部 | sessionStorage 精确恢复 |
+
+---
+
 ## [8.5 P3] - 2026-06-21 — Legacy Route Cleanup & /stocks Loading Fix
 
 ### 目标
