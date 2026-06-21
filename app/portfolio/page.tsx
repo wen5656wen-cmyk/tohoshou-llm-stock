@@ -4,12 +4,11 @@ import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
-import AIScoreBadge from "@/components/AIScoreBadge";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 import { getRec, finalScoreColor } from "@/lib/rec-config";
 
-// ─── Watchlist Tab ──────────────────────────────────────────────────────────
+// ─── Shared score type ──────────────────────────────────────────────────────
 
 type WatchScore = {
   latestClose: number | null;
@@ -17,14 +16,17 @@ type WatchScore = {
   return20d: number | null;
   rsi14: number | null;
   maTrend: string | null;
-  totalScore: number | null;
-  technicalScore: number | null;
-  fundamentalScore: number | null;
-  moneyFlowScore: number | null;
-  newsSentimentScore: number | null;
-  recommendation: string | null;
+  adaptiveScore: number | null;
+  recommendationV2: string | null;
   summaryReason: string | null;
+  finalScore: number;
+  gptScore: number | null;
+  gptRank: number | null;
+  gptRating: string | null;
+  effectiveRating: string | null;
 };
+
+// ─── Watchlist Tab ──────────────────────────────────────────────────────────
 
 type WatchItem = {
   id: number;
@@ -166,7 +168,7 @@ function WatchlistTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {items.map((item) => {
             const s = item.score;
-            const rec = getRec(s?.recommendation ?? "HOLD");
+            const rec = getRec(s?.effectiveRating);
             const currentPrice = s?.latestClose;
             const targetHit = item.targetPrice != null && currentPrice != null ? currentPrice >= item.targetPrice : false;
 
@@ -181,13 +183,18 @@ function WatchlistTab() {
                     </Link>
                     <div className="text-[10px] text-slate-400 font-mono">{item.symbol}</div>
                   </div>
-                  {s?.recommendation && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${rec.bg} ${rec.text}`}>
-                      {t(`rating.${s.recommendation}` as Parameters<typeof t>[0])}
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end gap-0.5 shrink-0">
+                    {s?.effectiveRating && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
+                        {t(`rating.${s.effectiveRating}` as Parameters<typeof t>[0])}
+                      </span>
+                    )}
+                    {s?.gptRank != null && (
+                      <span className="text-[10px] font-mono text-indigo-500">G#{s.gptRank}</span>
+                    )}
+                  </div>
                 </div>
-                {/* Price + metrics */}
+                {/* Price + score */}
                 <div className="flex items-end justify-between">
                   <div>
                     {s ? (
@@ -208,9 +215,11 @@ function WatchlistTab() {
                       </div>
                     )}
                   </div>
-                  {s?.totalScore != null && (
+                  {s && (
                     <div className="text-right shrink-0 ml-2">
-                      <div className={`text-xl font-bold tabular-nums ${finalScoreColor(s.totalScore)}`}>{s.totalScore}</div>
+                      <div className={`text-xl font-bold tabular-nums ${finalScoreColor(s.finalScore)}`}>
+                        {Math.round(s.finalScore)}
+                      </div>
                       <div className="text-[9px] text-slate-400">{t("score.final")}</div>
                     </div>
                   )}
@@ -240,6 +249,19 @@ function WatchlistTab() {
 
 // ─── Portfolio Tab ──────────────────────────────────────────────────────────
 
+type PortfolioScore = {
+  adaptiveScore: number | null;
+  finalScore: number;
+  gptScore: number | null;
+  gptRank: number | null;
+  gptRating: string | null;
+  effectiveRating: string;
+  recommendationV2: string | null;
+  latestClose: number | null;
+  return5d: number | null;
+  return20d: number | null;
+};
+
 type PortfolioItem = {
   id: number;
   symbol: string;
@@ -251,7 +273,8 @@ type PortfolioItem = {
   value: number;
   pnl: number;
   pnlRate: number;
-  stock: { price: number; changeRate: number | null; aiScore: number | null; nameZh: string | null } | null;
+  stock: { price: number; changeRate: number | null; nameZh: string | null } | null;
+  score: PortfolioScore | null;
 };
 
 type PortfolioData = { items: PortfolioItem[]; totalValue: number; totalCost: number; totalPnl: number };
@@ -347,10 +370,10 @@ function PortfolioTab() {
       {data && (
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
-            { label: "総評価額", value: `¥${Math.round(data.totalValue).toLocaleString()}`, cls: "text-slate-900" },
-            { label: "取得コスト", value: `¥${Math.round(data.totalCost).toLocaleString()}`, cls: "text-slate-900" },
-            { label: "評価損益", value: `${data.totalPnl >= 0 ? "+" : ""}¥${Math.round(data.totalPnl).toLocaleString()}`, cls: data.totalPnl >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]" },
-            { label: "損益率", value: `${totalPnlRate >= 0 ? "+" : ""}${totalPnlRate.toFixed(2)}%`, cls: totalPnlRate >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]" },
+            { label: "総評価額",   value: `¥${Math.round(data.totalValue).toLocaleString()}`,   cls: "text-slate-900" },
+            { label: "取得コスト", value: `¥${Math.round(data.totalCost).toLocaleString()}`,    cls: "text-slate-900" },
+            { label: "評価損益",   value: `${data.totalPnl >= 0 ? "+" : ""}¥${Math.round(data.totalPnl).toLocaleString()}`, cls: data.totalPnl >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]" },
+            { label: "損益率",     value: `${totalPnlRate >= 0 ? "+" : ""}${totalPnlRate.toFixed(2)}%`, cls: totalPnlRate >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]" },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4">
               <div className="text-xs text-slate-500 mb-1">{s.label}</div>
@@ -370,6 +393,7 @@ function PortfolioTab() {
             {data?.items.map((item) => {
               const pnlUp = item.pnl >= 0;
               const pnlCls = pnlUp ? "text-[#e74c3c]" : "text-[#2980b9]";
+              const rec = getRec(item.score?.effectiveRating);
               return (
                 <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-3 hover:border-blue-200 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200">
                   {/* Header */}
@@ -382,7 +406,20 @@ function PortfolioTab() {
                         <div className="text-[10px] text-slate-400 font-mono">{item.symbol}</div>
                       </Link>
                     </div>
-                    <AIScoreBadge score={item.stock?.aiScore} size="sm" />
+                    {/* finalScore + rating badge + G# */}
+                    {item.score && (
+                      <div className="text-right shrink-0 ml-1">
+                        <div className={`text-[15px] font-bold tabular-nums ${finalScoreColor(item.score.finalScore)}`}>
+                          {Math.round(item.score.finalScore)}
+                        </div>
+                        <div className={`text-[9px] font-bold ${rec.text}`}>
+                          {rec.label}
+                        </div>
+                        {item.score.gptRank != null && (
+                          <div className="text-[9px] font-mono text-indigo-500">G#{item.score.gptRank}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {/* Price row */}
                   <div className="flex items-end justify-between mb-2">

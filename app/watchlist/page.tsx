@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
+import { getRec, finalScoreColor } from "@/lib/rec-config";
 
 type WatchScore = {
   latestClose: number | null;
@@ -20,10 +21,16 @@ type WatchScore = {
   newsSentimentScore: number | null;
   globalTrendScore: number | null;
   riskScore: number | null;
-  totalScore: number | null;
-  recommendation: string | null;
+  adaptiveScore: number | null;
+  percentileRank: number | null;
+  recommendationV2: string | null;
   starsLabel: string | null;
   summaryReason: string | null;
+  finalScore: number;
+  gptScore: number | null;
+  gptRank: number | null;
+  gptRating: string | null;
+  effectiveRating: string | null;
 };
 
 type WatchItem = {
@@ -38,14 +45,6 @@ type WatchItem = {
   targetPrice: number | null;
   addedAt: string;
   score: WatchScore | null;
-};
-
-const REC_CFG: Record<string, { label: string; bg: string; text: string }> = {
-  STRONG_BUY: { label: "强烈买入", bg: "bg-red-50",    text: "text-red-700" },
-  BUY:        { label: "买入",     bg: "bg-orange-50", text: "text-orange-700" },
-  WATCH:      { label: "关注",     bg: "bg-yellow-50", text: "text-yellow-700" },
-  HOLD:       { label: "持有",     bg: "bg-slate-50",  text: "text-slate-600" },
-  AVOID:      { label: "回避",     bg: "bg-blue-50",   text: "text-blue-600" },
 };
 
 function RetBadge({ val }: { val: number | null }) {
@@ -198,8 +197,16 @@ export default function WatchListPage() {
     load();
   };
 
-  const buyCount   = items.filter((i) => i.score?.recommendation === "STRONG_BUY" || i.score?.recommendation === "BUY").length;
-  const watchCount = items.filter((i) => i.score?.recommendation === "WATCH").length;
+  const buyCount   = items.filter((i) => {
+    const r = i.score?.effectiveRating;
+    return r === "STRONG_BUY" || r === "BUY";
+  }).length;
+  const watchCount = items.filter((i) => i.score?.effectiveRating === "WATCH").length;
+
+  const scoredItems = items.filter((i) => i.score != null);
+  const avgFinalScore = scoredItems.length > 0
+    ? Math.round(scoredItems.reduce((sum, i) => sum + (i.score!.finalScore ?? 0), 0) / scoredItems.length)
+    : null;
 
   return (
     <div className="p-6 max-w-6xl">
@@ -221,19 +228,10 @@ export default function WatchListPage() {
       {items.length > 0 && (
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "自选股数量", value: items.length, cls: "text-slate-900" },
-            { label: "买入推荐",   value: buyCount,      cls: "text-red-600" },
-            { label: "值得关注",   value: watchCount,    cls: "text-yellow-600" },
-            {
-              label: "平均AI评分",
-              value: items.filter((i) => i.score?.totalScore != null).length > 0
-                ? Math.round(
-                    items.reduce((sum, i) => sum + (i.score?.totalScore ?? 0), 0) /
-                    items.filter((i) => i.score?.totalScore != null).length
-                  )
-                : "—",
-              cls: "text-blue-700",
-            },
+            { label: "自选股数量", value: items.length,              cls: "text-slate-900" },
+            { label: "买入推荐",   value: buyCount,                  cls: "text-emerald-700" },
+            { label: "值得关注",   value: watchCount,                cls: "text-amber-600" },
+            { label: "平均AI综合分", value: avgFinalScore ?? "—",    cls: "text-blue-700" },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
               <div className="text-xs text-slate-500 mb-1">{s.label}</div>
@@ -265,7 +263,7 @@ export default function WatchListPage() {
         <div className="space-y-3">
           {items.map((item) => {
             const s = item.score;
-            const rec = REC_CFG[s?.recommendation ?? "HOLD"] ?? REC_CFG.HOLD;
+            const rec = getRec(s?.effectiveRating);
             const currentPrice = s?.latestClose;
             const targetHit =
               item.targetPrice != null && currentPrice != null
@@ -290,9 +288,9 @@ export default function WatchListPage() {
                         <span className="text-[12px] text-[#94a3b8]">{getSecondaryName(item, lang)}</span>
                       )}
                       <span className="text-[12px] text-[#64748b] font-mono">{item.symbol}</span>
-                      {s?.recommendation && (
+                      {s?.effectiveRating && (
                         <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                          {t(`rating.${s.recommendation}` as Parameters<typeof t>[0])}
+                          {t(`rating.${s.effectiveRating}` as Parameters<typeof t>[0])}
                         </span>
                       )}
                     </div>
@@ -329,20 +327,23 @@ export default function WatchListPage() {
                   </div>
 
                   <div className="flex items-center gap-4 shrink-0">
-                    {s?.totalScore != null && (
+                    {s && (
                       <div className="text-center">
-                        <div className={`text-2xl font-bold tabular-nums ${rec.text}`}>
-                          {s.totalScore}
+                        <div className={`text-2xl font-bold tabular-nums ${finalScoreColor(s.finalScore)}`}>
+                          {Math.round(s.finalScore)}
                         </div>
-                        <div className="text-[10px] text-slate-400">AI综合</div>
+                        <div className="text-[10px] text-slate-400">AI综合分</div>
+                        {s.gptRank != null && (
+                          <div className="text-[10px] font-mono text-indigo-500 mt-0.5">G#{s.gptRank}</div>
+                        )}
                       </div>
                     )}
                     {s && (
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-center">
                         {[
-                          { label: "技術", val: s.technicalScore, max: 30, cls: "text-blue-600" },
-                          { label: "基本", val: s.fundamentalScore, max: 25, cls: "text-emerald-600" },
-                          { label: "資金", val: s.moneyFlowScore, max: 20, cls: "text-violet-600" },
+                          { label: "技術", val: s.technicalScore,    max: 30, cls: "text-blue-600" },
+                          { label: "基本", val: s.fundamentalScore,  max: 25, cls: "text-emerald-600" },
+                          { label: "資金", val: s.moneyFlowScore,    max: 20, cls: "text-violet-600" },
                           { label: "情绪", val: s.newsSentimentScore, max: 15, cls: "text-amber-600" },
                         ].map((d) => (
                           <div key={d.label}>

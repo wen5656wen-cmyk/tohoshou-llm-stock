@@ -8,30 +8,95 @@ export async function GET() {
     orderBy: { addedAt: "desc" },
   });
 
-  // Enrich with StockScore + nameZh from Stock table
-  const enriched = await Promise.all(
-    items.map(async (w) => {
-      const [score, stock] = await Promise.all([
-        prisma.stockScore.findUnique({
-          where: { symbol: w.symbol },
-          select: {
-            latestClose: true, latestDate: true,
-            return5d: true, return20d: true, return60d: true,
-            rsi14: true, maTrend: true, macdSignalLabel: true,
-            technicalScore: true, fundamentalScore: true,
-            moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true,
-            riskScore: true,
-            totalScore: true, recommendation: true, starsLabel: true, summaryReason: true,
-          },
-        }),
-        prisma.stock.findUnique({
-          where: { symbol: w.symbol },
-          select: { nameZh: true, nameEn: true },
-        }),
-      ]);
-      return { ...w, nameZh: stock?.nameZh ?? null, nameEn: stock?.nameEn ?? null, score };
-    })
-  );
+  if (items.length === 0) return NextResponse.json([]);
+
+  const symbols = items.map((i) => i.symbol);
+
+  // Batch fetch — avoids N+1 queries
+  const [scoreRows, stockRows, gptRows] = await Promise.all([
+    prisma.stockScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: {
+        symbol: true,
+        latestClose: true, latestDate: true,
+        return5d: true, return20d: true, return60d: true,
+        rsi14: true, maTrend: true, macdSignalLabel: true,
+        technicalScore: true, fundamentalScore: true,
+        moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true,
+        riskScore: true, adaptiveScore: true, percentileRank: true,
+        recommendationV2: true, starsLabel: true, summaryReason: true,
+      },
+    }),
+    prisma.stock.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, nameZh: true, nameEn: true },
+    }),
+    prisma.gPTScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, gptScore: true, finalScore: true, gptRating: true, gptRank: true },
+    }),
+  ]);
+
+  const scoreMap = new Map(scoreRows.map((s) => [s.symbol, s]));
+  const stockMap = new Map(stockRows.map((s) => [s.symbol, s]));
+  const gptMap   = new Map(gptRows.map((g) => [g.symbol, g]));
+
+  const enriched = items.map((w) => {
+    const base  = scoreMap.get(w.symbol) ?? null;
+    const stock = stockMap.get(w.symbol) ?? null;
+    const gpt   = gptMap.get(w.symbol) ?? null;
+
+    const adaptiveScore   = base?.adaptiveScore ?? null;
+    const finalScore      = gpt?.finalScore ?? adaptiveScore ?? 0;
+    const gptScore        = gpt?.gptScore ?? null;
+    const gptRank         = gpt?.gptRank ?? null;
+    const gptRating       = gpt?.gptRating ?? null;
+    const effectiveRating = gptRating ?? base?.recommendationV2 ?? null;
+
+    return {
+      ...w,
+      nameZh: stock?.nameZh ?? null,
+      nameEn: stock?.nameEn ?? null,
+      score: base
+        ? {
+            latestClose: base.latestClose,
+            latestDate: base.latestDate,
+            return5d: base.return5d,
+            return20d: base.return20d,
+            return60d: base.return60d,
+            rsi14: base.rsi14,
+            maTrend: base.maTrend,
+            macdSignalLabel: base.macdSignalLabel,
+            technicalScore: base.technicalScore,
+            fundamentalScore: base.fundamentalScore,
+            moneyFlowScore: base.moneyFlowScore,
+            newsSentimentScore: base.newsSentimentScore,
+            globalTrendScore: base.globalTrendScore,
+            riskScore: base.riskScore,
+            adaptiveScore,
+            percentileRank: base.percentileRank,
+            recommendationV2: base.recommendationV2,
+            starsLabel: base.starsLabel,
+            summaryReason: base.summaryReason,
+            finalScore,
+            gptScore,
+            gptRank,
+            gptRating,
+            effectiveRating,
+          }
+        : null,
+    };
+  });
+
+  // Sort: finalScore DESC → gptRank ASC (null gptRank sorted last)
+  enriched.sort((a, b) => {
+    const fa = a.score?.finalScore ?? 0;
+    const fb = b.score?.finalScore ?? 0;
+    if (Math.abs(fb - fa) > 0.01) return fb - fa;
+    const ra = a.score?.gptRank ?? 9999;
+    const rb = b.score?.gptRank ?? 9999;
+    return ra - rb;
+  });
 
   return NextResponse.json(enriched);
 }

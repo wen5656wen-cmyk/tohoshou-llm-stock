@@ -5,11 +5,32 @@ export async function GET() {
   const portfolios = await prisma.portfolio.findMany({
     include: {
       stock: {
-        select: { price: true, changeRate: true, aiScore: true, nameZh: true },
+        select: { price: true, changeRate: true, nameZh: true },
       },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const symbols = portfolios.map((p) => p.symbol).filter(Boolean);
+
+  // Batch fetch StockScore + GPTScore for all portfolio symbols
+  const [scoreRows, gptRows] = await Promise.all([
+    prisma.stockScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: {
+        symbol: true,
+        latestClose: true, return5d: true, return20d: true,
+        adaptiveScore: true, percentileRank: true, recommendationV2: true,
+      },
+    }),
+    prisma.gPTScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, gptScore: true, finalScore: true, gptRating: true, gptRank: true },
+    }),
+  ]);
+
+  const scoreMap = new Map(scoreRows.map((s) => [s.symbol, s]));
+  const gptMap   = new Map(gptRows.map((g) => [g.symbol, g]));
 
   const items = portfolios.map((p) => {
     const currentPrice = p.stock?.price ?? p.avgPrice;
@@ -17,12 +38,52 @@ export async function GET() {
     const cost = p.avgPrice * p.shares;
     const pnl = value - cost;
     const pnlRate = cost > 0 ? (pnl / cost) * 100 : 0;
-    return { ...p, currentPrice, value, pnl, pnlRate };
+
+    const base = scoreMap.get(p.symbol) ?? null;
+    const gpt  = gptMap.get(p.symbol) ?? null;
+
+    const adaptiveScore   = base?.adaptiveScore ?? null;
+    const finalScore      = gpt?.finalScore ?? adaptiveScore ?? 0;
+    const effectiveRating = gpt?.gptRating ?? base?.recommendationV2 ?? "HOLD";
+
+    const score = base
+      ? {
+          adaptiveScore,
+          finalScore,
+          gptScore:       gpt?.gptScore ?? null,
+          gptRank:        gpt?.gptRank ?? null,
+          gptRating:      gpt?.gptRating ?? null,
+          effectiveRating,
+          recommendationV2: base.recommendationV2,
+          latestClose:    base.latestClose,
+          return5d:       base.return5d,
+          return20d:      base.return20d,
+        }
+      : null;
+
+    return {
+      ...p,
+      currentPrice,
+      value,
+      pnl,
+      pnlRate,
+      score,
+    };
+  });
+
+  // Sort: finalScore DESC → gptRank ASC
+  items.sort((a, b) => {
+    const fa = a.score?.finalScore ?? 0;
+    const fb = b.score?.finalScore ?? 0;
+    if (Math.abs(fb - fa) > 0.01) return fb - fa;
+    const ra = a.score?.gptRank ?? 9999;
+    const rb = b.score?.gptRank ?? 9999;
+    return ra - rb;
   });
 
   const totalValue = items.reduce((s, i) => s + i.value, 0);
-  const totalCost = items.reduce((s, i) => s + i.avgPrice * i.shares, 0);
-  const totalPnl = totalValue - totalCost;
+  const totalCost  = items.reduce((s, i) => s + i.avgPrice * i.shares, 0);
+  const totalPnl   = totalValue - totalCost;
 
   return NextResponse.json({ items, totalValue, totalCost, totalPnl });
 }
