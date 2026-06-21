@@ -592,6 +592,33 @@ const jaJP: Messages = {
   "fin.equity_ratio": "自己資本比率",
   "fin.reported_at": "発表日",
   "fin.full_year": "通年",
+
+  // ─── Backtest ────────────────────────────────────────────────────────────
+  "nav.backtest": "バックテスト",
+  "backtest.title": "AIバックテスト",
+  "backtest.subtitle": "AI銘柄選択の過去実績を検証",
+  "backtest.no_data": "データなし。毎日のAIパイプライン実行後に順次蓄積されます",
+  "backtest.cohorts": "推奨日数",
+  "backtest.horizon_7d": "7営業日",
+  "backtest.horizon_30d": "30営業日",
+  "backtest.horizon_90d": "90営業日",
+  "backtest.win_rate": "勝率",
+  "backtest.avg_return": "平均リターン",
+  "backtest.filled": "サンプル数",
+  "backtest.top_winners": "30日最良銘柄",
+  "backtest.top_losers": "30日最悪銘柄",
+  "backtest.latest_picks": "最新推奨（Top 20）",
+  "backtest.col_rank": "順位",
+  "backtest.col_symbol": "コード",
+  "backtest.col_score": "総合スコア",
+  "backtest.col_rating": "評価",
+  "backtest.col_buy_price": "推奨価格",
+  "backtest.col_ret7d": "7日",
+  "backtest.col_ret30d": "30日",
+  "backtest.col_ret90d": "90日",
+  "backtest.col_summary": "AI要約",
+  "backtest.pending": "待機中",
+  "backtest.as_of": "集計日",
 };
 
 export default jaJP;

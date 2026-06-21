@@ -593,6 +593,33 @@ export type Messages = {
   "score.rule_only": string;
   "score.rule": string;
   "score.gpt": string;
+
+  // ─── Backtest (v10.0) ────────────────────────────────────────────────────
+  "nav.backtest": string;
+  "backtest.title": string;
+  "backtest.subtitle": string;
+  "backtest.no_data": string;
+  "backtest.cohorts": string;
+  "backtest.horizon_7d": string;
+  "backtest.horizon_30d": string;
+  "backtest.horizon_90d": string;
+  "backtest.win_rate": string;
+  "backtest.avg_return": string;
+  "backtest.filled": string;
+  "backtest.top_winners": string;
+  "backtest.top_losers": string;
+  "backtest.latest_picks": string;
+  "backtest.col_rank": string;
+  "backtest.col_symbol": string;
+  "backtest.col_score": string;
+  "backtest.col_rating": string;
+  "backtest.col_buy_price": string;
+  "backtest.col_ret7d": string;
+  "backtest.col_ret30d": string;
+  "backtest.col_ret90d": string;
+  "backtest.col_summary": string;
+  "backtest.pending": string;
+  "backtest.as_of": string;
 };
 
 export type MessageKey = keyof Messages;

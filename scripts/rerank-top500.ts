@@ -596,6 +596,67 @@ async function main() {
   });
   console.log(`${"═".repeat(70)}\n`);
 
+  // ── Step 8: Save DailyRecommendation snapshot ────────────────────────────
+  if (!DRY_RUN) {
+    console.log("📸 Step 8 — saving DailyRecommendation snapshot …");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Fetch buy prices from StockScore.latestClose in one query
+    const symbols = scored.map((s) => s.symbol);
+    const priceRows = await prisma.stockScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, latestClose: true },
+    });
+    const priceMap = new Map<string, number | null>(
+      priceRows.map((r) => [r.symbol, r.latestClose ?? null]),
+    );
+
+    // Fetch GPT summaryZh for display
+    const gptRows = await prisma.gPTScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, summaryZh: true },
+    });
+    const summaryMap = new Map<string, string>(
+      gptRows.map((r) => [r.symbol, r.summaryZh]),
+    );
+
+    let savedCount = 0;
+    for (const entry of scored) {
+      try {
+        await prisma.dailyRecommendation.upsert({
+          where: { date_symbol: { date: today, symbol: entry.symbol } },
+          create: {
+            date: today,
+            symbol: entry.symbol,
+            gptRank: entry.gptRank!,
+            finalScore: entry.finalScore,
+            adaptiveScore: entry.adaptiveScore,
+            gptScore: entry.gptScore,
+            gptRating: entry.gptRating ?? null,
+            buyPrice: priceMap.get(entry.symbol) ?? null,
+            summaryZh: summaryMap.get(entry.symbol) ?? null,
+          },
+          update: {
+            gptRank: entry.gptRank!,
+            finalScore: entry.finalScore,
+            adaptiveScore: entry.adaptiveScore,
+            gptScore: entry.gptScore,
+            gptRating: entry.gptRating ?? null,
+            buyPrice: priceMap.get(entry.symbol) ?? null,
+            summaryZh: summaryMap.get(entry.symbol) ?? null,
+          },
+        });
+        savedCount++;
+      } catch {
+        // individual upsert failure — continue
+      }
+    }
+    console.log(`  ✅ saved ${savedCount}/${scored.length} entries for ${today.toISOString().slice(0, 10)}`);
+  } else {
+    console.log("  [DRY_RUN] skip DailyRecommendation snapshot");
+  }
+
   await prisma.$disconnect();
 }
 

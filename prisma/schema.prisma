@@ -542,6 +542,57 @@ model GPTScore {
   @@map("gpt_scores")
 }
 
+// Daily Top500 snapshot for backtest (v10.0 Backtest MVP)
+model DailyRecommendation {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @db.Date          // JST date of recommendation
+  symbol          String
+  gptRank         Int                        // 1-500
+  finalScore      Float
+  adaptiveScore   Float
+  gptScore        Float
+  gptRating       String?
+  buyPrice        Float?                     // StockScore.latestClose at time of recommendation
+  summaryZh       String?  @db.Text
+  price7d         Float?                     // Closing price 7 trading days later
+  price30d        Float?                     // Closing price 30 trading days later
+  price90d        Float?                     // Closing price 90 trading days later
+  return7d        Float?                     // (price7d - buyPrice) / buyPrice * 100
+  return30d       Float?                     // (price30d - buyPrice) / buyPrice * 100
+  return90d       Float?                     // (price90d - buyPrice) / buyPrice * 100
+  filledAt        DateTime?                  // when price fills were last attempted
+  createdAt       DateTime @default(now())
+
+  @@unique([date, symbol])
+  @@index([date(sort: Desc)])
+  @@index([symbol])
+  @@index([gptRank])
+  @@map("daily_recommendations")
+}
+
+// Aggregated backtest results per cohort date + horizon (v10.0)
+model BacktestResult {
+  id                    Int      @id @default(autoincrement())
+  date                  DateTime @db.Date
+  horizon               String                   // "7d" | "30d" | "90d"
+  totalRecommendations  Int
+  filled                Int                      // stocks with valid price data
+  winners               Int                      // return > 0
+  losers                Int                      // return <= 0
+  winRate               Float?                   // winners / filled * 100
+  avgReturn             Float?                   // mean return of filled
+  medianReturn          Float?
+  bestReturn            Float?
+  worstReturn           Float?
+  bestSymbol            String?
+  worstSymbol           String?
+  computedAt            DateTime @default(now())
+
+  @@unique([date, horizon])
+  @@index([date(sort: Desc)])
+  @@map("backtest_results")
+}
+
 // Per-user AI system settings (V7.9.3 System Control)
 model UserAiSettings {
   id             Int      @id @default(autoincrement())

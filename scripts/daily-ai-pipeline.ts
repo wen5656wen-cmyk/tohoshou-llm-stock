@@ -183,6 +183,7 @@ async function main(): Promise<void> {
     results.push(
       runScript("rerank-top500", "rerank-top500.ts", ["--dry-run"], 5 * 60 * 1000),
     );
+    results.push(skipStep("update-backtest"));
   } else {
     // Step 1: global market (NASDAQ / VIX / USDJPY / Nikkei)
     results.push(
@@ -215,6 +216,7 @@ async function main(): Promise<void> {
 
     // Step 6: GPT rerank Top500 — skipped if compute-scores failed
     // Outputs: ruleSelectedCount / gptRerankCount / gptSuccessCount / gptFailCount / finalSavedCount
+    // Step 7 (DailyRecommendation snapshot) is embedded inside rerank-top500.ts Step 8.
     if (computeResult.success) {
       // 90-min budget: 500 stocks × ~6s/GPT call + sort + DB writes.
       // All cache misses on first run of the day (compute-scores changes hashes).
@@ -228,6 +230,11 @@ async function main(): Promise<void> {
       );
       results.push({ name: "rerank-top500", durationMs: 0, success: false, skipped: true });
     }
+
+    // Step 8: Fill backtest price data for matured cohorts (best-effort, never blocks pipeline)
+    results.push(
+      runScript("update-backtest", "update-backtest.ts", [], 5 * 60 * 1000),
+    );
   }
 
   // ── Summary ────────────────────────────────────────────────────────────────

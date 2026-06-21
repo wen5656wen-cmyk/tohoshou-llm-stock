@@ -592,6 +592,33 @@ const zhCN: Messages = {
   "fin.equity_ratio": "自有资本比率",
   "fin.reported_at": "发布日",
   "fin.full_year": "全年",
+
+  // ─── Backtest ────────────────────────────────────────────────────────────
+  "nav.backtest": "回测验证",
+  "backtest.title": "AI推荐回测",
+  "backtest.subtitle": "验证AI选股的历史表现",
+  "backtest.no_data": "暂无回测数据，数据将在每日AI流程运行后逐步积累",
+  "backtest.cohorts": "已积累推荐日期",
+  "backtest.horizon_7d": "7交易日",
+  "backtest.horizon_30d": "30交易日",
+  "backtest.horizon_90d": "90交易日",
+  "backtest.win_rate": "胜率",
+  "backtest.avg_return": "平均收益",
+  "backtest.filled": "已填充样本",
+  "backtest.top_winners": "30日最佳",
+  "backtest.top_losers": "30日最差",
+  "backtest.latest_picks": "最新推荐（Top 20）",
+  "backtest.col_rank": "排名",
+  "backtest.col_symbol": "代码",
+  "backtest.col_score": "综合分",
+  "backtest.col_rating": "评级",
+  "backtest.col_buy_price": "推荐价",
+  "backtest.col_ret7d": "7日",
+  "backtest.col_ret30d": "30日",
+  "backtest.col_ret90d": "90日",
+  "backtest.col_summary": "GPT摘要",
+  "backtest.pending": "等待中",
+  "backtest.as_of": "截至",
 };
 
 export default zhCN;

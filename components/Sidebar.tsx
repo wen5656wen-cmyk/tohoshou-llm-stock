@@ -16,6 +16,7 @@ export default function Sidebar() {
     { href: "/sectors",   label: t("nav.sectors"),       icon: "▤" },
     { href: "/portfolio", label: t("nav.myInvestments"), icon: "◇" },
     { href: "/news",      label: t("nav.news"),          icon: "◎" },
+    { href: "/backtest",  label: t("nav.backtest"),      icon: "📊" },
   ];
 
   const adminItems = [

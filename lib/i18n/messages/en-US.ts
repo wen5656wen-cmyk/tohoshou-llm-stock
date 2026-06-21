@@ -592,6 +592,33 @@ const enUS: Messages = {
   "fin.equity_ratio": "Equity Ratio",
   "fin.reported_at": "Reported",
   "fin.full_year": "Full Year",
+
+  // ─── Backtest ────────────────────────────────────────────────────────────
+  "nav.backtest": "Backtest",
+  "backtest.title": "AI Backtest",
+  "backtest.subtitle": "Historical performance of AI stock picks",
+  "backtest.no_data": "No data yet. Results will accumulate after each daily AI pipeline run",
+  "backtest.cohorts": "Recommendation dates",
+  "backtest.horizon_7d": "7 trading days",
+  "backtest.horizon_30d": "30 trading days",
+  "backtest.horizon_90d": "90 trading days",
+  "backtest.win_rate": "Win rate",
+  "backtest.avg_return": "Avg return",
+  "backtest.filled": "Samples",
+  "backtest.top_winners": "Top 30D winners",
+  "backtest.top_losers": "Top 30D losers",
+  "backtest.latest_picks": "Latest picks (Top 20)",
+  "backtest.col_rank": "Rank",
+  "backtest.col_symbol": "Symbol",
+  "backtest.col_score": "Score",
+  "backtest.col_rating": "Rating",
+  "backtest.col_buy_price": "Buy price",
+  "backtest.col_ret7d": "7D",
+  "backtest.col_ret30d": "30D",
+  "backtest.col_ret90d": "90D",
+  "backtest.col_summary": "AI summary",
+  "backtest.pending": "Pending",
+  "backtest.as_of": "As of",
 };
 
 export default enUS;
