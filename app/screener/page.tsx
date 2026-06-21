@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import StockMobileCard from "@/components/StockMobileCard";
-import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 
@@ -182,7 +182,7 @@ export default function ScreenerPage() {
               onClick={() => setRecFilter(recFilter === d.key ? "ALL" : d.key)}
             >
               <div className={`text-xl font-bold tabular-nums ${rec.text}`}>{d.val}</div>
-              <div className={`text-[10px] mt-0.5 font-semibold ${rec.text}`}>{rec.label}</div>
+              <div className={`text-[10px] mt-0.5 font-semibold whitespace-nowrap ${rec.text}`}>{getRecommendationLabel(d.key, lang)}</div>
             </div>
           );
         })}
@@ -197,7 +197,7 @@ export default function ScreenerPage() {
             return (
               <button key={r} onClick={() => setRecFilter(r)}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${recFilter === r ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-                {r === "ALL" ? "All" : rec.label}
+                {r === "ALL" ? t("screener.all") : getRecommendationLabel(r, lang)}
               </button>
             );
           })}
@@ -215,7 +215,7 @@ export default function ScreenerPage() {
 
         {/* market filter */}
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {[{ k: "ALL", l: t("screener.all_markets") }, { k: "Prime", l: "Prime" }, { k: "Standard", l: "Std" }, { k: "Growth", l: "Growth" }].map(({ k, l }) => (
+          {[{ k: "ALL", l: t("screener.all_markets") }, { k: "Prime", l: t("market.prime") }, { k: "Standard", l: t("market.standard") }, { k: "Growth", l: t("market.growth") }].map(({ k, l }) => (
             <button key={k} onClick={() => setMktFilter(k)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${mktFilter === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
               {l}
@@ -289,7 +289,7 @@ export default function ScreenerPage() {
               {filtered.slice(0, 200).map((s, idx) => {
                 const rec = getRec(s.recommendationV2);
                 const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-700";
-                const pctRankLabel = s.percentileRank != null ? `Top ${s.percentileRank.toFixed(1)}%` : "—";
+                const pctRankLabel = s.percentileRank != null ? `${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${s.percentileRank.toFixed(1)}%` : "—";
 
                 return (
                   <tr key={s.symbol} className={`hover:bg-slate-50 transition-colors ${s.highRiskFlag ? "bg-red-50/30" : ""}`}>
@@ -334,8 +334,8 @@ export default function ScreenerPage() {
                       {s.rsi14 != null ? s.rsi14.toFixed(1) : "—"}
                     </td>
                     <td className="px-2 py-2 text-center">
-                      <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                        {rec.label}
+                      <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${rec.bg} ${rec.text}`}>
+                        {getRecommendationLabel(s.recommendationV2, lang)}
                       </span>
                     </td>
                   </tr>

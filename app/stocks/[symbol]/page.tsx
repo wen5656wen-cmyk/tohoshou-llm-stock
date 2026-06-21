@@ -212,15 +212,20 @@ function ReturnBadge({ label, val }: { label: string; val: number | null }) {
 }
 
 function MaTrendBadge({ trend }: { trend: string }) {
-  const cfg: Record<string, { label: string; cls: string }> = {
-    GOLDEN:  { label: "Bullish (MA5>MA20>MA60)",  cls: "bg-amber-100 text-amber-700 border border-amber-200" },
-    BULLISH: { label: "Strong (MA5>MA20)",          cls: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
-    NEUTRAL: { label: "Neutral",                    cls: "bg-slate-100 text-slate-600 border border-slate-200" },
-    BEARISH: { label: "Weak (MA5<MA20)",            cls: "bg-slate-100 text-slate-500 border border-slate-200" },
-    DEAD:    { label: "Bearish (MA5<MA20<MA60)",    cls: "bg-red-100 text-red-600 border border-red-200" },
+  const { t } = useI18n();
+  const cfg: Record<string, { labelKey: string; detail: string; cls: string }> = {
+    GOLDEN:  { labelKey: "trend.golden",  detail: "MA5>MA20>MA60", cls: "bg-amber-100 text-amber-700 border border-amber-200" },
+    BULLISH: { labelKey: "trend.bullish", detail: "MA5>MA20",      cls: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+    NEUTRAL: { labelKey: "trend.neutral", detail: "",               cls: "bg-slate-100 text-slate-600 border border-slate-200" },
+    BEARISH: { labelKey: "trend.bearish", detail: "MA5<MA20",      cls: "bg-slate-100 text-slate-500 border border-slate-200" },
+    DEAD:    { labelKey: "trend.dead",    detail: "MA5<MA20<MA60", cls: "bg-red-100 text-red-600 border border-red-200" },
   };
   const c = cfg[trend] ?? cfg.NEUTRAL;
-  return <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>;
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${c.cls}`}>
+      {t(c.labelKey as Parameters<typeof t>[0])}{c.detail ? ` (${c.detail})` : ""}
+    </span>
+  );
 }
 
 function fmtBillion(v: number | null, lang?: string): string {
@@ -515,7 +520,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             <div className="text-[36px] font-extrabold text-slate-900 tabular-nums leading-none">
               {fmtJpy(ind.latestClose)}
             </div>
-            <div className="text-xs text-slate-400 mt-1">{ind.latestDate} close</div>
+            <div className="text-xs text-slate-400 mt-1">{ind.latestDate} {t("stock.close_label")}</div>
             <div className={`text-sm font-semibold mt-1 tabular-nums ${returnColorClass(ind.return5d)}`}>
               5D {fmtPct(ind.return5d)}
             </div>
@@ -579,7 +584,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-4">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">MA Lines</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t("stock.ma_lines")}</h3>
               <div className="space-y-3">
                 {[
                   { label: "MA5",  val: ind.ma5 },
@@ -608,7 +613,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Oscillators</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t("stock.oscillators")}</h3>
               <div className="space-y-4">
                 <div>
                   <div className="text-xs text-slate-500 mb-1.5">RSI (14日)</div>
@@ -629,7 +634,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   <div className="flex items-center gap-2 text-xs tabular-nums text-slate-700">
                     <span>MACD: <b>{ind.macd?.toFixed(2) ?? "—"}</b></span>
                     <span className="text-slate-300">|</span>
-                    <span>Hist: <b className={returnColorClass(ind.macdHist)}>
+                    <span>{lang === "zh-CN" ? "柱状" : "Hist"}: <b className={returnColorClass(ind.macdHist)}>
                       {ind.macdHist != null ? fmtPct(ind.macdHist, 2).replace("%","") : "—"}
                     </b></span>
                   </div>
@@ -640,9 +645,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700">Price (30D)</h3>
+              <h3 className="text-sm font-semibold text-slate-700">{t("stock.price_30d")}</h3>
               <button onClick={() => setActiveTab("chart")} className="text-xs text-blue-600 hover:underline">
-                Full chart →
+                {t("stock.full_chart")} →
               </button>
             </div>
             <PriceChart data={series.last30} height={160} />
@@ -654,7 +659,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {activeTab === "chart" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-700">Price Chart</h3>
+            <h3 className="text-sm font-semibold text-slate-700">{t("stock.chart_title")}</h3>
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
               {(["30", "250"] as const).map((p) => (
                 <button
@@ -683,7 +688,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {activeTab === "financials" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-700">Financials (J-Quants)</h3>
+            <h3 className="text-sm font-semibold text-slate-700">{t("stock.financials_title")}</h3>
           </div>
           {financials.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-sm">暂无财务数据</div>
@@ -738,7 +743,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {activeTab === "indicators" && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">Moving Averages</h3>
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">{t("stock.moving_averages")}</h3>
             <div className="grid grid-cols-3 gap-4 mb-4">
               {[
                 { key: "MA5",  val: ind.ma5,  days: 5 },
@@ -754,7 +759,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     </div>
                     {diff !== null && (
                       <div className={`text-xs font-medium mt-1 tabular-nums ${returnColorClass(diff)}`}>
-                        vs price {fmtPct(diff, 2)}
+                        {t("stock.vs_price")} {fmtPct(diff, 2)}
                       </div>
                     )}
                   </div>
@@ -792,9 +797,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             <h3 className="text-sm font-semibold text-slate-700 mb-4">MACD (12-26-9)</h3>
             <div className="grid grid-cols-3 gap-4 mb-3">
               {[
-                { label: "MACD",   val: ind.macd },
-                { label: "Signal", val: ind.macdSignal },
-                { label: "Hist",   val: ind.macdHist },
+                { label: "MACD",                                      val: ind.macd },
+                { label: t("macd.trend_label"),                       val: ind.macdSignal },
+                { label: lang === "zh-CN" ? "柱状" : lang === "ja-JP" ? "ヒスト" : "Hist", val: ind.macdHist },
               ].map(({ label, val }) => (
                 <div key={label} className="bg-slate-50 rounded-xl p-3">
                   <div className="text-xs text-slate-500 mb-1">{label}</div>
@@ -805,20 +810,20 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               ))}
             </div>
             <div className="text-xs text-slate-500">
-              Signal:
-              {ind.macdSignalLabel === "BUY"     && <span className="text-emerald-600 font-medium ml-1">BUY (MACD &gt; Signal)</span>}
-              {ind.macdSignalLabel === "SELL"    && <span className="text-red-500 font-medium ml-1">SELL (MACD &lt; Signal)</span>}
-              {ind.macdSignalLabel === "NEUTRAL" && <span className="text-slate-400 ml-1">Neutral</span>}
+              {t("macd.trend_label")}：
+              {ind.macdSignalLabel === "BUY"     && <span className="text-emerald-600 font-medium ml-1">{t("macd.bullish")}（MACD &gt; {t("macd.trend_label")}）</span>}
+              {ind.macdSignalLabel === "SELL"    && <span className="text-red-500 font-medium ml-1">{t("macd.bearish")}（MACD &lt; {t("macd.trend_label")}）</span>}
+              {ind.macdSignalLabel === "NEUTRAL" && <span className="text-slate-400 ml-1">{t("macd.neutral")}</span>}
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">Returns</h3>
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">{lang === "zh-CN" ? "阶段涨跌" : lang === "ja-JP" ? "期間リターン" : "Returns"}</h3>
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "5D",  val: ind.return5d },
-                { label: "20D", val: ind.return20d },
-                { label: "60D", val: ind.return60d },
+                { label: t("stock.5d_return"),  val: ind.return5d },
+                { label: t("stock.20d_return"), val: ind.return20d },
+                { label: t("stock.60d_return"), val: ind.return60d },
               ].map(({ label, val }) => (
                 <div key={label} className="bg-slate-50 rounded-xl p-4 text-center">
                   <div className="text-xs text-slate-500 mb-1">{label}</div>

@@ -333,6 +333,68 @@ const jaJP: Messages = {
 
   // TOP500
   "top500.title": "TOP500 銘柄",
+
+  // Home page labels
+  "home.ai_top3": "AI厳選 TOP3",
+  "home.full_ranking": "全ランキング",
+  "home.buy_picks": "買い銘柄",
+  "home.watch_label": "注目中",
+  "home.screener_count": "銘柄数",
+  "home.strong_buy_plus_buy": "強い買い + 買い",
+
+  // Generic table headers
+  "table.stock": "銘柄",
+  "table.price": "株価",
+  "table.trend": "トレンド",
+  "table.tech": "テクニカル",
+  "table.fund": "ファンダ",
+  "table.adaptive": "AIスコア",
+  "table.rating": "評価",
+
+  // MA trend labels
+  "trend.golden": "上昇（ゴールデン）",
+  "trend.bullish": "強気",
+  "trend.neutral": "中立",
+  "trend.bearish": "弱気",
+  "trend.dead": "下降（デッドクロス）",
+
+  // Market board labels
+  "market.prime": "プライム",
+  "market.standard": "スタンダード",
+  "market.growth": "グロース",
+
+  // Dim short labels
+  "dim.tech_short": "テクニカル",
+  "dim.fund_short": "ファンダ",
+  "dim.flow_short": "資金",
+  "dim.news_short": "センチメント",
+  "dim.global_short": "グローバル",
+
+  // AI Picks detail
+  "picks.detail_rating": "評価詳細",
+  "picks.detail_ai": "AI分析",
+  "picks.adaptive": "AI総合スコア",
+  "picks.percentile_rank": "市場順位",
+
+  // Stock detail labels
+  "stock.ma_lines": "移動平均線",
+  "stock.oscillators": "オシレーター",
+  "stock.price_30d": "30日株価推移",
+  "stock.full_chart": "全チャートを見る",
+  "stock.moving_averages": "移動平均線",
+  "stock.vs_price": "現在値比",
+  "stock.chart_title": "株価チャート",
+  "stock.close_label": "終値",
+  "stock.financials_title": "財務データ（J-Quants）",
+
+  // Mobile card
+  "card.price": "株価",
+  "card.5d": "5日",
+  "card.20d": "20日",
+  "card.opp": "機会",
+
+  // Sectors
+  "sectors.screener_link": "AI銘柄選定 →",
 };
 
 export default jaJP;

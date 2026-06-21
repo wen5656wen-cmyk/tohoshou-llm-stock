@@ -333,6 +333,68 @@ const enUS: Messages = {
 
   // TOP500
   "top500.title": "TOP500 Stocks",
+
+  // Home page labels
+  "home.ai_top3": "AI Picks — TOP 3",
+  "home.full_ranking": "Full ranking",
+  "home.buy_picks": "BUY Picks",
+  "home.watch_label": "WATCH",
+  "home.screener_count": "Screener",
+  "home.strong_buy_plus_buy": "STRONG BUY + BUY",
+
+  // Generic table headers
+  "table.stock": "Stock",
+  "table.price": "Price",
+  "table.trend": "Trend",
+  "table.tech": "Tech",
+  "table.fund": "Fund",
+  "table.adaptive": "Adaptive",
+  "table.rating": "Rating",
+
+  // MA trend labels
+  "trend.golden": "Bullish (Golden Cross)",
+  "trend.bullish": "Strong",
+  "trend.neutral": "Neutral",
+  "trend.bearish": "Weak",
+  "trend.dead": "Bearish (Death Cross)",
+
+  // Market board labels
+  "market.prime": "Prime",
+  "market.standard": "Std",
+  "market.growth": "Growth",
+
+  // Dim short labels
+  "dim.tech_short": "Tech",
+  "dim.fund_short": "Fund",
+  "dim.flow_short": "Flow",
+  "dim.news_short": "News",
+  "dim.global_short": "Global",
+
+  // AI Picks detail
+  "picks.detail_rating": "Rating Detail",
+  "picks.detail_ai": "AI Analysis",
+  "picks.adaptive": "Adaptive",
+  "picks.percentile_rank": "Percentile",
+
+  // Stock detail labels
+  "stock.ma_lines": "MA Lines",
+  "stock.oscillators": "Oscillators",
+  "stock.price_30d": "Price (30D)",
+  "stock.full_chart": "Full chart",
+  "stock.moving_averages": "Moving Averages",
+  "stock.vs_price": "vs price",
+  "stock.chart_title": "Price Chart",
+  "stock.close_label": "close",
+  "stock.financials_title": "Financials (J-Quants)",
+
+  // Mobile card
+  "card.price": "Price",
+  "card.5d": "5D",
+  "card.20d": "20D",
+  "card.opp": "Opp",
+
+  // Sectors
+  "sectors.screener_link": "AI Screener →",
 };
 
 export default enUS;

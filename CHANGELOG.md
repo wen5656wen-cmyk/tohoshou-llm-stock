@@ -2,6 +2,35 @@
 
 ---
 
+## [8.5 P1] - 2026-06-21 — 中文版全面汉化
+
+### 目标
+zh-CN 模式全面汉化：消除所有业务英文显示文本，完成 MaTrend/推荐评级/维度标签/交易信号/原因说明中文化。
+
+### 核心变更
+
+| 内容 | 说明 |
+|------|------|
+| `lib/i18n/types.ts` | 新增 43 个 MessageKey（home/table/trend/market/dim/picks/stock/card/sectors） |
+| `lib/i18n/messages/zh-CN.ts` | 43 键中文翻译 |
+| `lib/i18n/messages/ja-JP.ts` | 43 键日文翻译 |
+| `lib/i18n/messages/en-US.ts` | 43 键英文翻译 |
+| `lib/trading-action.ts` | reasons/warnings 全部翻译为中文（18 条字符串） |
+| `app/page.tsx` | 仪表盘完全中文化（硬编码 zh-CN 字符串） |
+| `app/HomeStockDisplay.tsx` | MaTrendBadge 使用 t()；评级用 getRecommendationLabel()；表头全 t() |
+| `app/screener/page.tsx` | 推荐标签/市场筛选/百分位 t()；getRecommendationLabel() |
+| `app/ai-picks/page.tsx` | 维度标签/评分/百分位/5D 标签全 t() |
+| `app/stocks/[symbol]/page.tsx` | 均线系统/震荡指标/30日走势/MA/MACD柱状/返回期全 t()；MaTrendBadge 用 useI18n() |
+| `components/StockMobileCard.tsx` | 股价/5日/20日/机会/股息/催化标签 t()；百分位中文条件 |
+| `app/sectors/page.tsx` | 日本語リンク→t("sectors.screener_link")；20D/60D→t() |
+
+### 验证
+- TypeScript: 0 错误
+- Build: 成功
+- 部署到生产 8.209.247.68 并 pm2 restart
+
+---
+
 ## [8.4 P3] - 2026-06-21 — Full Native Locale Refactor (Phase 3)
 
 ### 目标

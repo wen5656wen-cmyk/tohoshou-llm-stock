@@ -333,6 +333,68 @@ const zhCN: Messages = {
 
   // TOP500
   "top500.title": "TOP500 股票",
+
+  // Home page labels
+  "home.ai_top3": "AI精选 TOP3",
+  "home.full_ranking": "查看全部",
+  "home.buy_picks": "买入机会",
+  "home.watch_label": "观察名单",
+  "home.screener_count": "股票总数",
+  "home.strong_buy_plus_buy": "强烈买入 + 买入",
+
+  // Generic table headers
+  "table.stock": "股票",
+  "table.price": "股价",
+  "table.trend": "趋势",
+  "table.tech": "技术",
+  "table.fund": "基本",
+  "table.adaptive": "AI评分",
+  "table.rating": "评级",
+
+  // MA trend labels
+  "trend.golden": "多头（黄金交叉）",
+  "trend.bullish": "强势",
+  "trend.neutral": "中性",
+  "trend.bearish": "弱势",
+  "trend.dead": "空头（死亡交叉）",
+
+  // Market board labels
+  "market.prime": "主板",
+  "market.standard": "标准",
+  "market.growth": "成长",
+
+  // Dim short labels
+  "dim.tech_short": "技术",
+  "dim.fund_short": "基本",
+  "dim.flow_short": "资金",
+  "dim.news_short": "情绪",
+  "dim.global_short": "全球",
+
+  // AI Picks detail
+  "picks.detail_rating": "评级详情",
+  "picks.detail_ai": "AI分析",
+  "picks.adaptive": "AI综合分",
+  "picks.percentile_rank": "市场排名",
+
+  // Stock detail labels
+  "stock.ma_lines": "均线系统",
+  "stock.oscillators": "震荡指标",
+  "stock.price_30d": "30日价格走势",
+  "stock.full_chart": "查看完整图表",
+  "stock.moving_averages": "移动平均线",
+  "stock.vs_price": "较现价",
+  "stock.chart_title": "股价走势图",
+  "stock.close_label": "收盘",
+  "stock.financials_title": "财务数据（J-Quants）",
+
+  // Mobile card
+  "card.price": "股价",
+  "card.5d": "5日",
+  "card.20d": "20日",
+  "card.opp": "机会",
+
+  // Sectors
+  "sectors.screener_link": "AI选股 →",
 };
 
 export default zhCN;

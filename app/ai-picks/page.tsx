@@ -103,9 +103,9 @@ function DetailCard({ score }: { score: AiScore }) {
           <div className="flex items-start gap-4 min-w-0">
             <div className="text-center min-w-[3rem] shrink-0">
               <div className={`text-xl font-bold tabular-nums ${rec.text}`}>{score.adaptiveScore.toFixed(0)}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5">Adaptive</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">{t("picks.adaptive")}</div>
               {score.percentileRank != null && (
-                <div className="text-[10px] text-slate-400">Top {score.percentileRank.toFixed(1)}%</div>
+                <div className="text-[10px] text-slate-400">{lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {score.percentileRank.toFixed(1)}%</div>
               )}
             </div>
             <div className="min-w-0">
@@ -159,22 +159,22 @@ function DetailCard({ score }: { score: AiScore }) {
           <div className="hidden sm:flex items-center gap-4 shrink-0">
             <div className="grid grid-cols-5 gap-3">
               {[
-                { label: "Tech",  val: score.technicalScore,     cls: "text-blue-700" },
-                { label: "Fund",  val: score.fundamentalScore,   cls: "text-emerald-700" },
-                { label: "Flow",  val: score.moneyFlowScore,     cls: "text-violet-700" },
-                { label: "News",  val: score.newsSentimentScore, cls: "text-amber-700" },
-                { label: "Global",val: score.globalTrendScore,   cls: "text-cyan-700" },
+                { labelKey: "dim.tech_short",    val: score.technicalScore,     cls: "text-blue-700" },
+                { labelKey: "dim.fund_short",    val: score.fundamentalScore,   cls: "text-emerald-700" },
+                { labelKey: "dim.flow_short",    val: score.moneyFlowScore,     cls: "text-violet-700" },
+                { labelKey: "dim.news_short",    val: score.newsSentimentScore, cls: "text-amber-700" },
+                { labelKey: "dim.global_short",  val: score.globalTrendScore,   cls: "text-cyan-700" },
               ].map((d) => (
-                <div key={d.label} className="text-center w-10">
+                <div key={d.labelKey} className="text-center w-10">
                   <div className={`text-sm font-bold tabular-nums ${d.cls}`}>{d.val}</div>
-                  <div className="text-[10px] text-slate-400">{d.label}</div>
+                  <div className="text-[10px] text-slate-400">{t(d.labelKey as Parameters<typeof t>[0])}</div>
                 </div>
               ))}
             </div>
             <div className="text-right w-28">
               <div className="text-sm font-bold text-slate-900 tabular-nums">{fmtJpy(score.latestClose)}</div>
               <div className={`text-xs font-semibold tabular-nums ${returnColorClass(score.return5d)}`}>
-                {fmtPct(score.return5d)} <span className="text-slate-400 font-normal">5D</span>
+                {fmtPct(score.return5d)} <span className="text-slate-400 font-normal">{t("card.5d")}</span>
               </div>
               <div className="text-[10px] text-slate-400">{score.latestDate}</div>
             </div>
@@ -185,11 +185,11 @@ function DetailCard({ score }: { score: AiScore }) {
         {/* 5-dim bars (compact) */}
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Technical (30)",   score: score.technicalScore,    max: 30, color: "bg-blue-400" },
-            { label: "Fundamental (25)", score: score.fundamentalScore,  max: 25, color: "bg-emerald-400" },
-            { label: "Money Flow (20)",  score: score.moneyFlowScore,    max: 20, color: "bg-violet-400" },
-            { label: "Sentiment (15)",   score: score.newsSentimentScore,max: 15, color: "bg-amber-400" },
-            { label: "Global (10)",      score: score.globalTrendScore,  max: 10, color: "bg-cyan-400" },
+            { label: `${t("dim.technical")} (30)`,   score: score.technicalScore,    max: 30, color: "bg-blue-400" },
+            { label: `${t("dim.fundamental")} (25)`, score: score.fundamentalScore,  max: 25, color: "bg-emerald-400" },
+            { label: `${t("dim.money_flow")} (20)`,  score: score.moneyFlowScore,    max: 20, color: "bg-violet-400" },
+            { label: `${t("dim.sentiment")} (15)`,   score: score.newsSentimentScore,max: 15, color: "bg-amber-400" },
+            { label: `${t("dim.global")} (10)`,      score: score.globalTrendScore,  max: 10, color: "bg-cyan-400" },
           ].map((d) => (
             <div key={d.label}>
               <div className="text-[10px] text-slate-400 mb-1">{d.label}</div>
@@ -203,44 +203,44 @@ function DetailCard({ score }: { score: AiScore }) {
         <div className="px-5 pb-5 border-t border-slate-200/60 pt-4">
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <div className="text-xs font-semibold text-slate-700 mb-3">Rating Detail</div>
+              <div className="text-xs font-semibold text-slate-700 mb-3">{t("picks.detail_rating")}</div>
               <div className="space-y-2 text-xs text-slate-600">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Rating</span>
-                  <span className={`font-bold ${rec.text}`}>{rec.label}</span>
+                  <span className="text-slate-400">{t("table.rating")}</span>
+                  <span className={`font-bold ${rec.text}`}>{getRecommendationLabel(score.recommendationV2, lang)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Adaptive</span>
+                  <span className="text-slate-400">{t("picks.adaptive")}</span>
                   <span className="font-bold tabular-nums">{score.adaptiveScore.toFixed(1)}</span>
                 </div>
                 {score.percentileRank != null && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Percentile</span>
-                    <span className="font-bold tabular-nums">Top {score.percentileRank.toFixed(1)}% (#{score.marketRank})</span>
+                    <span className="text-slate-400">{t("picks.percentile_rank")}</span>
+                    <span className="font-bold tabular-nums">{lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {score.percentileRank.toFixed(1)}% (#{score.marketRank})</span>
                   </div>
                 )}
                 {score.opportunityScore != null && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Opportunity</span>
+                    <span className="text-slate-400">{t("picks.opportunity")}</span>
                     <span className="font-bold tabular-nums">{score.opportunityScore.toFixed(1)}{score.opportunityLabel ? ` · ${score.opportunityLabel === "STEADY" ? t("stock.steady") : t("stock.high_risk")}` : ""}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Style</span>
+                  <span className="text-slate-400">{t("stock.style_label")}</span>
                   <span>{score.stockStyle ? t(`style.${score.stockStyle}` as Parameters<typeof t>[0]) || score.stockStyle : "—"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">20D</span>
+                  <span className="text-slate-400">{t("screener.col_20d")}</span>
                   <span className={`font-semibold ${returnColorClass(score.return20d)}`}>{fmtPct(score.return20d)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Source</span>
+                  <span className="text-slate-400">{t("common.name")}</span>
                   <span>{t(`stock.score_source.${score.scoreSource}` as Parameters<typeof t>[0]) || score.scoreSource}</span>
                 </div>
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-700 mb-3">AI Analysis</div>
+              <div className="text-xs font-semibold text-slate-700 mb-3">{t("picks.detail_ai")}</div>
               {score.recommendationReason && (
                 <p className="text-xs text-slate-500 leading-relaxed mb-2">{score.recommendationReason}</p>
               )}
@@ -393,7 +393,7 @@ export default function AiPicksPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-slate-400">#{i + 1}</span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${rec.bg} ${rec.text}`}>{rec.label}</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded whitespace-nowrap ${rec.bg} ${rec.text}`}>{getRecommendationLabel(s.recommendationV2, lang)}</span>
                 </div>
                 <div className="text-[15px] font-bold text-white leading-tight">{getPrimaryName(s, lang)}</div>
                 {getSecondaryName(s, lang) && (

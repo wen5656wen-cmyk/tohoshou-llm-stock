@@ -102,7 +102,7 @@ function buildPrices(action: TradingAction["action"], price: number, ma20: numbe
   }
 
   if (target2 != null && high52w != null && target2 > high52w * 1.20) {
-    warnings.push("Target above 52W high; confirm breakout strength.");
+    warnings.push("目标价超过52周高点，请确认突破力度。");
   }
 
   return { entryLow, entryHigh, stopLoss, target1, target2, warnings };
@@ -130,11 +130,11 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
     price <= 0 ||
     (ma20 == null && ma60 == null)
   ) {
-    if (stale) reasons.push("Price data is stale — signal unreliable.");
-    if (suspicious) reasons.push("Price data appears anomalous.");
+    if (stale) reasons.push("价格数据陈旧，信号不可靠。");
+    if (suspicious) reasons.push("价格数据异常，请谨慎。");
     if (recommendationV2 === "AVOID" || (adaptiveScore != null && adaptiveScore < 45))
-      reasons.push(`AI score too low (adaptiveScore=${adaptiveScore?.toFixed(1) ?? "n/a"}).`);
-    if (price <= 0) reasons.push("No valid latest price.");
+      reasons.push(`AI评分过低（综合评分=${adaptiveScore?.toFixed(1) ?? "n/a"}）。`);
+    if (price <= 0) reasons.push("无有效最新价格。");
     return { action: "AVOID", label: "Avoid", positionSizePct: 0, entryLow: null, entryHigh: null, stopLoss: null, target1: null, target2: null, riskLevel, reasons, warnings };
   }
 
@@ -146,11 +146,11 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
   );
   if (isSell) {
     if (adaptiveScore != null && adaptiveScore < 55 && ma60 != null && price < ma60)
-      reasons.push(`Score weak (${adaptiveScore.toFixed(1)}) and price below MA60.`);
+      reasons.push(`评分偏低（${adaptiveScore.toFixed(1)}），股价跌破MA60。`);
     if (ma20 != null && ma60 != null && ma20 < ma60 && return20d != null && return20d < -10)
-      reasons.push(`Death cross: MA20 < MA60, 20D return ${return20d.toFixed(1)}%.`);
+      reasons.push(`死亡交叉：MA20 < MA60，20日涨幅 ${return20d.toFixed(1)}%。`);
     if (rsi14 != null && rsi14 < 35 && return20d != null && return20d < -15)
-      reasons.push(`RSI oversold (${rsi14.toFixed(0)}) with strong downtrend.`);
+      reasons.push(`RSI超卖（${rsi14.toFixed(0)}），强势下跌趋势。`);
     return { action: "SELL", label: "Sell", positionSizePct: 0, entryLow: null, entryHigh: null, stopLoss: null, target1: null, target2: null, riskLevel, reasons, warnings };
   }
 
@@ -158,9 +158,9 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
   // These fire before TAKE_PROFIT so extreme RSI always gets a safe action.
 
   if (rsi14 != null && rsi14 >= 95) {
-    reasons.push(`RSI=${rsi14.toFixed(0)} — extreme overbought, chasing now is high risk.`);
-    warnings.push("RSI is in extreme overbought territory — consider taking profit.");
-    warnings.push("Short-term price extension is very elevated.");
+    reasons.push(`RSI=${rsi14.toFixed(0)}，极度超买，此时追高风险极大。`);
+    warnings.push("RSI处于极度超买区域，建议考虑止盈。");
+    warnings.push("短期价格涨幅过大。");
     const prices = buildPrices("TAKE_PROFIT", price, ma20, ma60, high52w);
     return { action: "TAKE_PROFIT", label: "Take Profit", positionSizePct: 20, ...prices, riskLevel: "HIGH", reasons, warnings: [...warnings, ...prices.warnings] };
   }
@@ -168,26 +168,26 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
   if (rsi14 != null && rsi14 >= 90) {
     const hasBigGain = (return20d != null && return20d > 20) || (return60d != null && return60d > 60);
     const guardAction = hasBigGain ? "TAKE_PROFIT" : "WAIT_PULLBACK";
-    reasons.push(`RSI=${rsi14.toFixed(0)} — overbought, not suitable for new entry.`);
-    warnings.push("RSI is in overbought territory — chasing at this level is high risk.");
+    reasons.push(`RSI=${rsi14.toFixed(0)}，超买，不适合新建仓。`);
+    warnings.push("RSI处于超买区域，此价位追高风险较大。");
     if (hasBigGain)
-      reasons.push(`Significant gains (20D ${return20d?.toFixed(1) ?? "?"}%) — trim position in stages.`);
+      reasons.push(`涨幅可观（20日 ${return20d?.toFixed(1) ?? "?"}%），建议分批减仓。`);
     else
-      reasons.push("Wait for RSI to pull back before considering entry.");
+      reasons.push("等待RSI回调后再考虑入场。");
     const prices = buildPrices(guardAction, price, ma20, ma60, high52w);
     return { action: guardAction, label: guardAction === "TAKE_PROFIT" ? "Take Profit" : "Wait Pullback", positionSizePct: 20, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
   }
 
   if (rsi14 != null && rsi14 >= 85 && return20d != null && return20d > 30) {
-    reasons.push(`RSI=${rsi14.toFixed(0)} with +${return20d.toFixed(1)}% in 20D — extended, trim positions.`);
-    warnings.push("Stock price has risen sharply — consider taking profit instead of chasing.");
+    reasons.push(`RSI=${rsi14.toFixed(0)}，20日涨幅+${return20d.toFixed(1)}%，已延伸过高，建议减仓。`);
+    warnings.push("股价急速拉升，建议止盈而非追高。");
     const prices = buildPrices("TAKE_PROFIT", price, ma20, ma60, high52w);
     return { action: "TAKE_PROFIT", label: "Take Profit", positionSizePct: 30, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
   }
 
   if (rsi14 != null && rsi14 >= 80 && return5d != null && return5d > 20) {
-    reasons.push(`RSI=${rsi14.toFixed(0)} and +${return5d.toFixed(1)}% in 5D spike — wait for pullback.`);
-    warnings.push("Short-term price extension is elevated — do not chase.");
+    reasons.push(`RSI=${rsi14.toFixed(0)}，5日暴涨+${return5d.toFixed(1)}%，等待回调。`);
+    warnings.push("短期涨幅过高，请勿追高。");
     const prices = buildPrices("WAIT_PULLBACK", price, ma20, ma60, high52w);
     return { action: "WAIT_PULLBACK", label: "Wait Pullback", positionSizePct: 20, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
   }
@@ -201,13 +201,13 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
   );
   if (isTakeProfit) {
     if (return60d != null && return60d > 150 && rsi14 != null && rsi14 > 80)
-      reasons.push(`Extreme 60D gain +${return60d.toFixed(1)}% with RSI=${rsi14.toFixed(0)}.`);
+      reasons.push(`60日极端涨幅+${return60d.toFixed(1)}%，RSI=${rsi14.toFixed(0)}。`);
     if (return20d != null && return20d > 60 && rsi14 != null && rsi14 > 75)
-      reasons.push(`20D surge +${return20d.toFixed(1)}% with RSI=${rsi14.toFixed(0)}.`);
+      reasons.push(`20日急涨+${return20d.toFixed(1)}%，RSI=${rsi14.toFixed(0)}。`);
     if (high52w != null && price >= high52w * 0.98 && rsi14 != null && rsi14 > 78)
-      reasons.push(`Near 52W high (${fmtPrice(high52w)}) with RSI overbought.`);
+      reasons.push(`接近52周高点（${fmtPrice(high52w)}），RSI超买。`);
     if (return5d != null && return5d > 30)
-      reasons.push(`Spike +${return5d.toFixed(1)}% in 5 days — lock in gains.`);
+      reasons.push(`5日暴涨+${return5d.toFixed(1)}%，建议锁定收益。`);
     const prices = buildPrices("TAKE_PROFIT", price, ma20, ma60, high52w);
     return { action: "TAKE_PROFIT", label: "Take Profit", positionSizePct: 30, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
   }
@@ -229,9 +229,9 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
     !stale
   );
   if (isBuyNow) {
-    reasons.push(`${isStrongBuy ? "STRONG BUY" : "BUY"} rating, adaptiveScore=${adaptiveScore!.toFixed(1)}.`);
-    reasons.push(`Top ${percentileRank!.toFixed(1)}% of market, opportunity=${opportunityScore!.toFixed(0)}.`);
-    if (rsi14 != null) reasons.push(`RSI=${rsi14.toFixed(0)} — not overbought, momentum healthy.`);
+    reasons.push(`${isStrongBuy ? "强烈买入" : "买入"}评级，AI综合评分=${adaptiveScore!.toFixed(1)}。`);
+    reasons.push(`市场前${percentileRank!.toFixed(1)}%，机会评分=${opportunityScore!.toFixed(0)}。`);
+    if (rsi14 != null) reasons.push(`RSI=${rsi14.toFixed(0)}，尚未超买，动量健康。`);
     const prices = buildPrices("BUY_NOW", price, ma20, ma60, high52w);
     return { action: "BUY_NOW", label: "Buy Now", positionSizePct: isStrongBuy ? 60 : 40, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
   }
@@ -245,18 +245,18 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
     (high52w != null && price >= high52w * 0.97 && return5d != null && return5d > 5)
   );
   if (isWaitPullback) {
-    if (return5d != null && return5d > 20) reasons.push(`5D spike +${return5d.toFixed(1)}% — wait for pullback.`);
-    if (rsi14 != null && rsi14 > 75) reasons.push(`RSI overbought (${rsi14.toFixed(0)}).`);
-    if (ma20 != null && price > ma20 * 1.12) reasons.push(`Price ${((price / ma20 - 1) * 100).toFixed(1)}% above MA20.`);
-    if (return60d != null && return60d > 100) reasons.push(`Strong 60D run +${return60d.toFixed(1)}%.`);
-    if (return5d != null && return5d <= 20 && reasons.length === 0) reasons.push("Near 52W high with limited pullback.");
+    if (return5d != null && return5d > 20) reasons.push(`5日暴涨+${return5d.toFixed(1)}%，等待回调。`);
+    if (rsi14 != null && rsi14 > 75) reasons.push(`RSI超买（${rsi14.toFixed(0)}）。`);
+    if (ma20 != null && price > ma20 * 1.12) reasons.push(`股价高于MA20 ${((price / ma20 - 1) * 100).toFixed(1)}%。`);
+    if (return60d != null && return60d > 100) reasons.push(`60日强势上涨+${return60d.toFixed(1)}%。`);
+    if (return5d != null && return5d <= 20 && reasons.length === 0) reasons.push("接近52周高点，回调有限。");
     const prices = buildPrices("WAIT_PULLBACK", price, ma20, ma60, high52w);
     return { action: "WAIT_PULLBACK", label: "Wait Pullback", positionSizePct: 20, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
   }
 
   // ── 6. HOLD ───────────────────────────────────────────────────────────────
-  if (adaptiveScore != null && adaptiveScore >= 55) reasons.push(`Score ${adaptiveScore.toFixed(1)} — trend intact.`);
-  if (rsi14 != null) reasons.push(`RSI=${rsi14.toFixed(0)} — no extreme signal.`);
+  if (adaptiveScore != null && adaptiveScore >= 55) reasons.push(`评分${adaptiveScore.toFixed(1)}，趋势完好。`);
+  if (rsi14 != null) reasons.push(`RSI=${rsi14.toFixed(0)}，无极端信号。`);
   const prices = buildPrices("HOLD", price, ma20, ma60, high52w);
   return { action: "HOLD", label: "Hold", positionSizePct: 30, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
 }

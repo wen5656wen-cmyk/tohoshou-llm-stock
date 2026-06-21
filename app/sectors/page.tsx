@@ -112,7 +112,7 @@ export default function SectorsPage() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-700">{t("sectors.hot")} TOP5</h2>
           <Link href="/screener" className="text-xs text-blue-600 hover:underline">
-            個別銘柄スクリーナー →
+            {t("sectors.screener_link")}
           </Link>
         </div>
         <div className="grid grid-cols-5 gap-3">
@@ -198,8 +198,8 @@ export default function SectorsPage() {
               <th className="px-3 py-3 font-medium text-right">{t("dim.technical")}</th>
               <th className="px-3 py-3 font-medium text-right">{t("dim.fundamental")}</th>
               <th className="px-3 py-3 font-medium text-right">{t("dim.money_flow")}</th>
-              <th className="px-3 py-3 font-medium text-right">20D</th>
-              <th className="px-3 py-3 font-medium text-right">60D</th>
+              <th className="px-3 py-3 font-medium text-right">{t("stock.20d_return")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("stock.60d_return")}</th>
               <th className="px-3 py-3 font-medium text-center">{t("sectors.buy_count")}</th>
               <th className="px-3 py-3 font-medium text-center">{t("sectors.buy_rate")}</th>
               <th className="px-3 py-3 font-medium">{t("sectors.top_stocks")}</th>

@@ -332,6 +332,68 @@ export type Messages = {
 
   // ─── TOP500 ────────────────────────────────────────────────────────────────
   "top500.title": string;
+
+  // ─── Home page labels ──────────────────────────────────────────────────────
+  "home.ai_top3": string;
+  "home.full_ranking": string;
+  "home.buy_picks": string;
+  "home.watch_label": string;
+  "home.screener_count": string;
+  "home.strong_buy_plus_buy": string;
+
+  // ─── Generic table headers ─────────────────────────────────────────────────
+  "table.stock": string;
+  "table.price": string;
+  "table.trend": string;
+  "table.tech": string;
+  "table.fund": string;
+  "table.adaptive": string;
+  "table.rating": string;
+
+  // ─── MA trend labels ───────────────────────────────────────────────────────
+  "trend.golden": string;
+  "trend.bullish": string;
+  "trend.neutral": string;
+  "trend.bearish": string;
+  "trend.dead": string;
+
+  // ─── Market board labels ───────────────────────────────────────────────────
+  "market.prime": string;
+  "market.standard": string;
+  "market.growth": string;
+
+  // ─── Dim short labels ─────────────────────────────────────────────────────
+  "dim.tech_short": string;
+  "dim.fund_short": string;
+  "dim.flow_short": string;
+  "dim.news_short": string;
+  "dim.global_short": string;
+
+  // ─── AI Picks detail ──────────────────────────────────────────────────────
+  "picks.detail_rating": string;
+  "picks.detail_ai": string;
+  "picks.adaptive": string;
+  "picks.percentile_rank": string;
+
+  // ─── Stock detail labels ──────────────────────────────────────────────────
+  "stock.ma_lines": string;
+  "stock.oscillators": string;
+  "stock.price_30d": string;
+  "stock.full_chart": string;
+  "stock.moving_averages": string;
+  "stock.vs_price": string;
+  "stock.chart_title": string;
+  "stock.close_label": string;
+  "stock.financials_title": string;
+
+  // ─── Mobile card ──────────────────────────────────────────────────────────
+  "card.price": string;
+  "card.5d": string;
+  "card.20d": string;
+  "card.opp": string;
+
+  // ─── Sectors page ─────────────────────────────────────────────────────────
+  "sectors.screener_link": string;
 };
 
 export type MessageKey = keyof Messages;

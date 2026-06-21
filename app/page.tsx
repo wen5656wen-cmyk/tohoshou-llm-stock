@@ -78,10 +78,10 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-yellow-400 text-lg">✦</span>
-            <h2 className="font-bold text-[15px] text-white">AI Picks — TOP 3</h2>
+            <h2 className="font-bold text-[15px] text-white">AI精选 TOP3</h2>
           </div>
           <Link href="/ai-picks" className="text-xs text-slate-400 hover:text-white transition-colors">
-            Full ranking →
+            查看全部 →
           </Link>
         </div>
         {top3.length === 0 ? (
@@ -98,19 +98,19 @@ export default async function DashboardPage() {
       {scores.length > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           <Link href="/ai-picks?filter=BUY" className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 hover:border-emerald-300 transition-colors">
-            <div className="text-xs font-medium text-emerald-600 mb-1">BUY Picks</div>
+            <div className="text-xs font-medium text-emerald-600 mb-1">买入机会</div>
             <div className="text-3xl font-bold text-emerald-700 tabular-nums">{buyCount}</div>
-            <div className="text-xs text-emerald-500 mt-1">STRONG BUY + BUY</div>
+            <div className="text-xs text-emerald-500 mt-1">强烈买入 + 买入</div>
           </Link>
           <Link href="/ai-picks?filter=WATCH" className="bg-amber-50 border border-amber-100 rounded-2xl p-4 hover:border-amber-300 transition-colors">
-            <div className="text-xs font-medium text-amber-600 mb-1">WATCH</div>
+            <div className="text-xs font-medium text-amber-600 mb-1">观察名单</div>
             <div className="text-3xl font-bold text-amber-600 tabular-nums">{watchCount}</div>
             <div className="text-xs text-amber-500 mt-1">监控中</div>
           </Link>
           <Link href="/screener" className="bg-slate-50 border border-slate-200 rounded-2xl p-4 hover:border-slate-300 transition-colors">
-            <div className="text-xs font-medium text-slate-500 mb-1">Screener</div>
+            <div className="text-xs font-medium text-slate-500 mb-1">股票总数</div>
             <div className="text-3xl font-bold text-slate-700 tabular-nums">{scoreCount}</div>
-            <div className="text-xs text-slate-400 mt-1">已计算评分</div>
+            <div className="text-xs text-slate-400 mt-1">已完成AI评分</div>
           </Link>
         </div>
       )}

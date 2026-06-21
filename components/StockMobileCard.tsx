@@ -36,7 +36,7 @@ const ACTION_COLOR: Record<string, string> = {
 };
 
 export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: number }) {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const primaryName = getPrimaryName(s, lang);
   const rec = getRec(s.recommendationV2);
 
@@ -68,24 +68,24 @@ export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: numbe
                 {s.adaptiveScore?.toFixed(0) ?? "—"}
               </div>
               {s.percentileRank != null && (
-                <div className="text-[10px] text-slate-400">Top {s.percentileRank.toFixed(1)}%</div>
+                <div className="text-[10px] text-slate-400">{lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {s.percentileRank.toFixed(1)}%</div>
               )}
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 mt-2.5 text-center text-[11px]">
             <div>
-              <div className="text-slate-400 text-[10px]">Price</div>
+              <div className="text-slate-400 text-[10px]">{t("card.price")}</div>
               <div className="font-medium tabular-nums text-slate-900">{fmtJpy(s.latestClose)}</div>
             </div>
             <div>
-              <div className="text-slate-400 text-[10px]">5D</div>
+              <div className="text-slate-400 text-[10px]">{t("card.5d")}</div>
               <div className={`font-medium tabular-nums ${returnColorClass(s.return5d)}`}>
                 {fmtPct(s.return5d)}
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-[10px]">20D</div>
+              <div className="text-slate-400 text-[10px]">{t("card.20d")}</div>
               <div className={`font-medium tabular-nums ${returnColorClass(s.return20d)}`}>
                 {fmtPct(s.return20d)}
               </div>
@@ -102,13 +102,13 @@ export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: numbe
           {(s.opportunityScore != null || (s.dividendScore != null && s.dividendScore > 0) || (s.catalystScore != null && s.catalystScore > 0)) && (
             <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">
               {s.opportunityScore != null && (
-                <span>Opp <b className="text-slate-600">{s.opportunityScore.toFixed(0)}</b></span>
+                <span>{t("card.opp")} <b className="text-slate-600">{s.opportunityScore.toFixed(0)}</b></span>
               )}
               {s.dividendScore != null && s.dividendScore > 0 && (
-                <span>Div <b className="text-emerald-600">{s.dividendScore}</b></span>
+                <span>{lang === "zh-CN" ? "股息" : lang === "ja-JP" ? "配当" : "Div"} <b className="text-emerald-600">{s.dividendScore}</b></span>
               )}
               {s.catalystScore != null && s.catalystScore > 0 && (
-                <span>Cat <b className="text-orange-600">{s.catalystScore.toFixed(1)}</b></span>
+                <span>{lang === "zh-CN" ? "催化" : lang === "ja-JP" ? "触媒" : "Cat"} <b className="text-orange-600">{s.catalystScore.toFixed(1)}</b></span>
               )}
             </div>
           )}

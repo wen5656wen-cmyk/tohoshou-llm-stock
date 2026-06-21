@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
-import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 
 type Score = {
   symbol: string;
@@ -36,21 +36,24 @@ function ReturnBadge({ val }: { val: number | null | undefined }) {
 }
 
 function MaTrendBadge({ trend }: { trend: string | null }) {
-  const cfg: Record<string, { label: string; cls: string }> = {
-    GOLDEN:  { label: "Bullish",  cls: "bg-amber-100 text-amber-700" },
-    BULLISH: { label: "Strong",   cls: "bg-emerald-100 text-emerald-700" },
-    NEUTRAL: { label: "Neutral",  cls: "bg-slate-100 text-slate-500" },
-    BEARISH: { label: "Weak",     cls: "bg-slate-100 text-slate-500" },
-    DEAD:    { label: "Bearish",  cls: "bg-red-100 text-red-600" },
+  const { t } = useI18n();
+  const cfg: Record<string, { labelKey: string; cls: string }> = {
+    GOLDEN:  { labelKey: "trend.golden",  cls: "bg-amber-100 text-amber-700" },
+    BULLISH: { labelKey: "trend.bullish", cls: "bg-emerald-100 text-emerald-700" },
+    NEUTRAL: { labelKey: "trend.neutral", cls: "bg-slate-100 text-slate-500" },
+    BEARISH: { labelKey: "trend.bearish", cls: "bg-slate-100 text-slate-500" },
+    DEAD:    { labelKey: "trend.dead",    cls: "bg-red-100 text-red-600" },
   };
   const c = cfg[trend ?? ""] ?? cfg.NEUTRAL;
   return (
-    <span className={`text-[11px] px-1.5 py-0.5 rounded font-semibold ${c.cls}`}>{c.label}</span>
+    <span className={`text-[11px] px-1.5 py-0.5 rounded font-semibold whitespace-nowrap ${c.cls}`}>
+      {t(c.labelKey as Parameters<typeof t>[0])}
+    </span>
   );
 }
 
 export function HomeTop3({ top3 }: { top3: Score[] }) {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {top3.map((s, i) => {
@@ -65,8 +68,8 @@ export function HomeTop3({ top3 }: { top3: Score[] }) {
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-400 tabular-nums">#{i + 1}</span>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                {rec.label}
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded whitespace-nowrap ${rec.bg} ${rec.text}`}>
+                {getRecommendationLabel(s.recommendationV2 ?? s.recommendation, lang)}
               </span>
             </div>
             <div className="text-[15px] font-bold text-white leading-tight truncate">{primary}</div>
@@ -79,21 +82,21 @@ export function HomeTop3({ top3 }: { top3: Score[] }) {
                 {s.adaptiveScore?.toFixed(0) ?? s.totalScore}
               </div>
               <div className="text-slate-300 text-xs">
-                / 100{s.percentileRank != null ? ` · Top ${s.percentileRank.toFixed(1)}%` : ""}
+                / 100{s.percentileRank != null ? ` · ${lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} ${s.percentileRank.toFixed(1)}%` : ""}
               </div>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
               <div className="text-center">
                 <div className="text-blue-300 font-bold">{s.technicalScore}</div>
-                <div className="text-slate-500">Tech</div>
+                <div className="text-slate-500">{t("dim.tech_short")}</div>
               </div>
               <div className="text-center">
                 <div className="text-emerald-300 font-bold">{s.fundamentalScore}</div>
-                <div className="text-slate-500">Fund</div>
+                <div className="text-slate-500">{t("dim.fund_short")}</div>
               </div>
               <div className="text-center">
                 <div className="text-violet-300 font-bold">{s.moneyFlowScore ?? s.riskScore}</div>
-                <div className="text-slate-500">Flow</div>
+                <div className="text-slate-500">{t("dim.flow_short")}</div>
               </div>
             </div>
           </Link>
@@ -104,23 +107,23 @@ export function HomeTop3({ top3 }: { top3: Score[] }) {
 }
 
 export function HomeScoreTable({ scores }: { scores: Score[] }) {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
             <th className="px-4 py-3 font-medium w-6 text-center">#</th>
-            <th className="px-4 py-3 font-medium">Stock</th>
-            <th className="px-3 py-3 font-medium text-right">Price</th>
-            <th className="px-3 py-3 font-medium text-right">5D</th>
-            <th className="px-3 py-3 font-medium text-right">20D</th>
+            <th className="px-4 py-3 font-medium">{t("table.stock")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("table.price")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("stock.5d_return")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("stock.20d_return")}</th>
             <th className="px-3 py-3 font-medium text-right">RSI</th>
-            <th className="px-3 py-3 font-medium">Trend</th>
-            <th className="px-3 py-3 font-medium text-right">Tech</th>
-            <th className="px-3 py-3 font-medium text-right">Fund</th>
-            <th className="px-3 py-3 font-medium text-right">Adaptive</th>
-            <th className="px-3 py-3 font-medium text-center">Rating</th>
+            <th className="px-3 py-3 font-medium">{t("table.trend")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("table.tech")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("table.fund")}</th>
+            <th className="px-3 py-3 font-medium text-right">{t("table.adaptive")}</th>
+            <th className="px-3 py-3 font-medium text-center">{t("table.rating")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
@@ -174,8 +177,8 @@ export function HomeScoreTable({ scores }: { scores: Score[] }) {
                   </span>
                 </td>
                 <td className="px-3 py-2 text-center">
-                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                    {rec.label}
+                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${rec.bg} ${rec.text}`}>
+                    {getRecommendationLabel(s.recommendationV2 ?? s.recommendation, lang)}
                   </span>
                 </td>
               </tr>
