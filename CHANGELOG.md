@@ -2,6 +2,38 @@
 
 ---
 
+## [9.0 P4] - 2026-06-21 — Watchlist / Portfolio Score Migration
+
+### Updated Files
+
+**`app/api/watchlist/route.ts`**
+- Replaced N+1 per-item queries with single batch `findMany` for StockScore + Stock + GPTScore
+- Removed `totalScore`/`recommendation`; now selects `adaptiveScore`/`recommendationV2`/`percentileRank`
+- Computes `finalScore = gpt?.finalScore ?? adaptiveScore ?? 0`, `effectiveRating = gptRating ?? recommendationV2`
+- Sorts: `finalScore DESC → gptRank ASC` (null gptRank → 9999)
+
+**`app/api/portfolio/route.ts`**
+- Same batch pattern for StockScore + GPTScore
+- Returns enriched `score` object per item with `finalScore`, `gptRank`, `gptRating`, `effectiveRating`
+- Sorts items by `finalScore DESC → gptRank ASC`
+
+**`app/watchlist/page.tsx`**
+- Removed local `REC_CFG` object (violated single source of truth)
+- Imports `getRec`, `finalScoreColor` from `@/lib/rec-config`
+- Updated `WatchScore` type: replaced `totalScore`/`recommendation` with `finalScore`/`gptScore`/`gptRank`/`gptRating`/`effectiveRating`
+- Rating badge: `getRec(s.effectiveRating).bg/.text`; score display: `finalScoreColor(s.finalScore)` + G#N badge
+
+**`app/portfolio/page.tsx`**
+- `WatchlistTab`: same score fields + getRec/finalScoreColor; removed `totalScore`
+- `PortfolioTab`: replaced `AIScoreBadge score={item.stock?.aiScore}` with `finalScore` number + effectiveRating label + G#N badge
+- Removed `AIScoreBadge` import
+
+### Result
+- `totalScore` fully removed from all 4 files
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed · Commit `a47b8a1`
+
+---
+
 ## [9.0 P3] - 2026-06-21 — Daily AI Pipeline Cron Job
 
 ### New File
