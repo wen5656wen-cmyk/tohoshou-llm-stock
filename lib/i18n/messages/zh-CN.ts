@@ -341,6 +341,22 @@ const zhCN: Messages = {
   "home.watch_label": "观察名单",
   "home.screener_count": "股票总数",
   "home.strong_buy_plus_buy": "强烈买入 + 买入",
+  // Dashboard stat cards
+  "home.db_stocks": "数据库股票",
+  "home.scored_count": "已计算评分",
+  "home.buy_recommendation": "买入推荐",
+  "home.price_records": "日线价格",
+  "home.last_sync": "最后同步",
+  "home.unit_stocks": "只",
+  "home.unit_records": "条",
+  // Dashboard section labels
+  "home.no_score_hint": "暂无评分数据，请运行",
+  "home.watch_monitoring": "监控中",
+  "home.ai_scored": "已完成AI评分",
+  "home.ranking_title": "AI 评分排行",
+  "home.screener_link": "筛选排序 →",
+  "home.show_top100": "仅显示前100条。",
+  "home.view_screener": "前往筛选器查看全部 →",
 
   // Generic table headers
   "table.stock": "股票",

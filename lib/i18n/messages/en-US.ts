@@ -341,6 +341,22 @@ const enUS: Messages = {
   "home.watch_label": "WATCH",
   "home.screener_count": "Screener",
   "home.strong_buy_plus_buy": "STRONG BUY + BUY",
+  // Dashboard stat cards
+  "home.db_stocks": "Database Stocks",
+  "home.scored_count": "AI Scored",
+  "home.buy_recommendation": "Buy Signals",
+  "home.price_records": "Daily Prices",
+  "home.last_sync": "Last Sync",
+  "home.unit_stocks": "",
+  "home.unit_records": "",
+  // Dashboard section labels
+  "home.no_score_hint": "No score data. Run:",
+  "home.watch_monitoring": "Watching",
+  "home.ai_scored": "AI Scored",
+  "home.ranking_title": "AI Rankings",
+  "home.screener_link": "Screener →",
+  "home.show_top100": "Showing top 100 only.",
+  "home.view_screener": "View all in screener →",
 
   // Generic table headers
   "table.stock": "Stock",

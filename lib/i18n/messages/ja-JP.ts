@@ -341,6 +341,22 @@ const jaJP: Messages = {
   "home.watch_label": "注目中",
   "home.screener_count": "銘柄数",
   "home.strong_buy_plus_buy": "強い買い + 買い",
+  // Dashboard stat cards
+  "home.db_stocks": "データベース銘柄",
+  "home.scored_count": "AI評価済み銘柄",
+  "home.buy_recommendation": "買い推奨",
+  "home.price_records": "日足データ",
+  "home.last_sync": "最終更新",
+  "home.unit_stocks": "銘柄",
+  "home.unit_records": "件",
+  // Dashboard section labels
+  "home.no_score_hint": "評価データなし。実行：",
+  "home.watch_monitoring": "注目銘柄",
+  "home.ai_scored": "AI評価完了",
+  "home.ranking_title": "AI評価ランキング",
+  "home.screener_link": "スクリーナー →",
+  "home.show_top100": "上位100銘柄まで表示。",
+  "home.view_screener": "スクリーナーで全て見る →",
 
   // Generic table headers
   "table.stock": "銘柄",

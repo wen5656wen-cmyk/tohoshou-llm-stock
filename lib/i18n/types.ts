@@ -272,6 +272,22 @@ export type Messages = {
   "home.top_picks": string;
   "home.recent_news": string;
   "home.view_all": string;
+  // Dashboard stat card labels
+  "home.db_stocks": string;
+  "home.scored_count": string;
+  "home.buy_recommendation": string;
+  "home.price_records": string;
+  "home.last_sync": string;
+  "home.unit_stocks": string;
+  "home.unit_records": string;
+  // Dashboard section labels
+  "home.no_score_hint": string;
+  "home.watch_monitoring": string;
+  "home.ai_scored": string;
+  "home.ranking_title": string;
+  "home.screener_link": string;
+  "home.show_top100": string;
+  "home.view_screener": string;
 
   // ─── Watchlist ─────────────────────────────────────────────────────────────
   "watchlist.title": string;
