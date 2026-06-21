@@ -2,6 +2,22 @@
 
 ---
 
+## [9.0 P1] - 2026-06-21 — totalScore Global Migration (Data Fix)
+
+### Changes
+- `app/ai-picks/page.tsx`: removed `totalScore` from `AiScore` type; filter tab counts now use `marketStats` (global DB counts) for consistency with header banner
+- `app/api/ai-scores/route.ts`: removed `totalScore` from Prisma select + response; fixed `rawScore`/`adaptiveScore` fallbacks to not reference `totalScore`
+- `app/api/indicators/route.ts`: where/orderBy changed from `totalScore` → `adaptiveScore`
+- `app/api/sectors/route.ts`: Prisma select + counts use `adaptiveScore`/`recommendationV2`; `avgTotalScore` → `avgAdaptiveScore`; top3 sort + map uses `adaptiveScore`/`recommendationV2`
+- `app/sectors/page.tsx`: types + sort key + display updated to `avgAdaptiveScore`/`adaptiveScore`/`recommendationV2`
+- `app/api/notifications/send-morning-report/route.ts`: queries use `adaptiveScore` + `recommendationV2`; mapped to `totalScore`/`recommendation` for line-flex compat
+- `app/api/notifications/send-close-report/route.ts`: same pattern; `_avg.totalScore` → `_avg.adaptiveScore`
+- `app/api/line/test-flex/route.ts`: both morning + stock cases use `adaptiveScore`/`recommendationV2`
+- `app/api/sync/jquants,news,yahoo/route.ts`: `orderBy: { totalScore }` → `{ adaptiveScore }`
+- Exemptions: `/watchlist` and `/portfolio` routes retained as-is (per design)
+
+---
+
 ## [9.0 P2.1] - 2026-06-21 — Compact Card UI
 
 ### Changes
