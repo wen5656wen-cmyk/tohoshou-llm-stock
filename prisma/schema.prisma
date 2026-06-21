@@ -494,13 +494,23 @@ model AITheme {
 }
 
 // V9 P1: GPT Scoring Overlay — AI chain + TOP100 only
+// V8.6 P1: 7 sub-dimension scores + formula 0.4/0.6
 model GPTScore {
   symbol      String    @id
   model       String    @default("gpt-4o-mini")
 
   ruleScore   Float
   gptScore    Float
-  finalScore  Float     // ruleScore * 0.7 + gptScore * 0.3
+  finalScore  Float     // ruleScore * 0.4 + gptScore * 0.6
+
+  // 7 GPT sub-dimension scores (0-100, null if not yet scored)
+  businessQuality  Int?
+  growthScore      Int?
+  industryScore    Int?
+  moatScore        Int?
+  valuationScore   Int?
+  catalystScore    Int?
+  riskScore        Int?
 
   confidence  String    // LOW | MEDIUM | HIGH
   action      String    // POSITIVE | NEUTRAL | NEGATIVE

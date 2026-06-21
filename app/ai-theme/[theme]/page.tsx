@@ -36,12 +36,26 @@ type Stock = {
 
 type GptSummary = {
   symbol: string;
+  gptScore: number;
   finalScore: number;
   confidence: string;
   action: string;
   summaryZh: string;
   summaryJa: string;
   summaryEn: string;
+  thesisZh: string;
+  thesisJa: string;
+  thesisEn: string;
+  strengths: string[];
+  risks: string[];
+  catalysts: string[];
+  businessQuality: number | null;
+  growthScore: number | null;
+  industryScore: number | null;
+  moatScore: number | null;
+  valuationScore: number | null;
+  catalystScore: number | null;
+  riskScore: number | null;
 };
 
 type ApiResponse = {
@@ -87,9 +101,20 @@ function ReturnBadge({ v }: { v: number | null }) {
   );
 }
 
+function GptDimBar({ score }: { score: number | null }) {
+  if (score == null) return null;
+  const color = score >= 80 ? "bg-emerald-400" : score >= 65 ? "bg-blue-400" : score >= 50 ? "bg-amber-400" : "bg-red-400";
+  return (
+    <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
+    </div>
+  );
+}
+
 function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) {
   const { lang, t } = useI18n();
   const pathname = usePathname();
+  const [expanded, setExpanded] = useState(false);
   const gpt = gptMap.get(s.symbol);
   const rec = getRec(s.recommendationV2);
   return (
@@ -155,16 +180,67 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
           )}
         </div>
       )}
-      {/* V9 P1: GPT mini badge */}
+      {/* V8.6 P1: GPT badge + expandable details */}
       {gpt ? (
-        <div className="mt-1.5 flex items-center gap-2 text-[10px]">
-          <span className="bg-violet-50 text-violet-600 border border-violet-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
-            GPT {gpt.finalScore.toFixed(1)}
-          </span>
-          <span className={`font-medium ${gpt.action === "POSITIVE" ? "text-emerald-600" : gpt.action === "NEGATIVE" ? "text-red-500" : "text-slate-400"}`}>
-            {lang === "ja-JP" ? gpt.summaryJa : lang === "en-US" ? gpt.summaryEn : gpt.summaryZh}
-          </span>
-        </div>
+        <>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-1.5 flex items-center gap-2 text-[10px] w-full text-left"
+          >
+            <span className="bg-violet-50 text-violet-600 border border-violet-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
+              GPT {gpt.gptScore}
+            </span>
+            <span className="bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
+              {t("gpt.final_score")} {gpt.finalScore.toFixed(1)}
+            </span>
+            <span className={`font-medium ${gpt.action === "POSITIVE" ? "text-emerald-600" : gpt.action === "NEGATIVE" ? "text-amber-700" : "text-slate-400"}`}>
+              {t(`gpt.action.${gpt.action}` as Parameters<typeof t>[0])}
+            </span>
+            <span className="text-slate-400 truncate flex-1">
+              {lang === "ja-JP" ? gpt.summaryJa : lang === "en-US" ? gpt.summaryEn : gpt.summaryZh}
+            </span>
+            <span className="text-slate-300 shrink-0">{expanded ? "▲" : "▼"}</span>
+          </button>
+          {expanded && (
+            <div className="mt-2 bg-slate-50 rounded-xl p-3 text-[10px] text-slate-600 space-y-2">
+              {/* 7 dimension bars */}
+              {gpt.businessQuality != null && (
+                <div className="space-y-1.5">
+                  {[
+                    { key: "gpt.dim.business_quality" as const, v: gpt.businessQuality },
+                    { key: "gpt.dim.growth"           as const, v: gpt.growthScore },
+                    { key: "gpt.dim.industry"         as const, v: gpt.industryScore },
+                    { key: "gpt.dim.moat"             as const, v: gpt.moatScore },
+                    { key: "gpt.dim.valuation"        as const, v: gpt.valuationScore },
+                    { key: "gpt.dim.catalyst"         as const, v: gpt.catalystScore },
+                    { key: "gpt.dim.risk"             as const, v: gpt.riskScore },
+                  ].map(({ key, v }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="text-slate-400 w-20 shrink-0 truncate">{t(key)}</span>
+                      <GptDimBar score={v} />
+                      <span className="tabular-nums text-slate-500 w-6 text-right">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Thesis */}
+              <p className="leading-relaxed text-slate-500">
+                {lang === "ja-JP" ? gpt.thesisJa : lang === "en-US" ? gpt.thesisEn : gpt.thesisZh}
+              </p>
+              {/* Strengths + Risks */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-emerald-600 font-semibold mb-0.5">{t("gpt.strengths")}</div>
+                  {(gpt.strengths ?? []).slice(0, 2).map((s, i) => <div key={i} className="text-slate-500">▸ {s}</div>)}
+                </div>
+                <div>
+                  <div className="text-red-500 font-semibold mb-0.5">{t("gpt.risks")}</div>
+                  {(gpt.risks ?? []).slice(0, 2).map((r, i) => <div key={i} className="text-slate-500">▸ {r}</div>)}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="mt-1.5 text-[10px] text-slate-300">{t("gpt.not_generated")}</div>
       )}

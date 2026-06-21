@@ -2,6 +2,59 @@
 
 ---
 
+## [8.6 P1] - 2026-06-21 — GPT Driven Scoring Upgrade (7 Sub-Dimensions + 40/60 Formula)
+
+### Changes
+
+**Formula** (breaking): `finalScore = ruleScore × 0.4 + gptScore × 0.6`（GPT 权重从 30% 提升至 60%）
+
+**`prisma/schema.prisma`**
+- `GPTScore` 表新增 7 个可空 Int 字段：`businessQuality`, `growthScore`, `industryScore`, `moatScore`, `valuationScore`, `catalystScore`, `riskScore`
+- 已 push 到本地 + 生产 DB（零停机，nullable columns）
+
+**`scripts/gpt-score-overlay.ts`**
+- 公式 0.7/0.3 → 0.4/0.6
+- `GPTResponse` 新增 7 个子维度字段
+- Prompt 新增 7 维度说明，JSON 输出格式含 7 个评分
+- `callGPT` 验证逻辑 clamp 所有子维度到 0-100（missing → fallback 50）
+- max_tokens: 900 → 1100（为子维度留空间）
+- 测试：avgAbsDiff = 22.0 pts（通过独立性检查），5/5 成功
+
+**`lib/i18n/`** — 9 个新 key + 3 个更新
+- 新增：`gpt.dim.{business_quality, growth, industry, moat, valuation, catalyst, risk}`（三语言）
+- 新增：`screener.col_gpt_score`, `screener.col_confidence`（三语言）
+- 更新：`gpt.action.POSITIVE` → 看涨/強気/Bullish；`gpt.action.NEGATIVE` → 谨慎/慎重/Cautious
+- 更新：`gpt.final_score_desc` → 40%/60% 描述
+
+**`app/stocks/[symbol]/page.tsx`** — GptScoreCard 升级
+- `GPTData` 类型新增 7 个可空子维度字段
+- 新增 `DimBar` 组件（水平进度条，颜色 ≥80 emerald / ≥65 blue / ≥50 amber / <50 red）
+- `dimBarColor()` 纯函数
+- 7 维度区块在 Score 说明行下方展示（`hasDimScores` guard，老数据行不显示）
+- `ACTION_CFG.NEGATIVE` 颜色改为 amber（谨慎，非负面）
+
+**`app/ai-theme/[theme]/page.tsx`** — StockRow 升级
+- `GptSummary` 类型扩展：新增 `gptScore`, `thesisZh/Ja/En`, `strengths`, `risks`, `catalysts`, 7 维度字段
+- `GptDimBar` 模块级组件（mini 1px 进度条）
+- StockRow 新增 `expanded` useState
+- GPT 区块变为可展开按钮，展开后显示：7 维度条、thesis、strengths/risks mini 列表
+
+**`app/screener/page.tsx`** — 三列 GPT 数据
+- `SortKey` 新增 `"gptScore"`
+- 排序逻辑新增 gptScore case
+- 表头新增：GPT Score（可排序）、Final Score（可排序）、Confidence（显示）
+- 表体替换：原单列 `finalScore` → 三独立列（violet GPT分 / blue 综合分 / confidence 彩色）
+
+### Test
+```
+npm run gpt:score -- --limit=5 --force
+→ avgAbsDiff = 22.0 pts ✓
+→ 5/5 succeeded, 0 failures
+→ formula 40/60 verified: rule=47 gpt=68 final=59.6 ✓
+```
+
+---
+
 ## [9.0 P1.1] - 2026-06-21 — GPT Score Independence Fix
 
 ### Problem

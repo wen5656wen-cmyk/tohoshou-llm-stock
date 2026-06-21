@@ -1,12 +1,14 @@
 #!/usr/bin/env npx tsx
 /**
- * GPT Scoring Overlay — V9 P1.1
+ * GPT Scoring Overlay — V8.6 P1
  *
  * Independence fix: GPT receives only raw facts (price, returns, technicals,
  * fundamentals, news). Rule scores / ratings / trading actions are withheld
  * so GPT forms an independent judgment.
  *
- * Final Score = ruleScore * 0.7 + gptScore * 0.3  (computed AFTER GPT call)
+ * Final Score = ruleScore * 0.4 + gptScore * 0.6  (GPT-driven, computed AFTER GPT call)
+ * 7 sub-dimension scores added: businessQuality, growthScore, industryScore,
+ * moatScore, valuationScore, catalystScore, riskScore
  *
  * Usage:
  *   npm run gpt:score
@@ -41,6 +43,14 @@ const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 // ── Types ─────────────────────────────────────────────────────────────────────
 type GPTResponse = {
   gptScore: number;
+  // V8.6 P1: 7 sub-dimension scores
+  businessQuality: number;
+  growthScore: number;
+  industryScore: number;
+  moatScore: number;
+  valuationScore: number;
+  catalystScore: number;
+  riskScore: number;
   confidence: "LOW" | "MEDIUM" | "HIGH";
   action: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
   summaryZh: string;
@@ -206,27 +216,34 @@ Net Profit (latest): ${f.netProfitM != null ? `¥${(f.netProfitM / 1000).toFixed
 ${newsStr}
 
 ━━━ SCORING DIMENSIONS ━━━
-Evaluate across these 7 dimensions, then synthesize a single 0-100 score:
+Score each of the 7 dimensions independently (0-100), then synthesize a final 0-100 score:
 
-1. Business Quality: market position, competitive moat, brand/IP
-2. Growth Potential: sector tailwinds, revenue growth, AI/tech relevance
-3. Valuation: PER/PBR vs sector peers, dividend attractiveness
-4. Momentum Quality: price trend sustainability, volume conviction
-5. Risk Profile: debt, regulatory, FX, concentration risks
-6. Catalysts: specific upcoming events, product cycles, earnings revisions
-7. Industry Position: supply chain importance, customer diversification
+1. businessQuality (0-100): market position, brand/IP strength, customer loyalty
+2. growthScore (0-100): sector tailwinds, revenue/earnings growth trajectory, AI/tech relevance
+3. industryScore (0-100): supply chain criticality, customer diversification, pricing power
+4. moatScore (0-100): competitive moat depth, barriers to entry, switching costs
+5. valuationScore (0-100): PER/PBR vs peers, dividend yield, margin of safety (HIGH = attractive value)
+6. catalystScore (0-100): specific near-term catalysts, earnings revision potential, product cycles
+7. riskScore (0-100): risk management quality (HIGH = well-managed risks; LOW = high unchecked risks)
 
 ━━━ SCORE SCALE ━━━
-90-100: Exceptional across most dimensions — strong moat, clear catalyst, controlled risk
-80-89: Strong, several dimensions clearly positive
+90-100: Exceptional — strong moat, clear catalyst, controlled risk
+80-89: Strong — several dimensions clearly positive
 70-79: Positive with meaningful but manageable risks
 60-69: Neutral to slightly positive, mixed signals
-50-59: Limited information or few distinguishing factors
-<50: Notable risks outweigh potential, or structurally challenged business
+50-59: Limited differentiators or mixed information
+<50: Notable risks outweigh potential, or structurally challenged
 
 ━━━ REQUIRED OUTPUT FORMAT (strict JSON, no markdown) ━━━
 {
-  "gptScore": <integer 0-100>,
+  "gptScore": <integer 0-100, weighted synthesis of the 7 dimensions>,
+  "businessQuality": <integer 0-100>,
+  "growthScore": <integer 0-100>,
+  "industryScore": <integer 0-100>,
+  "moatScore": <integer 0-100>,
+  "valuationScore": <integer 0-100>,
+  "catalystScore": <integer 0-100>,
+  "riskScore": <integer 0-100>,
   "confidence": <"LOW"|"MEDIUM"|"HIGH">,
   "action": <"POSITIVE"|"NEUTRAL"|"NEGATIVE">,
   "summaryZh": "<15-20 chars>",
@@ -251,8 +268,8 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
       const resp = await oai.chat.completions.create({
         model: GPT_MODEL,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.6,   // Higher than before to encourage independent reasoning
-        max_tokens: 900,
+        temperature: 0.6,
+        max_tokens: 1100,   // Extra tokens for 7 sub-scores
         response_format: { type: "json_object" },
       });
       const raw = resp.choices[0]?.message?.content ?? "";
@@ -261,7 +278,15 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
       if (typeof parsed.gptScore !== "number") throw new Error("gptScore missing");
       if (!["LOW", "MEDIUM", "HIGH"].includes(parsed.confidence)) throw new Error("invalid confidence");
       if (!["POSITIVE", "NEUTRAL", "NEGATIVE"].includes(parsed.action)) throw new Error("invalid action");
-      parsed.gptScore = Math.max(0, Math.min(100, Math.round(parsed.gptScore)));
+      const clamp = (v: unknown) => typeof v === "number" ? Math.max(0, Math.min(100, Math.round(v))) : 50;
+      parsed.gptScore = clamp(parsed.gptScore);
+      parsed.businessQuality = clamp(parsed.businessQuality);
+      parsed.growthScore     = clamp(parsed.growthScore);
+      parsed.industryScore   = clamp(parsed.industryScore);
+      parsed.moatScore       = clamp(parsed.moatScore);
+      parsed.valuationScore  = clamp(parsed.valuationScore);
+      parsed.catalystScore   = clamp(parsed.catalystScore);
+      parsed.riskScore       = clamp(parsed.riskScore);
       parsed.strengths = Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : [];
       parsed.risks = Array.isArray(parsed.risks) ? parsed.risks.slice(0, 5) : [];
       parsed.catalysts = Array.isArray(parsed.catalysts) ? parsed.catalysts.slice(0, 5) : [];
@@ -278,7 +303,7 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log(`\n🤖 GPT Score Overlay — V9 P1.1 (Independence Fix)`);
+  console.log(`\n🤖 GPT Score Overlay — V8.6 P1 (7 Sub-Dimensions, Formula 40/60)`);
   console.log(`   Model: ${GPT_MODEL}  |  Limit: ${MAX_LIMIT}  |  Force: ${FORCE}`);
   console.log(`${"─".repeat(60)}`);
 
@@ -475,7 +500,7 @@ async function main() {
       const diff = Math.abs(gptResp.gptScore - ruleScore);
       diffSamples.push(diff);
 
-      let finalScore = ruleScore * 0.7 + gptResp.gptScore * 0.3;
+      let finalScore = ruleScore * 0.4 + gptResp.gptScore * 0.6;
       finalScore = applySafetyCaps(finalScore, {
         isStale,
         isSuspicious,
@@ -484,47 +509,36 @@ async function main() {
         hasMissingFinancials,
       });
 
+      const upsertData = {
+        model: GPT_MODEL,
+        ruleScore: Math.round(ruleScore * 10) / 10,
+        gptScore: gptResp.gptScore,
+        finalScore,
+        businessQuality: gptResp.businessQuality,
+        growthScore:     gptResp.growthScore,
+        industryScore:   gptResp.industryScore,
+        moatScore:       gptResp.moatScore,
+        valuationScore:  gptResp.valuationScore,
+        catalystScore:   gptResp.catalystScore,
+        riskScore:       gptResp.riskScore,
+        confidence: gptResp.confidence,
+        action: gptResp.action,
+        summaryZh: gptResp.summaryZh,
+        summaryJa: gptResp.summaryJa,
+        summaryEn: gptResp.summaryEn,
+        thesisZh: gptResp.thesisZh,
+        thesisJa: gptResp.thesisJa,
+        thesisEn: gptResp.thesisEn,
+        strengths: gptResp.strengths,
+        risks: gptResp.risks,
+        catalysts: gptResp.catalysts,
+        timeHorizon: gptResp.timeHorizon,
+        inputHash,
+      };
       await prisma.gPTScore.upsert({
         where: { symbol: sc.symbol },
-        create: {
-          symbol: sc.symbol,
-          model: GPT_MODEL,
-          ruleScore: Math.round(ruleScore * 10) / 10,
-          gptScore: gptResp.gptScore,
-          finalScore,
-          confidence: gptResp.confidence,
-          action: gptResp.action,
-          summaryZh: gptResp.summaryZh,
-          summaryJa: gptResp.summaryJa,
-          summaryEn: gptResp.summaryEn,
-          thesisZh: gptResp.thesisZh,
-          thesisJa: gptResp.thesisJa,
-          thesisEn: gptResp.thesisEn,
-          strengths: gptResp.strengths,
-          risks: gptResp.risks,
-          catalysts: gptResp.catalysts,
-          timeHorizon: gptResp.timeHorizon,
-          inputHash,
-        },
-        update: {
-          model: GPT_MODEL,
-          ruleScore: Math.round(ruleScore * 10) / 10,
-          gptScore: gptResp.gptScore,
-          finalScore,
-          confidence: gptResp.confidence,
-          action: gptResp.action,
-          summaryZh: gptResp.summaryZh,
-          summaryJa: gptResp.summaryJa,
-          summaryEn: gptResp.summaryEn,
-          thesisZh: gptResp.thesisZh,
-          thesisJa: gptResp.thesisJa,
-          thesisEn: gptResp.thesisEn,
-          strengths: gptResp.strengths,
-          risks: gptResp.risks,
-          catalysts: gptResp.catalysts,
-          timeHorizon: gptResp.timeHorizon,
-          inputHash,
-        },
+        create: { symbol: sc.symbol, ...upsertData },
+        update: upsertData,
       });
 
       called++;

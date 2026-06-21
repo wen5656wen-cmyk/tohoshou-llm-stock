@@ -46,6 +46,14 @@ type GPTData = {
   ruleScore: number;
   gptScore: number;
   finalScore: number;
+  // V8.6 P1: 7 sub-dimension scores (null for legacy rows)
+  businessQuality: number | null;
+  growthScore: number | null;
+  industryScore: number | null;
+  moatScore: number | null;
+  valuationScore: number | null;
+  catalystScore: number | null;
+  riskScore: number | null;
   confidence: "LOW" | "MEDIUM" | "HIGH";
   action: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
   summaryZh: string;
@@ -260,7 +268,7 @@ function fmtBillion(v: number | null, lang?: string): string {
 }
 
 
-// ── GPT Score Card (V9 P1) ───────────────────────────────────────────────────
+// ── GPT Score Card (V8.6 P1 — 7 sub-dimensions) ─────────────────────────────
 
 const CONFIDENCE_CFG = {
   HIGH:   { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
@@ -270,8 +278,31 @@ const CONFIDENCE_CFG = {
 const ACTION_CFG = {
   POSITIVE: { dot: "bg-emerald-400", text: "text-emerald-600" },
   NEUTRAL:  { dot: "bg-slate-300",   text: "text-slate-500"   },
-  NEGATIVE: { dot: "bg-red-400",     text: "text-red-600"     },
+  NEGATIVE: { dot: "bg-amber-400",   text: "text-amber-700"   },
 };
+
+function dimBarColor(score: number): string {
+  if (score >= 80) return "bg-emerald-400";
+  if (score >= 65) return "bg-blue-400";
+  if (score >= 50) return "bg-amber-400";
+  return "bg-red-400";
+}
+
+function DimBar({ label, score }: { label: string; score: number | null }) {
+  if (score == null) return null;
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="text-[10px] text-slate-500 w-24 shrink-0 truncate">{label}</span>
+      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${dimBarColor(score)}`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+      <span className="text-[10px] tabular-nums text-slate-500 w-7 text-right font-medium">{score}</span>
+    </div>
+  );
+}
 
 function GptScoreCard({ gptData }: { gptData: GPTData | null | "not_found" }) {
   const { t, lang } = useI18n();
@@ -295,6 +326,8 @@ function GptScoreCard({ gptData }: { gptData: GPTData | null | "not_found" }) {
 
   const summary = lang === "ja-JP" ? gptData.summaryJa : lang === "en-US" ? gptData.summaryEn : gptData.summaryZh;
   const thesis  = lang === "ja-JP" ? gptData.thesisJa  : lang === "en-US" ? gptData.thesisEn  : gptData.thesisZh;
+
+  const hasDimScores = gptData.businessQuality != null;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -324,18 +357,25 @@ function GptScoreCard({ gptData }: { gptData: GPTData | null | "not_found" }) {
         </div>
 
         {/* Score explanation row */}
-        <div className="flex gap-3 mb-4">
-          <div className="flex-1 text-[10px] text-slate-400 px-1">
-            {t("gpt.rule_score_desc")}
-          </div>
-          <div className="flex-1 text-[10px] text-slate-400 px-1">
-            {t("gpt.gpt_score_desc")}
-          </div>
-          <div className="flex-1 text-[10px] text-slate-400 px-1">
-            {t("gpt.final_score_desc")}
-          </div>
+        <div className="flex gap-3 mb-5">
+          <div className="flex-1 text-[10px] text-slate-400 px-1">{t("gpt.rule_score_desc")}</div>
+          <div className="flex-1 text-[10px] text-slate-400 px-1">{t("gpt.gpt_score_desc")}</div>
+          <div className="flex-1 text-[10px] text-slate-400 px-1">{t("gpt.final_score_desc")}</div>
           <div className="flex-1" />
         </div>
+
+        {/* 7 Dimension bars */}
+        {hasDimScores && (
+          <div className="bg-slate-50 rounded-xl p-3 mb-4 space-y-2">
+            <DimBar label={t("gpt.dim.business_quality")} score={gptData.businessQuality} />
+            <DimBar label={t("gpt.dim.growth")}           score={gptData.growthScore} />
+            <DimBar label={t("gpt.dim.industry")}         score={gptData.industryScore} />
+            <DimBar label={t("gpt.dim.moat")}             score={gptData.moatScore} />
+            <DimBar label={t("gpt.dim.valuation")}        score={gptData.valuationScore} />
+            <DimBar label={t("gpt.dim.catalyst")}         score={gptData.catalystScore} />
+            <DimBar label={t("gpt.dim.risk")}             score={gptData.riskScore} />
+          </div>
+        )}
 
         {/* Action + Summary */}
         <div className="flex items-start gap-2 mb-3">

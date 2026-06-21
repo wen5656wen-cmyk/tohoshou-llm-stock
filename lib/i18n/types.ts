@@ -533,6 +533,16 @@ export type Messages = {
   "gpt.gpt_score_desc": string;
   "gpt.final_score_desc": string;
   "screener.col_final_score": string;
+  // V8.6 P1: 7 sub-dimension labels
+  "gpt.dim.business_quality": string;
+  "gpt.dim.growth": string;
+  "gpt.dim.industry": string;
+  "gpt.dim.moat": string;
+  "gpt.dim.valuation": string;
+  "gpt.dim.catalyst": string;
+  "gpt.dim.risk": string;
+  "screener.col_gpt_score": string;
+  "screener.col_confidence": string;
 };
 
 export type MessageKey = keyof Messages;

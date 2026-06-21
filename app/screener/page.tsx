@@ -54,7 +54,7 @@ function MktChip({ mkt }: { mkt: string | null }) {
   return <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${cls}`}>{label}</span>;
 }
 
-type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14" | "finalScore";
+type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14" | "gptScore" | "finalScore";
 
 type GptSummary = {
   symbol: string;
@@ -153,6 +153,11 @@ export default function ScreenerPage() {
       av = a.percentileRank ?? 999;
       bv = b.percentileRank ?? 999;
       return sortDir === "asc" ? av - bv : bv - av;
+    }
+    if (sortKey === "gptScore") {
+      av = gptMap.get(a.symbol)?.gptScore ?? -999;
+      bv = gptMap.get(b.symbol)?.gptScore ?? -999;
+      return sortDir === "desc" ? bv - av : av - bv;
     }
     if (sortKey === "finalScore") {
       av = gptMap.get(a.symbol)?.finalScore ?? -999;
@@ -314,7 +319,9 @@ export default function ScreenerPage() {
                 <ThBtn col="adaptiveScore"    label={t("screener.col_adaptive")} />
                 <ThBtn col="percentileRank"   label={t("screener.col_percentile")} />
                 <ThBtn col="opportunityScore" label={t("screener.col_opportunity")} />
+                {hasGptScores && <ThBtn col="gptScore" label={t("screener.col_gpt_score")} />}
                 {hasGptScores && <ThBtn col="finalScore" label={t("screener.col_final_score")} />}
+                {hasGptScores && <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_confidence")}</th>}
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_tech")}</th>
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_fund")}</th>
                 <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_flow")}</th>
@@ -366,15 +373,23 @@ export default function ScreenerPage() {
                     </td>
                     {hasGptScores && (() => {
                       const gpt = gptMap.get(s.symbol);
-                      const actionDot = gpt?.action === "POSITIVE" ? "🟢" : gpt?.action === "NEGATIVE" ? "🔴" : "⚪";
+                      const confColor = gpt?.confidence === "HIGH" ? "text-emerald-600" : gpt?.confidence === "MEDIUM" ? "text-amber-600" : "text-slate-400";
                       return (
-                        <td className="px-2 py-2 text-right text-xs tabular-nums">
-                          {gpt ? (
-                            <span className="font-semibold text-blue-600" title={`GPT: ${gpt.gptScore.toFixed(0)}`}>
-                              {actionDot} {gpt.finalScore.toFixed(1)}
-                            </span>
-                          ) : <span className="text-slate-300">—</span>}
-                        </td>
+                        <>
+                          <td className="px-2 py-2 text-right text-xs tabular-nums">
+                            {gpt ? <span className="font-semibold text-violet-600">{gpt.gptScore}</span> : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-2 py-2 text-right text-xs tabular-nums">
+                            {gpt ? <span className="font-semibold text-blue-600">{gpt.finalScore.toFixed(1)}</span> : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-2 py-2 text-right text-xs tabular-nums">
+                            {gpt ? (
+                              <span className={`font-medium ${confColor}`}>
+                                {t(`gpt.confidence.${gpt.confidence}` as Parameters<typeof t>[0])}
+                              </span>
+                            ) : <span className="text-slate-300">—</span>}
+                          </td>
+                        </>
                       );
                     })()}
                     <td className="px-2 py-2 text-right text-xs text-blue-600 tabular-nums">{s.technicalScore ?? "—"}</td>
