@@ -235,6 +235,7 @@ export type AiScoreResult = {
   adaptiveScore: number;
   stockStyle: StockStyle;
   highRiskFlag: boolean;
+  priceSuspicious: boolean;
   fxSensitivity: string;
   catalystScore: number;
   // Analysis
@@ -507,12 +508,18 @@ export function calcAiScore(input: ScoreInput): AiScoreResult {
   const fundamentalScore = Math.min(25, opMT.score + roeT.score + epsT.score + eqRT.score);
 
   // Money Flow (0-20) — V3.1: real data > v2_proxy > synthetic
+  // |return60d| > 50% is flagged suspicious (extreme move) — cap at ±50 for proxy flow
+  const priceSuspicious = Math.abs(input.return60d ?? 0) > 50;
+  const cappedReturn60d = priceSuspicious
+    ? Math.sign(input.return60d ?? 0) * 50
+    : input.return60d;
+
   const REAL_MONEY_SOURCES = ["jquants_investor_types", "jpx", "jpx_file", "jpx_manual"];
   const flowSrc = input.institutionalFlowData?.source ?? "";
   const useRealFlow = REAL_MONEY_SOURCES.includes(flowSrc);
   const inflowT = useRealFlow
     ? calcRealInflow(input.institutionalFlowData!)
-    : calcInflow(input.return60d);
+    : calcInflow(cappedReturn60d);
   const stabT  = calcStability(input.maTrend, input.rsi14);
   const shortT = calcShortPressure(input.return5d);
   const moneyFlowScore = Math.min(20, inflowT.score + stabT.score + shortT.score);
@@ -564,7 +571,8 @@ export function calcAiScore(input: ScoreInput): AiScoreResult {
     WATCH: "关注等待",
     AVOID: "回避",
   };
-  const summaryReason = `${recLabel[recommendation] ?? recommendation}（${totalScore}分）：技术面${technicalScore}/30，基本面${fundamentalScore}/25，资金面${moneyFlowScore}/20[${moneyFlowSource}]，情绪${newsSentimentScore}/15，趋势${globalTrendScore}/10[${globalTrendSource}]。${maT.reason}。${opMT.reason}。`;
+  const suspiciousNote = priceSuspicious ? `⚠️ 60日涨跌幅${(input.return60d ?? 0).toFixed(1)}%超过±50%，价格异动待确认。` : "";
+  const summaryReason = `${recLabel[recommendation] ?? recommendation}（${totalScore}分）：技术面${technicalScore}/30，基本面${fundamentalScore}/25，资金面${moneyFlowScore}/20[${moneyFlowSource}]，情绪${newsSentimentScore}/15，趋势${globalTrendScore}/10[${globalTrendSource}]。${maT.reason}。${opMT.reason}。${suspiciousNote}`;
 
   // V7.5: dynamic scoring
   const { style: stockStyle, highRiskFlag } = classifyStockStyle({
@@ -606,6 +614,7 @@ export function calcAiScore(input: ScoreInput): AiScoreResult {
     adaptiveScore,
     stockStyle,
     highRiskFlag,
+    priceSuspicious,
     fxSensitivity,
     catalystScore,
     technicalReasons: [maT.reason, macdT.reason, rsiT.reason, momT.reason],

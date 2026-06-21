@@ -386,6 +386,17 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       </div>
 
+      {/* Large-move notice — shown when 60d adj-return exceeds ±50% */}
+      {Math.abs(ind.return60d ?? 0) > 50 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 mb-4 flex items-start gap-2 text-sm text-amber-800">
+          <span className="text-lg leading-none mt-0.5">⚠️</span>
+          <div>
+            <span className="font-semibold">数据提醒</span>
+            <span className="ml-1">该股票近期存在大幅价格波动（60日涨跌幅 {(ind.return60d ?? 0).toFixed(1)}%），AI评分已使用复权价格处理，仅供参考。</span>
+          </div>
+        </div>
+      )}
+
       {/* Return Strip */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5">
         <div className="flex items-center justify-around">

@@ -89,16 +89,20 @@ async function syncStock(stock: { id: number; symbol: string; name: string }) {
       priceCount++;
     }
 
-    if (bars.length > 0) {
-      const latest = bars[bars.length - 1];
-      const prev = bars.length > 1 ? bars[bars.length - 2] : null;
+    // J-Quants sometimes ignores dateFrom and returns full history — filter client-side
+    const fromMs = new Date(from).getTime();
+    const windowBars = bars.filter((b) => b.Date && new Date(b.Date).getTime() >= fromMs);
+    if (windowBars.length > 0) {
+      const latest = windowBars[windowBars.length - 1];
+      const prev = windowBars.length > 1 ? windowBars[windowBars.length - 2] : null;
       const change = prev ? latest.C - prev.C : 0;
       const changeRate = prev && prev.C ? (change / prev.C) * 100 : 0;
-      const closes = bars.map((b) => b.C);
+      // Use AdjC for high52w/low52w — prevents stock splits from corrupting 52-week range
+      const adjCloses = windowBars.map((b) => b.AdjC ?? b.C);
       latestClose = latest.C;
       await prisma.stock.update({
         where: { id: stock.id },
-        data: { price: latest.C, change, changeRate, high52w: Math.max(...closes), low52w: Math.min(...closes), volume: latest.Vo, lastSyncAt: new Date() },
+        data: { price: latest.C, change, changeRate, high52w: Math.max(...adjCloses), low52w: Math.min(...adjCloses), volume: latest.Vo, lastSyncAt: new Date() },
       });
     }
   } catch (e) {

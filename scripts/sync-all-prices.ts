@@ -69,7 +69,9 @@ function toCode5(symbol: string): string {
 async function syncPrices(stock: { id: number; symbol: string }, to: string, from: string): Promise<number> {
   const code = toCode5(stock.symbol);
   const bars = await fetchBars(code, from, to);
-  const valid = bars.filter((b) => b.Date && b.C);
+  // J-Quants sometimes ignores dateFrom and returns full history — filter client-side
+  const fromMs = new Date(from).getTime();
+  const valid = bars.filter((b) => b.Date && b.C && new Date(b.Date).getTime() >= fromMs);
   if (valid.length === 0) return 0;
 
   // Batch insert (much faster than individual upserts)
@@ -83,12 +85,14 @@ async function syncPrices(stock: { id: number; symbol: string }, to: string, fro
     skipDuplicates: true,
   });
 
-  // Update Stock.price from latest bar
+  // Update Stock.price from latest bar; high52w/low52w from date-filtered window only.
+  // Use AdjC (split-adjusted) for high52w/low52w so stock splits don't corrupt 52-week range.
+  // price/change/changeRate use raw C (unadjusted) for current-price display.
   const latest = valid[valid.length - 1];
   const prev = valid.length > 1 ? valid[valid.length - 2] : null;
   const change = prev ? latest.C - prev.C : 0;
   const changeRate = prev && prev.C ? (change / prev.C) * 100 : 0;
-  const allClose = valid.map((b) => b.C);
+  const allAdj = valid.map((b) => b.AdjC ?? b.C);
 
   await prisma.stock.update({
     where: { id: stock.id },
@@ -96,8 +100,8 @@ async function syncPrices(stock: { id: number; symbol: string }, to: string, fro
       price: latest.C,
       change,
       changeRate,
-      high52w: Math.max(...allClose),
-      low52w:  Math.min(...allClose),
+      high52w: Math.max(...allAdj),
+      low52w:  Math.min(...allAdj),
       volume: latest.Vo ?? null,
       lastSyncAt: new Date(),
     },

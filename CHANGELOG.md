@@ -2,6 +2,41 @@
 
 ---
 
+## [8.2.2] - 2026-06-21 — 全价格计算口径统一修复（adjClose 优先）
+
+### 问题根因
+J-Quants API 的 `C`（close）字段为未复权原始价格，`AdjC`（adjClose）为拆股后复权价格。
+旧代码使用 `close` 计算所有指标，导致发生拆股/缩股的股票在60日窗口内产生系统性错误。
+
+审计发现：3714只股票中有 **432只（11.6%）的 return60d 被拆股事件污染**，严重股票误差超过100个百分点（如川崎重工业 return60d 显示 -79.2%，实际为 +3.8%）。
+
+### 修复范围
+| 文件 | 修改内容 |
+|------|---------|
+| `lib/indicators.ts` | 新增 `effectiveClose()` 导出函数；`closes` 数组全面改为 `sorted.map(effectiveClose)` |
+| `scripts/compute-scores.ts` | `dailyPrice` select 增加 `adjClose`，传递给 `calcIndicators` |
+| `scripts/sync-all-prices.ts` | `high52w`/`low52w` 改用 `AdjC ?? C` 计算 |
+| `scripts/sync-jquants.ts` | `high52w`/`low52w` 改用 `AdjC ?? C` 计算 |
+| `lib/daily-picks-report.ts` | `dailyPrice` select 增加 `adjClose` |
+| `app/api/stocks/[symbol]/ai-score/route.ts` | `dailyPrice` select 增加 `adjClose` |
+| `app/stocks/[symbol]/page.tsx` | warning banner 文案改为"大幅价格波动，AI评分已使用复权价格处理" |
+
+### 核心规则（已落地）
+- **展示价格**：继续使用 `close`（原始未复权，用于页面当前价显示）
+- **计算价格**：所有指标统一使用 `adjClose ?? close`（复权优先）
+- 受影响计算：return5d / return20d / return60d / high52w / low52w / MA5 / MA20 / MA60 / RSI / MACD / moneyFlowScore / adaptiveScore / percentileRank / 评级判定
+
+### 修复效果
+| 股票 | 修复前 ret60d | 修复后 ret60d |
+|------|------------|------------|
+| 川崎重工業 7012.T | -79.2% ❌ | +3.8% ✅ |
+| フジクラ 5803.T | -78.8% ❌ | +27.3% ✅ |
+| サンリオ 8136.T | -82.7% ❌ | -13.6% ✅ |
+| ピクセラ 6731.T | +157.5% ❌ | -74.3% ✅ |
+- 拆股污染股票：432只 → **0只**
+
+---
+
 ## [8.2.0] - 2026-06-21 — v8.1 Mobile First 手机端全面适配
 
 ### 概述

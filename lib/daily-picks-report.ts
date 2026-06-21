@@ -48,7 +48,7 @@ export async function buildDailyPicksReport(): Promise<DailyPicksReport> {
     const pricesDesc = await prisma.dailyPrice.findMany({
       where: { symbol: stock.symbol },
       orderBy: { date: "desc" },
-      select: { date: true, close: true },
+      select: { date: true, close: true, adjClose: true },
       take: 300,
     });
     if (pricesDesc.length === 0) continue;
@@ -56,6 +56,7 @@ export async function buildDailyPicksReport(): Promise<DailyPicksReport> {
     const prices = pricesDesc.reverse().map((p) => ({
       date: p.date.toISOString().split("T")[0],
       close: Number(p.close),
+      adjClose: p.adjClose !== null ? Number(p.adjClose) : null,
     }));
     const ind = calcIndicators(stock.symbol, prices);
 

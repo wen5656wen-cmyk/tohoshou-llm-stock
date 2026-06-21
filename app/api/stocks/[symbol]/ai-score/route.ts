@@ -22,7 +22,7 @@ export async function GET(
   const pricesDesc = await prisma.dailyPrice.findMany({
     where: { symbol },
     orderBy: { date: "desc" },
-    select: { date: true, close: true },
+    select: { date: true, close: true, adjClose: true },
     take: 300,
   });
   if (pricesDesc.length === 0) {
@@ -32,6 +32,7 @@ export async function GET(
   const prices = pricesDesc.reverse().map((p) => ({
     date: p.date.toISOString().split("T")[0],
     close: Number(p.close),
+    adjClose: p.adjClose !== null ? Number(p.adjClose) : null,
   }));
   const ind = calcIndicators(symbol, prices);
 

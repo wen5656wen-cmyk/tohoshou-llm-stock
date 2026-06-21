@@ -1,9 +1,15 @@
 /**
  * Technical indicator calculations based on DailyPrice data.
- * All functions operate on sorted ascending close price arrays.
+ * All price-based calculations (MA, RSI, MACD, returns) use adjClose (split-adjusted).
+ * Fall back to close only when adjClose is absent. close is reserved for display price only.
  */
 
-export type PriceRow = { date: Date | string; close: number };
+export type PriceRow = { date: Date | string; close: number; adjClose?: number | null };
+
+/** Returns the split-adjusted effective close price for all calculations. */
+export function effectiveClose(row: PriceRow): number {
+  return row.adjClose ?? row.close;
+}
 
 export type IndicatorResult = {
   symbol: string;
@@ -88,7 +94,9 @@ export function calcIndicators(symbol: string, rows: PriceRow[]): IndicatorResul
   const sorted = [...rows].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
-  const closes = sorted.map((r) => r.close);
+  // Use adjClose for all indicator calculations — prevents split events from corrupting
+  // returns, MA, RSI, MACD. latestClose still returns raw close for display purposes.
+  const closes = sorted.map(effectiveClose);
   const latest = sorted[sorted.length - 1];
 
   const ma5 = sma(closes, 5);
