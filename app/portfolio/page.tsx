@@ -6,8 +6,8 @@ import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import AIScoreBadge from "@/components/AIScoreBadge";
 import { useI18n } from "@/lib/i18n";
-import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
-import { getRec } from "@/lib/rec-config";
+import { getPrimaryName } from "@/lib/company-name";
+import { getRec, finalScoreColor } from "@/lib/rec-config";
 
 // ─── Watchlist Tab ──────────────────────────────────────────────────────────
 
@@ -163,7 +163,7 @@ function WatchlistTab() {
           <Link href="/screener" className="text-sm text-blue-600 hover:underline">{t("page.go_screener")} →</Link>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {items.map((item) => {
             const s = item.score;
             const rec = getRec(s?.recommendation ?? "HOLD");
@@ -171,58 +171,62 @@ function WatchlistTab() {
             const targetHit = item.targetPrice != null && currentPrice != null ? currentPrice >= item.targetPrice : false;
 
             return (
-              <div key={item.symbol} className="bg-white rounded-xl border border-slate-200 p-4 hover:border-blue-200 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
-                        className="text-[15px] font-bold text-slate-900 hover:text-blue-600">
-                        {getPrimaryName(item, lang)}
-                      </Link>
-                      {getSecondaryName(item, lang) && (
-                        <span className="text-xs text-slate-400">{getSecondaryName(item, lang)}</span>
-                      )}
-                      <span className="text-xs text-slate-400 font-mono">{item.symbol}</span>
-                      {s?.recommendation && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                          {t(`rating.${s.recommendation}` as Parameters<typeof t>[0])}
-                        </span>
-                      )}
-                    </div>
-                    {item.note && <p className="text-xs text-slate-500 mb-1">📝 {item.note}</p>}
-                    <div className="flex items-center flex-wrap gap-3 text-xs text-slate-500">
-                      {s ? (
-                        <>
-                          <span className="font-medium text-slate-900">{s.latestClose ? `¥${s.latestClose.toLocaleString()}` : "—"}</span>
-                          <span>5D: <RetBadge val={s.return5d} /></span>
-                          <span>20D: <RetBadge val={s.return20d} /></span>
-                          <span>RSI: <b className="text-slate-700">{s.rsi14?.toFixed(1) ?? "—"}</b></span>
-                        </>
-                      ) : <span className="text-slate-300">{t("common.no_data")}</span>}
-                      {item.targetPrice != null && (
-                        <span className={targetHit ? "text-green-600 font-medium" : ""}>
-                          → ¥{item.targetPrice.toLocaleString()}{targetHit && " ✓"}
-                        </span>
-                      )}
-                    </div>
+              <div key={item.symbol} className="bg-white rounded-xl border border-slate-200 p-3 hover:border-blue-200 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200">
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
+                      className="text-[14px] font-bold text-slate-900 hover:text-blue-600 leading-tight truncate block">
+                      {getPrimaryName(item, lang)}
+                    </Link>
+                    <div className="text-[10px] text-slate-400 font-mono">{item.symbol}</div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    {s?.totalScore != null && (
-                      <div className="text-center">
-                        <div className={`text-xl font-bold tabular-nums ${rec.text}`}>{s.totalScore}</div>
-                        <div className="text-[10px] text-slate-400">AI</div>
+                  {s?.recommendation && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${rec.bg} ${rec.text}`}>
+                      {t(`rating.${s.recommendation}` as Parameters<typeof t>[0])}
+                    </span>
+                  )}
+                </div>
+                {/* Price + metrics */}
+                <div className="flex items-end justify-between">
+                  <div>
+                    {s ? (
+                      <>
+                        <div className="flex items-center gap-2 text-[11px] mb-0.5">
+                          <span className="font-medium text-slate-900 text-[13px]">{s.latestClose ? `¥${s.latestClose.toLocaleString()}` : "—"}</span>
+                          <RetBadge val={s.return5d} />
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                          <span>20D: <RetBadge val={s.return20d} /></span>
+                          <span>RSI: <b className="text-slate-600">{s.rsi14?.toFixed(1) ?? "—"}</b></span>
+                        </div>
+                      </>
+                    ) : <span className="text-slate-300 text-xs">{t("common.no_data")}</span>}
+                    {item.targetPrice != null && (
+                      <div className={`text-[10px] mt-0.5 ${targetHit ? "text-emerald-600 font-medium" : "text-slate-400"}`}>
+                        → ¥{item.targetPrice.toLocaleString()}{targetHit && " ✓"}
                       </div>
                     )}
-                    <div className="flex flex-col gap-1.5">
-                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
-                        className="text-xs text-blue-600 hover:underline px-2.5 py-1 border border-blue-200 rounded-lg">
-                        →
-                      </Link>
-                      <button onClick={() => handleDelete(item.symbol)} disabled={deleting === item.symbol}
-                        className="text-xs text-red-400 hover:text-red-600 px-2.5 py-1 border border-red-100 hover:border-red-200 rounded-lg disabled:opacity-40">
-                        {deleting === item.symbol ? "…" : t("watchlist.remove")}
-                      </button>
+                  </div>
+                  {s?.totalScore != null && (
+                    <div className="text-right shrink-0 ml-2">
+                      <div className={`text-xl font-bold tabular-nums ${finalScoreColor(s.totalScore)}`}>{s.totalScore}</div>
+                      <div className="text-[9px] text-slate-400">{t("score.final")}</div>
                     </div>
+                  )}
+                </div>
+                {/* Note + buttons */}
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
+                  {item.note && <p className="text-[10px] text-slate-400 truncate flex-1 mr-2">📝 {item.note}</p>}
+                  <div className="flex gap-1 ml-auto">
+                    <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
+                      className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors">
+                      →
+                    </Link>
+                    <button onClick={() => handleDelete(item.symbol)} disabled={deleting === item.symbol}
+                      className="text-xs text-red-400 hover:text-red-600 px-2 py-1 border border-red-100 hover:border-red-200 rounded-lg transition-colors disabled:opacity-40">
+                      {deleting === item.symbol ? "…" : "🗑"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -253,7 +257,7 @@ type PortfolioItem = {
 type PortfolioData = { items: PortfolioItem[]; totalValue: number; totalCost: number; totalPnl: number };
 
 function PortfolioTab() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pathname = usePathname();
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -356,75 +360,74 @@ function PortfolioTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900 text-sm">{t("tabs.portfolio")}</h2>
-        </div>
+      <div className="rounded-xl overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
         ) : data?.items.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">{t("portfolio.empty")}</div>
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-sm">{t("portfolio.empty")}</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
-                  <th className="px-5 py-3 font-medium">{t("common.name")}</th>
-                  <th className="px-3 py-3 font-medium text-right">株数</th>
-                  <th className="px-3 py-3 font-medium text-right">取得単価</th>
-                  <th className="px-3 py-3 font-medium text-right">{t("common.price")}</th>
-                  <th className="px-3 py-3 font-medium text-right">評価額</th>
-                  <th className="px-3 py-3 font-medium text-right">損益</th>
-                  <th className="px-3 py-3 font-medium text-right">AI</th>
-                  <th className="px-3 py-3 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {data?.items.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {data?.items.map((item) => {
+              const pnlUp = item.pnl >= 0;
+              const pnlCls = pnlUp ? "text-[#e74c3c]" : "text-[#2980b9]";
+              return (
+                <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-3 hover:border-blue-200 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
                       <Link href={buildStockUrl(item.symbol, "portfolio", pathname)} className="block group">
-                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600">
+                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 truncate">
                           {item.stock?.nameZh || item.name}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono">{item.symbol}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{item.symbol}</div>
                       </Link>
-                      {item.note && <div className="text-xs text-slate-400 mt-0.5">{item.note}</div>}
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-sm text-slate-700">{item.shares.toLocaleString()}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-sm text-slate-700">¥{item.avgPrice.toLocaleString()}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-sm">
-                      <div className="font-medium text-slate-900">¥{item.currentPrice.toLocaleString()}</div>
-                      {item.stock?.changeRate != null && (
-                        <div className={`text-xs ${item.stock.changeRate >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-                          {item.stock.changeRate >= 0 ? "▲" : "▼"}{Math.abs(item.stock.changeRate).toFixed(2)}%
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-sm font-medium text-slate-900">
-                      ¥{Math.round(item.value).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-sm">
-                      <div className={`font-medium ${item.pnl >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-                        {item.pnl >= 0 ? "+" : ""}¥{Math.round(item.pnl).toLocaleString()}
+                    </div>
+                    <AIScoreBadge score={item.stock?.aiScore} size="sm" />
+                  </div>
+                  {/* Price row */}
+                  <div className="flex items-end justify-between mb-2">
+                    <div>
+                      <div className="text-[13px] font-bold text-slate-900 tabular-nums">
+                        ¥{item.currentPrice.toLocaleString()}
+                        {item.stock?.changeRate != null && (
+                          <span className={`ml-1.5 text-[10px] ${item.stock.changeRate >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
+                            {item.stock.changeRate >= 0 ? "▲" : "▼"}{Math.abs(item.stock.changeRate).toFixed(2)}%
+                          </span>
+                        )}
                       </div>
-                      <div className={`text-xs ${item.pnlRate >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-                        {item.pnlRate >= 0 ? "+" : ""}{item.pnlRate.toFixed(2)}%
+                      <div className="text-[10px] text-slate-400 tabular-nums">
+                        {item.shares.toLocaleString()}株 @ ¥{item.avgPrice.toLocaleString()}
                       </div>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <AIScoreBadge score={item.stock?.aiScore} size="sm" />
-                    </td>
-                    <td className="px-3 py-3 text-right">
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-[13px] font-bold tabular-nums ${pnlCls}`}>
+                        {pnlUp ? "+" : ""}¥{Math.round(item.pnl).toLocaleString()}
+                      </div>
+                      <div className={`text-[10px] tabular-nums ${pnlCls}`}>
+                        {pnlUp ? "+" : ""}{item.pnlRate.toFixed(2)}%
+                      </div>
+                    </div>
+                  </div>
+                  {/* Footer: value + delete */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                    <div className="text-[10px] text-slate-400 tabular-nums">
+                      {lang === "zh-CN" ? "评估额" : lang === "ja-JP" ? "評価額" : "Value"} ¥{Math.round(item.value).toLocaleString()}
+                    </div>
+                    <div className="flex gap-1">
+                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
+                        className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors">
+                        →
+                      </Link>
                       <button onClick={() => handleDelete(item.id)}
-                        className="text-xs text-slate-400 hover:text-red-500 transition-colors">
-                        {t("watchlist.remove")}
+                        className="text-xs text-red-400 hover:text-red-600 px-2 py-1 border border-red-100 hover:border-red-200 rounded-lg transition-colors">
+                        🗑
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  {item.note && <div className="text-[10px] text-slate-400 mt-1.5 truncate">📝 {item.note}</div>}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

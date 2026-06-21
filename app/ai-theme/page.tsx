@@ -187,153 +187,86 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
   const color = THEME_COLORS[stock.theme] ?? "slate";
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
   const layer = stock.supplyChainLayer;
+  const displayScore = stock.finalScore ?? stock.adaptiveScore;
+  const hasGpt = stock.finalScore != null;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all p-4">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-2.5">
+    <div className="bg-white rounded-xl border border-slate-200 hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-3">
+      {/* Header: name + score */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            {stock.isCore && <span className="text-amber-400 text-[11px]">⭐</span>}
+          <div className="flex items-center gap-1 flex-wrap mb-0.5">
+            {stock.isCore && <span className="text-amber-400 text-[10px]">⭐</span>}
             <Link
               href={buildStockUrl(stock.symbol, "ai-theme", "/ai-theme")}
-              className="text-[14px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
+              className="text-[13px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
             >
               {getPrimaryName(stock, lang)}
             </Link>
-            <span className="text-[11px] text-slate-400 font-mono">{stock.symbol.replace(".T", "")}</span>
+            <span className="text-[10px] text-slate-400 font-mono">{stock.symbol.replace(".T", "")}</span>
+            {stock.highRiskFlag && <span className="text-[10px] text-red-400">⚠</span>}
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap">
             {stock.scored ? (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
+              <span className={`text-[10px] font-semibold px-1 py-0.5 rounded ${rec.bg} ${rec.text}`}>
                 {getRecommendationLabel(stock.recommendationV2, lang)}
               </span>
             ) : (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${PENDING_REC.border} ${PENDING_REC.text} ${PENDING_REC.bg}`}>
+              <span className={`text-[10px] font-semibold px-1 py-0.5 rounded ${PENDING_REC.bg} ${PENDING_REC.text}`}>
                 {t("theme.pending_score")}
               </span>
             )}
             {showTheme && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${colors.chip}`}>
+              <span className={`text-[10px] px-1 py-0.5 rounded border ${colors.chip}`}>
                 {getThemeLabel(stock.theme, lang)}
               </span>
             )}
             {layer && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${LAYER_BADGE[layer] ?? "bg-slate-100 text-slate-500"}`}>
+              <span className={`text-[10px] px-1 py-0.5 rounded ${LAYER_BADGE[layer] ?? "bg-slate-100 text-slate-500"}`}>
                 {getLayerLabel(layer, lang)}
               </span>
             )}
-            {stock.highRiskFlag && (
-              <span className="text-[10px] text-red-500">⚠</span>
-            )}
           </div>
         </div>
-        <div className="text-right ml-2 shrink-0">
+        <div className="text-right shrink-0">
           {stock.scored ? (
             <>
-              {(() => {
-                const displayScore = stock.finalScore ?? stock.adaptiveScore;
-                const hasGpt = stock.finalScore != null;
-                return (
-                  <>
-                    <div className={`text-xl font-bold tabular-nums leading-tight ${finalScoreColor(displayScore)}`}>
-                      {displayScore?.toFixed(0) ?? "—"}
-                    </div>
-                    {hasGpt ? (
-                      <div className="text-[9px] text-slate-400 tabular-nums">
-                        R{stock.ruleScore?.toFixed(0)} G{stock.gptScore?.toFixed(0)}
-                      </div>
-                    ) : (
-                      <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
-                    )}
-                  </>
-                );
-              })()}
-              <div className="text-[10px] text-slate-400">
-                {stock.percentileRank != null
-                  ? `${t("common.percentile_prefix")} ${stock.percentileRank.toFixed(1)}%`
-                  : ""}
+              <div className={`text-xl font-bold tabular-nums leading-tight ${finalScoreColor(displayScore)}`}>
+                {displayScore?.toFixed(0) ?? "—"}
               </div>
+              {hasGpt ? (
+                <div className="text-[9px] text-slate-400 tabular-nums">
+                  R{stock.ruleScore?.toFixed(0)} G{stock.gptScore?.toFixed(0)}
+                </div>
+              ) : (
+                <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+              )}
             </>
           ) : (
-            <div className="text-[12px] text-slate-400">{t("theme.pending_score")}</div>
+            <div className="text-[11px] text-slate-400">{t("theme.pending_score")}</div>
           )}
         </div>
       </div>
 
-      {/* Role — hide in en-US if contains non-ASCII CJK chars */}
-      {stock.role && lang !== "en-US" && (
-        <div className="text-[11px] text-slate-500 mb-2 leading-tight line-clamp-1 italic">
-          {stock.role}
-        </div>
-      )}
-
+      {/* Compact metrics: price + returns */}
       {stock.scored ? (
-        <>
-          {/* Score bars */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5">
-            <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.tech_short")}/30</div>
-              <MiniBar val={stock.technicalScore} max={30} color="bg-blue-400" />
-            </div>
-            <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.fund_short")}/25</div>
-              <MiniBar val={stock.fundamentalScore} max={25} color="bg-emerald-400" />
-            </div>
-            <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.flow_short")}/20</div>
-              <MiniBar val={stock.moneyFlowScore} max={20} color="bg-violet-400" />
-            </div>
-            <div>
-              <div className="text-[9px] text-slate-400 mb-0.5">{t("dim.news_short")}/15</div>
-              <MiniBar val={stock.newsSentimentScore} max={15} color="bg-amber-400" />
-            </div>
-          </div>
-
-          {/* Metrics row */}
-          <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-2">
-            <div className="flex items-center gap-3">
-              <div>
-                <span className="text-slate-400">{t("card.opp")}</span>
-                <span className="ml-1 font-medium text-slate-700">
-                  {stock.opportunityScore?.toFixed(0) ?? "—"}
-                </span>
-              </div>
-              {stock.dividendScore != null && stock.dividendScore > 0 && (
-                <div>
-                  <span className="text-slate-400">{t("theme.dividend_label")}</span>
-                  <span className="ml-1 font-medium text-emerald-600">{stock.dividendScore}</span>
-                </div>
-              )}
-              {stock.catalystScore != null && stock.catalystScore > 0 && (
-                <div>
-                  <span className="text-slate-400">{t("theme.catalyst_label")}</span>
-                  <span className="ml-1 font-medium text-orange-600">{stock.catalystScore.toFixed(1)}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400">{t("card.5d")}</span>
-              <ReturnBadge v={stock.return5d} />
-              <span className="text-slate-400">{t("card.20d")}</span>
-              <ReturnBadge v={stock.return20d} />
-            </div>
-          </div>
-
-          {/* Importance + price */}
-          <div className="flex items-center justify-between mt-1.5">
-            <ImportanceStars score={stock.importanceScore} />
+        <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-100 pt-1.5">
+          <div className="flex items-center gap-2">
             {stock.latestClose != null && (
-              <span className="text-[11px] text-slate-400 tabular-nums">
-                ¥{stock.latestClose.toLocaleString()}
-              </span>
+              <span className="text-slate-600 font-medium tabular-nums">¥{stock.latestClose.toLocaleString()}</span>
             )}
+            <ReturnBadge v={stock.return5d} />
+            <ReturnBadge v={stock.return20d} />
           </div>
-        </>
+          <div className="flex items-center gap-1.5">
+            {stock.percentileRank != null && (
+              <span>{t("common.percentile_prefix")} {stock.percentileRank.toFixed(1)}%</span>
+            )}
+            <ImportanceStars score={stock.importanceScore} />
+          </div>
+        </div>
       ) : (
-        <p className="text-[11px] text-slate-400 mt-1">
-          {t("theme.pending_calc")}
-        </p>
+        <p className="text-[10px] text-slate-400 border-t border-slate-100 pt-1.5">{t("theme.pending_calc")}</p>
       )}
     </div>
   );

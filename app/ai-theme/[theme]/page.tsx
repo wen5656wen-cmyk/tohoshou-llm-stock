@@ -120,112 +120,88 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
   const [expanded, setExpanded] = useState(false);
   const gpt = gptMap.get(s.symbol);
   const rec = getRec(s.recommendationV2);
+  const displayScore = s.finalScore ?? s.adaptiveScore;
+  const hasGpt = s.finalScore != null;
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-3 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between">
+    <div className="bg-white rounded-xl border border-slate-200 p-2.5 hover:border-blue-200 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200">
+      {/* Row 1: name + score */}
+      <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {s.isCore && <span className="text-amber-400 text-[11px]">⭐</span>}
+          <div className="flex items-center gap-1 flex-wrap">
+            {s.isCore && <span className="text-amber-400 text-[10px]">⭐</span>}
             <Link
               href={buildStockUrl(s.symbol, "ai-theme", pathname)}
-              className="text-[13px] font-bold text-slate-900 hover:text-blue-600"
+              className="text-[13px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
             >
               {getPrimaryName(s, lang)}
             </Link>
             <span className="text-[10px] text-slate-400 font-mono">{s.symbol.replace(".T", "")}</span>
             {s.scored ? (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${rec.bg} ${rec.text}`}>
+              <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${rec.bg} ${rec.text}`}>
                 {getRecommendationLabel(s.recommendationV2, lang)}
               </span>
             ) : (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${PENDING_REC.bg} ${PENDING_REC.text}`}>
+              <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${PENDING_REC.bg} ${PENDING_REC.text}`}>
                 {t("theme.pending_score")}
               </span>
             )}
-            {s.highRiskFlag && (
-              <span className="text-[10px] text-red-400">⚠{t("theme.high_risk")}</span>
-            )}
+            {s.highRiskFlag && <span className="text-[10px] text-red-400">⚠</span>}
           </div>
-          {/* Role — hide in en-US if contains non-ASCII CJK */}
-          {s.role && lang !== "en-US" && (
-            <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{s.role}</div>
+          {/* Compact metrics row */}
+          {s.scored && (
+            <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
+              {s.latestClose != null && <span className="text-slate-600 font-medium">¥{s.latestClose.toLocaleString()}</span>}
+              <ReturnBadge v={s.return5d} />
+              <ReturnBadge v={s.return20d} />
+              {s.percentileRank != null && (
+                <span>{t("common.percentile_prefix")} {s.percentileRank.toFixed(1)}%</span>
+              )}
+            </div>
           )}
         </div>
-        <div className="text-right ml-2 shrink-0">
+        {/* Score */}
+        <div className="text-right shrink-0">
           {s.scored ? (
             <>
-              {(() => {
-                const displayScore = s.finalScore ?? s.adaptiveScore;
-                const hasGpt = s.finalScore != null;
-                return (
-                  <>
-                    <div className={`text-lg font-bold ${finalScoreColor(displayScore)}`}>
-                      {displayScore?.toFixed(0) ?? "—"}
-                    </div>
-                    {hasGpt ? (
-                      <div className="text-[9px] text-slate-400 tabular-nums">
-                        R{s.ruleScore?.toFixed(0)} G{s.gptScore?.toFixed(0)}
-                      </div>
-                    ) : (
-                      <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
-                    )}
-                  </>
-                );
-              })()}
-              {s.percentileRank != null && (
-                <div className="text-[10px] text-slate-400">
-                  {t("common.percentile_prefix")} {s.percentileRank.toFixed(1)}%
+              <div className={`text-lg font-bold leading-tight ${finalScoreColor(displayScore)}`}>
+                {displayScore?.toFixed(0) ?? "—"}
+              </div>
+              {hasGpt ? (
+                <div className="text-[9px] text-slate-400 tabular-nums">
+                  R{s.ruleScore?.toFixed(0)} G{s.gptScore?.toFixed(0)}
                 </div>
+              ) : (
+                <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
               )}
             </>
           ) : (
-            <div className="text-[11px] text-slate-400">{t("theme.pending_score")}</div>
+            <div className="text-[10px] text-slate-400">{t("theme.pending_score")}</div>
           )}
         </div>
       </div>
-      {s.scored && (
-        <div className="flex items-center gap-4 mt-1.5 text-[10px] text-slate-400">
-          {s.opportunityScore != null && (
-            <span>{t("card.opp")} <b className="text-slate-600">{s.opportunityScore.toFixed(0)}</b></span>
-          )}
-          {s.dividendScore != null && s.dividendScore > 0 && (
-            <span>{t("theme.dividend_label")} <b className="text-emerald-600">{s.dividendScore}</b></span>
-          )}
-          {s.catalystScore != null && s.catalystScore > 0 && (
-            <span>{t("theme.catalyst_label")} <b className="text-orange-600">{s.catalystScore.toFixed(1)}</b></span>
-          )}
-          <span>{t("card.5d")} <ReturnBadge v={s.return5d} /></span>
-          {s.latestClose != null && (
-            <span>¥{s.latestClose.toLocaleString()}</span>
-          )}
-        </div>
-      )}
-      {/* V8.6 P1: GPT badge + expandable details */}
+      {/* GPT badge + expandable (includes reason/riskNote inside) */}
       {gpt ? (
         <>
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="mt-1.5 flex items-center gap-2 text-[10px] w-full text-left"
+            className="mt-1.5 flex items-center gap-1.5 text-[10px] w-full text-left"
           >
             <span className="bg-violet-50 text-violet-600 border border-violet-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
               GPT {gpt.gptScore}
             </span>
-            <span className="bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
-              {t("gpt.final_score")} {gpt.finalScore.toFixed(1)}
-            </span>
             <span className={`font-medium ${gpt.action === "POSITIVE" ? "text-emerald-600" : gpt.action === "NEGATIVE" ? "text-amber-700" : "text-slate-400"}`}>
               {t(`gpt.action.${gpt.action}` as Parameters<typeof t>[0])}
             </span>
-            <span className="text-slate-400 truncate flex-1">
+            <span className="text-slate-400 truncate flex-1 text-[9px]">
               {lang === "ja-JP" ? gpt.summaryJa : lang === "en-US" ? gpt.summaryEn : gpt.summaryZh}
             </span>
             <span className="text-slate-300 shrink-0">{expanded ? "▲" : "▼"}</span>
           </button>
           {expanded && (
-            <div className="mt-2 bg-slate-50 rounded-xl p-3 text-[10px] text-slate-600 space-y-2">
-              {/* 7 dimension bars */}
+            <div className="mt-1.5 bg-slate-50 rounded-xl p-2.5 text-[10px] text-slate-600 space-y-2">
               {gpt.businessQuality != null && (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   {[
                     { key: "gpt.dim.business_quality" as const, v: gpt.businessQuality },
                     { key: "gpt.dim.growth"           as const, v: gpt.growthScore },
@@ -243,36 +219,31 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
                   ))}
                 </div>
               )}
-              {/* Thesis */}
               <p className="leading-relaxed text-slate-500">
                 {lang === "ja-JP" ? gpt.thesisJa : lang === "en-US" ? gpt.thesisEn : gpt.thesisZh}
               </p>
-              {/* Strengths + Risks */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <div className="text-emerald-600 font-semibold mb-0.5">{t("gpt.strengths")}</div>
-                  {(gpt.strengths ?? []).slice(0, 2).map((s, i) => <div key={i} className="text-slate-500">▸ {s}</div>)}
+                  {(gpt.strengths ?? []).slice(0, 2).map((str, i) => <div key={i} className="text-slate-500">▸ {str}</div>)}
                 </div>
                 <div>
                   <div className="text-red-500 font-semibold mb-0.5">{t("gpt.risks")}</div>
                   {(gpt.risks ?? []).slice(0, 2).map((r, i) => <div key={i} className="text-slate-500">▸ {r}</div>)}
                 </div>
               </div>
+              {/* reason + riskNote only in expanded */}
+              {s.reason && lang !== "en-US" && (
+                <div className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-200 pt-1.5">{s.reason}</div>
+              )}
+              {s.riskNote && lang !== "en-US" && (
+                <div className="text-[10px] text-red-500">⚠ {s.riskNote}</div>
+              )}
             </div>
           )}
         </>
       ) : (
-        <div className="mt-1.5 text-[10px] text-slate-300">{t("gpt.not_generated")}</div>
-      )}
-      {s.reason && lang !== "en-US" && (
-        <div className="mt-1.5 text-[10px] text-slate-500 leading-relaxed line-clamp-2 bg-slate-50 rounded px-2 py-1">
-          {s.reason}
-        </div>
-      )}
-      {s.riskNote && lang !== "en-US" && (
-        <div className="mt-1 text-[10px] text-red-500 line-clamp-1">
-          ⚠ {s.riskNote}
-        </div>
+        s.scored && <div className="mt-1 text-[10px] text-slate-300">{t("gpt.not_generated")}</div>
       )}
     </div>
   );

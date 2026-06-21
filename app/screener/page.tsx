@@ -305,126 +305,65 @@ export default function ScreenerPage() {
         )}
       </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-3 py-2.5 font-medium w-6 text-right">#</th>
-                <th className="px-3 py-2.5 font-medium">{t("screener.col_stock")}</th>
-                <th className="px-2 py-2.5 font-medium">{t("screener.col_market")}</th>
-                <th className="px-2 py-2.5 font-medium">{t("screener.col_style")}</th>
-                <th className="px-3 py-2.5 font-medium text-right">{t("screener.col_price")}</th>
-                <ThBtn col="return20d"        label={t("screener.col_20d")} />
-                <ThBtn col="finalScore"        label={t("score.final")} />
-                <ThBtn col="percentileRank"   label={t("screener.col_percentile")} />
-                <ThBtn col="opportunityScore" label={t("screener.col_opportunity")} />
-                {hasGptScores && <ThBtn col="gptScore" label={t("screener.col_gpt_score")} />}
-                {hasGptScores && <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_confidence")}</th>}
-                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_tech")}</th>
-                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_fund")}</th>
-                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_flow")}</th>
-                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_news")}</th>
-                <ThBtn col="rsi14" label="RSI" />
-                <th className="px-2 py-2.5 font-medium text-center">{t("screener.col_rating")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.slice(0, 200).map((s, idx) => {
-                const rec = getRec(s.recommendationV2);
-                const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-700";
-                const pctRankLabel = s.percentileRank != null ? `${t("common.percentile_prefix")} ${s.percentileRank.toFixed(1)}%` : "—";
-
-                return (
-                  <tr key={s.symbol} className={`hover:bg-slate-50 transition-colors ${s.highRiskFlag ? "bg-red-50/30" : ""}`}>
-                    <td className="px-3 py-2 text-right text-xs text-slate-300 tabular-nums">{idx + 1}</td>
-                    <td className="px-3 py-2 min-w-[160px]">
-                      <Link href={buildStockUrl(s.symbol, "screener", pathname)} className="block group">
-                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
-                          {getPrimaryName(s, lang)}
-                          {s.highRiskFlag && <span className="ml-1 text-[10px] text-red-400">⚠</span>}
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono">{s.symbol}</div>
-                      </Link>
-                    </td>
-                    <td className="px-2 py-2"><MktChip mkt={s.market} /></td>
-                    <td className="px-2 py-2">
-                      {s.stockStyle ? (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500">{t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}</span>
-                      ) : <span className="text-slate-300 text-xs">—</span>}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-sm font-medium text-slate-900">
-                      {fmtJpy(s.latestClose)}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <span className={`text-xs font-medium tabular-nums ${returnColorClass(s.return20d)}`}>
-                        {fmtPct(s.return20d)}
+      {/* Desktop Card Grid */}
+      <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 gap-3">
+        {filtered.slice(0, 200).map((s, idx) => {
+          const gpt = gptMap.get(s.symbol);
+          const displayScore = gpt?.finalScore ?? s.adaptiveScore;
+          const hasGpt = !!gpt;
+          const rec = getRec(s.recommendationV2);
+          const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-700";
+          return (
+            <Link
+              key={s.symbol}
+              href={buildStockUrl(s.symbol, "screener", pathname)}
+              className={`block bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 group ${s.highRiskFlag ? "border-red-100" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <span className="text-[9px] text-slate-300 tabular-nums font-mono w-5 shrink-0">#{idx + 1}</span>
+                    {s.highRiskFlag && <span className="text-[10px] text-red-400">⚠</span>}
+                  </div>
+                  <div className="text-[13px] font-bold text-slate-900 group-hover:text-blue-600 truncate leading-tight">
+                    {getPrimaryName(s, lang)}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mb-1">{s.symbol}</div>
+                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                    <MktChip mkt={s.market} />
+                    {s.stockStyle && (
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-400">
+                        {t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}
                       </span>
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      {(() => {
-                        const gpt = gptMap.get(s.symbol);
-                        const displayScore = gpt?.finalScore ?? s.adaptiveScore;
-                        const hasGpt = !!gpt;
-                        return (
-                          <div>
-                            <span className={`text-sm font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
-                              {displayScore?.toFixed(0) ?? "—"}
-                            </span>
-                            {hasGpt ? (
-                              <div className="text-[9px] text-slate-400 tabular-nums">
-                                {t("score.rule")} {gpt.ruleScore?.toFixed(0)} · {t("score.gpt")} {gpt.gptScore?.toFixed(0)}
-                              </div>
-                            ) : (
-                              <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-2 py-2 text-right text-xs text-slate-500 tabular-nums">{pctRankLabel}</td>
-                    <td className="px-2 py-2 text-right text-xs text-slate-500 tabular-nums">
-                      {s.opportunityScore?.toFixed(1) ?? "—"}
-                    </td>
-                    {hasGptScores && (() => {
-                      const gpt = gptMap.get(s.symbol);
-                      const confColor = gpt?.confidence === "HIGH" ? "text-emerald-600" : gpt?.confidence === "MEDIUM" ? "text-amber-600" : "text-slate-400";
-                      return (
-                        <>
-                          <td className="px-2 py-2 text-right text-xs tabular-nums">
-                            {gpt ? <span className="font-semibold text-violet-600">{gpt.gptScore}</span> : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="px-2 py-2 text-right text-xs tabular-nums">
-                            {gpt ? (
-                              <span className={`font-medium ${confColor}`}>
-                                {t(`gpt.confidence.${gpt.confidence}` as Parameters<typeof t>[0])}
-                              </span>
-                            ) : <span className="text-slate-300">—</span>}
-                          </td>
-                        </>
-                      );
-                    })()}
-                    <td className="px-2 py-2 text-right text-xs text-blue-600 tabular-nums">{s.technicalScore ?? "—"}</td>
-                    <td className="px-2 py-2 text-right text-xs text-emerald-600 tabular-nums">{s.fundamentalScore ?? "—"}</td>
-                    <td className="px-2 py-2 text-right text-xs text-violet-600 tabular-nums">{s.moneyFlowScore ?? "—"}</td>
-                    <td className="px-2 py-2 text-right text-xs text-amber-600 tabular-nums">{s.newsSentimentScore ?? "—"}</td>
-                    <td className={`px-2 py-2 text-right text-xs tabular-nums ${rsiColor}`}>
-                      {s.rsi14 != null ? s.rsi14.toFixed(1) : "—"}
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${rec.bg} ${rec.text}`}>
-                        {getRecommendationLabel(s.recommendationV2, lang)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="font-medium text-slate-700">{fmtJpy(s.latestClose)}</span>
+                    <span className={`font-medium tabular-nums ${returnColorClass(s.return20d)}`}>{fmtPct(s.return20d)}</span>
+                    <span className={`tabular-nums text-[10px] ${rsiColor}`}>RSI {s.rsi14?.toFixed(1) ?? "—"}</span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 ml-1">
+                  <div className={`text-xl font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
+                    {displayScore?.toFixed(0) ?? "—"}
+                  </div>
+                  {hasGpt ? (
+                    <div className="text-[9px] text-slate-400 tabular-nums">
+                      R{gpt.ruleScore.toFixed(0)} G{gpt.gptScore.toFixed(0)}
+                    </div>
+                  ) : (
+                    <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+                  )}
+                  <div className={`text-[10px] font-semibold px-1.5 py-0.5 rounded mt-1 whitespace-nowrap inline-block ${rec.bg} ${rec.text}`}>
+                    {getRecommendationLabel(s.recommendationV2, lang)}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
         {filtered.length === 0 && (
-          <div className="py-12 text-center text-slate-400 text-sm">
+          <div className="col-span-4 py-12 text-center text-slate-400 text-sm">
             {searchLoading ? t("screener.searching") : t("screener.no_results")}
           </div>
         )}
