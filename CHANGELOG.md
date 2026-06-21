@@ -2,6 +2,33 @@
 
 ---
 
+## [8.5 P2] - 2026-06-21 — Stock Detail AI First + Full i18n
+
+### Changes
+
+**`app/stocks/[symbol]/page.tsx`** — Major restructure
+- Deleted "概览" (overview) tab entirely
+- Default tab changed from "overview" to "ai" (AI Score)
+- New tab order with emoji: 🤖 AI评分 | 📈 图表 | 💰 财务 | 📊 技术 | 📰 新闻
+- `activeTab` state type: removed "overview", renamed "indicators" → "technical"
+- All hardcoded strings in AI tab replaced with `t()` calls (35+ keys):
+  - ScoreBar labels: 技術面/基本面/資金面/情绪/趋势 → `score.*`
+  - Dimension analysis titles: 技術面分析/基本面分析/资金面分析 → `score.*_analysis`
+  - News sentiment title, Dividend & Short section title
+  - Dividend labels: 配当利回り/年間/配当性向/配当スコア
+  - Short selling labels: 市場空売り比率/JPX日次/✓ 実データ
+  - Score Details title; all 11 sub-score bar labels
+- Added "🧠 GPT Investment View" section at bottom of AI tab (direction + horizon + reasons + risks)
+
+**`components/mobile/MobileHeader.tsx`**
+- Fixed stale `"tab.overview"` reference → `"tab.ai"`
+
+### Files Modified
+- `app/stocks/[symbol]/page.tsx`
+- `components/mobile/MobileHeader.tsx`
+
+---
+
 ## [8.6 P1] - 2026-06-21 — GPT Driven Scoring Upgrade (7 Sub-Dimensions + 40/60 Formula)
 
 ### Changes
