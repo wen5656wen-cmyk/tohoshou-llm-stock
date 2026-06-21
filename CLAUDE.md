@@ -6,6 +6,144 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Session Protocol (MANDATORY — never skip)
+
+### Session Start
+
+Every new session MUST read these files before doing anything else:
+
+```
+README.md
+CHANGELOG.md
+memory/project_llm_stock.md   (at /Users/wenzhiyong/.claude/projects/-Users-wenzhiyong-llm-stock/memory/project_llm_stock.md)
+package.json
+prisma/schema.prisma
+```
+
+Then output exactly:
+
+```
+CURRENT VERSION
+RECENT CHANGES
+KNOWN ISSUES
+NEXT TASKS
+```
+
+### Session End
+
+Every session MUST end with all of the following steps, in order:
+
+1. Update `CHANGELOG.md` with a new version entry for work done this session
+2. Update `memory/project_llm_stock.md` with new state, decisions, and known issues
+3. Run `git status` → `git add` (specific files only — see Never Commit list) → `git commit` → `git push origin main`
+4. Output exactly:
+
+```
+BUILD RESULT
+DEPLOY RESULT
+COMMIT HASH
+REMAINING ISSUES
+```
+
+### Never Skip
+
+These two commands MUST run before every deploy — no exceptions:
+
+```bash
+npm run build        # must exit 0
+npm run health:data  # must show CRITICAL = 0
+```
+
+### Never Deploy When
+
+- `npm run build` fails (non-zero exit)
+- `npm run health:data` reports `CRITICAL > 0`
+
+### Never Commit
+
+These paths must NEVER appear in any git commit:
+
+```
+.env
+.env.*
+.next/
+node_modules/
+reports/
+*.log
+prisma/dev.db
+```
+
+### Deploy Sequence
+
+```bash
+# 1. Build locally
+npm run build
+
+# 2. Health check — abort if CRITICAL > 0
+npm run health:data
+
+# 3. rsync .next/ to production (does NOT overwrite .env)
+sshpass -p 'Wen565656' rsync -avz --exclude node_modules .next/ root@8.209.247.68:/opt/tohoshou/.next/
+
+# 4. Restart
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-web --update-env"
+
+# 5. Verify
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 logs tohoshou-web --lines 20 --nostream"
+```
+
+### Every Task — Required Output
+
+After completing any task, always output all of the following:
+
+| Field | Content |
+|-------|---------|
+| Modified files | List every file changed |
+| Build result | `✅ PASS` or `❌ FAIL + error` |
+| Health result | `✅ CRITICAL=0` or `❌ CRITICAL=N` |
+| Deploy result | `✅ deployed` or `⏭ skipped (reason)` |
+| Commit hash | 7-char hash |
+| GitHub push result | `✅ pushed` or `❌ failed` |
+| Remaining issues | Numbered list, or "none" |
+
+---
+
+## i18n Rules (Three-Language — NO exceptions)
+
+Supported locales: **zh-CN · ja-JP · en-US**
+
+- **No mixed languages.** Each locale must be 100% in its own language.
+- **zh-CN**: Chinese only — no Japanese, no English UI text
+- **ja-JP**: Japanese only — no Chinese, no English UI text
+- **en-US**: English only — no CJK characters in UI text
+- All UI strings go through `t()` from `useI18n()` — no hardcoded strings in TSX
+- Exceptions (never translate): stock codes (e.g. `7203.T`), technical abbreviations (`RSI`, `MACD`, `MA5`, `MA20`, `MA60`, `AI`, `J-Quants`, `TDnet`), brand names
+
+**Verify after any UI change:**
+```bash
+grep -rn '"[^"]*[一-鿿]' app/ --include="*.tsx" | grep -v "node_modules"
+# Should return 0 lines for new/modified files (inline lang-ternaries are allowed only for percentile prefix "前/上位/Top" pattern)
+```
+
+---
+
+## Single Source of Truth Rules
+
+Never hardcode values that already have a canonical source:
+
+| What | Source | How |
+|------|--------|-----|
+| Recommendation colors & labels | `lib/rec-config.ts` | `getRec(value)` |
+| Trading action labels | `lib/trading-action.ts` + i18n | `getTradingActionLabel(value, lang)` |
+| Company display name | `lib/company-name.ts` | `getPrimaryName(stock, lang)` / `getSecondaryName(stock, lang)` |
+| Return color class | `lib/rec-config.ts` | `returnColorClass(pct)` |
+| Price format | `lib/rec-config.ts` | `fmtJpy(price)` / `fmtPct(pct)` |
+| Stock URLs (LINE messages) | `lib/app-url.ts` | `stockUrl(symbol)`, `screenerUrl()`, etc. |
+
+**Never** define local `REC_CFG`, local color maps, or local label objects in page/component files.
+
+---
+
 ## Commands
 
 ```bash
