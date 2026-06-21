@@ -2,6 +2,30 @@
 
 ---
 
+## [10.0] - 2026-06-21 — V10 Cold Start Scoring Formula: 70/30 Blend
+
+### Changed Files
+
+**`scripts/rerank-top500.ts`**
+- New formula: `finalScore = adaptiveScore × 0.7 + gptScore × 0.3` (V10 70/30 blend)
+- Cache hit path: recomputes finalScore with V10 formula from cached gptScore + current adaptiveScore (not stored V9 value)
+- Cache hit DB write: now also persists updated `finalScore` + `ruleScore` to keep DB consistent
+- Dry-run path unchanged (uses ruleScore as proxy, no GPT)
+
+**`lib/i18n/messages/zh-CN.ts`** / **`en-US.ts`** / **`ja-JP.ts`**
+- `gpt.final_score_desc`: "规则分70% + GPT分30%" / "Rule Score 70% + GPT Score 30%" / "ルールスコア70% + GPTスコア30%"
+
+### Design
+- Rule Engine (adaptiveScore) = 70%: technical, fundamental, money flow, news, AI themes
+- GPT Research (gptScore) = 30%: business quality, growth, risk, catalysts, management
+- GPT limited to Top500 only — no full-market GPT
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed · Rerank V10 verified (2s, 500 cache hits)
+- Example: adaptiveScore=80, gptScore=90 → finalScore=83.0 ✅
+
+---
+
 ## [9.0 P5] - 2026-06-21 — Daily Pipeline: gptRank Cache Bug Fix + Process Group Kill
 
 ### Fixed Files

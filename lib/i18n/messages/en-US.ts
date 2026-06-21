@@ -522,7 +522,7 @@ const enUS: Messages = {
   "gpt.updated_at": "Updated",
   "gpt.rule_score_desc": "Quantitative rules: technical, money flow & fundamentals",
   "gpt.gpt_score_desc": "Independent GPT assessment: business quality, valuation, growth, risk & catalysts",
-  "gpt.final_score_desc": "Rule Score 40% + GPT Score 60%",
+  "gpt.final_score_desc": "Rule Score 70% + GPT Score 30%",
   "screener.col_final_score": "Final Score",
   "gpt.dim.business_quality": "Business Quality",
   "gpt.dim.growth": "Growth",

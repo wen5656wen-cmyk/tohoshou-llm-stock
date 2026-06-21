@@ -522,7 +522,7 @@ const zhCN: Messages = {
   "gpt.updated_at": "更新于",
   "gpt.rule_score_desc": "基于量化指标与技术/资金/财务规则计算",
   "gpt.gpt_score_desc": "基于商业逻辑、估值、成长、风险与催化剂独立评估",
-  "gpt.final_score_desc": "规则分40% + GPT分60%",
+  "gpt.final_score_desc": "规则分70% + GPT分30%",
   "screener.col_final_score": "综合分",
   "gpt.dim.business_quality": "商业质量",
   "gpt.dim.growth": "成长性",

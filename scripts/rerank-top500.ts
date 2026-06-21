@@ -4,7 +4,7 @@
  *
  * Step 1: Load Top500 from StockScore (adaptiveScore DESC, percentileRank ASC)
  * Step 2: GPT score each stock (hash-based cache skip)
- * Step 3: finalScore = gptScore  (pure GPT, no weighting)
+ * Step 3: finalScore = adaptiveScore × 0.7 + gptScore × 0.3  (V10: 70/30 blend)
  * Step 4: gptRating  = recommendation from finalScore + percentileRank
  * Step 5: gptRank    = rank within Top500 after finalScore DESC sort
  * Step 6: Upsert to GPTScore, output detailed log
@@ -391,22 +391,25 @@ async function main() {
     if (!FORCE && !DRY_RUN && existing) {
       const age = NOW - existing.updatedAt.getTime();
       if (age < CACHE_TTL && existing.inputHash === inputHash) {
-        const cachedFinal = existing.finalScore;
         const cachedGptScore = existing.gptScore;
-        const gptRating = computeRating(cachedFinal, sc.percentileRank);
+        // Recompute finalScore with V10 70/30 formula (not the stored V9 pure-GPT value)
+        const isStaleCache = sc.computedAt != null && (NOW - sc.computedAt.getTime()) > 2 * 86400_000;
+        const rawFinalCache = applySafetyCaps(cachedGptScore, isStaleCache, sc.return60d, sc.rsi14);
+        const finalScore = Math.round((ruleScore * 0.7 + rawFinalCache * 0.3) * 10) / 10;
+        const gptRating = computeRating(finalScore, sc.percentileRank);
         scored.push({
           symbol: sc.symbol,
           adaptiveScore: ruleScore,
           percentileRank: sc.percentileRank,
           gptScore: cachedGptScore,
-          finalScore: cachedFinal,
+          finalScore,
           gptRating,
           gptRank: null,
           upsertData: null as never,
           fromCache: true,
         });
         gptCached++;
-        process.stdout.write(`  ✓ ${sc.symbol.padEnd(10)} [cache] gpt=${String(Math.round(cachedGptScore)).padStart(3)} final=${cachedFinal.toFixed(1).padStart(5)}\n`);
+        process.stdout.write(`  ✓ ${sc.symbol.padEnd(10)} [cache] gpt=${String(Math.round(cachedGptScore)).padStart(3)} final=${finalScore.toFixed(1).padStart(5)}\n`);
         continue;
       }
     }
@@ -446,7 +449,7 @@ async function main() {
 
       const gptResp = await callGPT(prompt);
       const rawFinal = applySafetyCaps(gptResp.gptScore, isStale, sc.return60d, sc.rsi14);
-      const finalScore = rawFinal;  // V9 P1: finalScore = gptScore (no weighting)
+      const finalScore = Math.round((ruleScore * 0.7 + rawFinal * 0.3) * 10) / 10;  // V10: 70/30 blend
       const gptRating  = computeRating(finalScore, sc.percentileRank);
 
       const upsertData = {
@@ -522,10 +525,10 @@ async function main() {
     let savedCount = 0;
     for (const entry of scored) {
       if (entry.fromCache) {
-        // Cache hit: update gptRating + gptRank (gptRank was cleared above; must re-write)
+        // Cache hit: write new V10 finalScore + gptRating + gptRank (gptRank cleared above)
         await prisma.gPTScore.update({
           where: { symbol: entry.symbol },
-          data: { gptRating: entry.gptRating, gptRank: entry.gptRank },
+          data: { finalScore: entry.finalScore, ruleScore: entry.adaptiveScore, gptRating: entry.gptRating, gptRank: entry.gptRank },
         }).catch(() => {});
         savedCount++;
         continue;

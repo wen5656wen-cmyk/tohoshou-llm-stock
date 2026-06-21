@@ -522,7 +522,7 @@ const jaJP: Messages = {
   "gpt.updated_at": "更新日時",
   "gpt.rule_score_desc": "テクニカル・資金・財務指標によるルールベース計算",
   "gpt.gpt_score_desc": "ビジネス品質・バリュエーション・成長・リスク・カタリストの独立評価",
-  "gpt.final_score_desc": "ルールスコア40% + GPTスコア60%",
+  "gpt.final_score_desc": "ルールスコア70% + GPTスコア30%",
   "screener.col_final_score": "総合スコア",
   "gpt.dim.business_quality": "企業品質",
   "gpt.dim.growth": "成長性",
