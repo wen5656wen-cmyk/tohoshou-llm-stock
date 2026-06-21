@@ -106,10 +106,13 @@ cron.schedule("0 7 * * 1-5", () => {
   run("fetch-tdnet.ts", "TDnet 開示同步");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 07:30 JST — AI 評分計算（TDnet 同步后运行）──────────────────────────────────
+// ── 07:30 JST — AI 評分計算 + データ健全性チェック ────────────────────────────────
 cron.schedule("30 7 * * *", () => {
   log("INFO", "⏰ 07:30 触发：AI 評分計算");
   run("compute-scores.ts", "AI 評分計算");
+  // Run health guard immediately after scoring; exit 1 is caught by run() — daily picks still proceed
+  log("INFO", "▶ 評分後データ健全性チェック");
+  run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 08:00 JST — LINE 朝報（開場前・工作日）────────────────────────────────────

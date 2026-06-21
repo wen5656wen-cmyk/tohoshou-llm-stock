@@ -63,6 +63,22 @@ type SyncLogEntry = {
   createdAt: string;
 };
 
+type HealthStatus = {
+  status: "PASS" | "WARNING" | "CRITICAL" | "NEVER_RUN" | "ERROR";
+  auditAt?: string;
+  criticalCount?: number;
+  warningCount?: number;
+  infoCount?: number;
+  passCount?: number;
+  allowRecommendation?: boolean;
+  requiresReview?: boolean;
+  topIssues?: string[];
+  reportFile?: string;
+  latestPriceDate?: string;
+  adjCoveragePct?: number;
+  message?: string;
+};
+
 type StatusData = {
   sources: SourceInfo[];
   summary: Summary;
@@ -257,6 +273,7 @@ export default function SyncPage() {
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyncResult>>({});
   const [jobs, setJobs] = useState<Record<string, JobStatus>>({});
+  const [health, setHealth] = useState<HealthStatus | null>(null);
   const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
 
   const fetchStatus = useCallback(async () => {
@@ -271,12 +288,21 @@ export default function SyncPage() {
     }
   }, []);
 
+  const fetchHealth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/health/status", { cache: "no-store" });
+      const json = await res.json() as HealthStatus;
+      setHealth(json);
+    } catch { /* non-critical */ }
+  }, []);
+
   useEffect(() => {
     fetchStatus();
+    fetchHealth();
     return () => {
       for (const t of Object.values(pollTimers.current)) clearInterval(t);
     };
-  }, [fetchStatus]);
+  }, [fetchStatus, fetchHealth]);
 
   const startPoll = (jobId: string, sourceId: string) => {
     if (pollTimers.current[sourceId]) clearInterval(pollTimers.current[sourceId]);
@@ -427,6 +453,61 @@ export default function SyncPage() {
           </div>
         </div>
       )}
+
+      {/* ── Data Health card ── */}
+      {health && (() => {
+        const s = health.status;
+        const isNeverRun = s === "NEVER_RUN" || s === "ERROR";
+        const isCrit = s === "CRITICAL";
+        const isWarn = s === "WARNING";
+        const isPass = s === "PASS";
+        const borderCls = isCrit ? "border-red-300 bg-red-50"
+                        : isWarn ? "border-amber-300 bg-amber-50"
+                        : isNeverRun ? "border-slate-200 bg-slate-50"
+                        : "border-green-200 bg-green-50";
+        const badgeCls = isCrit ? "bg-red-100 text-red-700"
+                       : isWarn ? "bg-amber-100 text-amber-700"
+                       : isNeverRun ? "bg-slate-100 text-slate-500"
+                       : "bg-green-100 text-green-700";
+        const icon = isCrit ? "❌" : isWarn ? "⚠️" : isPass ? "✅" : "—";
+        return (
+          <div className={`rounded-xl border shadow-sm p-4 mb-6 ${borderCls}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{icon}</span>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-slate-900 text-sm">Data Health Guard</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeCls}`}>
+                      {isNeverRun ? "未运行" : s}
+                    </span>
+                    {!isNeverRun && !health.allowRecommendation && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-200 text-red-800">
+                        推荐已阻断
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {health.auditAt
+                      ? `上次: ${dayjs(health.auditAt).format("M/D HH:mm")} · CRITICAL ${health.criticalCount ?? "—"} · WARNING ${health.warningCount ?? "—"} · adjClose ${health.adjCoveragePct?.toFixed(1) ?? "—"}%`
+                      : health.message ?? "未找到健康报告，请运行 npm run health:data"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                {health.reportFile ?? ""}
+              </div>
+            </div>
+            {health.topIssues && health.topIssues.length > 0 && (
+              <div className="mt-2 text-xs text-red-700 space-y-0.5">
+                {health.topIssues.map((issue, i) => (
+                  <div key={i}>• {issue}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Source cards ── */}
       {loading && !data && (

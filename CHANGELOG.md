@@ -2,6 +2,72 @@
 
 ---
 
+## [8.2.4] - 2026-06-21 — Data Health Guard（每日自动数据健全性守卫）
+
+### 目标
+在 v8.2.3 全量审计的基础上，增加每日自动保险层：每次评分完成后自动执行20项数据健全性检查；CRITICAL 异常自动阻断推荐并发送 LINE 告警。
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `scripts/data-health-guard.ts` | 每日自动守卫脚本（20项检查，exit 1 on CRITICAL） |
+| `app/api/health/status/route.ts` | 读取最新健康报告的 API 端点 |
+
+### 修改文件
+| 文件 | 修改内容 |
+|------|---------|
+| `package.json` | 新增 `health:data` / `audit:data` 命令 |
+| `scripts/cron-scheduler.ts` | 07:30 compute-scores 后自动运行 data-health-guard |
+| `app/sync/page.tsx` | /sync 页面新增 Data Health Guard 状态卡片 |
+
+### 20项检查规则
+| # | 检查项 | 等级 |
+|---|--------|------|
+| 1 | adjClose coverage ≥99% | CRITICAL |
+| 2 | split contamination = 0 (top-10 sample) | CRITICAL |
+| 3 | high52w < current price = 0 | CRITICAL |
+| 4 | low52w > current price = 0 | CRITICAL |
+| 5 | high52w > price×10 (异常膨胀) | WARNING |
+| 6 | low52w < price÷20 (异常低洼) | WARNING |
+| 7 | \|return5d\| > 50% | INFO |
+| 8 | \|return20d\| > 100% or < -70% | WARNING |
+| 9 | return60d > 300% or < -90% | WARNING |
+| 10 | adaptiveScore NULL = 0 | CRITICAL |
+| 11 | opportunityScore NULL = 0 | INFO |
+| 12 | percentileRank NULL = 0 | CRITICAL |
+| 13 | recommendationV2 NULL = 0 | CRITICAL |
+| 14 | NaN/Infinity = 0 | CRITICAL |
+| 15 | stale stocks (>3 days) | WARNING |
+| 16 | STRONG_BUY 双门槛违规 = 0 | CRITICAL |
+| 17 | BUY 双门槛违规 = 0 | INFO |
+| 18 | extreme return without highRiskFlag | WARNING |
+| 19 | stale stocks with STRONG_BUY = 0 | CRITICAL |
+| 20 | latestClose 有效性 | INFO |
+
+### 退出码规则
+- CRITICAL > 0 → `process.exit(1)` → 每日推荐被阻断
+- 仅 WARNING/INFO → `process.exit(0)` → 正常运行
+
+### LINE 告警格式
+- CRITICAL: `⚠ TOHOSHOU DATA ALERT` + 问题汇总 + Action
+- WARNING: `⚠ TOHOSHOU DATA WARNING` + 不阻断说明
+
+### 报告输出
+```
+reports/data-health-guard-YYYYMMDD-HHmm.json
+reports/data-health-guard-YYYYMMDD-HHmm.md
+```
+
+---
+
+## [8.2.3] - 2026-06-21 — Global Data Integrity Audit（9/9 全部通过）
+
+新增 `scripts/audit-data-integrity.ts`（只读全量审计脚本）。
+生成 `reports/data-integrity-audit-YYYYMMDD-HHmm.json + .md`。
+审计结论：adjClose 100% 覆盖，split contamination = 0，NaN/Inf = 0，STRONG_BUY 合规 5/5，9/9 通过。
+
+---
+
 ## [8.2.2] - 2026-06-21 — 全价格计算口径统一修复（adjClose 优先）
 
 ### 问题根因

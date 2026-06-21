@@ -48,7 +48,9 @@
     "test:line-v79": "NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/test-line-v79.ts",
     "validate:line-v79": "NEXT_PUBLIC_APP_URL=https://aitohoshou.com npx tsx scripts/validate-line-links.ts",
     "test:intent-engine": "APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts",
-    "test:intent-engine:dry": "SKIP_DB=1 APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts"
+    "test:intent-engine:dry": "SKIP_DB=1 APP_URL=https://aitohoshou.com npx tsx scripts/test-intent-engine.ts",
+    "health:data": "npx tsx scripts/data-health-guard.ts",
+    "audit:data": "npx tsx scripts/audit-data-integrity.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
