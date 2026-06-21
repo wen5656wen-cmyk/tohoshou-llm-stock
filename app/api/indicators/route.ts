@@ -33,6 +33,9 @@ export async function GET() {
       macdHist: true,
       maTrend: true,
       macdSignalLabel: true,
+      tradingAction: true,
+      positionSizePct: true,
+      actionRiskLevel: true,
     },
   });
 
@@ -58,6 +61,9 @@ export async function GET() {
       maTrend: s.maTrend ?? "NEUTRAL",
       macdSignalLabel: s.macdSignalLabel ?? "NEUTRAL",
       rsiSignal: rsiSignal(s.rsi14 ?? null),
+      tradingAction: s.tradingAction ?? null,
+      positionSizePct: s.positionSizePct ?? null,
+      actionRiskLevel: s.actionRiskLevel ?? null,
       finCount: 0,
     }))
   );

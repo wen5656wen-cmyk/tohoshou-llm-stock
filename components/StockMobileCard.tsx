@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getTradingActionLabel } from "@/lib/trading-action";
+import { useI18n } from "@/lib/i18n";
 
 type StockRow = {
   symbol: string;
@@ -20,7 +24,17 @@ type StockRow = {
   positionSizePct?: number | null;
 };
 
+const ACTION_COLOR: Record<string, string> = {
+  BUY_NOW: "bg-emerald-100 text-emerald-700",
+  WAIT_PULLBACK: "bg-amber-100 text-amber-700",
+  HOLD: "bg-slate-100 text-slate-600",
+  TAKE_PROFIT: "bg-orange-100 text-orange-700",
+  SELL: "bg-red-100 text-red-700",
+  AVOID: "bg-red-100 text-red-700",
+};
+
 export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: number }) {
+  const { lang } = useI18n();
   const rec = getRec(s.recommendationV2);
 
   return (
@@ -45,7 +59,7 @@ export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: numbe
             </div>
             <div className="text-right shrink-0">
               <div className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                {rec.label}
+                {getRecommendationLabel(s.recommendationV2, lang)}
               </div>
               <div className="text-2xl font-bold text-slate-900 tabular-nums mt-0.5 leading-none">
                 {s.adaptiveScore?.toFixed(0) ?? "—"}
@@ -75,23 +89,12 @@ export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: numbe
             </div>
           </div>
 
-          {s.tradingAction && (() => {
-            const A: Record<string, string> = {
-              BUY_NOW: "bg-emerald-100 text-emerald-700",
-              WAIT_PULLBACK: "bg-amber-100 text-amber-700",
-              HOLD: "bg-slate-100 text-slate-600",
-              TAKE_PROFIT: "bg-orange-100 text-orange-700",
-              SELL: "bg-red-100 text-red-700",
-              AVOID: "bg-red-100 text-red-700",
-            };
-            const L: Record<string, string> = { BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT", HOLD: "HOLD", TAKE_PROFIT: "PROFIT", SELL: "SELL", AVOID: "AVOID" };
-            return (
-              <div className={`mt-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${A[s.tradingAction] ?? A.HOLD}`}>
-                {L[s.tradingAction] ?? s.tradingAction}
-                {s.positionSizePct != null && <span className="font-normal opacity-70">{s.positionSizePct}%</span>}
-              </div>
-            );
-          })()}
+          {s.tradingAction && (
+            <div className={`mt-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${ACTION_COLOR[s.tradingAction] ?? ACTION_COLOR.HOLD}`}>
+              {getTradingActionLabel(s.tradingAction, lang)}
+              {s.positionSizePct != null && <span className="font-normal opacity-70">{s.positionSizePct}%</span>}
+            </div>
+          )}
 
           {(s.opportunityScore != null || (s.dividendScore != null && s.dividendScore > 0) || (s.catalystScore != null && s.catalystScore > 0)) && (
             <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">

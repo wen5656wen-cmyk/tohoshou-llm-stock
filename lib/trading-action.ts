@@ -4,6 +4,7 @@
  * Rules-based signal layer on top of existing AI scores.
  * Does NOT modify adaptiveScore / opportunityScore / recommendationV2.
  */
+import type { Lang } from "./i18n/types";
 
 export type TradingAction = {
   action: "BUY_NOW" | "WAIT_PULLBACK" | "HOLD" | "TAKE_PROFIT" | "SELL" | "AVOID";
@@ -153,6 +154,44 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
     return { action: "SELL", label: "Sell", positionSizePct: 0, entryLow: null, entryHigh: null, stopLoss: null, target1: null, target2: null, riskLevel, reasons, warnings };
   }
 
+  // ── 2.5 RSI OVERHEATING GUARD (blocks BUY_NOW, redirects to TP/WP) ────────
+  // These fire before TAKE_PROFIT so extreme RSI always gets a safe action.
+
+  if (rsi14 != null && rsi14 >= 95) {
+    reasons.push(`RSI=${rsi14.toFixed(0)} — extreme overbought, chasing now is high risk.`);
+    warnings.push("RSI is in extreme overbought territory — consider taking profit.");
+    warnings.push("Short-term price extension is very elevated.");
+    const prices = buildPrices("TAKE_PROFIT", price, ma20, ma60, high52w);
+    return { action: "TAKE_PROFIT", label: "Take Profit", positionSizePct: 20, ...prices, riskLevel: "HIGH", reasons, warnings: [...warnings, ...prices.warnings] };
+  }
+
+  if (rsi14 != null && rsi14 >= 90) {
+    const hasBigGain = (return20d != null && return20d > 20) || (return60d != null && return60d > 60);
+    const guardAction = hasBigGain ? "TAKE_PROFIT" : "WAIT_PULLBACK";
+    reasons.push(`RSI=${rsi14.toFixed(0)} — overbought, not suitable for new entry.`);
+    warnings.push("RSI is in overbought territory — chasing at this level is high risk.");
+    if (hasBigGain)
+      reasons.push(`Significant gains (20D ${return20d?.toFixed(1) ?? "?"}%) — trim position in stages.`);
+    else
+      reasons.push("Wait for RSI to pull back before considering entry.");
+    const prices = buildPrices(guardAction, price, ma20, ma60, high52w);
+    return { action: guardAction, label: guardAction === "TAKE_PROFIT" ? "Take Profit" : "Wait Pullback", positionSizePct: 20, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
+  }
+
+  if (rsi14 != null && rsi14 >= 85 && return20d != null && return20d > 30) {
+    reasons.push(`RSI=${rsi14.toFixed(0)} with +${return20d.toFixed(1)}% in 20D — extended, trim positions.`);
+    warnings.push("Stock price has risen sharply — consider taking profit instead of chasing.");
+    const prices = buildPrices("TAKE_PROFIT", price, ma20, ma60, high52w);
+    return { action: "TAKE_PROFIT", label: "Take Profit", positionSizePct: 30, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
+  }
+
+  if (rsi14 != null && rsi14 >= 80 && return5d != null && return5d > 20) {
+    reasons.push(`RSI=${rsi14.toFixed(0)} and +${return5d.toFixed(1)}% in 5D spike — wait for pullback.`);
+    warnings.push("Short-term price extension is elevated — do not chase.");
+    const prices = buildPrices("WAIT_PULLBACK", price, ma20, ma60, high52w);
+    return { action: "WAIT_PULLBACK", label: "Wait Pullback", positionSizePct: 20, ...prices, riskLevel, reasons, warnings: [...warnings, ...prices.warnings] };
+  }
+
   // ── 3. TAKE_PROFIT ────────────────────────────────────────────────────────
   const isTakeProfit = (
     (return60d != null && return60d > 150 && rsi14 != null && rsi14 > 80) ||
@@ -224,4 +263,29 @@ export function computeTradingAction(input: TradingActionInput): TradingAction {
 
 function fmtPrice(v: number): string {
   return "¥" + v.toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+
+type ActionKey = TradingAction["action"];
+type RiskKey = TradingAction["riskLevel"];
+
+const ACTION_LABELS: Record<Lang, Record<ActionKey, string>> = {
+  "zh-CN": { BUY_NOW: "立即买入", WAIT_PULLBACK: "等待回调", HOLD: "持有", TAKE_PROFIT: "止盈", SELL: "卖出", AVOID: "回避" },
+  "ja-JP": { BUY_NOW: "今すぐ買い", WAIT_PULLBACK: "押し目待ち", HOLD: "保持", TAKE_PROFIT: "利益確定", SELL: "売り", AVOID: "回避" },
+  "en-US": { BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT PULLBACK", HOLD: "HOLD", TAKE_PROFIT: "TAKE PROFIT", SELL: "SELL", AVOID: "AVOID" },
+};
+
+const RISK_LABELS: Record<Lang, Record<RiskKey, string>> = {
+  "zh-CN": { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险", EXTREME: "极高风险" },
+  "ja-JP": { LOW: "低リスク", MEDIUM: "中リスク", HIGH: "高リスク", EXTREME: "超高リスク" },
+  "en-US": { LOW: "Low Risk", MEDIUM: "Medium Risk", HIGH: "High Risk", EXTREME: "Extreme Risk" },
+};
+
+export function getTradingActionLabel(action: string | null | undefined, lang: Lang = "zh-CN"): string {
+  if (!action) return "—";
+  return ACTION_LABELS[lang]?.[action as ActionKey] ?? action;
+}
+
+export function getRiskLabel(risk: string | null | undefined, lang: Lang = "zh-CN"): string {
+  if (!risk) return "—";
+  return RISK_LABELS[lang]?.[risk as RiskKey] ?? risk;
 }

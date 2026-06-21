@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getTradingActionLabel } from "@/lib/trading-action";
+import { useI18n } from "@/lib/i18n";
 
 type AiScore = {
   symbol: string;
@@ -88,6 +90,7 @@ function ScoreBar({ score, max = 100, color }: { score: number; max?: number; co
 
 function DetailCard({ score }: { score: AiScore }) {
   const [open, setOpen] = useState(false);
+  const { lang } = useI18n();
   const rec = getRec(score.recommendationV2);
 
   return (
@@ -114,10 +117,10 @@ function DetailCard({ score }: { score: AiScore }) {
                 </Link>
                 <span className="text-[11px] text-slate-500 font-mono">{score.symbol}</span>
                 <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
-                  {rec.label}
+                  {getRecommendationLabel(score.recommendationV2, lang)}
                 </span>
                 {score.highRiskFlag && (
-                  <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">⚠ High Risk</span>
+                  <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">⚠</span>
                 )}
                 {score.tradingAction && (() => {
                   const A: Record<string, string> = {
@@ -128,10 +131,9 @@ function DetailCard({ score }: { score: AiScore }) {
                     SELL: "bg-red-100 text-red-700 border-red-200",
                     AVOID: "bg-red-100 text-red-700 border-red-200",
                   };
-                  const L: Record<string, string> = { BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT", HOLD: "HOLD", TAKE_PROFIT: "PROFIT", SELL: "SELL", AVOID: "AVOID" };
                   return (
                     <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${A[score.tradingAction] ?? A.HOLD}`}>
-                      {L[score.tradingAction] ?? score.tradingAction}
+                      {getTradingActionLabel(score.tradingAction, lang)}
                       {score.positionSizePct != null && <span className="ml-1 font-normal opacity-70">{score.positionSizePct}%</span>}
                     </span>
                   );
@@ -288,6 +290,7 @@ function MarketTemperatureBanner({ stats }: { stats: MarketStats }) {
 }
 
 export default function AiPicksPage() {
+  const { lang } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

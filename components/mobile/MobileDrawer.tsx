@@ -3,23 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-
-const NAV_ITEMS = [
-  { href: "/",             label: "仪表盘",     icon: "◈" },
-  { href: "/ai-picks",     label: "AI推荐",     icon: "✦" },
-  { href: "/chat",         label: "AI对话",     icon: "💬" },
-  { href: "/ai-theme",     label: "AI产业链",   icon: "⚡" },
-  { href: "/screener",     label: "全市场筛选", icon: "◫" },
-  { href: "/stocks",       label: "股票列表",   icon: "◉" },
-  { href: "/indicators",   label: "技术指标",   icon: "▣" },
-  { href: "/watchlist",    label: "自选股",     icon: "★" },
-  { href: "/news",         label: "新闻资讯",   icon: "◎" },
-  { href: "/notifications",label: "通知管理",   icon: "🔔" },
-  { href: "/sync",         label: "数据同步",   icon: "⟳" },
-];
+import { useI18n } from "@/lib/i18n";
+import LanguageSwitcher from "../LanguageSwitcher";
 
 export default function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const NAV_ITEMS = [
+    { href: "/",              label: t("nav.dashboard"),     icon: "◈" },
+    { href: "/ai-picks",      label: t("nav.ai_picks"),      icon: "✦" },
+    { href: "/chat",          label: t("nav.chat"),          icon: "💬" },
+    { href: "/ai-theme",      label: t("nav.ai_theme"),      icon: "⚡" },
+    { href: "/screener",      label: t("nav.screener"),      icon: "◫" },
+    { href: "/stocks",        label: t("nav.stocks"),        icon: "◉" },
+    { href: "/indicators",    label: t("nav.indicators"),    icon: "▣" },
+    { href: "/watchlist",     label: t("nav.watchlist"),     icon: "★" },
+    { href: "/news",          label: t("nav.news"),          icon: "◎" },
+    { href: "/notifications", label: t("nav.notifications"), icon: "🔔" },
+    { href: "/sync",          label: t("nav.sync"),          icon: "⟳" },
+  ];
 
   useEffect(() => {
     if (open) {
@@ -38,7 +41,7 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
-        aria-label="关闭菜单"
+        aria-label={t("common.close")}
       />
       {/* Drawer panel */}
       <div className="absolute top-0 left-0 h-full w-72 max-w-[85vw] bg-[#0f1629] shadow-2xl flex flex-col">
@@ -48,13 +51,13 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
             <span className="text-blue-400 text-lg">◈</span>
             <div>
               <div className="text-white font-bold text-sm">TOHOSHOU AI</div>
-              <div className="text-slate-500 text-xs">日本AI选股系统</div>
+              <div className="text-slate-500 text-xs">{t("site.subtitle")}</div>
             </div>
           </div>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-700/50 transition-colors"
-            aria-label="关闭"
+            aria-label={t("common.close")}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -85,16 +88,19 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-slate-700/50 shrink-0">
-          <div className="text-slate-600 text-xs font-medium mb-2">数据来源</div>
-          <div className="space-y-1">
-            {["J-Quants", "Yahoo Finance JP", "TDnet", "Kabutan"].map((s) => (
-              <div key={s} className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                <span className="text-slate-500 text-xs">{s}</span>
-              </div>
-            ))}
+        <div className="px-4 py-4 border-t border-slate-700/50 shrink-0 space-y-3">
+          <div>
+            <div className="text-slate-600 text-xs font-medium mb-2">{t("nav.data_sources")}</div>
+            <div className="space-y-1">
+              {["J-Quants", "Yahoo Finance JP", "TDnet", "Kabutan"].map((s) => (
+                <div key={s} className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                  <span className="text-slate-500 text-xs">{s}</span>
+                </div>
+              ))}
+            </div>
           </div>
+          <LanguageSwitcher />
         </div>
       </div>
     </div>

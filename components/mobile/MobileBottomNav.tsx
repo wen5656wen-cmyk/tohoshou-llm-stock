@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const NAV_ITEMS = [
-  { href: "/",          label: "首页",   icon: "◈" },
-  { href: "/ai-picks",  label: "AI推荐", icon: "✦" },
-  { href: "/chat",      label: "对话",   icon: "💬" },
-  { href: "/screener",  label: "筛选",   icon: "◫" },
-  { href: "/ai-theme",  label: "产业链", icon: "⚡" },
-];
+import { useI18n } from "@/lib/i18n";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const NAV_ITEMS = [
+    { href: "/",          label: t("nav.home"),          icon: "◈" },
+    { href: "/ai-picks",  label: t("nav.ai_picks"),      icon: "✦" },
+    { href: "/chat",      label: t("nav.dialogue"),      icon: "💬" },
+    { href: "/screener",  label: t("nav.select"),        icon: "◫" },
+    { href: "/ai-theme",  label: t("nav.supply_chain"),  icon: "⚡" },
+  ];
 
   return (
     <nav

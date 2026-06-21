@@ -2,25 +2,28 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const navItems = [
-  { href: "/", label: "仪表盘", icon: "◈" },
-  { href: "/stocks", label: "股票列表", icon: "◉" },
-  { href: "/indicators", label: "技术指标", icon: "▣" },
-  { href: "/ai-picks", label: "AI推荐", icon: "✦" },
-  { href: "/ai-theme", label: "AI产业链", icon: "⚡" },
-  { href: "/chat", label: "AI对话", icon: "💬" },
-  { href: "/screener", label: "全市场筛选", icon: "◫" },
-  { href: "/sectors", label: "行业分析", icon: "▤" },
-  { href: "/watchlist", label: "自选股", icon: "★" },
-  { href: "/news", label: "新闻资讯", icon: "◎" },
-  { href: "/portfolio", label: "持仓管理", icon: "◇" },
-  { href: "/notifications", label: "通知管理", icon: "🔔" },
-  { href: "/sync", label: "数据同步", icon: "⟳" },
-];
+import { useI18n } from "@/lib/i18n";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const navItems = [
+    { href: "/", label: t("nav.dashboard"), icon: "◈" },
+    { href: "/stocks", label: t("nav.stocks"), icon: "◉" },
+    { href: "/indicators", label: t("nav.indicators"), icon: "▣" },
+    { href: "/ai-picks", label: t("nav.ai_picks"), icon: "✦" },
+    { href: "/ai-theme", label: t("nav.ai_theme"), icon: "⚡" },
+    { href: "/chat", label: t("nav.chat"), icon: "💬" },
+    { href: "/screener", label: t("nav.screener"), icon: "◫" },
+    { href: "/sectors", label: t("nav.sectors"), icon: "▤" },
+    { href: "/watchlist", label: t("nav.watchlist"), icon: "★" },
+    { href: "/news", label: t("nav.news"), icon: "◎" },
+    { href: "/portfolio", label: t("nav.portfolio"), icon: "◇" },
+    { href: "/notifications", label: t("nav.notifications"), icon: "🔔" },
+    { href: "/sync", label: t("nav.sync"), icon: "⟳" },
+  ];
 
   return (
     <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 bg-[#0f1629] flex-col z-40">
@@ -31,7 +34,7 @@ export default function Sidebar() {
             <div className="text-white font-bold text-sm leading-tight">
               TOHOSHOU AI
             </div>
-            <div className="text-slate-500 text-xs">日本AI选股系统</div>
+            <div className="text-slate-500 text-xs">{t("site.subtitle")}</div>
           </div>
         </div>
       </div>
@@ -59,9 +62,9 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-4 py-4 border-t border-slate-700/50">
+      <div className="px-4 py-4 border-t border-slate-700/50 space-y-3">
         <div className="text-slate-600 text-xs">
-          数据来源
+          {t("nav.data_sources")}
           <div className="mt-1.5 space-y-0.5">
             {["J-Quants", "Yahoo Finance JP", "TDnet"].map((s) => (
               <div key={s} className="flex items-center gap-1.5">
@@ -71,6 +74,7 @@ export default function Sidebar() {
             ))}
           </div>
         </div>
+        <LanguageSwitcher compact />
       </div>
     </aside>
   );

@@ -2,6 +2,42 @@
 
 ---
 
+## [8.3 P2.3] - 2026-06-21 — Technical Signal / AI Action Alignment
+
+### 目标
+修复 RSI 极度超买但 MACD 仍显示"买入"的误导性信号。MACD 改为趋势方向，买卖决策统一以 AI Action 为准。
+
+### 核心修复
+
+| 问题 | 修复方案 |
+|------|---------|
+| RSI>=90 股票仍可能 BUY_NOW | 新增 RSI 过热保护规则，RSI>=95→TAKE_PROFIT，RSI>=90→TAKE_PROFIT/WAIT_PULLBACK |
+| MACD 显示"买入/卖出"误导买卖方向 | 改为"多头/空头/中性"（趋势信号） |
+| RSI 只分"超买/超卖" | 改为5级：极度超买≥90/超买80-90/偏热70-80/正常/超卖 |
+| 技术指标页无 AI 交易建议 | 新增"AI交易动作"列 |
+
+### 修改文件
+
+| 文件 | 修改内容 |
+|------|---------|
+| `lib/trading-action.ts` | 新增 RSI 过热保护守卫（RSI≥95/≥90/≥85+20D>30%/≥80+5D>20%），任意触发均阻断 BUY_NOW |
+| `app/api/indicators/route.ts` | 新增 tradingAction/positionSizePct/actionRiskLevel 字段返回 |
+| `app/indicators/page.tsx` | ①MACD列改为"趋势信号"（多头/空头/中性）②RSI 5级颜色分级 ③新增"AI交易动作"列 ④统计看板更新 |
+
+### 验证结果
+
+| 验证项 | 结果 |
+|--------|------|
+| RSI>=95 中 BUY_NOW 数量 | **0**（通过） |
+| RSI>=90 中 BUY_NOW 数量 | **0**（通过） |
+| 285A.T（RSI≈79，20D=+89%） | → TAKE_PROFIT ✅ |
+| 4062.T（RSI≈57，5D=+29%） | → WAIT_PULLBACK ✅ |
+| 9552.T（RSI≈59，STRONG_BUY） | → BUY_NOW ✅（正常持续） |
+| build | ✅ 通过 |
+| health:data | ✅ WARNING（无 CRITICAL）|
+
+---
+
 ## [8.3 P2] - 2026-06-21 — AI Action Trading Decision
 
 ### 目标

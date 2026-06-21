@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
 import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { useI18n } from "@/lib/i18n";
 
 type PricePoint = { date: string; open?: number; high?: number; low?: number; close: number; volume?: number };
 
@@ -249,6 +250,7 @@ function AiActionCard({ score }: { score: {
   actionRiskLevel: string | null;
   actionReasons: string[]; actionWarnings: string[];
 } }) {
+  const { t } = useI18n();
   const action = score.tradingAction;
   if (!action) return null;
   const cfg = AI_ACTION_CFG[action] ?? AI_ACTION_CFG.HOLD;
@@ -260,16 +262,20 @@ function AiActionCard({ score }: { score: {
     <div className={`rounded-2xl border ${cfg.border} p-5 ${cfg.bg}`}>
       <div className="flex items-center gap-2 mb-4">
         <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-        <h3 className="text-xs font-semibold tracking-widest text-slate-500 uppercase">AI Action</h3>
+        <h3 className="text-xs font-semibold tracking-widest text-slate-500 uppercase">{t("ai_action.title")}</h3>
       </div>
       {/* Label + Position */}
       <div className="flex items-end justify-between mb-4">
         <div>
-          <div className={`text-[28px] font-extrabold tracking-tight leading-none ${cfg.text}`}>{cfg.label}</div>
-          <div className={`text-xs font-semibold mt-1 ${riskColor}`}>Risk: {score.actionRiskLevel ?? "—"}</div>
+          <div className={`text-[28px] font-extrabold tracking-tight leading-none ${cfg.text}`}>
+            {t(`action.${action}` as Parameters<typeof t>[0]) || cfg.label}
+          </div>
+          <div className={`text-xs font-semibold mt-1 ${riskColor}`}>
+            {t("ai_action.risk_level")}: {t(`risk.${score.actionRiskLevel}` as Parameters<typeof t>[0]) || score.actionRiskLevel || "—"}
+          </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-slate-400 mb-0.5">Suggested Position</div>
+          <div className="text-[10px] text-slate-400 mb-0.5">{t("ai_action.position_size")}</div>
           <div className={`text-[28px] font-extrabold tabular-nums leading-none ${cfg.text}`}>
             {score.positionSizePct?.toFixed(0) ?? "0"}%
           </div>
@@ -280,31 +286,31 @@ function AiActionCard({ score }: { score: {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {score.entryLow != null && (
             <div className="bg-white/70 rounded-xl p-2.5">
-              <div className="text-[10px] text-slate-400 mb-1">Entry Low</div>
+              <div className="text-[10px] text-slate-400 mb-1">{t("ai_action.entry_range")} Low</div>
               <div className="text-sm font-bold text-slate-800 tabular-nums">¥{score.entryLow.toLocaleString()}</div>
             </div>
           )}
           {score.entryHigh != null && (
             <div className="bg-white/70 rounded-xl p-2.5">
-              <div className="text-[10px] text-slate-400 mb-1">Entry High</div>
+              <div className="text-[10px] text-slate-400 mb-1">{t("ai_action.entry_range")} High</div>
               <div className="text-sm font-bold text-slate-800 tabular-nums">¥{score.entryHigh.toLocaleString()}</div>
             </div>
           )}
           {score.stopLoss != null && (
             <div className="bg-white/70 rounded-xl p-2.5">
-              <div className="text-[10px] text-red-400 mb-1">Stop Loss</div>
+              <div className="text-[10px] text-red-400 mb-1">{t("ai_action.stop_loss")}</div>
               <div className="text-sm font-bold text-red-600 tabular-nums">¥{score.stopLoss.toLocaleString()}</div>
             </div>
           )}
           {score.target1 != null && (
             <div className="bg-white/70 rounded-xl p-2.5">
-              <div className="text-[10px] text-emerald-500 mb-1">Target 1</div>
+              <div className="text-[10px] text-emerald-500 mb-1">{t("ai_action.target1")}</div>
               <div className="text-sm font-bold text-emerald-600 tabular-nums">¥{score.target1.toLocaleString()}</div>
             </div>
           )}
           {score.target2 != null && (
             <div className="bg-white/70 rounded-xl p-2.5">
-              <div className="text-[10px] text-emerald-500 mb-1">Target 2</div>
+              <div className="text-[10px] text-emerald-500 mb-1">{t("ai_action.target2")}</div>
               <div className="text-sm font-bold text-emerald-600 tabular-nums">¥{score.target2.toLocaleString()}</div>
             </div>
           )}
@@ -313,6 +319,7 @@ function AiActionCard({ score }: { score: {
       {/* Reasons */}
       {reasons.length > 0 && (
         <div className="space-y-1 mb-2">
+          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{t("ai_action.reasons")}</div>
           {reasons.map((r, i) => (
             <div key={i} className="text-xs text-slate-600 flex gap-1.5">
               <span className="text-slate-400 shrink-0">·</span>
@@ -324,6 +331,7 @@ function AiActionCard({ score }: { score: {
       {/* Warnings */}
       {warnings.length > 0 && (
         <div className="space-y-1 mb-2">
+          <div className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider mb-1">{t("ai_action.warnings")}</div>
           {warnings.map((w, i) => (
             <div key={i} className="text-xs text-amber-600 flex gap-1.5">
               <span className="shrink-0">⚠</span>
@@ -334,7 +342,7 @@ function AiActionCard({ score }: { score: {
       )}
       {/* Disclaimer */}
       <div className="text-[10px] text-slate-400 border-t border-slate-200/60 pt-2 mt-2">
-        AI Action is a rules-based signal for research only. Not financial advice.
+        {t("ai_action.disclaimer")}
       </div>
     </div>
   );
@@ -343,6 +351,7 @@ function AiActionCard({ score }: { score: {
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = use(params);
   const decoded = decodeURIComponent(symbol);
+  const { t } = useI18n();
 
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -405,7 +414,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="text-slate-400 text-sm animate-pulse">加载中...</div>
+        <div className="text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
       </div>
     );
   }
@@ -441,12 +450,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   };
 
   const tabs = [
-    { key: "overview",   label: "概览" },
-    { key: "chart",      label: "价格图表" },
-    { key: "financials", label: `财务 (${financials.length}条)` },
-    { key: "indicators", label: "技术指标" },
-    { key: "ai",         label: aiScore ? `AI评分 ${aiScore.adaptiveScore?.toFixed(0) ?? aiScore.totalScore}分` : "AI评分" },
-    { key: "news",       label: "最新新闻" },
+    { key: "overview",   label: t("tab.overview") },
+    { key: "chart",      label: "Price Chart" },
+    { key: "financials", label: `${t("tab.fundamental")} (${financials.length})` },
+    { key: "indicators", label: t("tab.technical") },
+    { key: "ai",         label: aiScore ? `${t("tab.ai")} ${aiScore.adaptiveScore?.toFixed(0) ?? aiScore.totalScore}` : t("tab.ai") },
+    { key: "news",       label: t("tab.news") },
   ] as const;
 
   return (
@@ -465,7 +474,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             } disabled:opacity-40`}
           >
             <span>{watched ? "★" : "☆"}</span>
-            {watched ? "已加自选" : "加入自选"}
+            {watched ? `★ ${t("nav.watchlist")}` : `+ ${t("nav.watchlist")}`}
           </button>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

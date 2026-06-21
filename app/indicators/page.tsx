@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
+import { getTradingActionLabel } from "@/lib/trading-action";
 
 type StockIndicator = {
   symbol: string; name: string; nameZh: string | null; sector: string | null;
@@ -11,6 +13,9 @@ type StockIndicator = {
   return5d: number | null; return20d: number | null; return60d: number | null;
   maTrend: string; rsiSignal: string;
   macdSignalLabel: "BUY" | "NEUTRAL" | "SELL";
+  tradingAction: string | null;
+  positionSizePct: number | null;
+  actionRiskLevel: string | null;
   finCount: number;
 };
 
@@ -42,33 +47,42 @@ function MaTrend({ trend }: { trend: string }) {
   );
 }
 
+// ── RSI 5-level display ───────────────────────────────────────────────────
+function rsiLevel(val: number): { label: string; color: string; barColor: string } {
+  if (val >= 90) return { label: "极度超买", color: "text-red-600",    barColor: "bg-red-500" };
+  if (val >= 80) return { label: "超买",     color: "text-orange-600", barColor: "bg-orange-400" };
+  if (val >= 70) return { label: "偏热",     color: "text-yellow-600", barColor: "bg-yellow-400" };
+  if (val <= 30) return { label: "超卖",     color: "text-blue-600",   barColor: "bg-blue-400" };
+  return           { label: "正常",     color: "text-green-600",  barColor: "bg-slate-300" };
+}
+
 function RsiBar({ val }: { val: number | null }) {
   if (val === null) return <span className="text-slate-300 text-xs">—</span>;
-  const color = val >= 70 ? "bg-red-400" : val >= 55 ? "bg-orange-300" : val <= 30 ? "bg-blue-400" : val <= 45 ? "bg-blue-300" : "bg-slate-300";
-  const label = val >= 70 ? "超买" : val <= 30 ? "超卖" : "";
+  const { label, color, barColor } = rsiLevel(val);
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${val}%` }} />
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, val)}%` }} />
       </div>
-      <span className="tabular-nums text-xs text-slate-700 w-8">{val.toFixed(0)}</span>
-      {label && <span className={`text-xs font-medium ${val >= 70 ? "text-red-500" : "text-blue-500"}`}>{label}</span>}
+      <span className="tabular-nums text-xs text-slate-700 w-7">{val.toFixed(0)}</span>
+      <span className={`text-xs font-semibold ${color}`}>{label}</span>
     </div>
   );
 }
 
-function MacdBadge({ sig, hist }: { sig: string; hist: number | null }) {
+// ── MACD → 趋势信号（多头/空头/中性） ─────────────────────────────────────
+function MacdTrendBadge({ sig, hist }: { sig: string; hist: number | null }) {
   const cfg: Record<string, { label: string; cls: string }> = {
-    BUY:     { label: "买入", cls: "bg-red-100 text-red-600 border border-red-200" },
-    NEUTRAL: { label: "中性", cls: "bg-slate-100 text-slate-400" },
-    SELL:    { label: "卖出", cls: "bg-blue-100 text-blue-600 border border-blue-200" },
+    BUY:     { label: "多头", cls: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+    NEUTRAL: { label: "中性", cls: "bg-slate-100 text-slate-400 border border-slate-200" },
+    SELL:    { label: "空头", cls: "bg-red-100 text-red-600 border border-red-200" },
   };
   const c = cfg[sig] ?? cfg.NEUTRAL;
   return (
     <div className="flex items-center gap-1.5">
       <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>
       {hist !== null && (
-        <span className={`text-xs tabular-nums ${hist >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
+        <span className={`text-xs tabular-nums ${hist >= 0 ? "text-emerald-600" : "text-red-500"}`}>
           {hist >= 0 ? "+" : ""}{hist.toFixed(2)}
         </span>
       )}
@@ -76,7 +90,31 @@ function MacdBadge({ sig, hist }: { sig: string; hist: number | null }) {
   );
 }
 
+// ── AI Action badge ────────────────────────────────────────────────────────
+const ACTION_COLOR: Record<string, string> = {
+  BUY_NOW:       "bg-emerald-100 text-emerald-700 border-emerald-200",
+  WAIT_PULLBACK: "bg-amber-100 text-amber-700 border-amber-200",
+  HOLD:          "bg-slate-100 text-slate-600 border-slate-200",
+  TAKE_PROFIT:   "bg-orange-100 text-orange-700 border-orange-200",
+  SELL:          "bg-red-100 text-red-600 border-red-200",
+  AVOID:         "bg-slate-100 text-slate-400 border-slate-200",
+};
+
+function AiActionBadge({ action, pct, lang }: { action: string | null; pct: number | null; lang: string }) {
+  if (!action) return <span className="text-slate-300 text-xs">—</span>;
+  const cls = ACTION_COLOR[action] ?? ACTION_COLOR.HOLD;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border font-semibold ${cls}`}>
+      {getTradingActionLabel(action, lang as "zh-CN" | "ja-JP" | "en-US")}
+      {pct != null && pct > 0 && (
+        <span className="font-normal opacity-60">{pct}%</span>
+      )}
+    </span>
+  );
+}
+
 export default function IndicatorsPage() {
+  const { lang } = useI18n();
   const [data, setData] = useState<StockIndicator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,38 +152,63 @@ export default function IndicatorsPage() {
       <span className="text-slate-300"> ↕</span>
     );
 
-  const buyCount    = data.filter((d) => d.macdSignalLabel === "BUY").length;
-  const sellCount   = data.filter((d) => d.macdSignalLabel === "SELL").length;
-  const goldenCount = data.filter((d) => d.maTrend === "GOLDEN" || d.maTrend === "BULLISH").length;
-  const overbought  = data.filter((d) => (d.rsi14 ?? 50) >= 70).length;
-  const oversold    = data.filter((d) => (d.rsi14 ?? 50) <= 30).length;
+  // Stats
+  const macdBullCount  = data.filter((d) => d.macdSignalLabel === "BUY").length;
+  const macdBearCount  = data.filter((d) => d.macdSignalLabel === "SELL").length;
+  const goldenCount    = data.filter((d) => d.maTrend === "GOLDEN" || d.maTrend === "BULLISH").length;
+  const extremeOB      = data.filter((d) => (d.rsi14 ?? 50) >= 90).length;
+  const overbought     = data.filter((d) => (d.rsi14 ?? 50) >= 70 && (d.rsi14 ?? 50) < 90).length;
+  const oversold       = data.filter((d) => (d.rsi14 ?? 50) <= 30).length;
+  const buyNowCount    = data.filter((d) => d.tradingAction === "BUY_NOW").length;
 
   return (
     <div className="p-6 max-w-7xl">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900">技术指标排行</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          {loading ? "加载中..." : error ? <span className="text-red-500">加载失败：{error}</span> : `StockScore TOP ${data.length}只 · RSI(14)・MACD`}
+          {loading ? "加载中..." : error
+            ? <span className="text-red-500">加载失败：{error}</span>
+            : `StockScore TOP ${data.length}只 · RSI(14) · MACD趋势信号 · AI交易动作`
+          }
         </p>
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
           {[
-            { label: "MACD 买入",    value: buyCount,    total: data.length, color: "text-red-600",    bg: "bg-red-50 border-red-200" },
-            { label: "MACD 卖出",    value: sellCount,   total: data.length, color: "text-blue-600",   bg: "bg-blue-50 border-blue-200" },
-            { label: "上涨趋势",     value: goldenCount, total: data.length, color: "text-green-600",  bg: "bg-green-50 border-green-200" },
-            { label: "RSI超买(≥70)", value: overbought,  total: data.length, color: "text-orange-600", bg: "bg-orange-50 border-orange-200" },
-            { label: "RSI超卖(≤30)", value: oversold,    total: data.length, color: "text-indigo-600", bg: "bg-indigo-50 border-indigo-200" },
+            { label: "MACD 多头",     value: macdBullCount,  total: data.length, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
+            { label: "MACD 空头",     value: macdBearCount,  total: data.length, color: "text-red-600",     bg: "bg-red-50 border-red-200" },
+            { label: "均线上涨",      value: goldenCount,    total: data.length, color: "text-green-600",   bg: "bg-green-50 border-green-200" },
+            { label: "极度超买≥90",   value: extremeOB,      total: data.length, color: "text-red-700",     bg: "bg-red-50 border-red-300" },
+            { label: "偏热/超买70-89",value: overbought,     total: data.length, color: "text-orange-600",  bg: "bg-orange-50 border-orange-200" },
+            { label: "RSI超卖≤30",    value: oversold,       total: data.length, color: "text-indigo-600",  bg: "bg-indigo-50 border-indigo-200" },
+            { label: "AI 立即买入",   value: buyNowCount,    total: data.length, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-300" },
           ].map((s) => (
-            <div key={s.label} className={`rounded-xl border shadow-sm p-4 ${s.bg}`}>
-              <div className="text-xs text-slate-500 mb-1">{s.label}</div>
-              <div className={`text-2xl font-bold ${s.color}`}>
+            <div key={s.label} className={`rounded-xl border shadow-sm p-3 ${s.bg}`}>
+              <div className="text-xs text-slate-500 mb-1 leading-tight">{s.label}</div>
+              <div className={`text-xl font-bold ${s.color}`}>
                 {s.value}
-                <span className="text-sm font-normal text-slate-400 ml-1">/ {s.total}</span>
+                <span className="text-xs font-normal text-slate-400 ml-1">/ {s.total}</span>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* RSI explanation banner */}
+      {!loading && (
+        <div className="flex items-center gap-3 flex-wrap mb-4 text-xs text-slate-500 bg-slate-50 rounded-xl px-4 py-2 border border-slate-200">
+          <span className="font-medium text-slate-600">RSI分级：</span>
+          <span className="text-blue-600 font-semibold">超卖 ≤30</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-green-600 font-semibold">正常 30-70</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-yellow-600 font-semibold">偏热 70-80</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-orange-600 font-semibold">超买 80-90</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-red-600 font-semibold">极度超买 ≥90</span>
+          <span className="ml-3 text-slate-400">· MACD显示趋势方向，不代表买卖建议 · 买卖动作以AI交易动作为准</span>
         </div>
       )}
 
@@ -175,7 +238,7 @@ export default function IndicatorsPage() {
                 <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
                   <th className="px-5 py-3 font-medium">股票</th>
                   <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("latestClose")}>
-                    最新股价<SortIcon col="latestClose" />
+                    股价<SortIcon col="latestClose" />
                   </th>
                   <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return5d")}>
                     5日<SortIcon col="return5d" />
@@ -190,8 +253,14 @@ export default function IndicatorsPage() {
                   <th className="px-3 py-3 font-medium cursor-pointer hover:text-slate-700" onClick={() => toggleSort("rsi14")}>
                     RSI(14)<SortIcon col="rsi14" />
                   </th>
-                  <th className="px-3 py-3 font-medium">MACD</th>
-                  <th className="px-3 py-3 font-medium text-right">财务条数</th>
+                  <th className="px-3 py-3 font-medium">
+                    <span className="text-slate-600">趋势信号</span>
+                    <span className="block text-[10px] text-slate-400 font-normal">MACD方向</span>
+                  </th>
+                  <th className="px-3 py-3 font-medium">
+                    <span className="text-slate-600">AI交易动作</span>
+                    <span className="block text-[10px] text-slate-400 font-normal">买卖以此为准</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -214,7 +283,9 @@ export default function IndicatorsPage() {
                     </td>
                   </tr>
                 ) : sorted.map((s, idx) => (
-                  <tr key={s.symbol} className="hover:bg-blue-50/30 transition-colors">
+                  <tr key={s.symbol} className={`hover:bg-blue-50/30 transition-colors ${
+                    s.rsi14 != null && s.rsi14 >= 90 ? "bg-red-50/20" : ""
+                  }`}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-300 w-4 tabular-nums">{idx + 1}</span>
@@ -237,8 +308,10 @@ export default function IndicatorsPage() {
                     <td className="px-3 py-3 text-right"><ReturnCell val={s.return60d} /></td>
                     <td className="px-3 py-3"><MaTrend trend={s.maTrend} /></td>
                     <td className="px-3 py-3"><RsiBar val={s.rsi14} /></td>
-                    <td className="px-3 py-3"><MacdBadge sig={s.macdSignalLabel} hist={s.macdHist} /></td>
-                    <td className="px-3 py-3 text-right text-xs text-slate-500">{s.finCount}条</td>
+                    <td className="px-3 py-3"><MacdTrendBadge sig={s.macdSignalLabel} hist={s.macdHist} /></td>
+                    <td className="px-3 py-3">
+                      <AiActionBadge action={s.tradingAction} pct={s.positionSizePct} lang={lang} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -285,16 +358,16 @@ export default function IndicatorsPage() {
                 const bg = v >= 50
                   ? `rgba(231, 76, 60, ${0.05 + excess * 0.4})`
                   : `rgba(41, 128, 185, ${0.05 + deficit * 0.4})`;
-                const textColor = v >= 70 ? "#c0392b" : v <= 30 ? "#1a6090" : "#475569";
+                const { label, color } = rsiLevel(v);
                 return (
                   <Link key={s.symbol} href={`/stocks/${encodeURIComponent(s.symbol)}`}
                     className="rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ backgroundColor: bg }}>
                     <div className="text-xs font-mono text-slate-500 mb-1">{s.symbol}</div>
                     <div className="text-sm font-semibold text-slate-800 truncate mb-2">{s.nameZh || s.name}</div>
-                    <div className="text-xl font-bold tabular-nums" style={{ color: textColor }}>{v.toFixed(1)}</div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      {v >= 70 ? "超买" : v <= 30 ? "超卖" : "中性"}
+                    <div className={`text-xl font-bold tabular-nums ${color}`}>
+                      {v.toFixed(1)}
                     </div>
+                    <div className={`text-xs font-semibold mt-1 ${color}`}>{label}</div>
                   </Link>
                 );
               })}
