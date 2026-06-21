@@ -2,6 +2,36 @@
 
 ---
 
+## [9.0 P3] - 2026-06-21 — Daily AI Pipeline Cron Job
+
+### New File
+**`scripts/daily-ai-pipeline.ts`**
+- 6-step sequential pipeline: global-market → price-sync → news-sync → tdnet → compute-scores → rerank-top500
+- PID-based file lock at `/tmp/daily-ai-pipeline.lock` — detects stale locks (dead PID), exits immediately if already running
+- Per-step logging: start/end timestamp, duration, ✅/❌/⏭ status
+- Final summary: end time, total duration, per-step results
+- `--dry-run` flag: skips all heavy steps; rerank-top500 runs with `--dry-run` to print Top500 without GPT calls
+- Step 6 (rerank-top500) only runs if Step 5 (compute-scores) succeeds — prevents GPT rerank on stale rule scores
+
+### Updated Files
+**`ecosystem.config.js`**
+- New PM2 app: `tohoshou-ai-daily-pipeline`
+- `cron_restart: "0 21 * * *"` (21:00 UTC = 06:00 JST)
+- `autorestart: false` — one-shot; does not restart after each run
+- Registered and saved on server: `pm2 start ecosystem.config.js --only tohoshou-ai-daily-pipeline && pm2 save`
+
+**`package.json`**
+- `npm run pipeline` — full pipeline
+- `npm run pipeline:dry` — dry-run preview
+
+### Verification
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0
+- `npm run pipeline:dry` ✅ — all steps logged, dry-run output includes Top10 table
+- PM2 registered ✅ — `pm2 save` ✅
+
+---
+
 ## [9.0 P2] - 2026-06-21 — Manual Full-Market Rescore + GPT Top500 Rerank
 
 ### Changes
