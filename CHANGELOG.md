@@ -2,6 +2,25 @@
 
 ---
 
+## [8.2.5] - 2026-06-21 — Health Guard 阈值调优
+
+### 目标
+避免真实极端行情误判为 CRITICAL，防止 AI recommendations 被错误阻断。
+
+### 修改文件（2个）
+| 文件 | 修改内容 |
+|------|---------|
+| `scripts/data-health-guard.ts` | CHECK 9 重写：return60d>300% 按 adjClose 验证真实性；NULL rec 增加 Pass2 提示 |
+| `app/sync/page.tsx` | Data Health 卡片：显示"Recommendations allowed"；WARNING 用 amber 色 |
+
+### 规则调整
+- **return60d > 300%（CHECK 9）**：不再无脑 WARNING，而是逐股验证：close≈adjClose + high52w≥price + low52w≤price → "✓ Extreme real market move, verified by adjClose: ..."。split 或 52w 异常才升级为 suspect（其他 CRITICAL 检查兜底）。
+- **recommendationV2 NULL**：若 adaptiveScore=OK 但 rec=NULL（Pass 2 未跑），输出明确提示 "npx tsx scripts/compute-scores.ts"。
+- **stale 股票**：普通 stale 保持 WARNING；stale+STRONG_BUY 保持 CRITICAL（无变化）。
+- **/sync Data Health 卡片**：CRITICAL=0 → 显示绿色 "Recommendations allowed"；WARNING → amber 文字；topIssues 颜色随状态切换（红/琥珀）。
+
+---
+
 ## [8.3] - 2026-06-21 — 全局 UX 统一（Global UX Audit P1）
 
 ### 目标

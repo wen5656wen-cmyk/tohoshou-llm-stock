@@ -484,8 +484,10 @@ export default function SyncPage() {
                       ? `${dayjs(health.auditAt).format("M/D HH:mm")} · CRITICAL ${health.criticalCount ?? "—"} · WARNING ${health.warningCount ?? "—"} · adjClose ${health.adjCoveragePct?.toFixed(1) ?? "—"}%`
                       : health.message ?? "Run: npm run health:data"}
                   </div>
-                  {!isNeverRun && !health.allowRecommendation && (
-                    <div className="text-xs font-semibold text-red-600 mt-1">AI recommendations blocked</div>
+                  {!isNeverRun && (
+                    health.allowRecommendation
+                      ? <div className="text-xs font-semibold text-emerald-600 mt-1">Recommendations allowed</div>
+                      : <div className="text-xs font-semibold text-red-600 mt-1">AI recommendations blocked</div>
                   )}
                 </div>
               </div>
@@ -494,7 +496,9 @@ export default function SyncPage() {
               </div>
             </div>
             {health.topIssues && health.topIssues.length > 0 && (
-              <div className="mt-3 text-xs text-red-700 space-y-0.5 border-t border-red-100 pt-3">
+              <div className={`mt-3 text-xs space-y-0.5 border-t pt-3 ${
+                isCrit ? "text-red-700 border-red-100" : "text-amber-700 border-amber-100"
+              }`}>
                 {health.topIssues.map((issue, i) => (
                   <div key={i}>• {issue}</div>
                 ))}

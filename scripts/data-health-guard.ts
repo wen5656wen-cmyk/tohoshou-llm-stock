@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * v8.2.4 — Data Health Guard (daily automated check)
+ * v8.2.5 — Data Health Guard (daily automated check)
  * Lightweight guard for post-sync / post-score validation.
  * Exit 0 = OK (CRITICAL=0).  Exit 1 = CRITICAL found → block recommendations.
  *
@@ -58,7 +58,7 @@ async function main() {
   const jsonPath = path.join(reportDir, `data-health-guard-${stamp}.json`);
   const mdPath   = path.join(reportDir, `data-health-guard-${stamp}.md`);
 
-  console.log("=== Data Health Guard v8.2.4 ===\n");
+  console.log("=== Data Health Guard v8.2.5 ===\n");
 
   const checks: Check[] = [];
 
@@ -177,14 +177,12 @@ async function main() {
     value: l52ExCount, pass: l52ExCount === 0,
   });
 
-  // ── CHECKS 7-9: Return anomalies ─────────────────────────────────────────
-  const [r5H, r5L, r20H, r20L, r60H300, r60L] = await Promise.all([
+  // ── CHECKS 7-8: Return anomalies (5d / 20d) ──────────────────────────────
+  const [r5H, r5L, r20H, r20L] = await Promise.all([
     prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, return5d:  { gt:  50 } } }),
     prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, return5d:  { lt: -50 } } }),
     prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, return20d: { gt: 100 } } }),
     prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, return20d: { lt: -70 } } }),
-    prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, return60d: { gt: 300 } } }),
-    prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, return60d: { lt: -90 } } }),
   ]);
   add({
     id: "return5d_extreme", level: "INFO", name: "|return5d| > 50%",
@@ -196,10 +194,64 @@ async function main() {
     value: r20H + r20L, pass: (r20H + r20L) < 5,
     details: [`↑${r20H} ↓${r20L}`],
   });
+
+  // ── CHECK 9: Extreme return60d — genuine move vs split artifact ───────────
+  // Genuine = close≈adjClose (no split) AND high52w≥price AND low52w≤price → WARNING
+  // Suspect = split signal or impossible 52w → flagged (caught as CRITICAL by CHECK 2 / 3&4)
+  const extreme60dRows = await prisma.stockScore.findMany({
+    where: {
+      priceCount: { gte: MIN_PRICE_COUNT },
+      OR: [{ return60d: { gt: 300 } }, { return60d: { lt: -90 } }],
+    },
+    select: { symbol: true, return60d: true },
+  });
+
+  const genuineExtreme: string[] = [];
+  const suspectExtreme: string[] = [];
+
+  for (const s of extreme60dRows) {
+    const [stockRow, bar] = await Promise.all([
+      prisma.stock.findUnique({
+        where: { symbol: s.symbol },
+        select: { price: true, high52w: true, low52w: true },
+      }),
+      prisma.dailyPrice.findFirst({
+        where: { symbol: s.symbol },
+        orderBy: { date: "desc" },
+        select: { close: true, adjClose: true },
+      }),
+    ]);
+    const lp     = (stockRow?.price   as number | null) ?? 0;
+    const h52    = (stockRow?.high52w as number | null) ?? 0;
+    const l52    = (stockRow?.low52w  as number | null) ?? 0;
+    const close    = bar?.close    ?? lp;
+    const adjClose = bar?.adjClose ?? close;
+    const noSplit  = close > 0 && Math.abs(close - adjClose) / close < 0.01;
+    const h52ok    = h52 > 0 && h52 >= lp;
+    const l52ok    = l52 > 0 && l52 <= lp;
+
+    if (noSplit && h52ok && l52ok) {
+      genuineExtreme.push(`${s.symbol}: return60d=${fmt(s.return60d)}%`);
+    } else {
+      const reasons: string[] = [];
+      if (!noSplit) reasons.push(`split? close=${close} adj=${(adjClose ?? 0).toFixed(0)}`);
+      if (!h52ok)  reasons.push(`high52w=${h52}<price=${lp}`);
+      if (!l52ok)  reasons.push(`low52w=${l52}>price=${lp}`);
+      suspectExtreme.push(`${s.symbol}: ${fmt(s.return60d)}% [${reasons.join(", ")}]`);
+    }
+  }
+
+  const ext60Total = extreme60dRows.length;
   add({
-    id: "return60d_extreme", level: "WARNING", name: "return60d > 300% or < -90%",
-    value: r60H300 + r60L, pass: (r60H300 + r60L) < 10,
-    details: [`↑${r60H300} ↓${r60L}`],
+    id: "return60d_extreme",
+    level: "WARNING",
+    name: "Extreme return60d (>300% or <-90%)",
+    value: ext60Total === 0 ? 0 : `${genuineExtreme.length} genuine, ${suspectExtreme.length} suspect`,
+    pass: ext60Total === 0,
+    details: [
+      ...genuineExtreme.map(s => `✓ Extreme real market move, verified by adjClose: ${s}`),
+      ...suspectExtreme.map(s => `✗ Suspect (possible split/data issue): ${s}`),
+    ],
   });
 
   // ── CHECKS 10-13: NULL score fields ──────────────────────────────────────
@@ -209,10 +261,16 @@ async function main() {
     prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, percentileRank: null } }),
     prisma.stockScore.count({ where: { priceCount: { gte: MIN_PRICE_COUNT }, recommendationV2: null } }),
   ]);
+  // Detect Pass 2 not yet run: adaptive is populated but percentileRank/rec still NULL
+  const isPass2NotRun = nullAdaptive === 0 && nullRec > 0 && nullRec === nullPctile;
+  const pass2Hint = isPass2NotRun
+    ? ["compute-scores Pass 2 has not run yet.", "Fix: npx tsx scripts/compute-scores.ts"]
+    : [];
+
   add({ id: "null_adaptive",    level: "CRITICAL", name: "adaptiveScore NULL = 0 (priceCount≥20)",    value: nullAdaptive, pass: nullAdaptive === 0 });
   add({ id: "null_opportunity", level: "INFO",     name: "opportunityScore NULL = 0 (priceCount≥20)", value: nullOpp,      pass: nullOpp === 0 });
-  add({ id: "null_percentile",  level: "CRITICAL", name: "percentileRank NULL = 0 (priceCount≥20)",   value: nullPctile,   pass: nullPctile === 0 });
-  add({ id: "null_rec",         level: "CRITICAL", name: "recommendationV2 NULL = 0 (priceCount≥20)", value: nullRec,      pass: nullRec === 0 });
+  add({ id: "null_percentile",  level: "CRITICAL", name: "percentileRank NULL = 0 (priceCount≥20)",   value: nullPctile,   pass: nullPctile === 0, details: pass2Hint });
+  add({ id: "null_rec",         level: "CRITICAL", name: "recommendationV2 NULL = 0 (priceCount≥20)", value: nullRec,      pass: nullRec === 0,    details: pass2Hint });
 
   // ── CHECK 14: NaN / Infinity ──────────────────────────────────────────────
   const nanRows = await prisma.$queryRaw<{ cnt: bigint }[]>`
