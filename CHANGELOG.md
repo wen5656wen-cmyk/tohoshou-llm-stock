@@ -2,6 +2,35 @@
 
 ---
 
+## [10.0 P1] - 2026-06-21 — Backtest MVP: DailyRecommendation + BacktestResult + /backtest page
+
+### New Files
+- **`prisma/schema.prisma`**: `DailyRecommendation` (date+symbol unique, 500 rows/day) + `BacktestResult` (per cohort × horizon)
+- **`scripts/update-backtest.ts`**: fills `price7d/30d/90d` from `DailyPrice` (nearest trading day), computes returns, upserts `BacktestResult` aggregates
+- **`app/api/backtest/summary/route.ts`**: returns `winRate/avgReturn` per horizon + top 10 winners/losers (30D) + latest cohort Top20
+- **`app/backtest/page.tsx`**: three-language backtest page with horizon stat cards + cohort table (with live return columns) + winner/loser tables
+
+### Modified Files
+- **`scripts/rerank-top500.ts`**: Step 8 appended — saves Top500 snapshot to `DailyRecommendation` after each rerank (skipped in `--dry-run`)
+- **`scripts/daily-ai-pipeline.ts`**: Step 8 = `update-backtest` (best-effort, 5-min timeout, after rerank)
+- **`package.json`**: added `update-backtest` + `update-backtest:force` (--all flag) scripts
+- **`lib/i18n/types.ts`** + all 3 locale files: 30 new `backtest.*` keys + `nav.backtest`
+- **`components/Sidebar.tsx`**: added `/backtest` link in main nav
+
+### Design
+- Daily pipeline: rerank-top500 (Step 6+7) → save snapshot (Step 8 inside rerank) → update-backtest (Step 8 pipeline)
+- Backtest fills run nightly — price7d ready after ~10 calendar days, price30d after ~42, price90d after ~126
+- Calendar day approximation: 7td≈10cd, 30td≈42cd, 90td≈126cd; looks for nearest DailyPrice within +7 calendar days
+- No BacktestResult rows until enough time has passed — `/backtest` page shows graceful empty state
+- `update-backtest --all` forces refill of all rows (for corrections)
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Production schema pushed ✅
+- `npm run update-backtest` → "0 rows to process" (expected — first data after tomorrow's pipeline)
+- Commit: `1b1717f`
+
+---
+
 ## [10.0] - 2026-06-21 — V10 Cold Start Scoring Formula: 70/30 Blend
 
 ### Changed Files
