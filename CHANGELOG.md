@@ -2,6 +2,62 @@
 
 ---
 
+## [8.5 P1.3] - 2026-06-21 — Dashboard & Sectors 三语言清理
+
+### 目标
+将仪表盘（/）从服务器组件中抽取全部UI文本，通过新建客户端组件实现三语言支持；修复 Dashboard 中所有硬编码中文字符串。
+
+### 核心变更
+
+| 文件 | 说明 |
+|------|------|
+| `app/HomeDashboardClient.tsx` | **新建**：客户端组件，接收服务器数据，用 `useI18n()` 渲染仪表盘全部 UI |
+| `app/page.tsx` | 精简为纯数据获取 + `<HomeDashboardClient {...data} />`；新增 `nameEn` 不在 StockScore 的修复 |
+| `lib/i18n/types.ts` | 新增 14 个 `home.*` MessageKey（stat卡/单位/空状态/排行/筛选器链接） |
+| `lib/i18n/messages/zh-CN.ts` | 14键中文翻译 |
+| `lib/i18n/messages/ja-JP.ts` | 14键日文翻译 |
+| `lib/i18n/messages/en-US.ts` | 14键英文翻译（unit_stocks/unit_records="" 空字符串） |
+
+### 新增 i18n Keys（home.*）
+```
+home.db_stocks       数据库股票 / データベース銘柄 / Database Stocks
+home.scored_count    已计算评分 / AI評価済み銘柄 / AI Scored
+home.buy_recommendation 买入推荐 / 買い推奨 / Buy Signals
+home.price_records   日线价格 / 日足データ / Daily Prices
+home.last_sync       最后同步 / 最終更新 / Last Sync
+home.unit_stocks     只 / 銘柄 / ""
+home.unit_records    条 / 件 / ""
+home.no_score_hint   暂无评分数据，请运行 / 評価データなし。実行：/ No score data. Run:
+home.watch_monitoring 监控中 / 注目銘柄 / Watching
+home.ai_scored       已完成AI评分 / AI評価完了 / AI Scored
+home.ranking_title   AI 评分排行 / AI評価ランキング / AI Rankings
+home.screener_link   筛选排序 → / スクリーナー → / Screener →
+home.show_top100     仅显示前100条。/ 上位100銘柄まで表示。/ Showing top 100 only.
+home.view_screener   前往筛选器查看全部 → / スクリーナーで全て見る → / View all in screener →
+```
+
+### 三语言验收
+- **zh-CN**：仪表盘 / 数据库股票N只 / 已计算评分N只 / 买入推荐N只 / 日线价格N条 / AI精选 TOP3 / 买入机会 / 观察名单·监控中 / 股票总数·已完成AI评分 / AI 评分排行
+- **ja-JP**：ダッシュボード / データベース銘柄N銘柄 / AI評価済み銘柄N銘柄 / 買い推奨N銘柄 / 日足データN件 / AI厳選 TOP3 / 買い銘柄 / 注目中·注目銘柄 / 銘柄数·AI評価完了 / AI評価ランキング
+- **en-US**：Dashboard / Database Stocks N / AI Scored N / Buy Signals N / Daily Prices N / AI Picks — TOP 3 / BUY Picks / WATCH·Watching / Screener·AI Scored / AI Rankings
+
+### 影响页面
+- `/`（仪表盘）：全三语言
+
+### DB 变更
+无
+
+### API 变更
+无（仅前端展示层）
+
+### 验证
+- TypeScript：0 错误
+- Build：成功
+- 部署到生产 8.209.247.68，pm2 restart 完成
+- Git commit：1592b14
+
+---
+
 ## [8.5 P1.1] - 2026-06-21 — AI Value Chain Locale Fix
 
 ### 目标
