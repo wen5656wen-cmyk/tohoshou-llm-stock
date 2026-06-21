@@ -94,6 +94,15 @@ export async function GET(req: NextRequest) {
 
   const marketTemperature = computeMarketTemperature(countSB, countB, totalScored);
 
+  // Enrich with nameEn from Stock table (StockScore doesn't carry it)
+  const scoreSymbols = scores.map((s) => s.symbol);
+  const stockNamesEn = await prisma.stock.findMany({
+    where: { symbol: { in: scoreSymbols } },
+    select: { symbol: true, nameEn: true },
+  });
+  const screenerNameEnMap = new Map(stockNamesEn.map((s) => [s.symbol, s.nameEn ?? null]));
+  const enrichedScores = scores.map((s) => ({ ...s, nameEn: screenerNameEnMap.get(s.symbol) ?? null }));
+
   return NextResponse.json({
     stats: {
       total: totalScored,
@@ -103,7 +112,7 @@ export async function GET(req: NextRequest) {
       marketTemperature,
       lastComputedAt: lastScore?.computedAt ?? null,
     },
-    scores,
+    scores: enrichedScores,
     meta: { limit, sortBy, filters: { market, sector, rec, recV2, style, minScore, highRisk } },
   });
 }

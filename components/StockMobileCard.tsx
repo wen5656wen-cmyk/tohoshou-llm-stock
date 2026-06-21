@@ -4,12 +4,13 @@ import Link from "next/link";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { getTradingActionLabel } from "@/lib/trading-action";
 import { useI18n } from "@/lib/i18n";
-import { getPrimaryName } from "@/lib/i18n/stock-name";
+import { getPrimaryName } from "@/lib/company-name";
 
 type StockRow = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   sector: string | null;
   latestClose: number | null;
   return5d: number | null;

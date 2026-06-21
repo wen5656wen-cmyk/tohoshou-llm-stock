@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
 
 type WatchScore = {
   latestClose: number | null;
@@ -30,6 +31,7 @@ type WatchItem = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   sector: string | null;
   market: string | null;
   note: string | null;
@@ -173,7 +175,7 @@ function AddStockModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
 }
 
 export default function WatchListPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [items, setItems] = useState<WatchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -282,10 +284,10 @@ export default function WatchListPage() {
                         href={`/stocks/${encodeURIComponent(item.symbol)}`}
                         className="text-[15px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
                       >
-                        {item.nameZh || item.name}
+                        {getPrimaryName(item, lang)}
                       </Link>
-                      {item.nameZh && item.nameZh !== item.name && (
-                        <span className="text-[12px] text-[#94a3b8]">{item.name}</span>
+                      {getSecondaryName(item, lang) && (
+                        <span className="text-[12px] text-[#94a3b8]">{getSecondaryName(item, lang)}</span>
                       )}
                       <span className="text-[12px] text-[#64748b] font-mono">{item.symbol}</span>
                       {s?.recommendation && (

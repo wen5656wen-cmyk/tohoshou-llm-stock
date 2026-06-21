@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       skip,
       take: limit,
       select: {
-        id: true, symbol: true, name: true, nameZh: true, market: true, sector: true,
+        id: true, symbol: true, name: true, nameZh: true, nameEn: true, market: true, sector: true,
         industry: true, price: true, change: true, changeRate: true,
         high52w: true, low52w: true, volume: true,
       },

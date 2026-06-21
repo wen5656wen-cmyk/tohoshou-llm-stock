@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { getRec, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { useI18n } from "@/lib/i18n";
+import { getPrimaryName } from "@/lib/company-name";
 
 type Stock = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   latestClose: number | null;
   return5d: number | null;
   return20d: number | null;
@@ -73,6 +76,7 @@ function ReturnBadge({ v }: { v: number | null }) {
 }
 
 function StockRow({ s }: { s: Stock }) {
+  const { lang } = useI18n();
   const rec = s.scored ? getRec(s.recommendationV2) : PENDING_REC;
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-3 hover:shadow-sm transition-shadow">
@@ -84,7 +88,7 @@ function StockRow({ s }: { s: Stock }) {
               href={`/stocks/${encodeURIComponent(s.symbol)}`}
               className="text-[13px] font-bold text-slate-900 hover:text-blue-600"
             >
-              {s.nameZh ?? s.name}
+              {getPrimaryName(s, lang)}
             </Link>
             <span className="text-[10px] text-slate-400 font-mono">{s.symbol.replace(".T", "")}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${rec.bg} ${rec.text}`}>{rec.label}</span>
@@ -142,6 +146,7 @@ export default function AiThemeDetailPage() {
   const params = useParams();
   const themeSlug = params?.theme as string | undefined;
   const themeKey = themeSlug?.toUpperCase() ?? "";
+  const { lang } = useI18n();
 
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);

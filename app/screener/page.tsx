@@ -5,9 +5,10 @@ import Link from "next/link";
 import StockMobileCard from "@/components/StockMobileCard";
 import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
+import { getPrimaryName } from "@/lib/company-name";
 
 type Score = {
-  symbol: string; name: string; nameZh: string | null; market: string | null;
+  symbol: string; name: string; nameZh: string | null; nameEn: string | null; market: string | null;
   sector: string | null;
   latestDate: string | null; latestClose: number | null;
   return5d: number | null; return20d: number | null;
@@ -53,7 +54,7 @@ function MktChip({ mkt }: { mkt: string | null }) {
 type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14";
 
 export default function ScreenerPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [searchData, setSearchData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -296,7 +297,7 @@ export default function ScreenerPage() {
                     <td className="px-3 py-2 min-w-[160px]">
                       <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
                         <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
-                          {s.nameZh || s.name}
+                          {getPrimaryName(s, lang)}
                           {s.highRiskFlag && <span className="ml-1 text-[10px] text-red-400">⚠</span>}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono">{s.symbol}</div>

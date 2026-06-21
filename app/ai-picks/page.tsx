@@ -5,11 +5,13 @@ import Link from "next/link";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { getTradingActionLabel } from "@/lib/trading-action";
 import { useI18n } from "@/lib/i18n";
+import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
 
 type AiScore = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   latestClose: number;
   latestDate: string;
   technicalScore: number;
@@ -113,7 +115,7 @@ function DetailCard({ score }: { score: AiScore }) {
                   className="text-[15px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {score.nameZh || score.name}
+                  {getPrimaryName(score, lang)}
                 </Link>
                 <span className="text-[11px] text-slate-500 font-mono">{score.symbol}</span>
                 <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
@@ -144,8 +146,8 @@ function DetailCard({ score }: { score: AiScore }) {
                   </span>
                 )}
               </div>
-              {score.nameZh && score.nameZh !== score.name && (
-                <div className="text-[11px] text-slate-400">{score.name}</div>
+              {getSecondaryName(score, lang) && (
+                <div className="text-[11px] text-slate-400">{getSecondaryName(score, lang)}</div>
               )}
               {score.recommendationReason && (
                 <div className="text-[11px] text-slate-500 mt-0.5 max-w-lg">{score.recommendationReason}</div>
@@ -386,9 +388,9 @@ export default function AiPicksPage() {
                   <span className="text-xs font-bold text-slate-400">#{i + 1}</span>
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${rec.bg} ${rec.text}`}>{rec.label}</span>
                 </div>
-                <div className="text-[15px] font-bold text-white leading-tight">{s.nameZh || s.name}</div>
-                {s.nameZh && s.nameZh !== s.name && (
-                  <div className="text-[11px] text-slate-400 truncate">{s.name}</div>
+                <div className="text-[15px] font-bold text-white leading-tight">{getPrimaryName(s, lang)}</div>
+                {getSecondaryName(s, lang) && (
+                  <div className="text-[11px] text-slate-400 truncate">{getSecondaryName(s, lang)}</div>
                 )}
                 <div className="text-[11px] text-slate-500 font-mono mt-0.5 mb-2">{s.symbol}</div>
                 <div className="text-2xl font-bold text-white tabular-nums">{s.adaptiveScore.toFixed(0)}</div>

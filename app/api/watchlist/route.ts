@@ -26,10 +26,10 @@ export async function GET() {
         }),
         prisma.stock.findUnique({
           where: { symbol: w.symbol },
-          select: { nameZh: true },
+          select: { nameZh: true, nameEn: true },
         }),
       ]);
-      return { ...w, nameZh: stock?.nameZh ?? null, score };
+      return { ...w, nameZh: stock?.nameZh ?? null, nameEn: stock?.nameEn ?? null, score };
     })
   );
 

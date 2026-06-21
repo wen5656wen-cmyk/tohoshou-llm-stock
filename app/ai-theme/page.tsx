@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getRec, returnColorClass, fmtPct } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
+import { getPrimaryName } from "@/lib/company-name";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ type AiThemeStock = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   market: string | null;
   sector: string | null;
   latestClose: number | null;
@@ -55,7 +57,7 @@ type ThemeSummary = {
   coreCount: number;
   avgScore: number;
   buyCount: number;
-  top3: Array<{ symbol: string; nameZh: string | null; score: number | null }>;
+  top3: Array<{ symbol: string; name: string; nameZh: string | null; nameEn: string | null; score: number | null }>;
   layers: Array<string | null>;
 };
 
@@ -78,7 +80,7 @@ type ApiResponse = {
     coreStocks: number;
     buyCount: number;
     avgScore: number;
-    topStock: { symbol: string; nameZh: string | null; score: number | null } | null;
+    topStock: { symbol: string; name: string; nameZh: string | null; nameEn: string | null; score: number | null } | null;
     updatedAt: string | null;
   };
 };
@@ -223,6 +225,7 @@ function ImportanceStars({ score }: { score: number }) {
 }
 
 function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boolean }) {
+  const { lang } = useI18n();
   const rec = stock.scored ? getRec(stock.recommendationV2) : PENDING_REC;
   const color = THEME_COLORS[stock.theme] ?? "slate";
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
@@ -241,7 +244,7 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
               href={`/stocks/${encodeURIComponent(stock.symbol)}`}
               className="text-[14px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
             >
-              {stock.nameZh ?? stock.name}
+              {getPrimaryName(stock, lang)}
             </Link>
             <span className="text-[11px] text-slate-400 font-mono">{stock.symbol.replace(".T", "")}</span>
           </div>
@@ -363,6 +366,7 @@ function ThemeCard({
 }: {
   t: ThemeSummary; isActive: boolean; onClick: () => void;
 }) {
+  const { lang } = useI18n();
   const color = t.color ?? "slate";
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
   return (
@@ -399,7 +403,7 @@ function ThemeCard({
         <div className="mt-1.5 pt-1.5 border-t border-slate-100">
           {t.top3.map((s) => (
             <div key={s.symbol} className="flex items-center justify-between text-[10px]">
-              <span className="text-slate-500 truncate max-w-[100px]">{s.nameZh ?? s.symbol}</span>
+              <span className="text-slate-500 truncate max-w-[100px]">{getPrimaryName({ ...s, name: s.name }, lang)}</span>
               <span className="text-slate-400 tabular-nums ml-1">{s.score?.toFixed(0) ?? "—"}</span>
             </div>
           ))}
@@ -412,7 +416,7 @@ function ThemeCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AiThemePage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -553,7 +557,7 @@ export default function AiThemePage() {
         <StatCard label="供应链层" value={layers.filter((l) => l.symbolCount > 0).length} sub="活跃层级" />
         <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
           <div className="text-sm font-bold text-slate-900 truncate leading-tight">
-            {summary.topStock?.nameZh ?? summary.topStock?.symbol ?? "—"}
+            {summary.topStock ? getPrimaryName(summary.topStock, lang) : "—"}
           </div>
           <div className="text-xs text-slate-500 mt-0.5">
             最高分 <span className="font-semibold text-blue-700">{summary.topStock?.score?.toFixed(0) ?? "—"}</span>

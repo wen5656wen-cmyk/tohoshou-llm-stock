@@ -82,10 +82,19 @@ export async function GET(request: Request) {
 
   const marketTemperature = computeMarketTemperature(countSB, countB, totalCount);
 
+  // Enrich with nameEn from Stock table (StockScore doesn't have it)
+  const symbols = scores.map((s) => s.symbol);
+  const stockNameEn = await prisma.stock.findMany({
+    where: { symbol: { in: symbols } },
+    select: { symbol: true, nameEn: true },
+  });
+  const nameEnMap = new Map(stockNameEn.map((s) => [s.symbol, s.nameEn ?? null]));
+
   const result = scores.map((s) => ({
     symbol: s.symbol,
-    name: s.nameZh || s.name,
+    name: s.name,
     nameZh: s.nameZh ?? null,
+    nameEn: nameEnMap.get(s.symbol) ?? null,
     latestClose: s.latestClose ?? 0,
     latestDate: s.latestDate ?? "",
     technicalScore: s.technicalScore ?? 0,

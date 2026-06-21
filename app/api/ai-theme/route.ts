@@ -33,6 +33,7 @@ export const THEME_ORDER = [
 
 const SCORE_SELECT = {
   symbol: true, name: true, nameZh: true, market: true, sector: true,
+  // nameEn not in StockScore — enriched separately from Stock table
   latestClose: true, latestDate: true,
   return5d: true, return20d: true, return60d: true,
   adaptiveScore: true, rawScore: true, totalScore: true,
@@ -52,6 +53,7 @@ export type AiThemeStock = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   market: string | null;
   sector: string | null;
   latestClose: number | null;
@@ -119,10 +121,17 @@ export async function GET() {
     const basicRows = unscoredSyms.length
       ? await prisma.stock.findMany({
           where: { symbol: { in: unscoredSyms } },
-          select: { symbol: true, name: true, nameZh: true, market: true, sector: true },
+          select: { symbol: true, name: true, nameZh: true, nameEn: true, market: true, sector: true },
         })
       : [];
     const basicMap = new Map(basicRows.map((r) => [r.symbol, r]));
+
+    // Enrich all stocks with nameEn from Stock table
+    const themeNameEnRows = await prisma.stock.findMany({
+      where: { symbol: { in: allSymbols } },
+      select: { symbol: true, nameEn: true },
+    });
+    const themeNameEnMap = new Map(themeNameEnRows.map((s) => [s.symbol, s.nameEn ?? null]));
 
     // Build expanded stock list (one row per AITheme entry)
     const stocks: AiThemeStock[] = themeRows.map((tr) => {
@@ -133,6 +142,7 @@ export async function GET() {
         symbol: tr.symbol,
         name: sc?.name ?? ba?.name ?? tr.symbol,
         nameZh: sc?.nameZh ?? ba?.nameZh ?? null,
+        nameEn: themeNameEnMap.get(tr.symbol) ?? null,
         market: sc?.market ?? ba?.market ?? null,
         sector: sc?.sector ?? ba?.sector ?? null,
         latestClose: sc?.latestClose ?? null,
@@ -186,7 +196,7 @@ export async function GET() {
       const top3 = [...scoredG]
         .sort((a, b) => (b.adaptiveScore ?? 0) - (a.adaptiveScore ?? 0))
         .slice(0, 3)
-        .map((s) => ({ symbol: s.symbol, nameZh: s.nameZh ?? s.name, score: s.adaptiveScore }));
+        .map((s) => ({ symbol: s.symbol, name: s.name, nameZh: s.nameZh, nameEn: s.nameEn, score: s.adaptiveScore }));
       const layers = [...new Set(group.map((s) => s.supplyChainLayer).filter(Boolean))];
       return {
         theme: themeKey,
@@ -255,7 +265,7 @@ export async function GET() {
       buyCount: buyAll,
       avgScore: avgAll,
       topStock: topStock
-        ? { symbol: topStock.symbol, nameZh: topStock.nameZh ?? topStock.name, score: topStock.adaptiveScore }
+        ? { symbol: topStock.symbol, name: topStock.name, nameZh: topStock.nameZh, nameEn: topStock.nameEn, score: topStock.adaptiveScore }
         : null,
       updatedAt: latestAt?.toISOString() ?? null,
     };

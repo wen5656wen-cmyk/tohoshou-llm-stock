@@ -7,12 +7,20 @@ export async function GET() {
   const scores = await prisma.stockScore.findMany({
     where: { priceCount: { gte: 20 }, sector: { not: null } },
     select: {
-      symbol: true, name: true, sector: true, market: true,
+      symbol: true, name: true, nameZh: true, sector: true, market: true,
       totalScore: true, technicalScore: true, fundamentalScore: true, riskScore: true,
       recommendation: true, return5d: true, return20d: true, return60d: true,
       rsi14: true, latestClose: true,
     },
   });
+
+  // Enrich top-3 stocks with nameEn from Stock table
+  const allSymbols = scores.map((s) => s.symbol);
+  const stocksWithNameEn = await prisma.stock.findMany({
+    where: { symbol: { in: allSymbols } },
+    select: { symbol: true, nameEn: true },
+  });
+  const sectorNameEnMap = new Map(stocksWithNameEn.map((s) => [s.symbol, s.nameEn ?? null]));
 
   // Group by sector
   const sectorMap = new Map<string, typeof scores>();
@@ -42,7 +50,7 @@ export async function GET() {
     const top3 = [...stocks]
       .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
       .slice(0, 3)
-      .map((s) => ({ symbol: s.symbol, name: s.name, totalScore: s.totalScore, recommendation: s.recommendation }));
+      .map((s) => ({ symbol: s.symbol, name: s.name, nameZh: s.nameZh ?? null, nameEn: sectorNameEnMap.get(s.symbol) ?? null, totalScore: s.totalScore, recommendation: s.recommendation }));
 
     return {
       sector,

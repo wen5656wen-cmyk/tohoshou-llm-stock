@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { localeSector } from "@/lib/i18n/market-labels";
+import { getPrimaryName } from "@/lib/company-name";
 
 type SectorStat = {
   sector: string;
@@ -19,7 +20,7 @@ type SectorStat = {
   watchCount: number;
   avoidCount: number;
   buyRate: number;
-  top3: { symbol: string; name: string; totalScore: number | null; recommendation: string | null }[];
+  top3: { symbol: string; name: string; nameZh: string | null; nameEn: string | null; totalScore: number | null; recommendation: string | null }[];
 };
 
 type ApiResponse = {
@@ -286,7 +287,7 @@ export default function SectorsPage() {
                                 href={`/stocks/${encodeURIComponent(topStock.symbol)}`}
                                 className={`text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-300 ${rc?.text ?? "text-slate-600"}`}
                               >
-                                {topStock.name}（{topStock.totalScore}）
+                                {getPrimaryName(topStock, lang)}（{topStock.totalScore}）
                               </Link>
                             );
                           })}

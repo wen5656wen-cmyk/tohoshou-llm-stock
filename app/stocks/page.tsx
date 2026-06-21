@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
+import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
 
 type StockRow = {
   symbol: string;
   name: string;
   nameZh: string | null;
+  nameEn: string | null;
   sector: string | null;
   market: string | null;
   latestDate: string;
@@ -74,7 +76,7 @@ function RsiBar({ val }: { val: number | null }) {
 }
 
 export default function StocksPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,10 +196,10 @@ export default function StocksPage() {
                   <td className="px-5 py-3">
                     <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
                       <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
-                        {s.nameZh || s.name}
+                        {getPrimaryName(s, lang)}
                       </div>
-                      {s.nameZh && s.nameZh !== s.name && (
-                        <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{s.name}</div>
+                      {getSecondaryName(s, lang) && (
+                        <div className="text-[12px] text-[#94a3b8] truncate mt-0.5">{getSecondaryName(s, lang)}</div>
                       )}
                       <div className="text-[12px] text-[#64748b] font-mono mt-0.5">{s.symbol}</div>
                     </Link>
