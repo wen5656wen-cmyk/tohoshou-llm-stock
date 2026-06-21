@@ -2,6 +2,47 @@
 
 ---
 
+## [9.0 P2.1] - 2026-06-21 — Compact Card UI
+
+### Changes
+
+**Dashboard (`HomeDashboardClient.tsx` + `HomeStockDisplay.tsx`)**
+- Stats cards: `h-24` → `h-16`, 5-col desktop / 2-col mobile, icon removed, number `text-[22px]`
+- TOP3: Removed tech/fund/flow 3 mini-scores; replaced with price + 5D return; card padding `p-4→p-3`, `rounded-2xl→rounded-xl`
+- 3 mini stat cards (buy/watch/scored): compact horizontal, height ~100px
+- HomeScoreTable → `HomeScoreGrid`: 3-col card grid with hover effect; shows Final Score + Rule/GPT sub-labels + price + returns; "show more" after 51 items
+
+**Portfolio/Watchlist (`portfolio/page.tsx`)**
+- WatchlistTab: `space-y-2` list → `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` card grid; 🗑 icon button; compact ~130px per card
+- PortfolioTab: table → same 3-col card grid; shows price + P&L + value; 🗑 icon
+
+**AI Screener (`screener/page.tsx`)**
+- Desktop table removed, replaced with `grid-cols-3 lg:grid-cols-4` card grid
+- Each card: name + code + market chip + style + price + 20D + RSI + Final Score + Rule/GPT + rating
+- Mobile StockMobileCard kept as-is
+
+**AI Theme Detail (`ai-theme/[theme]/page.tsx`)**
+- StockRow: padding `p-3→p-2.5`, metrics into single compact row
+- reason/riskNote moved inside expandable GPT section (hidden by default)
+
+**AI Theme Index (`ai-theme/page.tsx`)**
+- StockCard: removed 4 mini score bars (tech/fund/flow/news), removed separate metrics row
+- Compact: name + badges + score right side + price/returns/percentile single bottom row
+
+**Performance**
+- All cards: `hover:-translate-y-0.5 hover:shadow-md transition-all duration-200`
+- HomeScoreGrid: "show more" after 51 items (replaces full table scroll)
+
+### Files Modified
+- `app/HomeDashboardClient.tsx`
+- `app/HomeStockDisplay.tsx` (removed `HomeScoreTable`, added `HomeScoreGrid`)
+- `app/portfolio/page.tsx`
+- `app/screener/page.tsx`
+- `app/ai-theme/page.tsx`
+- `app/ai-theme/[theme]/page.tsx`
+
+---
+
 ## [9.0 P1.3] - 2026-06-21 — Global Final Score Unification
 
 ### Changes
