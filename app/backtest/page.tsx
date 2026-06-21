@@ -230,7 +230,13 @@ export default function BacktestPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(tab === "winners" ? data.topWinners : data.topLosers).map((row, i) => (
+                  {(tab === "winners" ? data.topWinners : data.topLosers).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-10 text-center text-slate-500 text-sm">
+                        {t("backtest.no_data")}
+                      </td>
+                    </tr>
+                  ) : (tab === "winners" ? data.topWinners : data.topLosers).map((row, i) => (
                     <tr key={i} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                       <td className="px-4 py-3">
                         <Link href={`/stocks/${row.symbol}`} className="text-blue-400 hover:text-blue-300 font-medium">
