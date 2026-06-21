@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 
 type StockRow = {
   symbol: string;
@@ -28,21 +29,20 @@ type SortKey = "latestClose" | "return5d" | "return20d" | "return60d" | "rsi14";
 
 function ReturnCell({ val }: { val: number | null }) {
   if (val === null) return <span className="text-slate-300">—</span>;
-  const up = val >= 0;
   return (
-    <span className={`tabular-nums font-medium ${up ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-      {up ? "▲" : "▼"}{Math.abs(val).toFixed(2)}%
+    <span className={`tabular-nums font-medium ${returnColorClass(val)}`}>
+      {fmtPct(val)}
     </span>
   );
 }
 
 function MaBadge({ trend }: { trend: string }) {
   const cfg: Record<string, { label: string; cls: string }> = {
-    GOLDEN:  { label: "多头趋势", cls: "bg-amber-100 text-amber-700" },
-    BULLISH: { label: "偏强",     cls: "bg-green-100 text-green-700" },
-    NEUTRAL: { label: "中性",     cls: "bg-slate-100 text-slate-500" },
-    BEARISH: { label: "偏弱",     cls: "bg-blue-100 text-blue-700" },
-    DEAD:    { label: "空头趋势", cls: "bg-red-100 text-red-600" },
+    GOLDEN:  { label: "Bullish",  cls: "bg-amber-100 text-amber-700" },
+    BULLISH: { label: "Strong",   cls: "bg-emerald-100 text-emerald-700" },
+    NEUTRAL: { label: "Neutral",  cls: "bg-slate-100 text-slate-500" },
+    BEARISH: { label: "Weak",     cls: "bg-slate-100 text-slate-500" },
+    DEAD:    { label: "Bearish",  cls: "bg-red-100 text-red-600" },
   };
   const c = cfg[trend] ?? cfg.NEUTRAL;
   return <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>;
@@ -50,9 +50,9 @@ function MaBadge({ trend }: { trend: string }) {
 
 function MacdBadge({ sig }: { sig: string }) {
   const cfg: Record<string, { label: string; cls: string }> = {
-    BUY:     { label: "买入",  cls: "bg-red-100 text-red-600" },
-    NEUTRAL: { label: "中性",  cls: "bg-slate-100 text-slate-400" },
-    SELL:    { label: "卖出",  cls: "bg-blue-100 text-blue-600" },
+    BUY:     { label: "BUY",     cls: "bg-emerald-100 text-emerald-700" },
+    NEUTRAL: { label: "Neutral", cls: "bg-slate-100 text-slate-400" },
+    SELL:    { label: "SELL",    cls: "bg-red-100 text-red-600" },
   };
   const c = cfg[sig] ?? cfg.NEUTRAL;
   return <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>;
@@ -61,7 +61,7 @@ function MacdBadge({ sig }: { sig: string }) {
 function RsiBar({ val }: { val: number | null }) {
   if (val === null) return <span className="text-slate-300 text-xs">—</span>;
   const color =
-    val >= 70 ? "bg-red-400" : val >= 55 ? "bg-orange-400" : val <= 30 ? "bg-blue-400" : "bg-slate-300";
+    val >= 70 ? "bg-red-400" : val >= 55 ? "bg-orange-400" : val <= 30 ? "bg-emerald-400" : "bg-slate-300";
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-12 bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -124,12 +124,12 @@ export default function StocksPage() {
   return (
     <div className="p-6 max-w-7xl">
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-slate-900">股票列表</h1>
+        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">Stocks</h1>
         <p className="text-sm text-slate-500 mt-0.5">AI评分 TOP500 · {loading ? "加载中..." : error ? "加载失败" : `${rows.length}只`}</p>
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex gap-3">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5 flex gap-3">
         <input
           type="text"
           placeholder="搜索：代码（7203）、中文名（丰田）、日文名（トヨタ）"
@@ -146,7 +146,7 @@ export default function StocksPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 text-sm text-slate-500">
           {loading ? "加载中..." : error ? <span className="text-red-500">加载失败：{error}</span> : `${filtered.length}只`}
         </div>
@@ -157,27 +157,27 @@ export default function StocksPage() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
-                <th className="px-5 py-3 font-medium">股票</th>
+                <th className="px-5 py-3 font-medium">Stock</th>
                 <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("latestClose")}>
-                  最新股价<SortIcon col="latestClose" />
+                  Price<SortIcon col="latestClose" />
                 </th>
-                <th className="px-3 py-3 font-medium text-center">最新日期</th>
+                <th className="px-3 py-3 font-medium text-center">Date</th>
                 <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return5d")}>
-                  5日涨跌<SortIcon col="return5d" />
+                  5D<SortIcon col="return5d" />
                 </th>
                 <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return20d")}>
-                  20日涨跌<SortIcon col="return20d" />
+                  20D<SortIcon col="return20d" />
                 </th>
                 <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return60d")}>
-                  60日涨跌<SortIcon col="return60d" />
+                  60D<SortIcon col="return60d" />
                 </th>
-                <th className="px-3 py-3 font-medium text-center">均线趋势</th>
+                <th className="px-3 py-3 font-medium text-center">MA Trend</th>
                 <th className="px-3 py-3 font-medium text-left cursor-pointer hover:text-slate-700" onClick={() => toggleSort("rsi14")}>
                   RSI(14)<SortIcon col="rsi14" />
                 </th>
                 <th className="px-3 py-3 font-medium text-center">MACD</th>
-                <th className="px-3 py-3 font-medium text-right">财务条数</th>
-                <th className="px-3 py-3 font-medium text-right">AI评分</th>
+                <th className="px-3 py-3 font-medium text-right">Fin.</th>
+                <th className="px-3 py-3 font-medium text-right">Detail</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -201,7 +201,7 @@ export default function StocksPage() {
                     </Link>
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums font-medium text-sm text-slate-900">
-                    ¥{s.latestClose.toLocaleString()}
+                    {fmtJpy(s.latestClose)}
                   </td>
                   <td className="px-3 py-3 text-center text-xs text-slate-500 tabular-nums">{s.latestDate}</td>
                   <td className="px-3 py-3 text-right text-sm"><ReturnCell val={s.return5d} /></td>
@@ -210,7 +210,7 @@ export default function StocksPage() {
                   <td className="px-3 py-3 text-center"><MaBadge trend={s.maTrend} /></td>
                   <td className="px-3 py-3"><RsiBar val={s.rsi14} /></td>
                   <td className="px-3 py-3 text-center"><MacdBadge sig={s.macdSignalLabel} /></td>
-                  <td className="px-3 py-3 text-right text-sm text-slate-600 tabular-nums">{s.finCount}条</td>
+                  <td className="px-3 py-3 text-right text-sm text-slate-600 tabular-nums">{s.finCount}</td>
                   <td className="px-3 py-3 text-right">
                     <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="text-xs text-blue-600 hover:underline">
                       详情 →

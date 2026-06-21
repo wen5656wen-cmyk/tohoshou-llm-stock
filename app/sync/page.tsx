@@ -401,7 +401,7 @@ export default function SyncPage() {
       {sum && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
           {/* Health */}
-          <div className="col-span-2 sm:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="col-span-2 sm:col-span-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">数据源健康</div>
             <div className="flex gap-2 items-baseline flex-wrap">
               <span className="text-lg font-bold text-green-600">{sum.realCount} REAL</span>
@@ -411,7 +411,7 @@ export default function SyncPage() {
             </div>
           </div>
           {/* Last score */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">最后评分</div>
             <div className="text-sm font-bold text-slate-800 leading-tight">
               {sum.lastScoreComputedAt
@@ -421,31 +421,31 @@ export default function SyncPage() {
             <div className="text-xs text-slate-400 mt-0.5">JST</div>
           </div>
           {/* StockScore */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">StockScore</div>
             <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.stockScoreTotal.toLocaleString()}</div>
             <div className="text-xs text-slate-400">只已评分</div>
           </div>
           {/* TDnet */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">TDnet 披露</div>
             <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.disclosureTotal.toLocaleString()}</div>
             <div className="text-xs text-slate-400">{sum.disclosureCoveredSymbols}只覆盖</div>
           </div>
           {/* BUY count */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">BUY 评级</div>
             <div className="text-lg font-bold text-emerald-600 tabular-nums">{sum.buyCount}</div>
             <div className="text-xs text-slate-400">STRONG: {sum.strongBuyCount}</div>
           </div>
           {/* Bull rate */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">买入占比</div>
             <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.bullRate.toFixed(1)}%</div>
             <div className="text-xs text-slate-400">BUY+STRONG_BUY</div>
           </div>
           {/* Market temp */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <div className="text-xs text-slate-500 mb-1">市场温度</div>
             <div className={`text-base font-bold ${temp?.color ?? "text-slate-600"}`}>
               {temp?.emoji} {temp?.label ?? sum.marketTemperature}
@@ -461,45 +461,40 @@ export default function SyncPage() {
         const isCrit = s === "CRITICAL";
         const isWarn = s === "WARNING";
         const isPass = s === "PASS";
-        const borderCls = isCrit ? "border-red-300 bg-red-50"
-                        : isWarn ? "border-amber-300 bg-amber-50"
+        const borderCls = isCrit ? "border-red-200 bg-red-50"
+                        : isWarn ? "border-amber-200 bg-amber-50"
                         : isNeverRun ? "border-slate-200 bg-slate-50"
-                        : "border-green-200 bg-green-50";
-        const badgeCls = isCrit ? "bg-red-100 text-red-700"
-                       : isWarn ? "bg-amber-100 text-amber-700"
-                       : isNeverRun ? "bg-slate-100 text-slate-500"
-                       : "bg-green-100 text-green-700";
-        const icon = isCrit ? "❌" : isWarn ? "⚠️" : isPass ? "✅" : "—";
+                        : "border-emerald-200 bg-emerald-50";
+        const statusCls = isCrit ? "text-red-600"
+                        : isWarn ? "text-amber-600"
+                        : isNeverRun ? "text-slate-400"
+                        : "text-emerald-600";
+        const statusLabel = isNeverRun ? "NEVER RUN" : s;
         return (
-          <div className={`rounded-xl border shadow-sm p-4 mb-6 ${borderCls}`}>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{icon}</span>
+          <div className={`rounded-2xl border shadow-sm p-5 mb-6 ${borderCls}`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`text-[40px] font-black tabular-nums leading-none ${statusCls}`}>
+                  {statusLabel}
+                </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-slate-900 text-sm">Data Health Guard</span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeCls}`}>
-                      {isNeverRun ? "未运行" : s}
-                    </span>
-                    {!isNeverRun && !health.allowRecommendation && (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-200 text-red-800">
-                        推荐已阻断
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
+                  <div className="text-xs font-semibold text-slate-700">Data Health Guard</div>
+                  <div className="text-xs text-slate-400 mt-0.5">
                     {health.auditAt
-                      ? `上次: ${dayjs(health.auditAt).format("M/D HH:mm")} · CRITICAL ${health.criticalCount ?? "—"} · WARNING ${health.warningCount ?? "—"} · adjClose ${health.adjCoveragePct?.toFixed(1) ?? "—"}%`
-                      : health.message ?? "未找到健康报告，请运行 npm run health:data"}
+                      ? `${dayjs(health.auditAt).format("M/D HH:mm")} · CRITICAL ${health.criticalCount ?? "—"} · WARNING ${health.warningCount ?? "—"} · adjClose ${health.adjCoveragePct?.toFixed(1) ?? "—"}%`
+                      : health.message ?? "Run: npm run health:data"}
                   </div>
+                  {!isNeverRun && !health.allowRecommendation && (
+                    <div className="text-xs font-semibold text-red-600 mt-1">AI recommendations blocked</div>
+                  )}
                 </div>
               </div>
-              <div className="text-xs text-slate-400 font-mono">
+              <div className="text-[10px] text-slate-300 font-mono text-right shrink-0">
                 {health.reportFile ?? ""}
               </div>
             </div>
             {health.topIssues && health.topIssues.length > 0 && (
-              <div className="mt-2 text-xs text-red-700 space-y-0.5">
+              <div className="mt-3 text-xs text-red-700 space-y-0.5 border-t border-red-100 pt-3">
                 {health.topIssues.map((issue, i) => (
                   <div key={i}>• {issue}</div>
                 ))}
@@ -525,7 +520,7 @@ export default function SyncPage() {
             return (
               <div
                 key={src.id}
-                className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
+                className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${
                   src.status === "FAILED" || src.status === "NEVER_SYNCED"
                     ? "border-red-200"
                     : src.status === "STALE" || src.status === "PARTIAL"

@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
+import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 
 type PricePoint = { date: string; open?: number; high?: number; low?: number; close: number; volume?: number };
 
@@ -185,12 +186,11 @@ function ScoreBar({ label, score, max, color }: { label: string; score: number; 
 
 function ReturnBadge({ label, val }: { label: string; val: number | null }) {
   if (val === null) return null;
-  const up = val >= 0;
   return (
     <div className="text-center">
       <div className="text-xs text-slate-500 mb-0.5">{label}</div>
-      <div className={`text-sm font-bold tabular-nums ${up ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-        {up ? "▲" : "▼"}{Math.abs(val).toFixed(2)}%
+      <div className={`text-sm font-bold tabular-nums ${returnColorClass(val)}`}>
+        {fmtPct(val)}
       </div>
     </div>
   );
@@ -198,11 +198,11 @@ function ReturnBadge({ label, val }: { label: string; val: number | null }) {
 
 function MaTrendBadge({ trend }: { trend: string }) {
   const cfg: Record<string, { label: string; cls: string }> = {
-    GOLDEN:  { label: "多头趋势 (MA5>MA20>MA60)", cls: "bg-amber-100 text-amber-700 border border-amber-200" },
-    BULLISH: { label: "偏强趋势 (MA5>MA20)",       cls: "bg-green-100 text-green-700 border border-green-200" },
-    NEUTRAL: { label: "中性整理",                  cls: "bg-slate-100 text-slate-600 border border-slate-200" },
-    BEARISH: { label: "偏弱趋势 (MA5<MA20)",        cls: "bg-blue-100 text-blue-700 border border-blue-200" },
-    DEAD:    { label: "空头趋势 (MA5<MA20<MA60)",   cls: "bg-red-100 text-red-600 border border-red-200" },
+    GOLDEN:  { label: "Bullish (MA5>MA20>MA60)",  cls: "bg-amber-100 text-amber-700 border border-amber-200" },
+    BULLISH: { label: "Strong (MA5>MA20)",          cls: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+    NEUTRAL: { label: "Neutral",                    cls: "bg-slate-100 text-slate-600 border border-slate-200" },
+    BEARISH: { label: "Weak (MA5<MA20)",            cls: "bg-slate-100 text-slate-500 border border-slate-200" },
+    DEAD:    { label: "Bearish (MA5<MA20<MA60)",    cls: "bg-red-100 text-red-600 border border-red-200" },
   };
   const c = cfg[trend] ?? cfg.NEUTRAL;
   return <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>;
@@ -215,13 +215,6 @@ function fmtBillion(v: number | null): string {
   return v.toLocaleString();
 }
 
-const REC_CFG: Record<string, { label: string; color: string; glow: string }> = {
-  STRONG_BUY: { label: "强烈买入", color: "#10b981", glow: "rgba(16,185,129,0.15)" },
-  BUY:        { label: "买入",     color: "#3b82f6", glow: "rgba(59,130,246,0.15)" },
-  HOLD:       { label: "持有观察", color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
-  WATCH:      { label: "关注等待", color: "#f59e0b", glow: "rgba(245,158,11,0.10)" },
-  AVOID:      { label: "回避",     color: "#ef4444", glow: "rgba(239,68,68,0.15)" },
-};
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = use(params);
@@ -375,12 +368,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </div>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold text-slate-900 tabular-nums">
-              ¥{ind.latestClose.toLocaleString()}
+            <div className="text-[36px] font-extrabold text-slate-900 tabular-nums leading-none">
+              {fmtJpy(ind.latestClose)}
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">{ind.latestDate} 收盘价</div>
-            <div className={`text-sm font-medium mt-1 tabular-nums ${isUp ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-              5日 {isUp ? "▲" : "▼"}{Math.abs(ind.return5d ?? 0).toFixed(2)}%
+            <div className="text-xs text-slate-400 mt-1">{ind.latestDate} close</div>
+            <div className={`text-sm font-semibold mt-1 tabular-nums ${returnColorClass(ind.return5d)}`}>
+              5D {fmtPct(ind.return5d)}
             </div>
           </div>
         </div>
@@ -388,7 +381,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
       {/* Large-move notice — shown when 60d adj-return exceeds ±50% */}
       {Math.abs(ind.return60d ?? 0) > 50 && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 mb-4 flex items-start gap-2 text-sm text-amber-800">
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 mb-4 flex items-start gap-2 text-sm text-amber-800">
           <span className="text-lg leading-none mt-0.5">⚠️</span>
           <div>
             <span className="font-semibold">数据提醒</span>
@@ -398,7 +391,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       )}
 
       {/* Return Strip */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5">
         <div className="flex items-center justify-around">
           <ReturnBadge label="5日涨跌"  val={ind.return5d}  />
           <div className="w-px h-8 bg-slate-100" />
@@ -407,23 +400,23 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           <ReturnBadge label="60日涨跌" val={ind.return60d} />
           <div className="w-px h-8 bg-slate-100" />
           <div className="text-center">
-            <div className="text-xs text-slate-500 mb-0.5">52周最高</div>
+            <div className="text-xs text-slate-500 mb-0.5">52W High</div>
             <div className="text-sm font-bold text-slate-900 tabular-nums">
-              {stock.high52w ? `¥${stock.high52w.toLocaleString()}` : "—"}
+              {fmtJpy(stock.high52w)}
             </div>
           </div>
           <div className="w-px h-8 bg-slate-100" />
           <div className="text-center">
-            <div className="text-xs text-slate-500 mb-0.5">52周最低</div>
+            <div className="text-xs text-slate-500 mb-0.5">52W Low</div>
             <div className="text-sm font-bold text-slate-900 tabular-nums">
-              {stock.low52w ? `¥${stock.low52w.toLocaleString()}` : "—"}
+              {fmtJpy(stock.low52w)}
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-slate-100 rounded-lg p-1 overflow-x-auto">
+      <div className="flex gap-1 mb-5 bg-slate-100 rounded-2xl p-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -440,9 +433,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* ── Tab: Overview ─────────────────────────────────────────────────── */}
       {activeTab === "overview" && (
         <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">移动均线</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-4">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">MA Lines</h3>
               <div className="space-y-3">
                 {[
                   { label: "MA5",  val: ind.ma5 },
@@ -457,8 +450,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         {val ? `¥${val.toLocaleString()}` : "—"}
                       </span>
                       {diff !== null && (
-                        <span className={`text-xs tabular-nums ${diff >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-                          {diff >= 0 ? "▲" : "▼"}{Math.abs(diff).toFixed(1)}%
+                        <span className={`text-xs tabular-nums ${returnColorClass(diff)}`}>
+                          {fmtPct(diff, 1)}
                         </span>
                       )}
                     </div>
@@ -470,8 +463,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">震荡指标</h3>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Oscillators</h3>
               <div className="space-y-4">
                 <div>
                   <div className="text-xs text-slate-500 mb-1.5">RSI (14日)</div>
@@ -479,7 +472,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     <div className="relative w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className={`absolute left-0 top-0 h-full rounded-full ${
-                          (ind.rsi14 ?? 50) >= 70 ? "bg-red-400" : (ind.rsi14 ?? 50) <= 30 ? "bg-blue-400" : "bg-slate-400"
+                          (ind.rsi14 ?? 50) >= 70 ? "bg-red-400" : (ind.rsi14 ?? 50) <= 30 ? "bg-emerald-400" : "bg-slate-400"
                         }`}
                         style={{ width: `${Math.min(100, ind.rsi14 ?? 0)}%` }}
                       />
@@ -492,8 +485,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   <div className="flex items-center gap-2 text-xs tabular-nums text-slate-700">
                     <span>MACD: <b>{ind.macd?.toFixed(2) ?? "—"}</b></span>
                     <span className="text-slate-300">|</span>
-                    <span>柱状: <b className={ind.macdHist !== null && ind.macdHist >= 0 ? "text-[#e74c3c]" : "text-[#2980b9]"}>
-                      {ind.macdHist?.toFixed(2) ?? "—"}
+                    <span>Hist: <b className={returnColorClass(ind.macdHist)}>
+                      {ind.macdHist != null ? fmtPct(ind.macdHist, 2).replace("%","") : "—"}
                     </b></span>
                   </div>
                 </div>
@@ -501,11 +494,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700">价格走势（30日）</h3>
+              <h3 className="text-sm font-semibold text-slate-700">Price (30D)</h3>
               <button onClick={() => setActiveTab("chart")} className="text-xs text-blue-600 hover:underline">
-                完整图表 →
+                Full chart →
               </button>
             </div>
             <PriceChart data={series.last30} height={160} />
@@ -515,19 +508,19 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
       {/* ── Tab: Chart ───────────────────────────────────────────────────── */}
       {activeTab === "chart" && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-700">价格图表</h3>
-            <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+            <h3 className="text-sm font-semibold text-slate-700">Price Chart</h3>
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
               {(["30", "250"] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => setChartPeriod(p)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                     chartPeriod === p ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  {p === "30" ? "30日" : "250日（约1年）"}
+                  {p === "30" ? "30D" : "250D (~1Y)"}
                 </button>
               ))}
             </div>
@@ -544,9 +537,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
       {/* ── Tab: Financials ──────────────────────────────────────────────── */}
       {activeTab === "financials" && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-700">财务数据（J-Quants）</h3>
+            <h3 className="text-sm font-semibold text-slate-700">Financials (J-Quants)</h3>
           </div>
           {financials.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-sm">暂无财务数据</div>
@@ -600,8 +593,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* ── Tab: Indicators ──────────────────────────────────────────────── */}
       {activeTab === "indicators" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">移动均线</h3>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Moving Averages</h3>
             <div className="grid grid-cols-3 gap-4 mb-4">
               {[
                 { key: "MA5",  val: ind.ma5,  days: 5 },
@@ -609,16 +602,15 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 { key: "MA60", val: ind.ma60, days: 60 },
               ].map(({ key, val, days }) => {
                 const diff = val ? ((ind.latestClose - val) / val) * 100 : null;
-                const up = diff !== null && diff >= 0;
                 return (
-                  <div key={key} className="bg-slate-50 rounded-lg p-4">
-                    <div className="text-xs text-slate-500 mb-1">{key}（{days}日）</div>
+                  <div key={key} className="bg-slate-50 rounded-xl p-4">
+                    <div className="text-xs text-slate-500 mb-1">{key} ({days}D)</div>
                     <div className="text-lg font-bold text-slate-900 tabular-nums">
-                      {val ? `¥${val.toLocaleString()}` : "—"}
+                      {fmtJpy(val)}
                     </div>
                     {diff !== null && (
-                      <div className={`text-xs font-medium mt-1 tabular-nums ${up ? "text-[#e74c3c]" : "text-[#2980b9]"}`}>
-                        vs现价 {up ? "▲" : "▼"}{Math.abs(diff).toFixed(2)}%
+                      <div className={`text-xs font-medium mt-1 tabular-nums ${returnColorClass(diff)}`}>
+                        vs price {fmtPct(diff, 2)}
                       </div>
                     )}
                   </div>
@@ -628,8 +620,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             <MaTrendBadge trend={ind.maTrend} />
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">RSI（14日）</h3>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">RSI (14D)</h3>
             <div className="flex items-center gap-4">
               <div className="text-3xl font-bold text-slate-900 tabular-nums">
                 {ind.rsi14 !== null ? ind.rsi14.toFixed(1) : "—"}
@@ -640,7 +632,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     <div className="absolute left-[30%] top-0 w-0.5 h-full bg-blue-300 opacity-80" />
                     <div className="absolute left-[70%] top-0 w-0.5 h-full bg-red-300 opacity-80" />
                     <div
-                      className={`h-full rounded-full ${ind.rsi14 >= 70 ? "bg-red-400" : ind.rsi14 <= 30 ? "bg-blue-400" : "bg-slate-400"}`}
+                      className={`h-full rounded-full ${ind.rsi14 >= 70 ? "bg-red-400" : ind.rsi14 <= 30 ? "bg-emerald-400" : "bg-slate-400"}`}
                       style={{ width: `${ind.rsi14}%` }}
                     />
                   </div>
@@ -652,51 +644,45 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-slate-700 mb-4">MACD (12-26-9)</h3>
             <div className="grid grid-cols-3 gap-4 mb-3">
               {[
-                { label: "MACD线",  val: ind.macd },
-                { label: "信号线",  val: ind.macdSignal },
-                { label: "柱状图",  val: ind.macdHist },
-              ].map(({ label, val }) => {
-                const up = val !== null && val >= 0;
-                return (
-                  <div key={label} className="bg-slate-50 rounded-lg p-3">
-                    <div className="text-xs text-slate-500 mb-1">{label}</div>
-                    <div className={`text-lg font-bold tabular-nums ${val !== null ? (up ? "text-[#e74c3c]" : "text-[#2980b9]") : "text-slate-300"}`}>
-                      {val !== null ? `${val >= 0 ? "+" : ""}${val.toFixed(3)}` : "—"}
-                    </div>
+                { label: "MACD",   val: ind.macd },
+                { label: "Signal", val: ind.macdSignal },
+                { label: "Hist",   val: ind.macdHist },
+              ].map(({ label, val }) => (
+                <div key={label} className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-xs text-slate-500 mb-1">{label}</div>
+                  <div className={`text-lg font-bold tabular-nums ${val != null ? returnColorClass(val) : "text-slate-300"}`}>
+                    {val != null ? fmtPct(val, 3).replace("%","") : "—"}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
             <div className="text-xs text-slate-500">
-              信号：
-              {ind.macdSignalLabel === "BUY"     && <span className="text-red-500 font-medium ml-1">买入信号（MACD &gt; Signal）</span>}
-              {ind.macdSignalLabel === "SELL"    && <span className="text-blue-500 font-medium ml-1">卖出信号（MACD &lt; Signal）</span>}
-              {ind.macdSignalLabel === "NEUTRAL" && <span className="text-slate-400 ml-1">中性</span>}
+              Signal:
+              {ind.macdSignalLabel === "BUY"     && <span className="text-emerald-600 font-medium ml-1">BUY (MACD &gt; Signal)</span>}
+              {ind.macdSignalLabel === "SELL"    && <span className="text-red-500 font-medium ml-1">SELL (MACD &lt; Signal)</span>}
+              {ind.macdSignalLabel === "NEUTRAL" && <span className="text-slate-400 ml-1">Neutral</span>}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">区间涨跌幅</h3>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Returns</h3>
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "5日涨跌",  val: ind.return5d },
-                { label: "20日涨跌", val: ind.return20d },
-                { label: "60日涨跌", val: ind.return60d },
-              ].map(({ label, val }) => {
-                const up = val !== null && val >= 0;
-                return (
-                  <div key={label} className="bg-slate-50 rounded-lg p-4 text-center">
-                    <div className="text-xs text-slate-500 mb-1">{label}</div>
-                    <div className={`text-2xl font-bold tabular-nums ${val !== null ? (up ? "text-[#e74c3c]" : "text-[#2980b9]") : "text-slate-300"}`}>
-                      {val !== null ? `${up ? "▲" : "▼"}${Math.abs(val).toFixed(2)}%` : "—"}
-                    </div>
+                { label: "5D",  val: ind.return5d },
+                { label: "20D", val: ind.return20d },
+                { label: "60D", val: ind.return60d },
+              ].map(({ label, val }) => (
+                <div key={label} className="bg-slate-50 rounded-xl p-4 text-center">
+                  <div className="text-xs text-slate-500 mb-1">{label}</div>
+                  <div className={`text-2xl font-bold tabular-nums ${val != null ? returnColorClass(val) : "text-slate-300"}`}>
+                    {val != null ? fmtPct(val) : "—"}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -706,12 +692,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {activeTab === "ai" && (
         <div className="space-y-4">
           {!aiScore ? (
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-sm">
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-8 text-center text-slate-400 text-sm">
               暂无AI评分数据
             </div>
           ) : (() => {
             const rv2 = aiScore.recommendationV2 ?? aiScore.recommendation;
-            const rec = REC_CFG[rv2] ?? REC_CFG.HOLD;
+            const rec = getRec(rv2);
             const riskColors = { LOW: "#10b981", MEDIUM: "#f59e0b", HIGH: "#ef4444" };
             const riskLabels = { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险" };
             const STYLE_LABEL: Record<string, string> = {
@@ -819,7 +805,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     { title: "基本面分析", reasons: aiScore.fundamentalReasons,  color: "#10b981", bg: "bg-emerald-50/50", border: "border-emerald-100" },
                     { title: "资金面分析", reasons: aiScore.moneyFlowReasons,    color: "#8b5cf6", bg: "bg-violet-50/50",  border: "border-violet-100" },
                   ].map((sec) => (
-                    <div key={sec.title} className={`rounded-xl border ${sec.border} ${sec.bg} p-4`}>
+                    <div key={sec.title} className={`rounded-2xl border ${sec.border} ${sec.bg} p-4`}>
                       <div className="text-xs font-bold mb-3" style={{ color: sec.color }}>{sec.title}</div>
                       <ul className="space-y-2">
                         {sec.reasons.map((r, i) => (
@@ -835,7 +821,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
                 {/* News Sentiment */}
                 {aiScore.newsSummary && (
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
                     <div className="text-xs font-bold text-amber-700 mb-2">新闻情绪分析</div>
                     <p className="text-xs text-slate-600">{aiScore.newsSummary}</p>
                   </div>
@@ -843,8 +829,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
                 {/* V7.8: Dividend & Short Selling */}
                 {(aiScore.dividendYield != null || aiScore.shortSellingRatio != null) && (
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-4">配当 · 空売り</h3>
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-4">Dividend · Short Selling</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {aiScore.dividendYield != null && (
                         <div className="bg-teal-50 rounded-lg p-3">
@@ -880,8 +866,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 )}
 
                 {/* Sub-score Detail Bars */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-5">评分细项详情</h3>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-5">Score Details</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                     {[
                       { label: "均线趋势",   key: "maTrendScore",       max: 12, color: "bg-blue-400" },
@@ -970,7 +956,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 href={displayUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 hover:shadow transition-all"
+                className="block bg-white rounded-2xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 hover:shadow transition-all"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">

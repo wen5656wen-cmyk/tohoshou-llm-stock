@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getRec, returnColorClass, fmtPct } from "@/lib/rec-config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,14 +167,7 @@ const THEME_COLORS: Record<string, string> = {
   SECURITY_VISION: "red", POWER_INFRA: "yellow",
 };
 
-const REC_CFG: Record<string, { label: string; cls: string }> = {
-  STRONG_BUY: { label: "强烈买入", cls: "bg-red-100 text-red-700 border-red-300" },
-  BUY:        { label: "买入",     cls: "bg-orange-100 text-orange-700 border-orange-300" },
-  HOLD:       { label: "持有",     cls: "bg-yellow-100 text-yellow-700 border-yellow-300" },
-  WATCH:      { label: "关注",     cls: "bg-slate-100 text-slate-600 border-slate-300" },
-  AVOID:      { label: "回避",     cls: "bg-blue-50 text-blue-500 border-blue-200" },
-  PENDING:    { label: "评分中",   cls: "bg-slate-50 text-slate-400 border-slate-200" },
-};
+const PENDING_REC = { label: "Pending", bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200" };
 
 const LAYER_BADGE: Record<string, string> = {
   UPSTREAM:       "bg-green-100 text-green-700",
@@ -187,7 +181,7 @@ const LAYER_BADGE: Record<string, string> = {
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+    <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
       <div className="text-xl font-bold text-slate-900">{value}</div>
       <div className="text-xs text-slate-500 mt-0.5">{label}</div>
       {sub && <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>}
@@ -198,8 +192,8 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 function ReturnBadge({ v }: { v: number | null }) {
   if (v == null) return <span className="text-slate-300 text-[11px]">—</span>;
   return (
-    <span className={`text-[11px] font-medium tabular-nums ${v >= 0 ? "text-red-600" : "text-blue-600"}`}>
-      {v >= 0 ? "+" : ""}{v.toFixed(1)}%
+    <span className={`text-[11px] font-medium tabular-nums ${returnColorClass(v)}`}>
+      {fmtPct(v, 1)}
     </span>
   );
 }
@@ -228,14 +222,13 @@ function ImportanceStars({ score }: { score: number }) {
 }
 
 function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boolean }) {
-  const recKey = stock.scored ? (stock.recommendationV2 ?? "HOLD") : "PENDING";
-  const rec = REC_CFG[recKey] ?? REC_CFG.HOLD;
+  const rec = stock.scored ? getRec(stock.recommendationV2) : PENDING_REC;
   const color = THEME_COLORS[stock.theme] ?? "slate";
   const colors = COLOR_MAP[color] ?? COLOR_MAP.slate;
   const layer = stock.supplyChainLayer;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all p-4">
+    <div className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all p-4">
       {/* Header */}
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex-1 min-w-0">
@@ -252,7 +245,7 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
             <span className="text-[11px] text-slate-400 font-mono">{stock.symbol.replace(".T", "")}</span>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${rec.cls}`}>
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${rec.border} ${rec.text} ${rec.bg}`}>
               {rec.label}
             </span>
             {showTheme && (
@@ -374,7 +367,7 @@ function ThemeCard({
   return (
     <button
       onClick={onClick}
-      className={`text-left rounded-xl border p-3 transition-all ${
+      className={`text-left rounded-2xl border p-3 transition-all ${
         isActive ? `${colors.border} ${colors.bg} shadow-sm` : "border-slate-200 bg-white hover:border-slate-300"
       }`}
     >
@@ -509,7 +502,7 @@ export default function AiThemePage() {
   if (error || !data) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-red-700 text-sm">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
           加载失败：{error ?? "未知错误"}
         </div>
       </div>
@@ -532,7 +525,7 @@ export default function AiThemePage() {
       <div className="mb-5">
         <div className="flex items-center gap-3 mb-1">
           <span className="text-2xl">🗾</span>
-          <h1 className="text-xl font-bold text-slate-900">日本AI产业链地图</h1>
+          <h1 className="text-[32px] font-bold text-slate-900 leading-tight">AI Theme Map</h1>
           <span className="text-xs font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-full">v8.0</span>
         </div>
         <p className="text-sm text-slate-500">
@@ -556,7 +549,7 @@ export default function AiThemePage() {
         <StatCard label="平均评分" value={summary.avgScore} sub="adaptiveScore" />
         <StatCard label="产业链分类" value={14} sub="14细分主题" />
         <StatCard label="供应链层" value={layers.filter((l) => l.symbolCount > 0).length} sub="活跃层级" />
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+        <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
           <div className="text-sm font-bold text-slate-900 truncate leading-tight">
             {summary.topStock?.nameZh ?? summary.topStock?.symbol ?? "—"}
           </div>
@@ -567,7 +560,7 @@ export default function AiThemePage() {
       </div>
 
       {/* Supply chain layer visual */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-5">
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
         <div className="text-[10px] text-slate-400 font-medium mb-2">AI产业链结构</div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {layers.map((l, i) => (
