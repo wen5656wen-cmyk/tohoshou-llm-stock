@@ -2,6 +2,16 @@
 
 ---
 
+## [10.0 P2] - 2026-06-21 — Backtest Winners/Losers empty state fix
+
+### Modified Files
+- **`app/backtest/page.tsx`**: Winners / Losers tbody 空数据时显示 `t("backtest.no_data")` 提示行，复用已有 i18n key，三语言无需新增
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit `f064db9` · Pushed ✅
+
+---
+
 ## [10.0 P1] - 2026-06-21 — Backtest MVP: DailyRecommendation + BacktestResult + /backtest page
 
 ### New Files
