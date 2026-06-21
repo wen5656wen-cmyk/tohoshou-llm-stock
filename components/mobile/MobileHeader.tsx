@@ -28,7 +28,7 @@ export default function MobileHeader({ onMenuClick }: { onMenuClick: () => void 
   const title = titleKey
     ? t(titleKey)
     : pathname.startsWith("/stocks/")
-      ? t("tab.overview")
+      ? t("tab.ai")
       : pathname.startsWith("/ai-theme/")
         ? t("nav.ai_theme")
         : "TOHOSHOU AI";

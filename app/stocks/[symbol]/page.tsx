@@ -557,7 +557,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartPeriod, setChartPeriod] = useState<"30" | "250">("30");
-  const [activeTab, setActiveTab] = useState<"overview" | "chart" | "financials" | "indicators" | "ai" | "news">("overview");
+  const [activeTab, setActiveTab] = useState<"ai" | "chart" | "financials" | "technical" | "news">("ai");
   const [watched, setWatched] = useState(false);
   const [watchLoading, setWatchLoading] = useState(false);
   const [newsItems, setNewsItems] = useState<NewsItem[] | null>(null);
@@ -632,7 +632,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-red-700">
-          数据加载失败：{error}
+          {t("stock.load_error")}：{error}
         </div>
       </div>
     );
@@ -659,11 +659,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   };
 
   const tabs = [
-    { key: "overview",   label: t("tab.overview") },
+    { key: "ai",         label: t("tab.ai") },
     { key: "chart",      label: t("tab.chart") },
-    { key: "financials", label: `${t("tab.financials")} (${financials.length})` },
-    { key: "indicators", label: t("tab.technical") },
-    { key: "ai",         label: aiScore ? `${t("tab.ai")} ${aiScore.adaptiveScore?.toFixed(0) ?? aiScore.totalScore}` : t("tab.ai") },
+    { key: "financials", label: t("tab.financials") },
+    { key: "technical",  label: t("tab.technical") },
     { key: "news",       label: t("tab.news") },
   ] as const;
 
@@ -792,82 +791,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         ))}
       </div>
 
-      {/* ── Tab: Overview ─────────────────────────────────────────────────── */}
-      {activeTab === "overview" && (
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t("stock.ma_lines")}</h3>
-              <div className="space-y-3">
-                {[
-                  { label: "MA5",  val: ind.ma5 },
-                  { label: "MA20", val: ind.ma20 },
-                  { label: "MA60", val: ind.ma60 },
-                ].map(({ label, val }) => {
-                  const diff = val ? ((ind.latestClose - val) / val) * 100 : null;
-                  return (
-                    <div key={label} className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500 w-10">{label}</span>
-                      <span className="text-sm tabular-nums font-medium text-slate-800">
-                        {val ? `¥${val.toLocaleString()}` : "—"}
-                      </span>
-                      {diff !== null && (
-                        <span className={`text-xs tabular-nums ${returnColorClass(diff)}`}>
-                          {fmtPct(diff, 1)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-                <div className="pt-2 border-t border-slate-100">
-                  <MaTrendBadge trend={ind.maTrend} />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t("stock.oscillators")}</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-xs text-slate-500 mb-1.5">RSI (14日)</div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`absolute left-0 top-0 h-full rounded-full ${
-                          (ind.rsi14 ?? 50) >= 70 ? "bg-red-400" : (ind.rsi14 ?? 50) <= 30 ? "bg-emerald-400" : "bg-slate-400"
-                        }`}
-                        style={{ width: `${Math.min(100, ind.rsi14 ?? 0)}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-bold tabular-nums text-slate-700">{ind.rsi14?.toFixed(1) ?? "—"}</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 mb-1.5">MACD</div>
-                  <div className="flex items-center gap-2 text-xs tabular-nums text-slate-700">
-                    <span>MACD: <b>{ind.macd?.toFixed(2) ?? "—"}</b></span>
-                    <span className="text-slate-300">|</span>
-                    <span>{t("stock.hist_label")}: <b className={returnColorClass(ind.macdHist)}>
-                      {ind.macdHist != null ? fmtPct(ind.macdHist, 2).replace("%","") : "—"}
-                    </b></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700">{t("stock.price_30d")}</h3>
-              <button onClick={() => setActiveTab("chart")} className="text-xs text-blue-600 hover:underline">
-                {t("stock.full_chart")} →
-              </button>
-            </div>
-            <PriceChart data={series.last30} height={160} />
-          </div>
-        </div>
-      )}
-
       {/* ── Tab: Chart ───────────────────────────────────────────────────── */}
       {activeTab === "chart" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -956,8 +879,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
       )}
 
-      {/* ── Tab: Indicators ──────────────────────────────────────────────── */}
-      {activeTab === "indicators" && (
+      {/* ── Tab: Technical ───────────────────────────────────────────────── */}
+      {activeTab === "technical" && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-slate-700 mb-4">{t("stock.moving_averages")}</h3>
@@ -1059,7 +982,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <div className="space-y-4">
           {!aiScore ? (
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-8 text-center text-slate-400 text-sm">
-              暂无AI评分数据
+              {t("stock.no_ai_data")}
             </div>
           ) : (() => {
             const rv2 = aiScore.recommendationV2 ?? aiScore.recommendation;
@@ -1155,11 +1078,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
                     {/* Right: 5 bars */}
                     <div className="md:shrink-0 md:w-56 space-y-3 md:space-y-4 pt-0 md:pt-2">
-                      <ScoreBar label="技術面" score={aiScore.technicalScore}     max={30} color="#3b82f6" />
-                      <ScoreBar label="基本面" score={aiScore.fundamentalScore}   max={25} color="#10b981" />
-                      <ScoreBar label="資金面" score={aiScore.moneyFlowScore}     max={20} color="#8b5cf6" />
-                      <ScoreBar label="情绪"   score={aiScore.newsSentimentScore} max={15} color="#f59e0b" />
-                      <ScoreBar label="趋势"   score={aiScore.globalTrendScore}   max={10} color="#06b6d4" />
+                      <ScoreBar label={t("score.technical")}     score={aiScore.technicalScore}     max={30} color="#3b82f6" />
+                      <ScoreBar label={t("score.fundamental")}  score={aiScore.fundamentalScore}   max={25} color="#10b981" />
+                      <ScoreBar label={t("score.money_flow")}   score={aiScore.moneyFlowScore}     max={20} color="#8b5cf6" />
+                      <ScoreBar label={t("score.sentiment")}    score={aiScore.newsSentimentScore} max={15} color="#f59e0b" />
+                      <ScoreBar label={t("score.trend")}        score={aiScore.globalTrendScore}   max={10} color="#06b6d4" />
                     </div>
                   </div>
                 </div>
@@ -1167,9 +1090,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 {/* Dimension Analysis Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                   {[
-                    { title: "技術面分析", reasons: aiScore.technicalReasons,    color: "#3b82f6", bg: "bg-blue-50/50",    border: "border-blue-100" },
-                    { title: "基本面分析", reasons: aiScore.fundamentalReasons,  color: "#10b981", bg: "bg-emerald-50/50", border: "border-emerald-100" },
-                    { title: "资金面分析", reasons: aiScore.moneyFlowReasons,    color: "#8b5cf6", bg: "bg-violet-50/50",  border: "border-violet-100" },
+                    { title: t("score.technical_analysis"), reasons: aiScore.technicalReasons,    color: "#3b82f6", bg: "bg-blue-50/50",    border: "border-blue-100" },
+                    { title: t("score.fundamental_analysis"), reasons: aiScore.fundamentalReasons,  color: "#10b981", bg: "bg-emerald-50/50", border: "border-emerald-100" },
+                    { title: t("score.money_analysis"), reasons: aiScore.moneyFlowReasons,    color: "#8b5cf6", bg: "bg-violet-50/50",  border: "border-violet-100" },
                   ].map((sec) => (
                     <div key={sec.title} className={`rounded-2xl border ${sec.border} ${sec.bg} p-4`}>
                       <div className="text-xs font-bold mb-3" style={{ color: sec.color }}>{sec.title}</div>
@@ -1188,7 +1111,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 {/* News Sentiment */}
                 {aiScore.newsSummary && (
                   <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
-                    <div className="text-xs font-bold text-amber-700 mb-2">新闻情绪分析</div>
+                    <div className="text-xs font-bold text-amber-700 mb-2">{t("score.news_sentiment")}</div>
                     <p className="text-xs text-slate-600">{aiScore.newsSummary}</p>
                   </div>
                 )}
@@ -1196,34 +1119,34 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 {/* V7.8: Dividend & Short Selling */}
                 {(aiScore.dividendYield != null || aiScore.shortSellingRatio != null) && (
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-4">Dividend · Short Selling</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-4">{t("score.div_short")}</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {aiScore.dividendYield != null && (
                         <div className="bg-teal-50 rounded-lg p-3">
-                          <div className="text-xs text-teal-600 mb-1">配当利回り</div>
+                          <div className="text-xs text-teal-600 mb-1">{t("score.dividend_yield")}</div>
                           <div className="text-xl font-bold text-teal-700">{aiScore.dividendYield.toFixed(2)}%</div>
                           {aiScore.dividendAnn != null && (
-                            <div className="text-xs text-teal-500 mt-1">年間 ¥{aiScore.dividendAnn.toFixed(0)}</div>
+                            <div className="text-xs text-teal-500 mt-1">{t("score.annual")} ¥{aiScore.dividendAnn.toFixed(0)}</div>
                           )}
                           {aiScore.payoutRatio != null && (
                             <div className="text-xs text-teal-500">
-                              配当性向 {(aiScore.payoutRatio < 1.5 ? aiScore.payoutRatio * 100 : aiScore.payoutRatio).toFixed(0)}%
+                              {t("score.payout_ratio")} {(aiScore.payoutRatio < 1.5 ? aiScore.payoutRatio * 100 : aiScore.payoutRatio).toFixed(0)}%
                             </div>
                           )}
                           {aiScore.dividendScore != null && (
-                            <div className="text-xs text-teal-600 mt-1 font-medium">配当スコア {aiScore.dividendScore}/10</div>
+                            <div className="text-xs text-teal-600 mt-1 font-medium">{t("score.dividend_score")} {aiScore.dividendScore}/10</div>
                           )}
                         </div>
                       )}
                       {aiScore.shortSellingRatio != null && (
                         <div className="bg-red-50 rounded-lg p-3">
-                          <div className="text-xs text-red-600 mb-1">市場空売り比率</div>
+                          <div className="text-xs text-red-600 mb-1">{t("score.short_ratio_mkt")}</div>
                           <div className="text-xl font-bold text-red-700">{aiScore.shortSellingRatio.toFixed(1)}%</div>
                           <div className="text-xs text-red-500 mt-1">
-                            {aiScore.shortSellingDate ? `${aiScore.shortSellingDate} JPX` : "JPX日次"}
+                            {aiScore.shortSellingDate ? `${aiScore.shortSellingDate} JPX` : t("score.jpx_daily")}
                           </div>
                           <div className="text-xs text-red-400 mt-1">
-                            {aiScore.shortSellingSource === "jpx_real" ? "✓ 実データ" : "⚠ fallback"}
+                            {aiScore.shortSellingSource === "jpx_real" ? t("score.real_data") : "⚠ fallback"}
                           </div>
                         </div>
                       )}
@@ -1233,20 +1156,20 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
                 {/* Sub-score Detail Bars */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-5">Score Details</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-5">{t("score.details")}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                     {[
-                      { label: "均线趋势",   key: "maTrendScore",       max: 12, color: "bg-blue-400" },
-                      { label: "MACD信号",   key: "macdScore",           max: 8,  color: "bg-blue-400" },
-                      { label: "RSI位置",    key: "rsiScore",            max: 6,  color: "bg-blue-400" },
-                      { label: "价格动能",   key: "momentumScore",       max: 4,  color: "bg-blue-400" },
-                      { label: "营业利润率", key: "opMarginScore",       max: 8,  color: "bg-emerald-400" },
-                      { label: "ROE",        key: "roeScore",            max: 7,  color: "bg-emerald-400" },
-                      { label: "EPS",        key: "epsScore",            max: 5,  color: "bg-emerald-400" },
-                      { label: "自有资本率", key: "equityRatioScore",    max: 5,  color: "bg-emerald-400" },
-                      { label: "资金流入",   key: "inflowScore",         max: 8,  color: "bg-violet-400" },
-                      { label: "趋势稳定",   key: "stabilityScore",      max: 7,  color: "bg-violet-400" },
-                      { label: "空方压力",   key: "shortPressureScore",  max: 5,  color: "bg-violet-400" },
+                      { label: t("score.ma_trend"),          key: "maTrendScore",       max: 12, color: "bg-blue-400" },
+                      { label: t("score.macd_signal_label"), key: "macdScore",           max: 8,  color: "bg-blue-400" },
+                      { label: t("score.rsi_pos"),           key: "rsiScore",            max: 6,  color: "bg-blue-400" },
+                      { label: t("score.momentum"),          key: "momentumScore",       max: 4,  color: "bg-blue-400" },
+                      { label: t("score.op_margin"),         key: "opMarginScore",       max: 8,  color: "bg-emerald-400" },
+                      { label: "ROE",                        key: "roeScore",            max: 7,  color: "bg-emerald-400" },
+                      { label: "EPS",                        key: "epsScore",            max: 5,  color: "bg-emerald-400" },
+                      { label: t("score.equity_ratio_label"), key: "equityRatioScore",   max: 5,  color: "bg-emerald-400" },
+                      { label: t("score.inflow"),            key: "inflowScore",         max: 8,  color: "bg-violet-400" },
+                      { label: t("score.stability"),         key: "stabilityScore",      max: 7,  color: "bg-violet-400" },
+                      { label: t("score.short_pressure"),    key: "shortPressureScore",  max: 5,  color: "bg-violet-400" },
                     ].map((item) => {
                       const score = (aiScore.detail as Record<string, number>)[item.key] ?? 0;
                       const pct = Math.round((score / item.max) * 100);
@@ -1264,6 +1187,59 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     })}
                   </div>
                 </div>
+                {/* GPT Investment View */}
+                {gptData && gptData !== "not_found" && (
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-5">
+                    <h3 className="text-sm font-semibold text-violet-700 mb-4">{t("stock.gptView")}</h3>
+
+                    {/* Direction */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${ACTION_CFG[gptData.action]?.dot ?? "bg-slate-300"}`} />
+                      <span className={`text-sm font-semibold ${ACTION_CFG[gptData.action]?.text ?? "text-slate-500"}`}>
+                        {t(`gpt.action.${gptData.action}` as Parameters<typeof t>[0])}
+                      </span>
+                      <span className="text-xs text-slate-400 ml-1">— {t("stock.direction")}</span>
+                    </div>
+
+                    {/* Investment Horizon */}
+                    {gptData.timeHorizon && (
+                      <div className="text-xs text-slate-500 mb-3">
+                        <span className="font-medium text-slate-600">{t("stock.gptHorizon")}：</span>
+                        {gptData.timeHorizon}
+                      </div>
+                    )}
+
+                    {/* Reasons (strengths) */}
+                    {gptData.strengths.length > 0 && (
+                      <div className="mb-3">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-2">{t("stock.reasons")}</div>
+                        <ul className="space-y-1">
+                          {gptData.strengths.slice(0, 3).map((s, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-xs text-slate-600">
+                              <span className="text-emerald-400 shrink-0">▸</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Risks */}
+                    {gptData.risks.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mb-2">{t("stock.risks")}</div>
+                        <ul className="space-y-1">
+                          {gptData.risks.slice(0, 3).map((r, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-xs text-slate-600">
+                              <span className="text-red-400 shrink-0">▸</span>
+                              <span>{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             );
           })()}
