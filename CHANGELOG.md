@@ -2,6 +2,41 @@
 
 ---
 
+## [8.5 P2] - 2026-06-21 — Native Locale Final Cleanup（五页面三语言彻底清洁）
+
+### 目标
+消灭 `/ai-theme`、`/ai-theme/[theme]`、`/sectors`、`/screener`、`/stocks/[symbol]` 中全部硬编码业务字符串；建立 `lib/display-labels.ts` 统一导出枢纽；修复 `sectors` 组件违反单一真相来源的本地 `REC_CFG`；修复 `RetBadge` 国际惯例颜色（绿涨红跌）。
+
+### 核心变更
+
+| 文件 | 说明 |
+|------|------|
+| `lib/i18n/types.ts` | 新增 30 个 MessageKey（fin.*/common.percentile_prefix/theme.*/sectors.*/stock.*/news.*） |
+| `lib/i18n/messages/zh-CN.ts` | 30键中文翻译 |
+| `lib/i18n/messages/ja-JP.ts` | 30键日文翻译 |
+| `lib/i18n/messages/en-US.ts` | 30键英文翻译 |
+| `lib/display-labels.ts` | **新建**：re-export 枢纽（getRec/getRecommendationLabel/returnColorClass/fmtPct/fmtJpy/getThemeLabel/getLayerLabel/getLayerDesc） |
+| `app/ai-theme/page.tsx` | 删除 `scoreBarLabel()` helper；替换6处 lang 三元 → t() |
+| `app/ai-theme/[theme]/page.tsx` | 替换4处 lang 三元 → t() |
+| `app/sectors/page.tsx` | 删除本地 `REC_CFG`；引入 `getRec/getRecommendationLabel/returnColorClass`；修复颜色惯例；替换2处字幕三元 |
+| `app/screener/page.tsx` | 替换 percentile prefix 三元 → `t("common.percentile_prefix")` |
+| `app/stocks/[symbol]/page.tsx` | 财务表头全 `fin.*`；MACD/Returns 标签；新闻分类标签 → `t("news.*")`；日期使用 `lang` 变量 |
+
+### 新增 i18n Keys
+```
+fin.*: period/revenue/op_profit/net_profit/equity_ratio/reported_at/full_year
+common: percentile_prefix(前/上位/Top) / clear_filter(清除/クリア/Clear)
+theme: sub_categories/active_layers/scored_prefix/run_cmd/not_found/total_stocks/scored_count_label
+sectors: unit_sector/unit_stock_suffix
+stock: hist_label/returns_label/no_financials
+news: no_stock_news/stock_badge
+```
+
+### 已知问题
+- 无新增 CRITICAL
+
+---
+
 ## [8.5 P1.3] - 2026-06-21 — Dashboard & Sectors 三语言清理
 
 ### 目标
