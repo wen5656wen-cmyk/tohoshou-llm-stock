@@ -493,15 +493,18 @@ model AITheme {
   @@map("ai_themes")
 }
 
-// V9 P1: GPT Scoring Overlay — AI chain + TOP100 only
-// V8.6 P1: 7 sub-dimension scores + formula 0.4/0.6
+// V9 P1: GPT Top500 Rerank — finalScore = gptScore (pure GPT, no weighting)
 model GPTScore {
   symbol      String    @id
   model       String    @default("gpt-4o-mini")
 
   ruleScore   Float
   gptScore    Float
-  finalScore  Float     // ruleScore * 0.4 + gptScore * 0.6
+  finalScore  Float     // = gptScore (V9 P1: pure GPT score, no weighting)
+
+  // V9 P1 rerank fields
+  gptRating   String?   // STRONG_BUY | BUY | HOLD | WATCH | AVOID (from finalScore+percentileRank)
+  gptRank     Int?      // rank within Top500 (1 = best, 500 = last in pool)
 
   // 7 GPT sub-dimension scores (0-100, null if not yet scored)
   businessQuality  Int?
@@ -534,6 +537,7 @@ model GPTScore {
   updatedAt   DateTime  @updatedAt
 
   @@index([finalScore(sort: Desc)])
+  @@index([gptRank])
   @@index([updatedAt(sort: Desc)])
   @@map("gpt_scores")
 }

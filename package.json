@@ -52,7 +52,11 @@
     "health:data": "npx tsx scripts/data-health-guard.ts",
     "audit:data": "npx tsx scripts/audit-data-integrity.ts",
     "gpt:score": "npx tsx scripts/gpt-score-overlay.ts",
-    "gpt:score:dry": "npx tsx scripts/gpt-score-overlay.ts --limit=5"
+    "gpt:score:dry": "npx tsx scripts/gpt-score-overlay.ts --limit=5",
+    "rerank:top500": "npx tsx scripts/rerank-top500.ts",
+    "rerank:top500:dry": "npx tsx scripts/rerank-top500.ts --dry-run",
+    "rerank:top500:test": "npx tsx scripts/rerank-top500.ts --limit=5",
+    "rescore": "npm run compute-scores && npm run rerank:top500"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

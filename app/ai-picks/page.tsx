@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy, finalScoreColor } from "@/lib/rec-config";
 import { getTradingActionLabel } from "@/lib/trading-action";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
@@ -21,6 +21,16 @@ type AiScore = {
   globalTrendScore: number;
   recommendation: string;
   summaryReason: string;
+  // V9 P1: GPT rerank
+  finalScore: number | null;
+  gptScore: number | null;
+  gptRating: string | null;
+  gptRank: number | null;
+  hasGPT: boolean;
+  effectiveRating: string;
+  gptSummaryZh: string | null;
+  gptSummaryJa: string | null;
+  gptSummaryEn: string | null;
   return5d: number | null;
   return20d: number | null;
   scoreSource: string;
@@ -92,7 +102,9 @@ function ScoreBar({ score, max = 100, color }: { score: number; max?: number; co
 function DetailCard({ score }: { score: AiScore }) {
   const [open, setOpen] = useState(false);
   const { lang, t } = useI18n();
-  const rec = getRec(score.recommendationV2);
+  const displayScore = score.finalScore ?? score.adaptiveScore;
+  const scoreColorCls = score.hasGPT ? finalScoreColor(displayScore) : getRec(score.recommendationV2).text;
+  const rec = getRec(score.effectiveRating ?? score.recommendationV2);
 
   return (
     <div className={`rounded-2xl border ${rec.border} ${rec.bg} overflow-hidden`}>
@@ -101,8 +113,11 @@ function DetailCard({ score }: { score: AiScore }) {
           {/* Left: score + name */}
           <div className="flex items-start gap-4 min-w-0">
             <div className="text-center min-w-[3rem] shrink-0">
-              <div className={`text-xl font-bold tabular-nums ${rec.text}`}>{score.adaptiveScore.toFixed(0)}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5">{t("picks.adaptive")}</div>
+              <div className={`text-xl font-bold tabular-nums ${scoreColorCls}`}>{displayScore.toFixed(0)}</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">{score.hasGPT ? t("score.final") : t("picks.adaptive")}</div>
+              {score.hasGPT && score.gptRank != null && (
+                <div className="text-[9px] font-bold text-violet-500 mt-0.5">G#{score.gptRank}</div>
+              )}
               {score.percentileRank != null && (
                 <div className="text-[10px] text-slate-400">{t("common.percentile_prefix")} {score.percentileRank.toFixed(1)}%</div>
               )}
@@ -209,9 +224,15 @@ function DetailCard({ score }: { score: AiScore }) {
                   <span className={`font-bold ${rec.text}`}>{getRecommendationLabel(score.recommendationV2, lang)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">{t("picks.adaptive")}</span>
-                  <span className="font-bold tabular-nums">{score.adaptiveScore.toFixed(1)}</span>
+                  <span className="text-slate-400">{score.hasGPT ? t("score.final") : t("picks.adaptive")}</span>
+                  <span className={`font-bold tabular-nums ${scoreColorCls}`}>{displayScore.toFixed(1)}</span>
                 </div>
+                {score.hasGPT && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">{t("picks.adaptive")}</span>
+                    <span className="font-bold tabular-nums text-slate-600">{score.adaptiveScore.toFixed(1)}</span>
+                  </div>
+                )}
                 {score.percentileRank != null && (
                   <div className="flex justify-between">
                     <span className="text-slate-400">{t("picks.percentile_rank")}</span>
@@ -301,7 +322,7 @@ export default function AiPicksPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/ai-scores?mode=${mode}&limit=100`)
+    fetch(`/api/ai-scores?mode=${mode}&limit=200`)
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch((e) => { setError(e.message); setLoading(false); });
@@ -392,7 +413,8 @@ export default function AiPicksPage() {
                   <div className="text-[11px] text-slate-400 truncate">{getSecondaryName(s, lang)}</div>
                 )}
                 <div className="text-[11px] text-slate-500 font-mono mt-0.5 mb-2">{s.symbol}</div>
-                <div className="text-2xl font-bold text-white tabular-nums">{s.adaptiveScore.toFixed(0)}</div>
+                <div className="text-2xl font-bold text-white tabular-nums">{(s.finalScore ?? s.adaptiveScore).toFixed(0)}</div>
+                {s.hasGPT && <div className="text-[10px] text-violet-300 font-medium">GPT #{s.gptRank}</div>}
                 {s.percentileRank != null && (
                   <div className="text-slate-300 text-xs mt-0.5">Top {s.percentileRank.toFixed(1)}% · #{s.marketRank}</div>
                 )}
