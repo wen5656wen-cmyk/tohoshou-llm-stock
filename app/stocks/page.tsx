@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { useI18n } from "@/lib/i18n";
 
 type StockRow = {
   symbol: string;
@@ -73,6 +74,7 @@ function RsiBar({ val }: { val: number | null }) {
 }
 
 export default function StocksPage() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,14 +127,14 @@ export default function StocksPage() {
     <div className="p-6 max-w-7xl">
       <div className="mb-5">
         <h1 className="text-[32px] font-bold text-slate-900 leading-tight">Stocks</h1>
-        <p className="text-sm text-slate-500 mt-0.5">AI评分 TOP500 · {loading ? "加载中..." : error ? "加载失败" : `${rows.length}只`}</p>
+        <p className="text-sm text-slate-500 mt-0.5">AI Score TOP500 · {loading ? t("common.loading") : error ? t("error.fetch_failed") : `${rows.length} ${t("screener.result_count")}`}</p>
       </div>
 
       {/* Search */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5 flex gap-3">
         <input
           type="text"
-          placeholder="搜索：代码（7203）、中文名（丰田）、日文名（トヨタ）"
+          placeholder={t("stocks.search_placeholder")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -141,17 +143,17 @@ export default function StocksPage() {
           href="/indicators"
           className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          ◈ 技术指标排行
+          ◈ {t("nav.indicators")}
         </Link>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 text-sm text-slate-500">
-          {loading ? "加载中..." : error ? <span className="text-red-500">加载失败：{error}</span> : `${filtered.length}只`}
+          {loading ? t("common.loading") : error ? <span className="text-red-500">{t("error.fetch_failed")}: {error}</span> : `${filtered.length} ${t("screener.result_count")}`}
         </div>
         {error && (
-          <div className="px-5 py-8 text-center text-red-500 text-sm">数据加载失败：{error}</div>
+          <div className="px-5 py-8 text-center text-red-500 text-sm">{t("error.fetch_failed")}: {error}</div>
         )}
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -184,7 +186,7 @@ export default function StocksPage() {
               {loading ? (
                 <tr>
                   <td colSpan={11} className="px-5 py-12 text-center text-slate-400 text-sm">
-                    加载中...
+                    {t("common.loading")}
                   </td>
                 </tr>
               ) : filtered.map((s) => (

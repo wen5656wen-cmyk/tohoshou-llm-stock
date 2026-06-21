@@ -1,33 +1,37 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
+import type { MessageKey } from "@/lib/i18n/types";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "仪表盘",
-  "/ai-picks": "AI推荐",
-  "/chat": "AI对话",
-  "/ai-theme": "AI产业链",
-  "/screener": "全市场筛选",
-  "/sync": "数据同步",
-  "/notifications": "通知管理",
-  "/stocks": "股票列表",
-  "/watchlist": "自选股",
-  "/news": "新闻资讯",
-  "/portfolio": "持仓管理",
-  "/indicators": "技术指标",
-  "/sectors": "行业分析",
+const PATH_KEY_MAP: Record<string, MessageKey> = {
+  "/": "nav.dashboard",
+  "/ai-picks": "nav.ai_picks",
+  "/chat": "nav.chat",
+  "/ai-theme": "nav.ai_theme",
+  "/screener": "nav.screener",
+  "/sync": "nav.sync",
+  "/notifications": "nav.notifications",
+  "/stocks": "nav.stocks",
+  "/watchlist": "nav.watchlist",
+  "/news": "nav.news",
+  "/portfolio": "nav.portfolio",
+  "/indicators": "nav.indicators",
+  "/sectors": "nav.sectors",
 };
-
-function getPageTitle(pathname: string): string {
-  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
-  if (pathname.startsWith("/stocks/")) return "个股详情";
-  if (pathname.startsWith("/ai-theme/")) return "产业链详情";
-  return "TOHOSHOU AI";
-}
 
 export default function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
-  const title = getPageTitle(pathname);
+  const { t } = useI18n();
+
+  const titleKey = PATH_KEY_MAP[pathname];
+  const title = titleKey
+    ? t(titleKey)
+    : pathname.startsWith("/stocks/")
+      ? t("tab.overview")
+      : pathname.startsWith("/ai-theme/")
+        ? t("nav.ai_theme")
+        : "TOHOSHOU AI";
 
   return (
     <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#0f1629] border-b border-slate-700/50 h-14 flex items-center px-4 gap-3">
@@ -41,7 +45,7 @@ export default function MobileHeader({ onMenuClick }: { onMenuClick: () => void 
       <button
         onClick={onMenuClick}
         className="shrink-0 w-10 h-10 flex items-center justify-center text-slate-300 hover:text-white rounded-lg hover:bg-slate-700/50 transition-colors"
-        aria-label="导航菜单"
+        aria-label="menu"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>

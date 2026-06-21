@@ -3,6 +3,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import ResponsiveShell from "@/components/mobile/ResponsiveShell";
 import { I18nProvider } from "@/lib/i18n";
+import HtmlLangSync from "@/components/HtmlLangSync";
 
 export const metadata: Metadata = {
   title: "TOHOSHOU AI | 日本AI选股系统",
@@ -18,6 +19,7 @@ export default function RootLayout({
     <html lang="zh">
       <body className="min-h-screen bg-[#f8f9fb]">
         <I18nProvider>
+          <HtmlLangSync />
           <Sidebar />
           <ResponsiveShell>
             {/* pt-14 = mobile header height (56px); pb-20 = mobile bottom nav (80px incl. safe area) */}

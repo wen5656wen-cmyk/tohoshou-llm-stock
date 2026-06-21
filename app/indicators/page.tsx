@@ -31,56 +31,59 @@ function ReturnCell({ val }: { val: number | null }) {
   );
 }
 
-function MaTrend({ trend }: { trend: string }) {
-  const cfg: Record<string, { label: string; cls: string; icon: string }> = {
-    GOLDEN:  { label: "多头趋势", cls: "bg-amber-100 text-amber-700", icon: "✦" },
-    BULLISH: { label: "偏强",     cls: "bg-green-100 text-green-700", icon: "▲" },
-    NEUTRAL: { label: "中性",     cls: "bg-slate-100 text-slate-500", icon: "—" },
-    BEARISH: { label: "偏弱",     cls: "bg-blue-100 text-blue-600",   icon: "▼" },
-    DEAD:    { label: "空头趋势", cls: "bg-red-100 text-red-600",     icon: "✕" },
+import type { MessageKey } from "@/lib/i18n/types";
+type TFn = (key: MessageKey) => string;
+
+function MaTrend({ trend, t }: { trend: string; t: TFn }) {
+  const cfg: Record<string, { labelKey: string; cls: string; icon: string }> = {
+    GOLDEN:  { labelKey: "macd.bullish", cls: "bg-amber-100 text-amber-700", icon: "✦" },
+    BULLISH: { labelKey: "macd.bullish", cls: "bg-green-100 text-green-700", icon: "▲" },
+    NEUTRAL: { labelKey: "macd.neutral", cls: "bg-slate-100 text-slate-500", icon: "—" },
+    BEARISH: { labelKey: "macd.bearish", cls: "bg-blue-100 text-blue-600",   icon: "▼" },
+    DEAD:    { labelKey: "macd.bearish", cls: "bg-red-100 text-red-600",     icon: "✕" },
   };
   const c = cfg[trend] ?? cfg.NEUTRAL;
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${c.cls}`}>
-      <span>{c.icon}</span>{c.label}
+      <span>{c.icon}</span>{t(c.labelKey as MessageKey)}
     </span>
   );
 }
 
 // ── RSI 5-level display ───────────────────────────────────────────────────
-function rsiLevel(val: number): { label: string; color: string; barColor: string } {
-  if (val >= 90) return { label: "极度超买", color: "text-red-600",    barColor: "bg-red-500" };
-  if (val >= 80) return { label: "超买",     color: "text-orange-600", barColor: "bg-orange-400" };
-  if (val >= 70) return { label: "偏热",     color: "text-yellow-600", barColor: "bg-yellow-400" };
-  if (val <= 30) return { label: "超卖",     color: "text-blue-600",   barColor: "bg-blue-400" };
-  return           { label: "正常",     color: "text-green-600",  barColor: "bg-slate-300" };
+function rsiLevel(val: number): { labelKey: string; color: string; barColor: string } {
+  if (val >= 90) return { labelKey: "rsi.extreme_overbought", color: "text-red-600",    barColor: "bg-red-500" };
+  if (val >= 80) return { labelKey: "rsi.overbought",         color: "text-orange-600", barColor: "bg-orange-400" };
+  if (val >= 70) return { labelKey: "rsi.hot",                color: "text-yellow-600", barColor: "bg-yellow-400" };
+  if (val <= 30) return { labelKey: "rsi.oversold",           color: "text-blue-600",   barColor: "bg-blue-400" };
+  return           { labelKey: "rsi.normal",               color: "text-green-600",  barColor: "bg-slate-300" };
 }
 
-function RsiBar({ val }: { val: number | null }) {
+function RsiBar({ val, t }: { val: number | null; t: TFn }) {
   if (val === null) return <span className="text-slate-300 text-xs">—</span>;
-  const { label, color, barColor } = rsiLevel(val);
+  const { labelKey, color, barColor } = rsiLevel(val);
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, val)}%` }} />
       </div>
       <span className="tabular-nums text-xs text-slate-700 w-7">{val.toFixed(0)}</span>
-      <span className={`text-xs font-semibold ${color}`}>{label}</span>
+      <span className={`text-xs font-semibold ${color}`}>{t(labelKey as MessageKey)}</span>
     </div>
   );
 }
 
-// ── MACD → 趋势信号（多头/空头/中性） ─────────────────────────────────────
-function MacdTrendBadge({ sig, hist }: { sig: string; hist: number | null }) {
-  const cfg: Record<string, { label: string; cls: string }> = {
-    BUY:     { label: "多头", cls: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
-    NEUTRAL: { label: "中性", cls: "bg-slate-100 text-slate-400 border border-slate-200" },
-    SELL:    { label: "空头", cls: "bg-red-100 text-red-600 border border-red-200" },
+// ── MACD → trend signal (bullish/bearish/neutral) ──────────────────────────
+function MacdTrendBadge({ sig, hist, t }: { sig: string; hist: number | null; t: TFn }) {
+  const cfg: Record<string, { labelKey: string; cls: string }> = {
+    BUY:     { labelKey: "macd.bullish", cls: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+    NEUTRAL: { labelKey: "macd.neutral", cls: "bg-slate-100 text-slate-400 border border-slate-200" },
+    SELL:    { labelKey: "macd.bearish", cls: "bg-red-100 text-red-600 border border-red-200" },
   };
   const c = cfg[sig] ?? cfg.NEUTRAL;
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>
+      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.cls}`}>{t(c.labelKey as MessageKey)}</span>
       {hist !== null && (
         <span className={`text-xs tabular-nums ${hist >= 0 ? "text-emerald-600" : "text-red-500"}`}>
           {hist >= 0 ? "+" : ""}{hist.toFixed(2)}
@@ -114,7 +117,7 @@ function AiActionBadge({ action, pct, lang }: { action: string | null; pct: numb
 }
 
 export default function IndicatorsPage() {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const [data, setData] = useState<StockIndicator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -164,11 +167,11 @@ export default function IndicatorsPage() {
   return (
     <div className="p-6 max-w-7xl">
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-slate-900">技术指标排行</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("ind.title")}</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          {loading ? "加载中..." : error
-            ? <span className="text-red-500">加载失败：{error}</span>
-            : `StockScore TOP ${data.length}只 · RSI(14) · MACD趋势信号 · AI交易动作`
+          {loading ? t("common.loading") : error
+            ? <span className="text-red-500">{t("common.load_error")}: {error}</span>
+            : `StockScore TOP ${data.length} · RSI(14) · MACD · ${t("ind.col_ai_action")}`
           }
         </p>
       </div>
@@ -176,13 +179,13 @@ export default function IndicatorsPage() {
       {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
           {[
-            { label: "MACD 多头",     value: macdBullCount,  total: data.length, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
-            { label: "MACD 空头",     value: macdBearCount,  total: data.length, color: "text-red-600",     bg: "bg-red-50 border-red-200" },
-            { label: "均线上涨",      value: goldenCount,    total: data.length, color: "text-green-600",   bg: "bg-green-50 border-green-200" },
-            { label: "极度超买≥90",   value: extremeOB,      total: data.length, color: "text-red-700",     bg: "bg-red-50 border-red-300" },
-            { label: "偏热/超买70-89",value: overbought,     total: data.length, color: "text-orange-600",  bg: "bg-orange-50 border-orange-200" },
-            { label: "RSI超卖≤30",    value: oversold,       total: data.length, color: "text-indigo-600",  bg: "bg-indigo-50 border-indigo-200" },
-            { label: "AI 立即买入",   value: buyNowCount,    total: data.length, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-300" },
+            { label: t("ind.macd_bullish_count"), value: macdBullCount,  total: data.length, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
+            { label: t("ind.macd_bearish_count"), value: macdBearCount,  total: data.length, color: "text-red-600",     bg: "bg-red-50 border-red-200" },
+            { label: t("ind.ma_up"),              value: goldenCount,    total: data.length, color: "text-green-600",   bg: "bg-green-50 border-green-200" },
+            { label: t("ind.extreme_overbought"), value: extremeOB,      total: data.length, color: "text-red-700",     bg: "bg-red-50 border-red-300" },
+            { label: t("ind.overbought_range"),   value: overbought,     total: data.length, color: "text-orange-600",  bg: "bg-orange-50 border-orange-200" },
+            { label: t("ind.oversold"),           value: oversold,       total: data.length, color: "text-indigo-600",  bg: "bg-indigo-50 border-indigo-200" },
+            { label: t("ind.ai_buy_now"),         value: buyNowCount,    total: data.length, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-300" },
           ].map((s) => (
             <div key={s.label} className={`rounded-xl border shadow-sm p-3 ${s.bg}`}>
               <div className="text-xs text-slate-500 mb-1 leading-tight">{s.label}</div>
@@ -198,17 +201,17 @@ export default function IndicatorsPage() {
       {/* RSI explanation banner */}
       {!loading && (
         <div className="flex items-center gap-3 flex-wrap mb-4 text-xs text-slate-500 bg-slate-50 rounded-xl px-4 py-2 border border-slate-200">
-          <span className="font-medium text-slate-600">RSI分级：</span>
-          <span className="text-blue-600 font-semibold">超卖 ≤30</span>
+          <span className="font-medium text-slate-600">{t("ind.rsi_legend")}：</span>
+          <span className="text-blue-600 font-semibold">{t("rsi.oversold")} ≤30</span>
           <span className="text-slate-300">|</span>
-          <span className="text-green-600 font-semibold">正常 30-70</span>
+          <span className="text-green-600 font-semibold">{t("rsi.normal")} 30-70</span>
           <span className="text-slate-300">|</span>
-          <span className="text-yellow-600 font-semibold">偏热 70-80</span>
+          <span className="text-yellow-600 font-semibold">{t("rsi.hot")} 70-80</span>
           <span className="text-slate-300">|</span>
-          <span className="text-orange-600 font-semibold">超买 80-90</span>
+          <span className="text-orange-600 font-semibold">{t("rsi.overbought")} 80-90</span>
           <span className="text-slate-300">|</span>
-          <span className="text-red-600 font-semibold">极度超买 ≥90</span>
-          <span className="ml-3 text-slate-400">· MACD显示趋势方向，不代表买卖建议 · 买卖动作以AI交易动作为准</span>
+          <span className="text-red-600 font-semibold">{t("rsi.extreme_overbought")} ≥90</span>
+          <span className="ml-3 text-slate-400">· {t("ind.macd_note")}</span>
         </div>
       )}
 
@@ -222,11 +225,11 @@ export default function IndicatorsPage() {
                 activeView === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              {v === "ranking" ? "排行榜" : "热力图"}
+              {v === "ranking" ? t("ind.ranking") : t("ind.heatmap")}
             </button>
           ))}
         </div>
-        <span className="text-xs text-slate-400">基准日：{data[0]?.latestDate ?? "—"}</span>
+        <span className="text-xs text-slate-400">{t("ind.base_date")}：{data[0]?.latestDate ?? "—"}</span>
       </div>
 
       {/* Ranking Table */}
@@ -236,30 +239,29 @@ export default function IndicatorsPage() {
             <table className="w-full">
               <thead>
                 <tr className="text-left text-xs text-slate-400 border-b border-slate-100 bg-slate-50">
-                  <th className="px-5 py-3 font-medium">股票</th>
+                  <th className="px-5 py-3 font-medium">{t("screener.col_stock")}</th>
                   <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("latestClose")}>
-                    股价<SortIcon col="latestClose" />
+                    {t("screener.col_price")}<SortIcon col="latestClose" />
                   </th>
                   <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return5d")}>
-                    5日<SortIcon col="return5d" />
+                    {t("stock.5d_return")}<SortIcon col="return5d" />
                   </th>
                   <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return20d")}>
-                    20日<SortIcon col="return20d" />
+                    {t("screener.col_20d")}<SortIcon col="return20d" />
                   </th>
                   <th className="px-3 py-3 font-medium text-right cursor-pointer hover:text-slate-700" onClick={() => toggleSort("return60d")}>
-                    60日<SortIcon col="return60d" />
+                    {t("stock.60d_return")}<SortIcon col="return60d" />
                   </th>
-                  <th className="px-3 py-3 font-medium">均线趋势</th>
+                  <th className="px-3 py-3 font-medium">{t("ind.col_ma_trend")}</th>
                   <th className="px-3 py-3 font-medium cursor-pointer hover:text-slate-700" onClick={() => toggleSort("rsi14")}>
-                    RSI(14)<SortIcon col="rsi14" />
+                    {t("ind.col_rsi")}<SortIcon col="rsi14" />
                   </th>
                   <th className="px-3 py-3 font-medium">
-                    <span className="text-slate-600">趋势信号</span>
-                    <span className="block text-[10px] text-slate-400 font-normal">MACD方向</span>
+                    <span className="text-slate-600">{t("ind.col_trend_signal")}</span>
+                    <span className="block text-[10px] text-slate-400 font-normal">MACD</span>
                   </th>
                   <th className="px-3 py-3 font-medium">
-                    <span className="text-slate-600">AI交易动作</span>
-                    <span className="block text-[10px] text-slate-400 font-normal">买卖以此为准</span>
+                    <span className="text-slate-600">{t("ind.col_ai_action")}</span>
                   </th>
                 </tr>
               </thead>
@@ -267,19 +269,19 @@ export default function IndicatorsPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={9} className="px-5 py-12 text-center text-slate-400 text-sm animate-pulse">
-                      加载中...
+                      {t("common.loading")}
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
                     <td colSpan={9} className="px-5 py-12 text-center text-red-500 text-sm">
-                      数据加载失败：{error}
+                      {t("common.load_error")}: {error}
                     </td>
                   </tr>
                 ) : sorted.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-5 py-12 text-center text-slate-400 text-sm">
-                      暂无指标数据，请先运行评分计算
+                      {t("common.no_data")}
                     </td>
                   </tr>
                 ) : sorted.map((s, idx) => (
@@ -306,9 +308,9 @@ export default function IndicatorsPage() {
                     <td className="px-3 py-3 text-right"><ReturnCell val={s.return5d} /></td>
                     <td className="px-3 py-3 text-right"><ReturnCell val={s.return20d} /></td>
                     <td className="px-3 py-3 text-right"><ReturnCell val={s.return60d} /></td>
-                    <td className="px-3 py-3"><MaTrend trend={s.maTrend} /></td>
-                    <td className="px-3 py-3"><RsiBar val={s.rsi14} /></td>
-                    <td className="px-3 py-3"><MacdTrendBadge sig={s.macdSignalLabel} hist={s.macdHist} /></td>
+                    <td className="px-3 py-3"><MaTrend trend={s.maTrend} t={t} /></td>
+                    <td className="px-3 py-3"><RsiBar val={s.rsi14} t={t} /></td>
+                    <td className="px-3 py-3"><MacdTrendBadge sig={s.macdSignalLabel} hist={s.macdHist} t={t} /></td>
                     <td className="px-3 py-3">
                       <AiActionBadge action={s.tradingAction} pct={s.positionSizePct} lang={lang} />
                     </td>
@@ -358,7 +360,7 @@ export default function IndicatorsPage() {
                 const bg = v >= 50
                   ? `rgba(231, 76, 60, ${0.05 + excess * 0.4})`
                   : `rgba(41, 128, 185, ${0.05 + deficit * 0.4})`;
-                const { label, color } = rsiLevel(v);
+                const { labelKey, color } = rsiLevel(v);
                 return (
                   <Link key={s.symbol} href={`/stocks/${encodeURIComponent(s.symbol)}`}
                     className="rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ backgroundColor: bg }}>
@@ -367,7 +369,7 @@ export default function IndicatorsPage() {
                     <div className={`text-xl font-bold tabular-nums ${color}`}>
                       {v.toFixed(1)}
                     </div>
-                    <div className={`text-xs font-semibold mt-1 ${color}`}>{label}</div>
+                    <div className={`text-xs font-semibold mt-1 ${color}`}>{t(labelKey as MessageKey)}</div>
                   </Link>
                 );
               })}

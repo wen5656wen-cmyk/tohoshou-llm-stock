@@ -106,15 +106,16 @@ type StockData = {
 function RadarChart({ tech, fund, money, news, global: glob }: {
   tech: number; fund: number; money: number; news: number; global: number;
 }) {
+  const { t } = useI18n();
   const cx = 130, cy = 130, r = 90;
   const maxes = [30, 25, 20, 15, 10];
   const scores = [tech, fund, money, news, glob];
   const labels = [
-    { text: "技術面", sub: "/30" },
-    { text: "基本面", sub: "/25" },
-    { text: "資金面", sub: "/20" },
-    { text: "情绪",   sub: "/15" },
-    { text: "趋势",   sub: "/10" },
+    { text: t("dim.technical"), sub: "/30" },
+    { text: t("dim.fundamental"), sub: "/25" },
+    { text: t("dim.money_flow"), sub: "/20" },
+    { text: t("dim.sentiment"), sub: "/15" },
+    { text: t("dim.global"), sub: "/10" },
   ];
   const n = 5;
   const angle = (i: number) => (2 * Math.PI * i / n) - Math.PI / 2;
@@ -222,10 +223,11 @@ function MaTrendBadge({ trend }: { trend: string }) {
   return <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.cls}`}>{c.label}</span>;
 }
 
-function fmtBillion(v: number | null): string {
+function fmtBillion(v: number | null, lang?: string): string {
   if (v === null) return "—";
-  if (Math.abs(v) >= 1e12) return (v / 1e12).toFixed(1) + "兆";
-  if (Math.abs(v) >= 1e8)  return (v / 1e8).toFixed(1) + "亿";
+  const isEn = lang === "en-US";
+  if (Math.abs(v) >= 1e12) return (v / 1e12).toFixed(1) + (isEn ? "T" : "兆");
+  if (Math.abs(v) >= 1e8)  return (v / 1e8).toFixed(1)  + (isEn ? "B" : "亿");
   return v.toLocaleString();
 }
 
@@ -708,9 +710,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         <td className="px-5 py-2.5 text-sm font-medium text-slate-900">
                           {f.fiscalYear}年{f.quarter ? ` Q${f.quarter}` : " 全年"}
                         </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.revenue)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.operatingProfit)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.netProfit)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.revenue, lang)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.operatingProfit, lang)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">{fmtBillion(f.netProfit, lang)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-sm text-slate-700">
                           {f.eps != null ? `¥${f.eps.toFixed(2)}` : "—"}
                         </td>

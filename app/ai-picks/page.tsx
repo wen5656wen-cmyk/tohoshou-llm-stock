@@ -90,7 +90,7 @@ function ScoreBar({ score, max = 100, color }: { score: number; max?: number; co
 
 function DetailCard({ score }: { score: AiScore }) {
   const [open, setOpen] = useState(false);
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const rec = getRec(score.recommendationV2);
 
   return (
@@ -140,7 +140,7 @@ function DetailCard({ score }: { score: AiScore }) {
                 })()}
                 {score.stockStyle && (
                   <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-                    {STYLE_LABEL[score.stockStyle] ?? score.stockStyle}
+                    {t(`style.short.${score.stockStyle}` as Parameters<typeof t>[0]) || score.stockStyle}
                   </span>
                 )}
               </div>
@@ -220,12 +220,12 @@ function DetailCard({ score }: { score: AiScore }) {
                 {score.opportunityScore != null && (
                   <div className="flex justify-between">
                     <span className="text-slate-400">Opportunity</span>
-                    <span className="font-bold tabular-nums">{score.opportunityScore.toFixed(1)}{score.opportunityLabel ? ` · ${score.opportunityLabel === "STEADY" ? "稳健" : "高风险"}` : ""}</span>
+                    <span className="font-bold tabular-nums">{score.opportunityScore.toFixed(1)}{score.opportunityLabel ? ` · ${score.opportunityLabel === "STEADY" ? t("stock.steady") : t("stock.high_risk")}` : ""}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-slate-400">Style</span>
-                  <span>{score.stockStyle ? (STYLE_LABEL[score.stockStyle] ?? score.stockStyle) : "—"}</span>
+                  <span>{score.stockStyle ? t(`style.${score.stockStyle}` as Parameters<typeof t>[0]) || score.stockStyle : "—"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">20D</span>
@@ -233,7 +233,7 @@ function DetailCard({ score }: { score: AiScore }) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Source</span>
-                  <span>{SOURCE_BADGE[score.scoreSource] ?? score.scoreSource}</span>
+                  <span>{t(`stock.score_source.${score.scoreSource}` as Parameters<typeof t>[0]) || score.scoreSource}</span>
                 </div>
               </div>
             </div>
@@ -246,7 +246,7 @@ function DetailCard({ score }: { score: AiScore }) {
                 <p className="text-xs text-slate-500 leading-relaxed">{score.summaryReason}</p>
               )}
               {!score.recommendationReason && !score.summaryReason && (
-                <p className="text-xs text-slate-300">暂无AI分析摘要</p>
+                <p className="text-xs text-slate-300">{t("common.no_data")}</p>
               )}
             </div>
           </div>
@@ -257,30 +257,31 @@ function DetailCard({ score }: { score: AiScore }) {
 }
 
 function MarketTemperatureBanner({ stats }: { stats: MarketStats }) {
-  const t = TEMP_CFG[stats.marketTemperature] ?? TEMP_CFG.NEUTRAL;
+  const { t } = useI18n();
+  const tempCfg = TEMP_CFG[stats.marketTemperature] ?? TEMP_CFG.NEUTRAL;
   return (
-    <div className={`rounded-2xl border p-4 mb-6 ${t.bg}`}>
+    <div className={`rounded-2xl border p-4 mb-6 ${tempCfg.bg}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{t.emoji}</span>
+          <span className="text-2xl">{tempCfg.emoji}</span>
           <div>
-            <div className={`font-bold text-base ${t.color}`}>{t.label}</div>
+            <div className={`font-bold text-base ${tempCfg.color}`}>{t(`temp.${stats.marketTemperature}` as Parameters<typeof t>[0]) || tempCfg.label}</div>
             <div className="text-xs text-slate-500 mt-0.5">
-              BUY合计 {stats.bullCount}只（{stats.bullRate}%）· 共 {stats.total}只评估标的
+              {stats.bullCount} {t("screener.bull_count")} ({stats.bullRate}%) · {stats.total} {t("screener.result_count")}
             </div>
           </div>
         </div>
         <div className="flex gap-4 text-center">
-          {[
-            { label: "STRONG BUY", value: stats.strongBuy, cls: "text-emerald-600" },
-            { label: "BUY",        value: stats.buy,       cls: "text-blue-600" },
-            { label: "HOLD",       value: stats.hold,      cls: "text-slate-500" },
-            { label: "WATCH",      value: stats.watch,     cls: "text-amber-600" },
-            { label: "AVOID",      value: stats.avoid,     cls: "text-red-500" },
-          ].map((s) => (
-            <div key={s.label}>
+          {([
+            { key: "STRONG_BUY", value: stats.strongBuy, cls: "text-emerald-600" },
+            { key: "BUY",        value: stats.buy,       cls: "text-blue-600" },
+            { key: "HOLD",       value: stats.hold,      cls: "text-slate-500" },
+            { key: "WATCH",      value: stats.watch,     cls: "text-amber-600" },
+            { key: "AVOID",      value: stats.avoid,     cls: "text-red-500" },
+          ] as const).map((s) => (
+            <div key={s.key}>
               <div className={`text-xl font-bold tabular-nums ${s.cls}`}>{s.value}</div>
-              <div className="text-[10px] text-slate-400">{s.label}</div>
+              <div className="text-[10px] text-slate-400">{t(`rating.${s.key}` as Parameters<typeof t>[0])}</div>
             </div>
           ))}
         </div>
@@ -395,7 +396,7 @@ export default function AiPicksPage() {
                   <div className="text-slate-300 text-xs mt-0.5">Top {s.percentileRank.toFixed(1)}% · #{s.marketRank}</div>
                 )}
                 {s.stockStyle && (
-                  <div className="mt-1 text-[10px] text-slate-400">{STYLE_LABEL[s.stockStyle] ?? s.stockStyle}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0]) || s.stockStyle}</div>
                 )}
               </Link>
             );

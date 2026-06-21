@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import StockMobileCard from "@/components/StockMobileCard";
 import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
+import { useI18n } from "@/lib/i18n";
 
 type Score = {
   symbol: string; name: string; nameZh: string | null; market: string | null;
@@ -38,22 +39,7 @@ type Stats = {
 
 type ApiResponse = { stats: Stats; scores: Score[] };
 
-const STYLE_SHORT: Record<string, string> = {
-  QUALITY_COMPOUNDER:   "质优",
-  GROWTH_MOMENTUM:      "成长",
-  CYCLICAL_EXPORTER:    "周期",
-  VALUE_DEFENSIVE:      "价值",
-  DOMESTIC_DEFENSIVE:   "内需",
-  SPECULATIVE_MOMENTUM: "投机",
-};
-
-const TEMP_LABEL: Record<string, string> = {
-  HOT:          "🔥 Over-heated",
-  WARM:         "☀️ Warm",
-  NEUTRAL:      "🌤 Neutral",
-  COLD:         "❄️ Cold",
-  EXTREME_COLD: "🧊 Extreme Cold",
-};
+const STYLE_KEYS = ["QUALITY_COMPOUNDER", "GROWTH_MOMENTUM", "CYCLICAL_EXPORTER", "VALUE_DEFENSIVE", "DOMESTIC_DEFENSIVE", "SPECULATIVE_MOMENTUM"] as const;
 
 function MktChip({ mkt }: { mkt: string | null }) {
   if (!mkt) return null;
@@ -67,6 +53,7 @@ function MktChip({ mkt }: { mkt: string | null }) {
 type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14";
 
 export default function ScreenerPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [searchData, setSearchData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,7 +95,7 @@ export default function ScreenerPage() {
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center h-64">
-      <div className="text-slate-400 text-sm animate-pulse">筛选器加载中...</div>
+      <div className="text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
     </div>
   );
   if (error || !data) return (
@@ -172,11 +159,11 @@ export default function ScreenerPage() {
   return (
     <div className="p-4 md:p-6 max-w-[1500px]">
       <div className="mb-4">
-        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">Screener</h1>
+        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("screener.title")}</h1>
         <p className="text-sm font-medium text-slate-500 mt-1">
-          {TEMP_LABEL[stats.marketTemperature] ?? stats.marketTemperature}
-          　BUY {stats.bullCount} ({stats.bullRate}%)　{stats.total} stocks
-          {stats.lastComputedAt && `　Updated: ${new Date(stats.lastComputedAt).toLocaleString("zh-CN")}`}
+          {t(`temp.${stats.marketTemperature}` as Parameters<typeof t>[0]) ?? stats.marketTemperature}
+          　{t("screener.bull_count")} {stats.bullCount} ({stats.bullRate}%)　{stats.total} {t("screener.result_count")}
+          {stats.lastComputedAt && `　${t("screener.updated")}: ${new Date(stats.lastComputedAt).toLocaleString()}`}
         </p>
       </div>
 
@@ -217,17 +204,17 @@ export default function ScreenerPage() {
 
         {/* style filter */}
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {(["ALL", "QUALITY_COMPOUNDER", "GROWTH_MOMENTUM", "CYCLICAL_EXPORTER", "VALUE_DEFENSIVE", "DOMESTIC_DEFENSIVE", "SPECULATIVE_MOMENTUM"] as const).map((s) => (
+          {(["ALL", ...STYLE_KEYS] as const).map((s) => (
             <button key={s} onClick={() => setStyleFilter(s)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${styleFilter === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-              {s === "ALL" ? "All Styles" : (STYLE_SHORT[s] ?? s)}
+              {s === "ALL" ? t("screener.all_styles") : t(`style.short.${s}` as Parameters<typeof t>[0])}
             </button>
           ))}
         </div>
 
         {/* market filter */}
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {[{ k: "ALL", l: "All" }, { k: "Prime", l: "Prime" }, { k: "Standard", l: "Std" }, { k: "Growth", l: "Growth" }].map(({ k, l }) => (
+          {[{ k: "ALL", l: t("screener.all_markets") }, { k: "Prime", l: "Prime" }, { k: "Standard", l: "Std" }, { k: "Growth", l: "Growth" }].map(({ k, l }) => (
             <button key={k} onClick={() => setMktFilter(k)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${mktFilter === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
               {l}
@@ -238,7 +225,7 @@ export default function ScreenerPage() {
         <div className="relative">
           <input
             type="text"
-            placeholder="Code / Name..."
+            placeholder={t("screener.search_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="border border-slate-200 rounded-xl px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-blue-400 w-52"
@@ -253,11 +240,11 @@ export default function ScreenerPage() {
 
         <span className="text-xs text-slate-400 ml-auto">
           {searchLoading ? (
-            <span className="animate-pulse">Searching…</span>
+            <span className="animate-pulse">{t("screener.searching")}</span>
           ) : search.trim() ? (
-            `"${search}" → ${filtered.length} stocks`
+            `"${search}" → ${filtered.length} ${t("screener.result_count")}`
           ) : (
-            `${filtered.length} stocks · BUY ${buyCount}`
+            `${filtered.length} ${t("screener.result_count")} · ${t("screener.bull_count")} ${buyCount}`
           )}
         </span>
       </div>
@@ -269,7 +256,7 @@ export default function ScreenerPage() {
         ))}
         {filtered.length === 0 && (
           <div className="py-12 text-center text-slate-400 text-sm">
-            {searchLoading ? "Searching…" : search.trim() ? `No results for "${search}"` : "No stocks match filter"}
+            {searchLoading ? t("screener.searching") : t("screener.no_results")}
           </div>
         )}
       </div>
@@ -281,20 +268,20 @@ export default function ScreenerPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-left text-xs text-slate-400">
                 <th className="px-3 py-2.5 font-medium w-6 text-right">#</th>
-                <th className="px-3 py-2.5 font-medium">Stock</th>
-                <th className="px-2 py-2.5 font-medium">Mkt</th>
-                <th className="px-2 py-2.5 font-medium">Style</th>
-                <th className="px-3 py-2.5 font-medium text-right">Price</th>
-                <ThBtn col="return20d"        label="20D" />
-                <ThBtn col="adaptiveScore"    label="Adaptive" />
-                <ThBtn col="percentileRank"   label="Percentile" />
-                <ThBtn col="opportunityScore" label="Opportunity" />
-                <th className="px-2 py-2.5 font-medium text-right">Tech</th>
-                <th className="px-2 py-2.5 font-medium text-right">Fund</th>
-                <th className="px-2 py-2.5 font-medium text-right">Flow</th>
-                <th className="px-2 py-2.5 font-medium text-right">News</th>
+                <th className="px-3 py-2.5 font-medium">{t("screener.col_stock")}</th>
+                <th className="px-2 py-2.5 font-medium">{t("screener.col_market")}</th>
+                <th className="px-2 py-2.5 font-medium">{t("screener.col_style")}</th>
+                <th className="px-3 py-2.5 font-medium text-right">{t("screener.col_price")}</th>
+                <ThBtn col="return20d"        label={t("screener.col_20d")} />
+                <ThBtn col="adaptiveScore"    label={t("screener.col_adaptive")} />
+                <ThBtn col="percentileRank"   label={t("screener.col_percentile")} />
+                <ThBtn col="opportunityScore" label={t("screener.col_opportunity")} />
+                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_tech")}</th>
+                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_fund")}</th>
+                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_flow")}</th>
+                <th className="px-2 py-2.5 font-medium text-right">{t("screener.col_news")}</th>
                 <ThBtn col="rsi14" label="RSI" />
-                <th className="px-2 py-2.5 font-medium text-center">Rating</th>
+                <th className="px-2 py-2.5 font-medium text-center">{t("screener.col_rating")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -318,7 +305,7 @@ export default function ScreenerPage() {
                     <td className="px-2 py-2"><MktChip mkt={s.market} /></td>
                     <td className="px-2 py-2">
                       {s.stockStyle ? (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500">{STYLE_SHORT[s.stockStyle] ?? s.stockStyle}</span>
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-500">{t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}</span>
                       ) : <span className="text-slate-300 text-xs">—</span>}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-sm font-medium text-slate-900">
@@ -358,12 +345,12 @@ export default function ScreenerPage() {
         </div>
         {filtered.length === 0 && (
           <div className="py-12 text-center text-slate-400 text-sm">
-            {searchLoading ? "Searching…" : search.trim() ? `No results for "${search}"` : "No stocks match filter"}
+            {searchLoading ? t("screener.searching") : t("screener.no_results")}
           </div>
         )}
       </div>
       <div className="mt-3 text-xs text-slate-400 text-center">
-        No keyword: top 200 by score. With keyword: search all 3714 stocks. Click column headers to sort.
+        {t("screener.hint")}
       </div>
     </div>
   );

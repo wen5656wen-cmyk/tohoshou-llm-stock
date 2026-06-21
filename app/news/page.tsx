@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import NewsCard from "@/components/NewsCard";
+import { useI18n } from "@/lib/i18n";
 
 type NewsItem = {
   id: number;
@@ -22,6 +23,7 @@ type CategoryKey = "ALL" | "EARNINGS" | "GUIDANCE" | "DIVIDEND" | "BUYBACK" | "I
 type SourceKey = "ALL" | "STOCK" | "MARKET_ONLY";
 
 export default function NewsPage() {
+  const { t } = useI18n();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sentiment, setSentiment] = useState<SentimentKey>("ALL");
@@ -39,7 +41,6 @@ export default function NewsPage() {
     const data = await res.json();
     const items: NewsItem[] = Array.isArray(data) ? data : [];
 
-    // Client-side: filter market-only
     const filtered = source === "MARKET_ONLY"
       ? items.filter((n) => n.relatedSymbolConfidence < 70)
       : items;
@@ -50,41 +51,18 @@ export default function NewsPage() {
 
   useEffect(() => { fetchNews(); }, [fetchNews]);
 
-  const SENTIMENTS: { key: SentimentKey; label: string }[] = [
-    { key: "ALL", label: "全部" },
-    { key: "POSITIVE", label: "🟢 利好" },
-    { key: "NEGATIVE", label: "🔴 利空" },
-    { key: "NEUTRAL", label: "⚪ 中性" },
-  ];
-
-  const CATEGORIES: { key: CategoryKey; label: string }[] = [
-    { key: "ALL", label: "全分类" },
-    { key: "EARNINGS", label: "決算" },
-    { key: "GUIDANCE", label: "業績修正" },
-    { key: "DIVIDEND", label: "配当" },
-    { key: "BUYBACK", label: "自己株" },
-    { key: "IR", label: "IR開示" },
-    { key: "MARKET", label: "市場" },
-  ];
-
-  const SOURCES: { key: SourceKey; label: string }[] = [
-    { key: "ALL", label: "全部来源" },
-    { key: "STOCK", label: "個株専属 ≥70%" },
-    { key: "MARKET_ONLY", label: "市場ニュース" },
-  ];
-
   return (
     <div className="p-6 max-w-4xl">
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-slate-900">新闻资讯</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("news.title")}</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Yahoo Finance Japan · Kabutan · TDnet 適時開示
+          Yahoo Finance Japan · Kabutan · TDnet
         </p>
       </div>
 
       {/* Filter row 1: sentiment + source */}
       <div className="flex flex-wrap gap-2 mb-3">
-        {SENTIMENTS.map(({ key, label }) => (
+        {(["ALL", "POSITIVE", "NEGATIVE", "NEUTRAL"] as SentimentKey[]).map((key) => (
           <button
             key={key}
             onClick={() => setSentiment(key)}
@@ -94,11 +72,11 @@ export default function NewsPage() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            {label}
+            {key === "ALL" ? t("news.all") : key === "POSITIVE" ? t("news.positive") : key === "NEGATIVE" ? t("news.negative") : t("news.neutral")}
           </button>
         ))}
         <div className="w-px bg-slate-200 mx-1 self-stretch" />
-        {SOURCES.map(({ key, label }) => (
+        {(["ALL", "STOCK", "MARKET_ONLY"] as SourceKey[]).map((key) => (
           <button
             key={key}
             onClick={() => setSource(key)}
@@ -108,14 +86,14 @@ export default function NewsPage() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            {label}
+            {key === "ALL" ? t("news.all_sources") : key === "STOCK" ? t("news.stock_specific") : t("news.market_only")}
           </button>
         ))}
       </div>
 
       {/* Filter row 2: category */}
       <div className="flex flex-wrap gap-2 mb-5">
-        {CATEGORIES.map(({ key, label }) => (
+        {(["ALL", "EARNINGS", "GUIDANCE", "DIVIDEND", "BUYBACK", "IR", "MARKET"] as CategoryKey[]).map((key) => (
           <button
             key={key}
             onClick={() => setCategory(key)}
@@ -125,16 +103,21 @@ export default function NewsPage() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
-            {label}
+            {key === "ALL" ? t("news.all_categories") :
+             key === "EARNINGS" ? t("news.earnings") :
+             key === "GUIDANCE" ? t("news.guidance") :
+             key === "DIVIDEND" ? t("news.dividend") :
+             key === "BUYBACK" ? t("news.buyback") :
+             key === "IR" ? t("news.ir") : t("news.market_cat")}
           </button>
         ))}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-400 text-sm animate-pulse">加载中...</div>
+          <div className="p-8 text-center text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
         ) : news.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">暂无新闻数据</div>
+          <div className="p-8 text-center text-slate-400 text-sm">{t("news.no_data")}</div>
         ) : (
           news.map((n) => <NewsCard key={n.id} news={n} />)
         )}

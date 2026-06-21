@@ -290,7 +290,7 @@ export default function WatchListPage() {
                       <span className="text-[12px] text-[#64748b] font-mono">{item.symbol}</span>
                       {s?.recommendation && (
                         <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                          {rec.label}
+                          {t(`rating.${s.recommendation}` as Parameters<typeof t>[0])}
                         </span>
                       )}
                     </div>
