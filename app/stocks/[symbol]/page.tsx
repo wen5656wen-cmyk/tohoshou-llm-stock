@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
 import { getRec, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getNameLines } from "@/lib/i18n/stock-name";
 import { localeSector, localeMarket } from "@/lib/i18n/market-labels";
+import { getBackHref, getBackLabel } from "@/lib/navigation/back";
 
 type PricePoint = { date: string; open?: number; high?: number; low?: number; close: number; volume?: number };
 
@@ -361,6 +363,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const { symbol } = use(params);
   const decoded = decodeURIComponent(symbol);
   const { t, lang } = useI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
+  const source = searchParams.get("source");
+  const backHref = getBackHref(returnTo, source, "/screener");
+  const backLabel = getBackLabel(source, lang);
 
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -472,7 +480,20 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <Link href="/stocks" className="text-xs text-slate-400 hover:text-slate-600">{t("stock.back_to_list")}</Link>
+          <button
+            onClick={() => {
+              if (returnTo) {
+                router.push(returnTo);
+              } else if (typeof window !== "undefined" && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push("/screener");
+              }
+            }}
+            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            ← {backLabel}
+          </button>
           <button
             onClick={toggleWatch}
             disabled={watchLoading}

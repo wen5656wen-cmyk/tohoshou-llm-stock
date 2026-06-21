@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { localeSector } from "@/lib/i18n/market-labels";
@@ -253,7 +254,7 @@ export default function SectorsPage() {
                           return (
                             <Link
                               key={tk.symbol}
-                              href={`/stocks/${encodeURIComponent(tk.symbol)}`}
+                              href={buildStockUrl(tk.symbol, "sectors", "/sectors")}
                               onClick={(e) => e.stopPropagation()}
                               className={`text-[10px] hover:underline ${rc.text}`}
                               title={tk.name}
@@ -278,7 +279,7 @@ export default function SectorsPage() {
                             return (
                               <Link
                                 key={topStock.symbol}
-                                href={`/stocks/${encodeURIComponent(topStock.symbol)}`}
+                                href={buildStockUrl(topStock.symbol, "sectors", "/sectors")}
                                 className={`text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-300 ${rc.text}`}
                               >
                                 {getPrimaryName(topStock, lang)}（{topStock.totalScore}）

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import StockMobileCard from "@/components/StockMobileCard";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
@@ -57,6 +59,7 @@ type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentile
 export default function ScreenerPage() {
   const { t, lang } = useI18n();
   useScrollRestoration("screener");
+  const pathname = usePathname();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [searchData, setSearchData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,7 +259,7 @@ export default function ScreenerPage() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-2 mb-4">
         {filtered.slice(0, 200).map((s, idx) => (
-          <StockMobileCard key={s.symbol} s={s} rank={idx + 1} />
+          <StockMobileCard key={s.symbol} s={s} rank={idx + 1} href={buildStockUrl(s.symbol, "screener", pathname)} />
         ))}
         {filtered.length === 0 && (
           <div className="py-12 text-center text-slate-400 text-sm">
@@ -298,7 +301,7 @@ export default function ScreenerPage() {
                   <tr key={s.symbol} className={`hover:bg-slate-50 transition-colors ${s.highRiskFlag ? "bg-red-50/30" : ""}`}>
                     <td className="px-3 py-2 text-right text-xs text-slate-300 tabular-nums">{idx + 1}</td>
                     <td className="px-3 py-2 min-w-[160px]">
-                      <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
+                      <Link href={buildStockUrl(s.symbol, "screener", pathname)} className="block group">
                         <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
                           {getPrimaryName(s, lang)}
                           {s.highRiskFlag && <span className="ml-1 text-[10px] text-red-400">⚠</span>}

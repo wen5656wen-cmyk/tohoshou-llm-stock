@@ -166,13 +166,6 @@ export default function IndicatorsPage() {
 
   return (
     <div className="p-6 max-w-7xl">
-      {/* Merged notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5 flex items-center justify-between gap-4">
-        <span className="text-sm text-blue-700">{t("page.merged_screener")}</span>
-        <Link href="/screener?sort=technical" className="shrink-0 text-xs font-medium text-blue-600 bg-white border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-          {t("page.go_screener")} →
-        </Link>
-      </div>
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900">{t("ind.title")}</h1>
         <p className="text-sm text-slate-500 mt-0.5">

@@ -269,14 +269,24 @@ const CRON_SCHEDULE = [
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function SyncPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [data, setData] = useState<StatusData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyncResult>>({});
   const [jobs, setJobs] = useState<Record<string, JobStatus>>({});
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string, ok: boolean) => {
+    setToast({ msg, ok });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  };
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -298,11 +308,28 @@ export default function SyncPage() {
     } catch { /* non-critical */ }
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchStatus(), fetchHealth()]);
+      setRefreshedAt(new Date());
+      const msg = lang === "ja-JP" ? "状態を更新しました" : lang === "en-US" ? "Status refreshed" : "状态已刷新";
+      showToast(msg, true);
+    } catch {
+      const msg = lang === "ja-JP" ? "更新に失敗しました" : lang === "en-US" ? "Refresh failed" : "刷新失败，请稍后重试";
+      showToast(msg, false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, fetchStatus, fetchHealth, lang]);
+
   useEffect(() => {
     fetchStatus();
     fetchHealth();
     return () => {
       for (const t of Object.values(pollTimers.current)) clearInterval(t);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, [fetchStatus, fetchHealth]);
 
@@ -373,21 +400,39 @@ export default function SyncPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl">
+      {/* ── Toast ── */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium transition-all ${
+          toast.ok ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+        }`}>
+          {toast.ok ? "✓" : "✗"} {toast.msg}
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("sync.title")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             TOHOSHOU AI v7.7
+            {refreshedAt && (
+              <span className="ml-2 text-slate-400">
+                · {lang === "ja-JP" ? "最終更新" : lang === "en-US" ? "Last refreshed" : "最后刷新"}：
+                {refreshedAt.toLocaleTimeString(lang === "ja-JP" ? "ja-JP" : lang === "en-US" ? "en-US" : "zh-CN")}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => fetchStatus()}
-            disabled={loading}
-            className="text-sm px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
           >
-            {loading ? t("sync.refreshing") : t("sync.refresh")}
+            <span className={refreshing ? "animate-spin inline-block" : ""}>↺</span>
+            {refreshing
+              ? (lang === "ja-JP" ? "更新中..." : lang === "en-US" ? "Refreshing..." : "刷新中...")
+              : t("sync.refresh")}
           </button>
           <button
             onClick={runAll}

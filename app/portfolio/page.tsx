@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
+import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import AIScoreBadge from "@/components/AIScoreBadge";
 import { useI18n } from "@/lib/i18n";
@@ -50,6 +52,7 @@ function RetBadge({ val }: { val: number | null }) {
 
 function WatchlistTab() {
   const { t, lang } = useI18n();
+  const pathname = usePathname();
   const [items, setItems] = useState<WatchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -172,7 +175,7 @@ function WatchlistTab() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Link href={`/stocks/${encodeURIComponent(item.symbol)}`}
+                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
                         className="text-[15px] font-bold text-slate-900 hover:text-blue-600">
                         {getPrimaryName(item, lang)}
                       </Link>
@@ -211,7 +214,7 @@ function WatchlistTab() {
                       </div>
                     )}
                     <div className="flex flex-col gap-1.5">
-                      <Link href={`/stocks/${encodeURIComponent(item.symbol)}`}
+                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
                         className="text-xs text-blue-600 hover:underline px-2.5 py-1 border border-blue-200 rounded-lg">
                         →
                       </Link>
@@ -251,6 +254,7 @@ type PortfolioData = { items: PortfolioItem[]; totalValue: number; totalCost: nu
 
 function PortfolioTab() {
   const { t } = useI18n();
+  const pathname = usePathname();
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -379,7 +383,7 @@ function PortfolioTab() {
                 {data?.items.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50">
                     <td className="px-5 py-3">
-                      <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="block group">
+                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)} className="block group">
                         <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600">
                           {item.stock?.nameZh || item.name}
                         </div>

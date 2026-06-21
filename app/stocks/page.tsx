@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n/types";
 import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { buildStockUrl } from "@/lib/navigation/back";
 
 type StockRow = {
   symbol: string;
@@ -168,18 +169,8 @@ export default function StocksPage() {
 
   return (
     <div className="p-6 max-w-7xl">
-      {/* Merged notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5 flex items-center justify-between gap-4">
-        <span className="text-sm text-blue-700">{t("page.merged_screener")}</span>
-        <Link href="/screener" className="shrink-0 text-xs font-medium text-blue-600 bg-white border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-          {t("page.go_screener")} →
-        </Link>
-      </div>
-
-      {/* TOP500 description */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-5 text-xs text-slate-500">
-        {t("page.stocks_top500_desc")}
-      </div>
+      {/* Subtle hint line */}
+      <p className="text-sm text-slate-400 mb-4">{t("page.stocks_top500_desc")}</p>
 
       <div className="mb-5">
         <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("top500.title")}</h1>
@@ -301,7 +292,7 @@ export default function StocksPage() {
                       >
                         {/* Stock */}
                         <td style={{ width: 220, minWidth: 220, padding: "0 8px 0 20px" }}>
-                          <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
+                          <Link href={buildStockUrl(s.symbol, "stocks", "/stocks")} className="block group">
                             <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight truncate">
                               {getPrimaryName(s, lang)}
                             </div>
@@ -349,7 +340,7 @@ export default function StocksPage() {
                         </td>
                         {/* Detail */}
                         <td style={{ width: 60, minWidth: 60, padding: "0 8px 0 0", textAlign: "right" }}>
-                          <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="text-xs text-blue-600 hover:underline">
+                          <Link href={buildStockUrl(s.symbol, "stocks", "/stocks")} className="text-xs text-blue-600 hover:underline">
                             {t("table.detail")} →
                           </Link>
                         </td>

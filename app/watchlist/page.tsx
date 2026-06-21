@@ -205,14 +205,6 @@ export default function WatchListPage() {
     <div className="p-6 max-w-6xl">
       {showAdd && <AddStockModal onClose={() => setShowAdd(false)} onAdded={load} />}
 
-      {/* Merged notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5 flex items-center justify-between gap-4">
-        <span className="text-sm text-blue-700">{t("page.merged_portfolio")}</span>
-        <Link href="/portfolio" className="shrink-0 text-xs font-medium text-blue-600 bg-white border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-          {t("page.go_portfolio")} →
-        </Link>
-      </div>
-
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("watchlist.title")}</h1>

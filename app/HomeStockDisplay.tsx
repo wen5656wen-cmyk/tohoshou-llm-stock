@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { buildStockUrl } from "@/lib/navigation/back";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy } from "@/lib/rec-config";
@@ -63,7 +64,7 @@ export function HomeTop3({ top3 }: { top3: Score[] }) {
         return (
           <Link
             key={s.symbol}
-            href={`/stocks/${encodeURIComponent(s.symbol)}`}
+            href={buildStockUrl(s.symbol, "dashboard", "/")}
             className="bg-white/10 hover:bg-white/20 transition-colors rounded-2xl p-4 block"
           >
             <div className="flex items-center justify-between mb-2">
@@ -140,7 +141,7 @@ export function HomeScoreTable({ scores }: { scores: Score[] }) {
               <tr key={s.symbol} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-2 text-center text-xs text-slate-300 tabular-nums">{i + 1}</td>
                 <td className="px-4 py-2">
-                  <Link href={`/stocks/${encodeURIComponent(s.symbol)}`} className="block group">
+                  <Link href={buildStockUrl(s.symbol, "dashboard", "/")} className="block group">
                     <div className="text-[15px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight">
                       {primary}
                     </div>

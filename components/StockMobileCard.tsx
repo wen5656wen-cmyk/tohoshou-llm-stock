@@ -35,14 +35,14 @@ const ACTION_COLOR: Record<string, string> = {
   AVOID: "bg-red-100 text-red-700",
 };
 
-export default function StockMobileCard({ s, rank }: { s: StockRow; rank?: number }) {
+export default function StockMobileCard({ s, rank, href }: { s: StockRow; rank?: number; href?: string }) {
   const { lang, t } = useI18n();
   const primaryName = getPrimaryName(s, lang);
   const rec = getRec(s.recommendationV2);
 
   return (
     <Link
-      href={`/stocks/${encodeURIComponent(s.symbol)}`}
+      href={href ?? `/stocks/${encodeURIComponent(s.symbol)}`}
       className="block bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-sm transition-shadow active:bg-slate-50"
     >
       <div className="flex items-start gap-3">

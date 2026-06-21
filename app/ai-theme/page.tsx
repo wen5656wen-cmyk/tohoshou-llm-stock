@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
@@ -192,7 +193,7 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
             {stock.isCore && <span className="text-amber-400 text-[11px]">⭐</span>}
             <Link
-              href={`/stocks/${encodeURIComponent(stock.symbol)}`}
+              href={buildStockUrl(stock.symbol, "ai-theme", "/ai-theme")}
               className="text-[14px] font-bold text-slate-900 hover:text-blue-600 leading-tight"
             >
               {getPrimaryName(stock, lang)}

@@ -140,13 +140,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-4 md:p-6">
-      {/* Merged notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
-        <span className="text-sm text-blue-700">{t("page.merged_portfolio")}</span>
-        <Link href="/portfolio?tab=alerts" className="shrink-0 text-xs font-medium text-blue-600 bg-white border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-          {t("page.go_portfolio")} →
-        </Link>
-      </div>
       <div>
         <h1 className="text-2xl font-bold text-slate-900">🔔 通知管理</h1>
         <p className="text-slate-400 text-sm mt-1">LINE Flex Message 設定・テスト・ログ</p>

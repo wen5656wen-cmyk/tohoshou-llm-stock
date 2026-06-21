@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+import { buildStockUrl } from "@/lib/navigation/back";
 import { getRec, getRecommendationLabel, returnColorClass, fmtPct } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
@@ -78,6 +79,7 @@ function ReturnBadge({ v }: { v: number | null }) {
 
 function StockRow({ s }: { s: Stock }) {
   const { lang, t } = useI18n();
+  const pathname = usePathname();
   const rec = getRec(s.recommendationV2);
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-3 hover:shadow-sm transition-shadow">
@@ -86,7 +88,7 @@ function StockRow({ s }: { s: Stock }) {
           <div className="flex items-center gap-1.5 flex-wrap">
             {s.isCore && <span className="text-amber-400 text-[11px]">⭐</span>}
             <Link
-              href={`/stocks/${encodeURIComponent(s.symbol)}`}
+              href={buildStockUrl(s.symbol, "ai-theme", pathname)}
               className="text-[13px] font-bold text-slate-900 hover:text-blue-600"
             >
               {getPrimaryName(s, lang)}
