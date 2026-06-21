@@ -2,6 +2,44 @@
 
 ---
 
+## [8.3] - 2026-06-21 — 全局 UX 统一（Global UX Audit P1）
+
+### 目标
+全站 UI 设计规范统一：单一评级色彩真相来源、国际惯例涨跌色、英文标签、统一圆角和字号。
+
+### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `lib/rec-config.ts` | ★ 评级色彩 + 工具函数单一真相来源（getRec/returnColorClass/fmtPct/fmtJpy）|
+
+### 修改文件（10个）
+| 文件 | 修改内容 |
+|------|---------|
+| `components/RecommendationBadge.tsx` | 使用 getRec()，英文标签，text-[11px] font-semibold |
+| `components/StockMobileCard.tsx` | green=up/red=down，rounded-2xl，fmtPct/fmtJpy，英文标签 |
+| `app/page.tsx` | 英文表头，#1/#2/#3 排名，emerald BUY 卡片，rounded-2xl |
+| `app/ai-picks/page.tsx` | 移除本地 REC_CFG，getRec()，移除 V7.7 版本引用 |
+| `app/screener/page.tsx` | 英文分布 chips，Adaptive/Percentile/Opportunity 列名 |
+| `app/stocks/page.tsx` | green=up，英文表头，rounded-2xl |
+| `app/stocks/[symbol]/page.tsx` | 股价 text-[36px]，52W High/Low，getRec()，所有色修正 |
+| `app/sync/page.tsx` | Data Health 卡片大字体 CRITICAL/WARNING/PASS |
+| `app/ai-theme/page.tsx` | getRec()，ReturnBadge green/red，rounded-2xl，h1 32px |
+| `app/ai-theme/[theme]/page.tsx` | 同上 |
+
+### 设计规范（已封版）
+```
+评级色：STRONG BUY=emerald / BUY=blue / HOLD=slate / WATCH=amber / AVOID=red
+涨跌色：green=涨（+25.32%）/ red=跌（-25.32%）— 国际惯例
+卡片：  rounded-2xl / p-4 / gap-4 / shadow-sm
+h1：    text-[32px] font-bold / 股价：text-[36px] font-extrabold
+英文：  STRONG BUY/BUY/HOLD/WATCH/AVOID / 52W High/Low / Adaptive/Percentile/Opportunity
+```
+
+### Commit
+`61ebe8d` — feat: v8.3 P1 — Global UX Audit implementation（11 files changed, 491 insertions, 514 deletions）
+
+---
+
 ## [8.2.4] - 2026-06-21 — Data Health Guard（每日自动数据健全性守卫）
 
 ### 目标
