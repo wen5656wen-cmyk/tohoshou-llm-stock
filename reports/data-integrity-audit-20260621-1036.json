@@ -1,0 +1,401 @@
+{
+  "auditAt": "2026-06-21T01:36:16.780Z",
+  "version": "v8.2.3",
+  "basicCounts": {
+    "stockTotal": 3716,
+    "priceTotal": 677292,
+    "scoreTotal": 325
+  },
+  "adjCloseCoverage": {
+    "adjCloseCount": 677292,
+    "missing": 0,
+    "coveragePct": 100
+  },
+  "returnAnomalies": {
+    "ret5d": 2,
+    "ret20d": 3,
+    "ret60d": 1,
+    "breakdown": {
+      "r5H": 0,
+      "r5L": 2,
+      "r20H": 2,
+      "r20L": 1,
+      "r60H": 1,
+      "r60L": 0
+    }
+  },
+  "splitContamination": {
+    "extreme60Count": 1,
+    "contaminationCount": 0,
+    "contaminatedList": [],
+    "genuineMoveSamples": [
+      {
+        "symbol": "9984.T",
+        "name": "软银集团",
+        "return60d": 102.77
+      }
+    ]
+  },
+  "fiftyTwoWeekAnomalies": {
+    "high52BelowPrice": 0,
+    "low52AbovePrice": 0
+  },
+  "nanInfinity": {
+    "totalNanInf": 0,
+    "byField": {
+      "adaptiveScore": 0,
+      "percentileRank": 0,
+      "return5d": 0,
+      "return20d": 0,
+      "return60d": 0,
+      "rsi14": 0,
+      "opportunityScore": 0
+    }
+  },
+  "nullRating": {
+    "nullRatingCount": 325,
+    "nullAdaptiveCount": 0,
+    "nullPercentileCount": 325
+  },
+  "staleStocks": {
+    "staleCount": 0,
+    "nullSyncCount": 3394,
+    "examples": [
+      {
+        "symbol": "1992.T",
+        "name": "神田通信機",
+        "lastSyncAt": null
+      },
+      {
+        "symbol": "2760.T",
+        "name": "東京エレクトロン　デバイス",
+        "lastSyncAt": null
+      },
+      {
+        "symbol": "2776.T",
+        "name": "新都ホールディングス",
+        "lastSyncAt": null
+      },
+      {
+        "symbol": "2791.T",
+        "name": "大黒天物産",
+        "lastSyncAt": null
+      },
+      {
+        "symbol": "1807.T",
+        "name": "佐藤渡辺",
+        "lastSyncAt": null
+      }
+    ]
+  },
+  "ratingDistribution": {
+    "STRONG_BUY": 0,
+    "BUY": 0,
+    "HOLD": 0,
+    "WATCH": 0,
+    "AVOID": 0,
+    "ratedTotal": 0,
+    "bullRatePct": 0
+  },
+  "ratingCompliance": {
+    "sbCount": 0,
+    "sbViolations": 0,
+    "buyCount": 0,
+    "buyViolations": 0
+  },
+  "problemStocks": [
+    {
+      "symbol": "9984.T",
+      "name": "软银集团",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=102.8%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 102.77
+    }
+  ],
+  "deepDive": [
+    {
+      "symbol": "2127.T",
+      "stock": {
+        "symbol": "2127.T",
+        "name": "日本Ｍ＆Ａセンターホールディングス",
+        "nameZh": "日本M&A中心控股",
+        "price": 644.1,
+        "high52w": 7840,
+        "low52w": 0,
+        "lastSyncAt": "2026-06-19T09:36:41.637Z",
+        "sector": "情報通信・サービスその他"
+      },
+      "score": {
+        "adaptiveScore": 75,
+        "percentileRank": null,
+        "recommendationV2": null,
+        "return5d": 1.27,
+        "return20d": -2.69,
+        "return60d": 2.66,
+        "rsi14": 45.8,
+        "technicalScore": 24,
+        "fundamentalScore": 21,
+        "moneyFlowScore": 13,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": null,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-20T11:31:27.351Z",
+        "stockStyle": "QUALITY_COMPOUNDER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 644.1,
+          "adjClose": 644.1,
+          "volume": 2094300
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 661.9,
+          "adjClose": 661.9,
+          "volume": 1766400
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 650.9,
+          "adjClose": 650.9,
+          "volume": 1269200
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 638.3,
+          "adjClose": 638.3,
+          "volume": 1153100
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 643.5,
+          "adjClose": 643.5,
+          "volume": 1274900
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 627.4,
+        "adjClose": 627.4,
+        "volume": 3161500
+      },
+      "computedAdjReturn60d": 2.6617787695250312,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "4062.T",
+      "stock": {
+        "symbol": "4062.T",
+        "name": "イビデン",
+        "nameZh": "揖斐电",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "電機・精密"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "9552.T",
+      "stock": {
+        "symbol": "9552.T",
+        "name": "クオンツ総研ホールディングス",
+        "nameZh": "クオンツ总研控股",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "情報通信・サービスその他"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "5985.T",
+      "stock": {
+        "symbol": "5985.T",
+        "name": "サンコール",
+        "nameZh": "サンコール",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "建設・資材"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "7717.T",
+      "stock": {
+        "symbol": "7717.T",
+        "name": "ブイ・テクノロジー",
+        "nameZh": "ブイ・技术",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "電機・精密"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "8136.T",
+      "stock": {
+        "symbol": "8136.T",
+        "name": "サンリオ",
+        "nameZh": "サンリオ",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "商社・卸売"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "7012.T",
+      "stock": {
+        "symbol": "7012.T",
+        "name": "川崎重工業",
+        "nameZh": "川崎重工业",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "自動車・輸送機"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "5803.T",
+      "stock": {
+        "symbol": "5803.T",
+        "name": "フジクラ",
+        "nameZh": "藤仓",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "鉄鋼・非鉄"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "6731.T",
+      "stock": {
+        "symbol": "6731.T",
+        "name": "ピクセラ",
+        "nameZh": "ピクセラ",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "電機・精密"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "285A.T",
+      "stock": {
+        "symbol": "285A.T",
+        "name": "キオクシアホールディングス",
+        "nameZh": "キオクシア控股",
+        "price": 0,
+        "high52w": null,
+        "low52w": null,
+        "lastSyncAt": null,
+        "sector": "電機・精密"
+      },
+      "score": null,
+      "latestBars": [],
+      "bar60d": null,
+      "computedAdjReturn60d": null,
+      "returnMismatch": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "name": "adjClose coverage ≥99%",
+      "pass": true,
+      "value": "100.00%"
+    },
+    {
+      "name": "Split contamination = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "NaN/Infinity in StockScore = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "recommendationV2 NULL = 0 (p≥20)",
+      "pass": false,
+      "value": "325"
+    },
+    {
+      "name": "adaptiveScore NULL = 0 (p≥20)",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "high52w anomalies = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "low52w anomalies = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "STRONG_BUY criteria violations = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "BUY criteria violations = 0",
+      "pass": true,
+      "value": "0"
+    }
+  ],
+  "overallPass": false
+}

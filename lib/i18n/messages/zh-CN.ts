@@ -125,7 +125,7 @@ const zhCN: Messages = {
   "tab.news": "最新新闻",
 
   // Screener
-  "screener.title": "全市场筛选",
+  "screener.title": "AI选股",
   "screener.search_placeholder": "搜索代码或名称…",
   "screener.all": "全部",
   "screener.all_styles": "全部风格",
@@ -309,6 +309,30 @@ const zhCN: Messages = {
   // Technical indicators (additional)
   "ind.stock_col": "股票",
   "ind.price_col": "价格",
+
+  // New simplified nav
+  "nav.aiScreener": "AI选股",
+  "nav.aiValueChain": "AI产业链",
+  "nav.myInvestments": "我的投资",
+  "nav.systemStatus": "系统状态",
+  "nav.admin": "管理员",
+
+  // My Investments tabs
+  "tabs.watchlist": "自选股",
+  "tabs.portfolio": "持仓",
+  "tabs.priceAlerts": "价格提醒",
+
+  // Chat moved notice
+  "chat.movedToLine": "AI对话已迁移至 LINE Bot",
+
+  // Page merged notices
+  "page.merged_screener": "此页面已合并至 AI选股",
+  "page.go_screener": "前往 AI选股",
+  "page.merged_portfolio": "此页面已合并至我的投资",
+  "page.go_portfolio": "前往我的投资",
+
+  // TOP500
+  "top500.title": "TOP500 股票",
 };
 
 export default zhCN;

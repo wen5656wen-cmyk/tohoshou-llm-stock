@@ -125,7 +125,7 @@ const jaJP: Messages = {
   "tab.news": "最新ニュース",
 
   // Screener
-  "screener.title": "全市場スクリーナー",
+  "screener.title": "AI銘柄選定",
   "screener.search_placeholder": "銘柄コードまたは会社名検索…",
   "screener.all": "すべて",
   "screener.all_styles": "全スタイル",
@@ -309,6 +309,30 @@ const jaJP: Messages = {
   // Technical indicators (additional)
   "ind.stock_col": "銘柄",
   "ind.price_col": "株価",
+
+  // New simplified nav
+  "nav.aiScreener": "AI銘柄選定",
+  "nav.aiValueChain": "AI投資テーマ",
+  "nav.myInvestments": "マイ投資",
+  "nav.systemStatus": "システム状態",
+  "nav.admin": "管理者",
+
+  // My Investments tabs
+  "tabs.watchlist": "ウォッチリスト",
+  "tabs.portfolio": "ポートフォリオ",
+  "tabs.priceAlerts": "価格アラート",
+
+  // Chat moved notice
+  "chat.movedToLine": "AIチャットはLINE Botでご利用ください",
+
+  // Page merged notices
+  "page.merged_screener": "このページはAI銘柄選定に統合されました",
+  "page.go_screener": "AI銘柄選定へ",
+  "page.merged_portfolio": "このページはマイ投資に統合されました",
+  "page.go_portfolio": "マイ投資へ",
+
+  // TOP500
+  "top500.title": "TOP500 銘柄",
 };
 
 export default jaJP;

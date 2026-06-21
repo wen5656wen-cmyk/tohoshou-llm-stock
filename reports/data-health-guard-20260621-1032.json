@@ -1,0 +1,187 @@
+{
+  "auditAt": "2026-06-21T01:32:23.692Z",
+  "version": "v8.2.4",
+  "status": "CRITICAL",
+  "stockTotal": 3716,
+  "scoreTotal": 325,
+  "latestPriceDate": "2026-06-19",
+  "priceAgeDays": 2,
+  "adjCoveragePct": 100,
+  "criticalCount": 2,
+  "warningCount": 3,
+  "infoCount": 1,
+  "passCount": 14,
+  "allowRecommendation": false,
+  "requiresReview": true,
+  "topIssues": [
+    "percentileRank NULL = 0 (priceCount≥20): 325",
+    "recommendationV2 NULL = 0 (priceCount≥20): 325",
+    "high52w > price×10 (suspect): 19",
+    "low52w < price÷20 (suspect): 262",
+    "Stale stocks (>3 days, total): 3394"
+  ],
+  "checks": [
+    {
+      "id": "adjclose_coverage",
+      "level": "CRITICAL",
+      "name": "adjClose coverage ≥99%",
+      "value": "100.00%",
+      "pass": true
+    },
+    {
+      "id": "split_contamination",
+      "level": "CRITICAL",
+      "name": "Split contamination = 0 (sample top-10)",
+      "value": 0,
+      "pass": true,
+      "details": []
+    },
+    {
+      "id": "high52w_below_price",
+      "level": "CRITICAL",
+      "name": "high52w < current price = 0",
+      "value": 0,
+      "pass": true,
+      "details": []
+    },
+    {
+      "id": "low52w_above_price",
+      "level": "CRITICAL",
+      "name": "low52w > current price = 0",
+      "value": 0,
+      "pass": true,
+      "details": []
+    },
+    {
+      "id": "high52w_10x_price",
+      "level": "WARNING",
+      "name": "high52w > price×10 (suspect)",
+      "value": 19,
+      "pass": false
+    },
+    {
+      "id": "low52w_too_low",
+      "level": "WARNING",
+      "name": "low52w < price÷20 (suspect)",
+      "value": 262,
+      "pass": false
+    },
+    {
+      "id": "return5d_extreme",
+      "level": "INFO",
+      "name": "|return5d| > 50%",
+      "value": 0,
+      "pass": true,
+      "details": [
+        "↑0 ↓0"
+      ]
+    },
+    {
+      "id": "return20d_extreme",
+      "level": "WARNING",
+      "name": "|return20d| > 100% or < -70%",
+      "value": 0,
+      "pass": true,
+      "details": [
+        "↑0 ↓0"
+      ]
+    },
+    {
+      "id": "return60d_extreme",
+      "level": "WARNING",
+      "name": "return60d > 300% or < -90%",
+      "value": 0,
+      "pass": true,
+      "details": [
+        "↑0 ↓0"
+      ]
+    },
+    {
+      "id": "null_adaptive",
+      "level": "CRITICAL",
+      "name": "adaptiveScore NULL = 0 (priceCount≥20)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "id": "null_opportunity",
+      "level": "INFO",
+      "name": "opportunityScore NULL = 0 (priceCount≥20)",
+      "value": 325,
+      "pass": false
+    },
+    {
+      "id": "null_percentile",
+      "level": "CRITICAL",
+      "name": "percentileRank NULL = 0 (priceCount≥20)",
+      "value": 325,
+      "pass": false
+    },
+    {
+      "id": "null_rec",
+      "level": "CRITICAL",
+      "name": "recommendationV2 NULL = 0 (priceCount≥20)",
+      "value": 325,
+      "pass": false
+    },
+    {
+      "id": "nan_infinity",
+      "level": "CRITICAL",
+      "name": "NaN/Infinity in StockScore = 0",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "id": "stale_prices",
+      "level": "WARNING",
+      "name": "Stale stocks (>3 days, total)",
+      "value": 3394,
+      "pass": false,
+      "details": [
+        "stale=0 null=3394"
+      ]
+    },
+    {
+      "id": "strongbuy_violations",
+      "level": "CRITICAL",
+      "name": "STRONG_BUY criteria violations = 0",
+      "value": 0,
+      "pass": true,
+      "details": []
+    },
+    {
+      "id": "buy_violations",
+      "level": "INFO",
+      "name": "BUY criteria violations = 0",
+      "value": 0,
+      "pass": true,
+      "details": []
+    },
+    {
+      "id": "suspicious_no_flag",
+      "level": "WARNING",
+      "name": "Extreme return60d without highRiskFlag",
+      "value": 1,
+      "pass": true,
+      "details": [
+        "Review: may be genuine post-tariff moves"
+      ]
+    },
+    {
+      "id": "stale_strongbuy",
+      "level": "CRITICAL",
+      "name": "Stale stocks with STRONG_BUY = 0",
+      "value": 0,
+      "pass": true,
+      "details": []
+    },
+    {
+      "id": "latestclose_consistency",
+      "level": "INFO",
+      "name": "StockScore.latestClose valid (>0)",
+      "value": "OK",
+      "pass": true
+    }
+  ],
+  "reportFile": "data-health-guard-20260621-1032.json"
+}

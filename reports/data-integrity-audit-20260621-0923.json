@@ -1,0 +1,1187 @@
+{
+  "auditAt": "2026-06-21T01:23:34.394Z",
+  "version": "v8.2.3",
+  "basicCounts": {
+    "stockTotal": 3716,
+    "priceTotal": 7912513,
+    "scoreTotal": 3714
+  },
+  "adjCloseCoverage": {
+    "adjCloseCount": 7912513,
+    "missing": 0,
+    "coveragePct": 100
+  },
+  "returnAnomalies": {
+    "ret5d": 32,
+    "ret20d": 24,
+    "ret60d": 35,
+    "breakdown": {
+      "r5H": 24,
+      "r5L": 8,
+      "r20H": 20,
+      "r20L": 4,
+      "r60H": 35,
+      "r60L": 0
+    }
+  },
+  "splitContamination": {
+    "extreme60Count": 35,
+    "contaminationCount": 0,
+    "contaminatedList": [],
+    "genuineMoveSamples": [
+      {
+        "symbol": "285A.T",
+        "name": "キオクシア控股",
+        "return60d": 405.94
+      },
+      {
+        "symbol": "6976.T",
+        "name": "太阳诱电",
+        "return60d": 391.98
+      },
+      {
+        "symbol": "6997.T",
+        "name": "日本ケミコン",
+        "return60d": 312.06
+      },
+      {
+        "symbol": "3905.T",
+        "name": "数据セクション",
+        "return60d": 307.89
+      },
+      {
+        "symbol": "6779.T",
+        "name": "日本电波工业",
+        "return60d": 288.66
+      },
+      {
+        "symbol": "4392.T",
+        "name": "FIG",
+        "return60d": 279.73
+      },
+      {
+        "symbol": "6327.T",
+        "name": "北川精機",
+        "return60d": 248.79
+      },
+      {
+        "symbol": "3449.T",
+        "name": "技术フレックス",
+        "return60d": 247.83
+      },
+      {
+        "symbol": "6981.T",
+        "name": "村田制作所",
+        "return60d": 234.95
+      },
+      {
+        "symbol": "4062.T",
+        "name": "揖斐电",
+        "return60d": 225.73
+      }
+    ]
+  },
+  "fiftyTwoWeekAnomalies": {
+    "high52BelowPrice": 0,
+    "low52AbovePrice": 0
+  },
+  "nanInfinity": {
+    "totalNanInf": 0,
+    "byField": {
+      "adaptiveScore": 0,
+      "percentileRank": 0,
+      "rsi14": 0,
+      "return60d": 0,
+      "return20d": 0,
+      "return5d": 0,
+      "opportunityScore": 0
+    }
+  },
+  "nullRating": {
+    "nullRatingCount": 0,
+    "nullAdaptiveCount": 0,
+    "nullPercentileCount": 0
+  },
+  "staleStocks": {
+    "staleCount": 0,
+    "nullSyncCount": 0,
+    "examples": []
+  },
+  "ratingDistribution": {
+    "STRONG_BUY": 5,
+    "BUY": 31,
+    "HOLD": 508,
+    "WATCH": 1512,
+    "AVOID": 1658,
+    "ratedTotal": 3714,
+    "bullRatePct": 0.9693053311793215
+  },
+  "ratingCompliance": {
+    "sbCount": 5,
+    "sbViolations": 0,
+    "buyCount": 31,
+    "buyViolations": 0
+  },
+  "problemStocks": [
+    {
+      "symbol": "285A.T",
+      "name": "キオクシア控股",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=405.9%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 405.94
+    },
+    {
+      "symbol": "6976.T",
+      "name": "太阳诱电",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=392.0%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 391.98
+    },
+    {
+      "symbol": "6997.T",
+      "name": "日本ケミコン",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=312.1%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 312.06
+    },
+    {
+      "symbol": "3905.T",
+      "name": "数据セクション",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=307.9%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 307.89
+    },
+    {
+      "symbol": "6779.T",
+      "name": "日本电波工业",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=288.7%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 288.66
+    },
+    {
+      "symbol": "4392.T",
+      "name": "FIG",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=279.7%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 279.73
+    },
+    {
+      "symbol": "6327.T",
+      "name": "北川精機",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=248.8%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 248.79
+    },
+    {
+      "symbol": "3449.T",
+      "name": "技术フレックス",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=247.8%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 247.83
+    },
+    {
+      "symbol": "6981.T",
+      "name": "村田制作所",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=234.9%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 234.95
+    },
+    {
+      "symbol": "4062.T",
+      "name": "揖斐电",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=225.7%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 225.73
+    },
+    {
+      "symbol": "9256.T",
+      "name": "サクシード",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=214.4%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 214.36
+    },
+    {
+      "symbol": "3891.T",
+      "name": "日本高度纸工业",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=207.6%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 207.58
+    },
+    {
+      "symbol": "4047.T",
+      "name": "关东电化工业",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=196.8%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 196.75
+    },
+    {
+      "symbol": "278A.T",
+      "name": "Terra Drone",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=173.9%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 173.95
+    },
+    {
+      "symbol": "6597.T",
+      "name": "HPC系统",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=173.2%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 173.23
+    },
+    {
+      "symbol": "3480.T",
+      "name": "ジェイ・エス・ビー",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=171.7%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 171.71
+    },
+    {
+      "symbol": "3436.T",
+      "name": "SUMCO",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=166.5%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 166.54
+    },
+    {
+      "symbol": "6480.T",
+      "name": "日本トムソン",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=163.6%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 163.59
+    },
+    {
+      "symbol": "6996.T",
+      "name": "ニチコン",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=162.6%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 162.61
+    },
+    {
+      "symbol": "6217.T",
+      "name": "津田駒工业",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=142.5%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 142.48
+    },
+    {
+      "symbol": "6101.T",
+      "name": "津上",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=126.4%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 126.38
+    },
+    {
+      "symbol": "4980.T",
+      "name": "デクセリアルズ",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=126.1%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 126.11
+    },
+    {
+      "symbol": "8289.T",
+      "name": "Olympic集团",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=125.3%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 125.35
+    },
+    {
+      "symbol": "6336.T",
+      "name": "石井表記",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=121.4%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 121.36
+    },
+    {
+      "symbol": "5367.T",
+      "name": "Nikkato精细陶瓷",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=121.0%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 121.02
+    },
+    {
+      "symbol": "6266.T",
+      "name": "タツモ",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=115.1%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 115.08
+    },
+    {
+      "symbol": "6966.T",
+      "name": "三井ハイテック",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=112.8%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 112.77
+    },
+    {
+      "symbol": "6840.T",
+      "name": "AKIBA控股",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=109.7%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 109.66
+    },
+    {
+      "symbol": "6800.T",
+      "name": "横河电机",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=109.0%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 109.05
+    },
+    {
+      "symbol": "6668.T",
+      "name": "阿德泰克等离子技术",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=108.0%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 108.01
+    },
+    {
+      "symbol": "6723.T",
+      "name": "瑞萨电子",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=108.0%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 108
+    },
+    {
+      "symbol": "6324.T",
+      "name": "谐波传动系统",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=103.1%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 103.14
+    },
+    {
+      "symbol": "9984.T",
+      "name": "软银集团",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=102.8%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 102.77
+    },
+    {
+      "symbol": "6387.T",
+      "name": "サムコ",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=102.5%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 102.5
+    },
+    {
+      "symbol": "5998.T",
+      "name": "アドバネクス",
+      "issueType": "EXTREME_RETURN60D",
+      "detail": "return60d=102.2%",
+      "judgment": "GENUINE (adjClose-verified)",
+      "return60d": 102.18
+    }
+  ],
+  "deepDive": [
+    {
+      "symbol": "2127.T",
+      "stock": {
+        "symbol": "2127.T",
+        "name": "日本Ｍ＆Ａセンターホールディングス",
+        "nameZh": "日本M&A中心控股",
+        "price": 644.1,
+        "high52w": 805.8,
+        "low52w": 623.7,
+        "lastSyncAt": "2026-06-20T21:06:46.883Z",
+        "sector": "情報通信・サービスその他"
+      },
+      "score": {
+        "adaptiveScore": 75,
+        "percentileRank": 0.1,
+        "recommendationV2": "STRONG_BUY",
+        "return5d": 1.27,
+        "return20d": -2.69,
+        "return60d": 2.66,
+        "rsi14": 45.8,
+        "technicalScore": 24,
+        "fundamentalScore": 21,
+        "moneyFlowScore": 13,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 69,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "QUALITY_COMPOUNDER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 644.1,
+          "adjClose": 644.1,
+          "volume": 2094300
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 661.9,
+          "adjClose": 661.9,
+          "volume": 1766400
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 650.9,
+          "adjClose": 650.9,
+          "volume": 1269200
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 638.3,
+          "adjClose": 638.3,
+          "volume": 1153100
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 643.5,
+          "adjClose": 643.5,
+          "volume": 1274900
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 627.4,
+        "adjClose": 627.4,
+        "volume": 3161500
+      },
+      "computedAdjReturn60d": 2.6617787695250312,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "4062.T",
+      "stock": {
+        "symbol": "4062.T",
+        "name": "イビデン",
+        "nameZh": "揖斐电",
+        "price": 24560,
+        "high52w": 25715,
+        "low52w": 2915,
+        "lastSyncAt": "2026-06-20T21:38:01.690Z",
+        "sector": "電機・精密"
+      },
+      "score": {
+        "adaptiveScore": 63,
+        "percentileRank": 8.5,
+        "recommendationV2": "HOLD",
+        "return5d": 28.55,
+        "return20d": 27.58,
+        "return60d": 225.73,
+        "rsi14": 57.22,
+        "technicalScore": 30,
+        "fundamentalScore": 8,
+        "moneyFlowScore": 11,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 60.3,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "CYCLICAL_EXPORTER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 24560,
+          "adjClose": 24560,
+          "volume": 11198800
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 25715,
+          "adjClose": 25715,
+          "volume": 11491700
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 24000,
+          "adjClose": 24000,
+          "volume": 9058100
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 22445,
+          "adjClose": 22445,
+          "volume": 9339500
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 22750,
+          "adjClose": 22750,
+          "volume": 9816600
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 7540,
+        "adjClose": 7540,
+        "volume": 5319300
+      },
+      "computedAdjReturn60d": 225.72944297082228,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "9552.T",
+      "stock": {
+        "symbol": "9552.T",
+        "name": "クオンツ総研ホールディングス",
+        "nameZh": "量化研究控股",
+        "price": 1048,
+        "high52w": 1433,
+        "low52w": 560,
+        "lastSyncAt": "2026-06-20T22:59:05.649Z",
+        "sector": "情報通信・サービスその他"
+      },
+      "score": {
+        "adaptiveScore": 76,
+        "percentileRank": 0.1,
+        "recommendationV2": "STRONG_BUY",
+        "return5d": 0.1,
+        "return20d": 12.45,
+        "return60d": 87.14,
+        "rsi14": 58.74,
+        "technicalScore": 22,
+        "fundamentalScore": 22,
+        "moneyFlowScore": 15,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 70.5,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "QUALITY_COMPOUNDER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 1048,
+          "adjClose": 1048,
+          "volume": 360200
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 1039,
+          "adjClose": 1039,
+          "volume": 537700
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 1091,
+          "adjClose": 1091,
+          "volume": 489500
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 1053,
+          "adjClose": 1053,
+          "volume": 399000
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 1064,
+          "adjClose": 1064,
+          "volume": 511800
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 560,
+        "adjClose": 560,
+        "volume": 456000
+      },
+      "computedAdjReturn60d": 87.14285714285714,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "5985.T",
+      "stock": {
+        "symbol": "5985.T",
+        "name": "サンコール",
+        "nameZh": "サンコール",
+        "price": 2014,
+        "high52w": 2280,
+        "low52w": 286,
+        "lastSyncAt": "2026-06-20T22:03:04.138Z",
+        "sector": "建設・資材"
+      },
+      "score": {
+        "adaptiveScore": 54,
+        "percentileRank": 27.1,
+        "recommendationV2": "WATCH",
+        "return5d": 45.84,
+        "return20d": 9.34,
+        "return60d": 24.47,
+        "rsi14": 60.7,
+        "technicalScore": 28,
+        "fundamentalScore": 9,
+        "moneyFlowScore": 11,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 52.1,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "VALUE_DEFENSIVE",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 2014,
+          "adjClose": 2014,
+          "volume": 3485300
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 1650,
+          "adjClose": 1650,
+          "volume": 583900
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 1710,
+          "adjClose": 1710,
+          "volume": 908700
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 1616,
+          "adjClose": 1616,
+          "volume": 1186800
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 1491,
+          "adjClose": 1491,
+          "volume": 857300
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 1618,
+        "adjClose": 1618,
+        "volume": 2903900
+      },
+      "computedAdjReturn60d": 24.474660074165637,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "7717.T",
+      "stock": {
+        "symbol": "7717.T",
+        "name": "ブイ・テクノロジー",
+        "nameZh": "ブイ・技术",
+        "price": 8430,
+        "high52w": 8430,
+        "low52w": 2800,
+        "lastSyncAt": "2026-06-20T22:34:25.636Z",
+        "sector": "電機・精密"
+      },
+      "score": {
+        "adaptiveScore": 65,
+        "percentileRank": 4.4,
+        "recommendationV2": "HOLD",
+        "return5d": 37.75,
+        "return20d": 61.8,
+        "return60d": 93.13,
+        "rsi14": 79.6,
+        "technicalScore": 26,
+        "fundamentalScore": 15,
+        "moneyFlowScore": 9,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 61.1,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "CYCLICAL_EXPORTER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 8430,
+          "adjClose": 8430,
+          "volume": 1281300
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 7780,
+          "adjClose": 7780,
+          "volume": 599100
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 6780,
+          "adjClose": 6780,
+          "volume": 525600
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 6270,
+          "adjClose": 6270,
+          "volume": 288200
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 6340,
+          "adjClose": 6340,
+          "volume": 327100
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 4365,
+        "adjClose": 4365,
+        "volume": 336000
+      },
+      "computedAdjReturn60d": 93.12714776632302,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "8136.T",
+      "stock": {
+        "symbol": "8136.T",
+        "name": "サンリオ",
+        "nameZh": "サンリオ",
+        "price": 918,
+        "high52w": 1728.6,
+        "low52w": 839,
+        "lastSyncAt": "2026-06-20T22:43:21.657Z",
+        "sector": "商社・卸売"
+      },
+      "score": {
+        "adaptiveScore": 43,
+        "percentileRank": 59.9,
+        "recommendationV2": "AVOID",
+        "return5d": 6.23,
+        "return20d": 6.15,
+        "return60d": -13.61,
+        "rsi14": 47.18,
+        "technicalScore": 16,
+        "fundamentalScore": 8,
+        "moneyFlowScore": 6,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 37.5,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "DOMESTIC_DEFENSIVE",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 918,
+          "adjClose": 918,
+          "volume": 35096800
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 892,
+          "adjClose": 892,
+          "volume": 22029200
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 870.5,
+          "adjClose": 870.5,
+          "volume": 18444500
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 870,
+          "adjClose": 870,
+          "volume": 17648500
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 845.5,
+          "adjClose": 845.5,
+          "volume": 21323300
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 5313,
+        "adjClose": 1062.6,
+        "volume": 5459100
+      },
+      "computedAdjReturn60d": -13.608130999435339,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "7012.T",
+      "stock": {
+        "symbol": "7012.T",
+        "name": "川崎重工業",
+        "nameZh": "川崎重工业",
+        "price": 3191,
+        "high52w": 3675,
+        "low52w": 1744,
+        "lastSyncAt": "2026-06-20T22:22:54.092Z",
+        "sector": "自動車・輸送機"
+      },
+      "score": {
+        "adaptiveScore": 54,
+        "percentileRank": 27,
+        "recommendationV2": "WATCH",
+        "return5d": 12.6,
+        "return20d": 7.4,
+        "return60d": 3.84,
+        "rsi14": 59.59,
+        "technicalScore": 25,
+        "fundamentalScore": 4,
+        "moneyFlowScore": 10,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 46.6,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "CYCLICAL_EXPORTER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 3191,
+          "adjClose": 3191,
+          "volume": 9062200
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 3160,
+          "adjClose": 3160,
+          "volume": 13497400
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 3266,
+          "adjClose": 3266,
+          "volume": 17610500
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 3031,
+          "adjClose": 3031,
+          "volume": 13401300
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 2905.5,
+          "adjClose": 2905.5,
+          "volume": 9239100
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 15365,
+        "adjClose": 3073,
+        "volume": 5270400
+      },
+      "computedAdjReturn60d": 3.8398958672307195,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "5803.T",
+      "stock": {
+        "symbol": "5803.T",
+        "name": "フジクラ",
+        "nameZh": "藤仓",
+        "price": 5161,
+        "high52w": 7855,
+        "low52w": 1118.8,
+        "lastSyncAt": "2026-06-20T22:00:25.619Z",
+        "sector": "鉄鋼・非鉄"
+      },
+      "score": {
+        "adaptiveScore": 43,
+        "percentileRank": 61.4,
+        "recommendationV2": "AVOID",
+        "return5d": 21.26,
+        "return20d": 6.41,
+        "return60d": 27.27,
+        "rsi14": 57.66,
+        "technicalScore": 16,
+        "fundamentalScore": 5,
+        "moneyFlowScore": 5,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 34.7,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "CYCLICAL_EXPORTER",
+        "catalystScore": 8
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 5161,
+          "adjClose": 5161,
+          "volume": 3131200
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 4461,
+          "adjClose": 4461,
+          "volume": 48865900
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 4729,
+          "adjClose": 4729,
+          "volume": 35504300
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 4738,
+          "adjClose": 4738,
+          "volume": 68142600
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 4346,
+          "adjClose": 4346,
+          "volume": 37526700
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 24330,
+        "adjClose": 4055,
+        "volume": 9596200
+      },
+      "computedAdjReturn60d": 27.274969173859432,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "6731.T",
+      "stock": {
+        "symbol": "6731.T",
+        "name": "ピクセラ",
+        "nameZh": "ピクセラ",
+        "price": 103,
+        "high52w": 1160,
+        "low52w": 103,
+        "lastSyncAt": "2026-06-20T22:17:40.506Z",
+        "sector": "電機・精密"
+      },
+      "score": {
+        "adaptiveScore": 34,
+        "percentileRank": 88.4,
+        "recommendationV2": "AVOID",
+        "return5d": -30.41,
+        "return20d": -30.87,
+        "return60d": -74.25,
+        "rsi14": 32.67,
+        "technicalScore": 5,
+        "fundamentalScore": 5,
+        "moneyFlowScore": 5,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 21.8,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "CYCLICAL_EXPORTER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 103,
+          "adjClose": 103,
+          "volume": 628600
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 106,
+          "adjClose": 106,
+          "volume": 5206400
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 118,
+          "adjClose": 118,
+          "volume": 540800
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 114,
+          "adjClose": 114,
+          "volume": 1268300
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 129,
+          "adjClose": 129,
+          "volume": 2101400
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 40,
+        "adjClose": 400,
+        "volume": 4360600
+      },
+      "computedAdjReturn60d": -74.25,
+      "returnMismatch": false
+    },
+    {
+      "symbol": "285A.T",
+      "stock": {
+        "symbol": "285A.T",
+        "name": "キオクシアホールディングス",
+        "nameZh": "キオクシア控股",
+        "price": 108600,
+        "high52w": 108600,
+        "low52w": 2300,
+        "lastSyncAt": "2026-06-20T21:16:24.499Z",
+        "sector": "電機・精密"
+      },
+      "score": {
+        "adaptiveScore": 57,
+        "percentileRank": 21.7,
+        "recommendationV2": "WATCH",
+        "return5d": 33.74,
+        "return20d": 89.2,
+        "return60d": 405.94,
+        "rsi14": 78.72,
+        "technicalScore": 26,
+        "fundamentalScore": 7,
+        "moneyFlowScore": 9,
+        "newsSentimentScore": 8,
+        "globalTrendScore": 7,
+        "opportunityScore": 48.7,
+        "highRiskFlag": false,
+        "priceCount": 300,
+        "computedAt": "2026-06-21T01:03:14.292Z",
+        "stockStyle": "CYCLICAL_EXPORTER",
+        "catalystScore": 5
+      },
+      "latestBars": [
+        {
+          "date": "2026-06-19T00:00:00.000Z",
+          "close": 108600,
+          "adjClose": 108600,
+          "volume": 34871100
+        },
+        {
+          "date": "2026-06-18T00:00:00.000Z",
+          "close": 96900,
+          "adjClose": 96900,
+          "volume": 30706700
+        },
+        {
+          "date": "2026-06-17T00:00:00.000Z",
+          "close": 96000,
+          "adjClose": 96000,
+          "volume": 28043300
+        },
+        {
+          "date": "2026-06-16T00:00:00.000Z",
+          "close": 94720,
+          "adjClose": 94720,
+          "volume": 36218300
+        },
+        {
+          "date": "2026-06-15T00:00:00.000Z",
+          "close": 90910,
+          "adjClose": 90910,
+          "volume": 33746100
+        }
+      ],
+      "bar60d": {
+        "date": "2026-03-23T00:00:00.000Z",
+        "close": 21465,
+        "adjClose": 21465,
+        "volume": 37435300
+      },
+      "computedAdjReturn60d": 405.93990216631727,
+      "returnMismatch": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "name": "adjClose coverage ≥99%",
+      "pass": true,
+      "value": "100.00%"
+    },
+    {
+      "name": "Split contamination = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "NaN/Infinity in StockScore = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "recommendationV2 NULL = 0 (p≥20)",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "adaptiveScore NULL = 0 (p≥20)",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "high52w anomalies = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "low52w anomalies = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "STRONG_BUY criteria violations = 0",
+      "pass": true,
+      "value": "0"
+    },
+    {
+      "name": "BUY criteria violations = 0",
+      "pass": true,
+      "value": "0"
+    }
+  ],
+  "overallPass": true
+}

@@ -227,6 +227,11 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-136px)] md:h-screen">
+      {/* LINE migration notice */}
+      <div className="bg-amber-50 border-b border-amber-200 px-5 py-2.5 flex items-center gap-3 shrink-0">
+        <span className="text-amber-500 text-base">📱</span>
+        <span className="text-sm text-amber-800">{t("chat.movedToLine")}</span>
+      </div>
       {/* Header — hidden on mobile since MobileHeader shows the page title */}
       <div className="hidden md:flex bg-white border-b border-slate-200 px-6 py-4 items-center justify-between shrink-0">
         <div className="flex items-center gap-3">

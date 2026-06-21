@@ -10,26 +10,24 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
   const pathname = usePathname();
   const { t } = useI18n();
 
-  const NAV_ITEMS = [
-    { href: "/",              label: t("nav.dashboard"),     icon: "◈" },
-    { href: "/ai-picks",      label: t("nav.ai_picks"),      icon: "✦" },
-    { href: "/chat",          label: t("nav.chat"),          icon: "💬" },
-    { href: "/ai-theme",      label: t("nav.ai_theme"),      icon: "⚡" },
-    { href: "/screener",      label: t("nav.screener"),      icon: "◫" },
-    { href: "/stocks",        label: t("nav.stocks"),        icon: "◉" },
-    { href: "/indicators",    label: t("nav.indicators"),    icon: "▣" },
-    { href: "/watchlist",     label: t("nav.watchlist"),     icon: "★" },
-    { href: "/news",          label: t("nav.news"),          icon: "◎" },
-    { href: "/notifications", label: t("nav.notifications"), icon: "🔔" },
-    { href: "/sync",          label: t("nav.sync"),          icon: "⟳" },
+  const MAIN_ITEMS = [
+    { href: "/",          label: t("nav.dashboard"),     icon: "◈" },
+    { href: "/screener",  label: t("nav.aiScreener"),    icon: "✦" },
+    { href: "/ai-theme",  label: t("nav.aiValueChain"),  icon: "⚡" },
+    { href: "/sectors",   label: t("nav.sectors"),       icon: "▤" },
+    { href: "/portfolio", label: t("nav.myInvestments"), icon: "◇" },
+    { href: "/news",      label: t("nav.news"),          icon: "◎" },
   ];
 
+  const ADMIN_ITEMS = [
+    { href: "/sync", label: t("nav.systemStatus"), icon: "⟳" },
+  ];
+
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
+
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
@@ -37,15 +35,12 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
 
   return (
     <div className="md:hidden fixed inset-0 z-[60]">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-label={t("common.close")}
       />
-      {/* Drawer panel */}
       <div className="absolute top-0 left-0 h-full w-72 max-w-[85vw] bg-[#0f1629] shadow-2xl flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/50 shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-blue-400 text-lg">◈</span>
@@ -65,29 +60,51 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
           </button>
         </div>
 
-        {/* Nav list */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(({ href, label, icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${
-                  active
-                    ? "bg-blue-600/20 text-blue-300 font-medium"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-                }`}
-              >
-                <span className="text-base w-5 text-center shrink-0">{icon}</span>
-                {label}
-              </Link>
-            );
-          })}
+          {MAIN_ITEMS.map(({ href, label, icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={onClose}
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${
+                isActive(href)
+                  ? "bg-blue-600/20 text-blue-300 font-medium"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
+              }`}
+            >
+              <span className="text-base w-5 text-center shrink-0">{icon}</span>
+              {label}
+            </Link>
+          ))}
+
+          {/* Admin separator */}
+          <div className="pt-3 pb-1">
+            <div className="flex items-center gap-2 px-3">
+              <div className="flex-1 h-px bg-slate-700/60" />
+              <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">
+                {t("nav.admin")}
+              </span>
+              <div className="flex-1 h-px bg-slate-700/60" />
+            </div>
+          </div>
+
+          {ADMIN_ITEMS.map(({ href, label, icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={onClose}
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${
+                isActive(href)
+                  ? "bg-blue-600/20 text-blue-300 font-medium"
+                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/30"
+              }`}
+            >
+              <span className="text-base w-5 text-center shrink-0">{icon}</span>
+              {label}
+            </Link>
+          ))}
         </nav>
 
-        {/* Footer */}
         <div className="px-4 py-4 border-t border-slate-700/50 shrink-0 space-y-3">
           <div>
             <div className="text-slate-600 text-xs font-medium mb-2">{t("nav.data_sources")}</div>

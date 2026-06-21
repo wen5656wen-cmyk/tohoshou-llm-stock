@@ -39,11 +39,19 @@ export async function GET() {
     },
   });
 
+  const symbols = scores.map((s) => s.symbol);
+  const stockNameEn = await prisma.stock.findMany({
+    where: { symbol: { in: symbols } },
+    select: { symbol: true, nameEn: true },
+  });
+  const nameEnMap = new Map(stockNameEn.map((s) => [s.symbol, s.nameEn ?? null]));
+
   return NextResponse.json(
     scores.map((s) => ({
       symbol: s.symbol,
       name: s.name,
       nameZh: s.nameZh ?? null,
+      nameEn: nameEnMap.get(s.symbol) ?? null,
       sector: s.sector ?? null,
       market: s.market ?? null,
       latestDate: s.latestDate ?? "",

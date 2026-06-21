@@ -125,7 +125,7 @@ const enUS: Messages = {
   "tab.news": "Latest News",
 
   // Screener
-  "screener.title": "Market Screener",
+  "screener.title": "AI Screener",
   "screener.search_placeholder": "Search ticker or company…",
   "screener.all": "All",
   "screener.all_styles": "All Styles",
@@ -309,6 +309,30 @@ const enUS: Messages = {
   // Technical indicators (additional)
   "ind.stock_col": "Stock",
   "ind.price_col": "Price",
+
+  // New simplified nav
+  "nav.aiScreener": "AI Screener",
+  "nav.aiValueChain": "AI Value Chain",
+  "nav.myInvestments": "My Investments",
+  "nav.systemStatus": "System Status",
+  "nav.admin": "Admin",
+
+  // My Investments tabs
+  "tabs.watchlist": "Watchlist",
+  "tabs.portfolio": "Portfolio",
+  "tabs.priceAlerts": "Price Alerts",
+
+  // Chat moved notice
+  "chat.movedToLine": "AI Chat is available via LINE Bot",
+
+  // Page merged notices
+  "page.merged_screener": "This page has been merged into AI Screener",
+  "page.go_screener": "Go to AI Screener",
+  "page.merged_portfolio": "This page has been merged into My Investments",
+  "page.go_portfolio": "Go to My Investments",
+
+  // TOP500
+  "top500.title": "TOP500 Stocks",
 };
 
 export default enUS;

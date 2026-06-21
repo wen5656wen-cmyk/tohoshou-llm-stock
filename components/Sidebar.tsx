@@ -9,21 +9,21 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
 
-  const navItems = [
-    { href: "/", label: t("nav.dashboard"), icon: "◈" },
-    { href: "/stocks", label: t("nav.stocks"), icon: "◉" },
-    { href: "/indicators", label: t("nav.indicators"), icon: "▣" },
-    { href: "/ai-picks", label: t("nav.ai_picks"), icon: "✦" },
-    { href: "/ai-theme", label: t("nav.ai_theme"), icon: "⚡" },
-    { href: "/chat", label: t("nav.chat"), icon: "💬" },
-    { href: "/screener", label: t("nav.screener"), icon: "◫" },
-    { href: "/sectors", label: t("nav.sectors"), icon: "▤" },
-    { href: "/watchlist", label: t("nav.watchlist"), icon: "★" },
-    { href: "/news", label: t("nav.news"), icon: "◎" },
-    { href: "/portfolio", label: t("nav.portfolio"), icon: "◇" },
-    { href: "/notifications", label: t("nav.notifications"), icon: "🔔" },
-    { href: "/sync", label: t("nav.sync"), icon: "⟳" },
+  const mainItems = [
+    { href: "/",          label: t("nav.dashboard"),     icon: "◈" },
+    { href: "/screener",  label: t("nav.aiScreener"),    icon: "✦" },
+    { href: "/ai-theme",  label: t("nav.aiValueChain"),  icon: "⚡" },
+    { href: "/sectors",   label: t("nav.sectors"),       icon: "▤" },
+    { href: "/portfolio", label: t("nav.myInvestments"), icon: "◇" },
+    { href: "/news",      label: t("nav.news"),          icon: "◎" },
   ];
+
+  const adminItems = [
+    { href: "/sync", label: t("nav.systemStatus"), icon: "⟳" },
+  ];
+
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 bg-[#0f1629] flex-col z-40">
@@ -31,35 +31,53 @@ export default function Sidebar() {
         <div className="flex items-center gap-2">
           <span className="text-xl text-blue-400">◈</span>
           <div>
-            <div className="text-white font-bold text-sm leading-tight">
-              TOHOSHOU AI
-            </div>
+            <div className="text-white font-bold text-sm leading-tight">TOHOSHOU AI</div>
             <div className="text-slate-500 text-xs">{t("site.subtitle")}</div>
           </div>
         </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ href, label, icon }) => {
-          const active =
-            href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                active
-                  ? "bg-blue-600/20 text-blue-300 font-medium"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-              }`}
-            >
-              <span className="text-base w-5 text-center">{icon}</span>
-              {label}
-            </Link>
-          );
-        })}
+        {mainItems.map(({ href, label, icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+              isActive(href)
+                ? "bg-blue-600/20 text-blue-300 font-medium"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
+            }`}
+          >
+            <span className="text-base w-5 text-center">{icon}</span>
+            {label}
+          </Link>
+        ))}
+
+        {/* Admin separator */}
+        <div className="pt-3 pb-1">
+          <div className="flex items-center gap-2 px-3">
+            <div className="flex-1 h-px bg-slate-700/60" />
+            <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">
+              {t("nav.admin")}
+            </span>
+            <div className="flex-1 h-px bg-slate-700/60" />
+          </div>
+        </div>
+
+        {adminItems.map(({ href, label, icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+              isActive(href)
+                ? "bg-blue-600/20 text-blue-300 font-medium"
+                : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/30"
+            }`}
+          >
+            <span className="text-base w-5 text-center">{icon}</span>
+            {label}
+          </Link>
+        ))}
       </nav>
 
       <div className="px-4 py-4 border-t border-slate-700/50 space-y-3">

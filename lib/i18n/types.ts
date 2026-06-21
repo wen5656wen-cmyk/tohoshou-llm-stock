@@ -24,6 +24,12 @@ export type Messages = {
   "nav.supply_chain": string;
   "nav.dialogue": string;
   "nav.select": string;
+  // New simplified nav
+  "nav.aiScreener": string;
+  "nav.aiValueChain": string;
+  "nav.myInvestments": string;
+  "nav.systemStatus": string;
+  "nav.admin": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;
@@ -309,6 +315,23 @@ export type Messages = {
   // ─── Technical indicators (additional) ─────────────────────────────────────
   "ind.stock_col": string;
   "ind.price_col": string;
+
+  // ─── My Investments tabs ───────────────────────────────────────────────────
+  "tabs.watchlist": string;
+  "tabs.portfolio": string;
+  "tabs.priceAlerts": string;
+
+  // ─── Chat moved notice ─────────────────────────────────────────────────────
+  "chat.movedToLine": string;
+
+  // ─── Page merged notices ───────────────────────────────────────────────────
+  "page.merged_screener": string;
+  "page.go_screener": string;
+  "page.merged_portfolio": string;
+  "page.go_portfolio": string;
+
+  // ─── TOP500 ────────────────────────────────────────────────────────────────
+  "top500.title": string;
 };
 
 export type MessageKey = keyof Messages;

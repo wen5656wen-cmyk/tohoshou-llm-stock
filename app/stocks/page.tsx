@@ -127,9 +127,16 @@ export default function StocksPage() {
 
   return (
     <div className="p-6 max-w-7xl">
+      {/* Merged notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5 flex items-center justify-between gap-4">
+        <span className="text-sm text-blue-700">{t("page.merged_screener")}</span>
+        <Link href="/screener" className="shrink-0 text-xs font-medium text-blue-600 bg-white border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+          {t("page.go_screener")} →
+        </Link>
+      </div>
       <div className="mb-5">
-        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">Stocks</h1>
-        <p className="text-sm text-slate-500 mt-0.5">AI Score TOP500 · {loading ? t("common.loading") : error ? t("error.fetch_failed") : `${rows.length} ${t("screener.result_count")}`}</p>
+        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("top500.title")}</h1>
+        <p className="text-sm text-slate-500 mt-0.5">{loading ? t("common.loading") : error ? t("error.fetch_failed") : `${rows.length} ${t("screener.result_count")}`}</p>
       </div>
 
       {/* Search */}
