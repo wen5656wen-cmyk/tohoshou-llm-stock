@@ -21,7 +21,12 @@ const prisma = new PrismaClient({ adapter });
 
 const API_KEY = process.env.JQUANTS_API_KEY!;
 const BASE = "https://api.jquants.com/v2";
-const RATE_LIMIT_MS = 250;
+
+// --daily: lightweight incremental mode (last 7 days, faster rate limit ~12 min)
+// default: full 400-day sync (~27 min, for manual / initial load)
+const DAILY_MODE = process.argv.includes("--daily");
+const RATE_LIMIT_MS = DAILY_MODE ? 150 : 250;
+const DATE_RANGE_DAYS = DAILY_MODE ? 7 : 400;
 
 // 重点10只股票（保留历史，不重新同步全量）
 const FOCUS_SYMBOLS = new Set([
@@ -120,11 +125,12 @@ async function main() {
   const limitArg = process.argv.find((a) => a.startsWith("--limit="));
   const limit = limitArg ? parseInt(limitArg.split("=")[1]) : undefined;
 
+  const startMs = Date.now();
   const to = new Date().toISOString().split("T")[0];
-  // 400 calendar days ≈ 250+ trading days
-  const from = new Date(Date.now() - 400 * 86400000).toISOString().split("T")[0];
+  const from = new Date(Date.now() - DATE_RANGE_DAYS * 86400000).toISOString().split("T")[0];
 
-  console.log("=== 全量股票近期价格同步 ===");
+  const modeLabel = DAILY_MODE ? "[DAILY MODE] 增量同步（最近7天）" : "全量同步（最近400天）";
+  console.log(`=== 股票价格同步 — ${modeLabel} ===`);
   console.log(`日期范围：${from} → ${to}`);
   console.log(`限速：${RATE_LIMIT_MS}ms/只\n`);
 
@@ -138,9 +144,10 @@ async function main() {
     console.log(`限制同步前 ${limit} 只股票（测试模式）`);
   }
 
-  console.log(`共 ${stocks.length} 只股票\n`);
-  if (stocks.length > 100) {
-    const est = (stocks.length * (RATE_LIMIT_MS + 200)) / 1000 / 60;
+  const totalAttempted = stocks.length;
+  console.log(`共 ${totalAttempted} 只股票\n`);
+  if (totalAttempted > 100) {
+    const est = (totalAttempted * (RATE_LIMIT_MS + 200)) / 1000 / 60;
     console.log(`预计耗时：约 ${est.toFixed(0)} 分钟\n`);
   }
 
@@ -170,8 +177,13 @@ async function main() {
     }
   }
 
-  console.log(`\n\n=== 完成 ===`);
-  console.log(`成功: ${ok} 只 | 无数据: ${skip} 只 | 失败: ${err} 只`);
+  const durationSec = ((Date.now() - startMs) / 1000).toFixed(1);
+  console.log(`\n\n=== 同步完成 ===`);
+  console.log(`attempted : ${totalAttempted}`);
+  console.log(`success   : ${ok}`);
+  console.log(`skipped   : ${skip}  (no data returned)`);
+  console.log(`failed    : ${err}`);
+  console.log(`duration  : ${durationSec}s`);
   if (errs.length > 0 && errs.length <= 20) {
     console.log("\n失败列表：");
     errs.forEach((e) => console.log("  " + e));

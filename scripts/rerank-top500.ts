@@ -374,6 +374,7 @@ async function main() {
     gptScore: number;
     finalScore: number;
     gptRating: string;
+    gptRank: number | null;
     upsertData: UpsertPayload | null;
     fromCache: boolean;
   };
@@ -400,6 +401,7 @@ async function main() {
           gptScore: cachedGptScore,
           finalScore: cachedFinal,
           gptRating,
+          gptRank: null,
           upsertData: null as never,
           fromCache: true,
         });
@@ -414,7 +416,7 @@ async function main() {
       scored.push({
         symbol: sc.symbol, adaptiveScore: ruleScore, percentileRank: sc.percentileRank,
         gptScore: ruleScore, finalScore: ruleScore, gptRating,
-        upsertData: null as never, fromCache: false,
+        gptRank: null, upsertData: null as never, fromCache: false,
       });
       process.stdout.write(`  ○ ${sc.symbol.padEnd(10)} [dry-run] rule=${ruleScore.toFixed(0).padStart(3)}\n`);
       continue;
@@ -478,7 +480,8 @@ async function main() {
 
       scored.push({
         symbol: sc.symbol, adaptiveScore: ruleScore, percentileRank: sc.percentileRank,
-        gptScore: gptResp.gptScore, finalScore, gptRating, upsertData, fromCache: false,
+        gptScore: gptResp.gptScore, finalScore, gptRating,
+        gptRank: null, upsertData, fromCache: false,
       });
       gptCalled++;
 
@@ -503,20 +506,26 @@ async function main() {
     return (b.adaptiveScore ?? 0) - (a.adaptiveScore ?? 0);
   });
 
-  scored.forEach((s, i) => { s.upsertData && (s.upsertData.gptRank = i + 1); });
+  scored.forEach((s, i) => {
+    s.gptRank = i + 1;
+    if (s.upsertData) s.upsertData.gptRank = i + 1;
+  });
 
   const gptRerankCount = scored.length;
 
   // ── Step 6: Upsert to DB ─────────────────────────────────────────────────
   if (!DRY_RUN) {
-    console.log(`[Step 5] Upserting ${scored.length} entries to GPTScore…`);
+    // Clear all stale gptRank values before writing fresh ranks.
+    // This eliminates duplicates from previous --limit=N test runs or partial runs.
+    await prisma.gPTScore.updateMany({ data: { gptRank: null } });
+    console.log(`[Step 5] Cleared all stale gptRank. Upserting ${scored.length} entries to GPTScore…`);
     let savedCount = 0;
     for (const entry of scored) {
       if (entry.fromCache) {
-        // Update only gptRank for cache hits
+        // Cache hit: update gptRating + gptRank (gptRank was cleared above; must re-write)
         await prisma.gPTScore.update({
           where: { symbol: entry.symbol },
-          data: { gptRating: entry.gptRating },
+          data: { gptRating: entry.gptRating, gptRank: entry.gptRank },
         }).catch(() => {});
         savedCount++;
         continue;

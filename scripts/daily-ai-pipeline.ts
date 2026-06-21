@@ -93,14 +93,17 @@ function runScript(
 ): StepResult {
   const scriptPath = join(process.cwd(), "scripts", scriptFile);
   const argStr = extraArgs.length ? " " + extraArgs.join(" ") : "";
-  const cmd = `npx tsx ${scriptPath}${argStr}`;
+  // Use shell `timeout` to kill the entire process group on timeout.
+  // -k 15: send SIGKILL if process is still alive 15s after SIGTERM.
+  // This prevents orphaned grandchild processes (npx/tsx/node chains).
+  const timeoutSec = Math.floor(timeoutMs / 1000);
+  const cmd = `timeout -k 15 ${timeoutSec} npx tsx ${scriptPath}${argStr}`;
   const t0 = Date.now();
   log("INFO", `▶  [step:${name}] start`);
   try {
     execSync(cmd, {
       stdio: "inherit",
       env: { ...process.env, TZ: "Asia/Tokyo" },
-      timeout: timeoutMs,
     });
     const ms = Date.now() - t0;
     log("INFO", `✅ [step:${name}] done (${(ms / 1000).toFixed(1)}s)`);
@@ -186,9 +189,10 @@ async function main(): Promise<void> {
       runScript("global-market", "fetch-global-market.ts", [], 5 * 60 * 1000),
     );
 
-    // Step 2: price sync (J-Quants OHLCV)
+    // Step 2: price sync — daily incremental mode (last 7 days only, ~12 min)
+    // Full 400-day sync is manual only: npm run sync-prices-recent
     results.push(
-      runScript("price-sync", "sync-all-prices.ts", [], 20 * 60 * 1000),
+      runScript("price-sync", "sync-all-prices.ts", ["--daily"], 25 * 60 * 1000),
     );
 
     // Step 3: news sync (Kabutan + TDnet via web app API)
@@ -212,8 +216,10 @@ async function main(): Promise<void> {
     // Step 6: GPT rerank Top500 — skipped if compute-scores failed
     // Outputs: ruleSelectedCount / gptRerankCount / gptSuccessCount / gptFailCount / finalSavedCount
     if (computeResult.success) {
+      // 90-min budget: 500 stocks × ~6s/GPT call + sort + DB writes.
+      // All cache misses on first run of the day (compute-scores changes hashes).
       results.push(
-        runScript("rerank-top500", "rerank-top500.ts", [], 50 * 60 * 1000),
+        runScript("rerank-top500", "rerank-top500.ts", [], 90 * 60 * 1000),
       );
     } else {
       log(

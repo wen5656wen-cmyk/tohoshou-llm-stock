@@ -2,6 +2,41 @@
 
 ---
 
+## [9.0 P5] - 2026-06-21 — Daily Pipeline: gptRank Cache Bug Fix + Process Group Kill
+
+### Fixed Files
+
+**`scripts/rerank-top500.ts`**
+- Added `gptRank: number | null` field to `ScoredEntry` type
+- All three `scored.push()` calls (cache hit, dry-run, GPT success) initialize `gptRank: null`
+- Step 5: assigns `s.gptRank = i + 1` for ALL 500 entries (including cache hits)
+- Step 6: pre-clears all stale gptRank with `prisma.gPTScore.updateMany({ data: { gptRank: null } })` before writing
+- Step 6 cache hit branch: now updates `{ gptRating, gptRank }` instead of `gptRating` only
+
+**`scripts/sync-all-prices.ts`**
+- Added `--daily` mode: `DATE_RANGE_DAYS=7`, `RATE_LIMIT_MS=150` (~12 min vs ~27 min full)
+- Enhanced summary log: `attempted / success / skipped / failed / duration`
+- Default behavior unchanged (full 400-day sync for manual runs)
+
+**`scripts/daily-ai-pipeline.ts`**
+- Step 2 (price-sync): passes `["--daily"]` arg + 25-min timeout (was 20 min)
+- `runScript()`: replaced `execSync(cmd, { timeout })` with `timeout -k 15 ${sec} npx tsx ...` shell command — properly kills the entire process group (npx/tsx/node chain) on timeout; prevents orphaned grandchild processes
+- Rerank step timeout: 90 min (was 50 min; 500 stocks × ~6s/GPT = ~50 min, old budget too tight)
+
+### Root Cause Analysis
+- **gptRank duplicate bug**: `--limit=5` test run assigned gptRank 1-5 to 5 stocks. Full run had those 5 as cache hits. Cache hit branch only wrote `gptRating`, not `gptRank` → stale ranks remained → 5 duplicates after sorting.
+- **price-sync orphan**: `execSync` with `timeout` only SIGTERMs the direct child (`/bin/sh`); grandchildren (npm exec → tsx → node) survived → sync process kept running 60+ min consuming bandwidth.
+- **rerank pipeline timeout**: 500 cache-miss GPT calls after compute-scores (hash invalidation) took ~50 min, exactly at the old 50-min limit → intermittent timeout.
+
+### Verification (production)
+- `gpt_rank_nn = 500`, `min = 1`, `max = 500`, `distinct = 500`, **`duplicate_ranks = 0`** ✅
+- Manual rerank ran in 2.0s (all 500 cache hits, no GPT spend) ✅
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed · Commit below
+
+---
+
 ## [9.0 P4] - 2026-06-21 — Watchlist / Portfolio Score Migration
 
 ### Updated Files
