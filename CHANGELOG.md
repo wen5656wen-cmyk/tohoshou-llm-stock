@@ -2,6 +2,48 @@
 
 ---
 
+## [9.0 P2] - 2026-06-21 — Manual Full-Market Rescore + GPT Top500 Rerank
+
+### Changes
+
+**Schema (`prisma/schema.prisma`)**
+- `GPTScore`: added `gptRating String?` (STRONG_BUY|BUY|HOLD|WATCH|AVOID from finalScore+percentileRank)
+- `GPTScore`: added `gptRank Int?` (rank within Top500 after final sort, 1=best)
+- `finalScore` comment: updated to reflect V9 formula (`= gptScore`, pure GPT, no weighting)
+
+**New script (`scripts/rerank-top500.ts`)**
+- Load Top500 from StockScore by adaptiveScore DESC
+- GPT score each with 24h hash-based cache
+- `finalScore = gptScore` (V9: no 40/60 weighting)
+- `gptRating` = recommendation from finalScore + percentileRank thresholds
+- `gptRank` = position in Top500 after finalScore DESC sort
+- Full stats log: totalStocks / ruleScoredStocks / gptSuccessCount / gptFailCount / ratingCounts / top10
+
+**New npm scripts**
+- `rerank:top500` – full run
+- `rerank:top500:dry` – dry-run (no GPT)
+- `rerank:top500:test` – limit=5 test
+- `rescore` – compute-scores + rerank:top500 in sequence
+
+**API (`app/api/ai-scores/route.ts`)**
+- Join `GPTScore` for all returned symbols
+- For "top" mode: fetch 600 candidates, re-sort by `finalScore DESC → adaptiveScore DESC → percentileRank ASC`
+- Default limit changed 50→200; max 500
+- Response adds: `finalScore`, `gptScore`, `gptRating`, `gptRank`, `hasGPT`, `effectiveRating`, `gptSummaryZh/Ja/En`
+
+**Frontend (`app/ai-picks/page.tsx`)**
+- `AiScore` type: added `finalScore/gptScore/gptRating/gptRank/hasGPT/effectiveRating/gptSummaryZh/Ja/En`
+- `DetailCard`: primary score = `finalScore ?? adaptiveScore`; color from `finalScoreColor`; label shows "Final Score" or "Rule Score"
+- `DetailCard`: shows `G#{gptRank}` badge when `hasGPT`; expanded detail shows both finalScore and adaptiveScore
+- TOP3: shows `finalScore ?? adaptiveScore`; shows "GPT #N" label for GPT-ranked stocks
+- Default fetch limit: 100→200 (`limit=200`)
+
+**Execution**
+- `npm run compute-scores` ran on server: 3714 stocks, 42.8s
+- `npm run rerank:top500` running on server: Top500 GPT scoring in progress
+
+---
+
 ## [9.0 P1] - 2026-06-21 — totalScore Global Migration (Data Fix)
 
 ### Changes
