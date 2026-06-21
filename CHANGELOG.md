@@ -2,6 +2,45 @@
 
 ---
 
+## [9.0 P1.3] - 2026-06-21 — Global Final Score Unification
+
+### Changes
+
+**Score hierarchy unified across entire platform:**
+- `finalScore` (GPT×0.6 + Rule×0.4) is now the primary display score everywhere
+- `adaptiveScore` demoted to "Rule Score" sub-label
+- Value-based color scheme: 90+ violet, 80+ blue, 70+ emerald, 60+ amber, <60 slate
+- No-GPT stocks show "Rule Only" / "仅规则评分" / "ルール評価のみ" badge
+
+**APIs updated:**
+- `app/api/market-stats/route.ts` — TOP3 now fetches 100 candidates, joins GPTScore, JS re-sorts by finalScore
+- `app/api/ai-theme/route.ts` — Added finalScore/ruleScore/gptScore to theme stocks; avgScore uses finalScore fallback
+- `app/api/ai-theme/[theme]/route.ts` — Same GPTScore join added to theme detail
+
+**UI pages updated:**
+- `app/page.tsx` + `app/HomeDashboardClient.tsx` + `app/HomeStockDisplay.tsx` — Dashboard TOP3 and ranking table use finalScore
+- `app/screener/page.tsx` — Default sort changed to finalScore; merged GPT column into primary score cell with sub-labels; GptSummary type now includes ruleScore
+- `app/ai-theme/page.tsx` — finalScore sort option at top; StockCard shows finalScore with sub-labels
+- `app/ai-theme/[theme]/page.tsx` — Theme detail stock cards show finalScore with sub-labels
+- `app/stocks/[symbol]/page.tsx` — Bloomberg 72px card now shows finalScore with finalScoreHex color; sub-labels show Rule/GPT breakdown
+
+**New utilities in `lib/rec-config.ts`:**
+- `finalScoreColor(score)` — Tailwind class (violet/blue/emerald/amber/slate)
+- `finalScoreHex(score)` — Hex color for inline styles
+
+**New i18n keys (3 locales):**
+- `score.final` / `score.rule_only` / `score.rule` / `score.gpt`
+
+### Files Modified
+- `lib/rec-config.ts`
+- `lib/i18n/types.ts`, `messages/zh-CN.ts`, `messages/ja-JP.ts`, `messages/en-US.ts`
+- `app/api/market-stats/route.ts`, `app/api/ai-theme/route.ts`, `app/api/ai-theme/[theme]/route.ts`
+- `app/page.tsx`, `app/HomeDashboardClient.tsx`, `app/HomeStockDisplay.tsx`
+- `app/screener/page.tsx`, `app/ai-theme/page.tsx`, `app/ai-theme/[theme]/page.tsx`
+- `app/stocks/[symbol]/page.tsx`
+
+---
+
 ## [8.5 P2] - 2026-06-21 — Stock Detail AI First + Full i18n
 
 ### Changes
