@@ -239,6 +239,7 @@ const jaJP: Messages = {
   "screener.col_position": "推奨比率",
   "screener.col_risk": "リスク",
   "screener.col_rsi": "RSI",
+  "screener.combined_description": "銘柄一覧・AI推薦・スクリーナーを統合",
 
   // AI Picks page
   "picks.title": "AIおすすめ",
@@ -292,6 +293,7 @@ const jaJP: Messages = {
   // Stocks list
   "stocks.title": "銘柄一覧",
   "stocks.search_placeholder": "銘柄コードまたは会社名検索…",
+  "stocks.view_technicals": "テクニカルを見る",
 
   // Empty / Error states
   "empty.no_score": "評価データなし",
@@ -330,6 +332,9 @@ const jaJP: Messages = {
   "page.go_screener": "AI銘柄選定へ",
   "page.merged_portfolio": "このページはマイ投資に統合されました",
   "page.go_portfolio": "マイ投資へ",
+  "page.stocks_top500_desc": "完全な銘柄選定機能は AI銘柄選定 をご利用ください。本ページはTOP500の簡易表示です。",
+  "page.loading_failed_screener": "データ取得に失敗しました。AI銘柄選定で一覧をご確認ください。",
+  "page.back_to_dashboard": "ダッシュボードへ",
 
   // TOP500
   "top500.title": "TOP500 銘柄",
@@ -361,6 +366,10 @@ const jaJP: Messages = {
   // Generic table headers
   "table.stock": "銘柄",
   "table.price": "株価",
+  "table.date": "日付",
+  "table.ma_trend": "移動平均トレンド",
+  "table.financials": "財務",
+  "table.detail": "詳細",
   "table.trend": "トレンド",
   "table.tech": "テクニカル",
   "table.fund": "ファンダ",
@@ -388,6 +397,9 @@ const jaJP: Messages = {
 
   // AI Picks detail
   "picks.detail_rating": "評価詳細",
+  "picks.mode_top": "総合スコア",
+  "picks.mode_opp": "安定機会",
+  "picks.mode_risk": "高リスク",
   "picks.detail_ai": "AI分析",
   "picks.adaptive": "AI総合スコア",
   "picks.percentile_rank": "市場順位",

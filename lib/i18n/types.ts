@@ -245,6 +245,7 @@ export type Messages = {
   "screener.col_position": string;
   "screener.col_risk": string;
   "screener.col_rsi": string;
+  "screener.combined_description": string;
 
   // ─── AI Picks page ─────────────────────────────────────────────────────────
   "picks.title": string;
@@ -314,6 +315,7 @@ export type Messages = {
   // ─── Stocks list ───────────────────────────────────────────────────────────
   "stocks.title": string;
   "stocks.search_placeholder": string;
+  "stocks.view_technicals": string;
 
   // ─── Empty / Error states ──────────────────────────────────────────────────
   "empty.no_score": string;
@@ -345,6 +347,9 @@ export type Messages = {
   "page.go_screener": string;
   "page.merged_portfolio": string;
   "page.go_portfolio": string;
+  "page.stocks_top500_desc": string;
+  "page.loading_failed_screener": string;
+  "page.back_to_dashboard": string;
 
   // ─── TOP500 ────────────────────────────────────────────────────────────────
   "top500.title": string;
@@ -360,6 +365,10 @@ export type Messages = {
   // ─── Generic table headers ─────────────────────────────────────────────────
   "table.stock": string;
   "table.price": string;
+  "table.date": string;
+  "table.ma_trend": string;
+  "table.financials": string;
+  "table.detail": string;
   "table.trend": string;
   "table.tech": string;
   "table.fund": string;
@@ -390,6 +399,9 @@ export type Messages = {
   "picks.detail_ai": string;
   "picks.adaptive": string;
   "picks.percentile_rank": string;
+  "picks.mode_top": string;
+  "picks.mode_opp": string;
+  "picks.mode_risk": string;
 
   // ─── Stock detail labels ──────────────────────────────────────────────────
   "stock.ma_lines": string;

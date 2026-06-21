@@ -105,7 +105,7 @@ function DetailCard({ score }: { score: AiScore }) {
               <div className={`text-xl font-bold tabular-nums ${rec.text}`}>{score.adaptiveScore.toFixed(0)}</div>
               <div className="text-[10px] text-slate-400 mt-0.5">{t("picks.adaptive")}</div>
               {score.percentileRank != null && (
-                <div className="text-[10px] text-slate-400">{lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {score.percentileRank.toFixed(1)}%</div>
+                <div className="text-[10px] text-slate-400">{t("common.percentile_prefix")} {score.percentileRank.toFixed(1)}%</div>
               )}
             </div>
             <div className="min-w-0">
@@ -216,7 +216,7 @@ function DetailCard({ score }: { score: AiScore }) {
                 {score.percentileRank != null && (
                   <div className="flex justify-between">
                     <span className="text-slate-400">{t("picks.percentile_rank")}</span>
-                    <span className="font-bold tabular-nums">{lang === "zh-CN" ? "前" : lang === "ja-JP" ? "上位" : "Top"} {score.percentileRank.toFixed(1)}% (#{score.marketRank})</span>
+                    <span className="font-bold tabular-nums">{t("common.percentile_prefix")} {score.percentileRank.toFixed(1)}% (#{score.marketRank})</span>
                   </div>
                 )}
                 {score.opportunityScore != null && (
@@ -311,7 +311,7 @@ export default function AiPicksPage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="text-slate-400 text-sm animate-pulse">AI评分加载中...</div>
+        <div className="text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
       </div>
     );
   }
@@ -319,7 +319,7 @@ export default function AiPicksPage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
-          加载失败：{error}
+          {t("error.fetch_failed")}{error ? `：${error}` : ""}
         </div>
       </div>
     );
@@ -360,9 +360,9 @@ export default function AiPicksPage() {
       {/* Mode tabs */}
       <div className="flex gap-1 mb-4 bg-slate-100 rounded-xl p-1 overflow-x-auto max-w-full">
         {([
-          { key: "top",         label: "综合评分" },
-          { key: "opportunity", label: "稳健机会" },
-          { key: "high_risk",   label: "高风险动能" },
+          { key: "top",         labelKey: "picks.mode_top" },
+          { key: "opportunity", labelKey: "picks.mode_opp" },
+          { key: "high_risk",   labelKey: "picks.mode_risk" },
         ] as const).map((m) => (
           <button
             key={m.key}
@@ -371,7 +371,7 @@ export default function AiPicksPage() {
               mode === m.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            {m.label}
+            {t(m.labelKey as Parameters<typeof t>[0])}
           </button>
         ))}
       </div>
@@ -416,12 +416,10 @@ export default function AiPicksPage() {
       {/* Filter tabs */}
       <div className="flex gap-1 mb-4 bg-slate-100 rounded-xl p-1 overflow-x-auto max-w-full">
         {(["ALL", "BUY", "WATCH", "AVOID"] as const).map((f) => {
-          const labels: Record<typeof f, string> = {
-            ALL:   `全部 (${scores.length})`,
-            BUY:   `BUY (${buyCount})`,
-            WATCH: `WATCH (${watchCount})`,
-            AVOID: `HOLD/AVOID (${avoidCount})`,
-          };
+          const count = f === "ALL" ? scores.length : f === "BUY" ? buyCount : f === "WATCH" ? watchCount : avoidCount;
+          const label = f === "ALL"
+            ? `${t("screener.all")} (${count})`
+            : `${getRecommendationLabel(f, lang)} (${count})`;
           return (
             <button
               key={f}
@@ -430,7 +428,7 @@ export default function AiPicksPage() {
                 filter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              {labels[f]}
+              {label}
             </button>
           );
         })}

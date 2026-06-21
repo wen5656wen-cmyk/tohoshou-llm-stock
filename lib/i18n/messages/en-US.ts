@@ -239,6 +239,7 @@ const enUS: Messages = {
   "screener.col_position": "Position",
   "screener.col_risk": "Risk",
   "screener.col_rsi": "RSI",
+  "screener.combined_description": "Stocks, AI Picks, and Screener combined",
 
   // AI Picks page
   "picks.title": "AI Picks",
@@ -292,6 +293,7 @@ const enUS: Messages = {
   // Stocks list
   "stocks.title": "Stocks",
   "stocks.search_placeholder": "Search code or name…",
+  "stocks.view_technicals": "View Technicals",
 
   // Empty / Error states
   "empty.no_score": "No score data",
@@ -330,6 +332,9 @@ const enUS: Messages = {
   "page.go_screener": "Go to AI Screener",
   "page.merged_portfolio": "This page has been merged into My Investments",
   "page.go_portfolio": "Go to My Investments",
+  "page.stocks_top500_desc": "Use AI Screener for full stock selection. This page only keeps a quick TOP500 view.",
+  "page.loading_failed_screener": "Failed to load data. Please use AI Screener for the full list.",
+  "page.back_to_dashboard": "Back to Dashboard",
 
   // TOP500
   "top500.title": "TOP500 Stocks",
@@ -361,6 +366,10 @@ const enUS: Messages = {
   // Generic table headers
   "table.stock": "Stock",
   "table.price": "Price",
+  "table.date": "Date",
+  "table.ma_trend": "MA Trend",
+  "table.financials": "Financials",
+  "table.detail": "Detail",
   "table.trend": "Trend",
   "table.tech": "Tech",
   "table.fund": "Fund",
@@ -388,6 +397,9 @@ const enUS: Messages = {
 
   // AI Picks detail
   "picks.detail_rating": "Rating Detail",
+  "picks.mode_top": "Top Scores",
+  "picks.mode_opp": "Opportunities",
+  "picks.mode_risk": "High Momentum",
   "picks.detail_ai": "AI Analysis",
   "picks.adaptive": "Adaptive",
   "picks.percentile_rank": "Percentile",

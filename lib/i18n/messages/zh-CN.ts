@@ -239,6 +239,7 @@ const zhCN: Messages = {
   "screener.col_position": "建议仓位",
   "screener.col_risk": "风险等级",
   "screener.col_rsi": "RSI",
+  "screener.combined_description": "整合股票列表、AI推荐与全市场筛选",
 
   // AI Picks page
   "picks.title": "AI推荐",
@@ -292,6 +293,7 @@ const zhCN: Messages = {
   // Stocks list
   "stocks.title": "股票列表",
   "stocks.search_placeholder": "搜索代码或名称…",
+  "stocks.view_technicals": "查看技术指标",
 
   // Empty / Error states
   "empty.no_score": "暂无评分",
@@ -330,6 +332,9 @@ const zhCN: Messages = {
   "page.go_screener": "前往 AI选股",
   "page.merged_portfolio": "此页面已合并至我的投资",
   "page.go_portfolio": "前往我的投资",
+  "page.stocks_top500_desc": "完整选股功能请前往 AI选股。本页仅保留 TOP500 快速查看。",
+  "page.loading_failed_screener": "数据加载失败，请前往 AI选股查看完整列表。",
+  "page.back_to_dashboard": "返回仪表盘",
 
   // TOP500
   "top500.title": "TOP500 股票",
@@ -361,6 +366,10 @@ const zhCN: Messages = {
   // Generic table headers
   "table.stock": "股票",
   "table.price": "股价",
+  "table.date": "日期",
+  "table.ma_trend": "均线趋势",
+  "table.financials": "财务",
+  "table.detail": "详情",
   "table.trend": "趋势",
   "table.tech": "技术",
   "table.fund": "基本",
@@ -388,6 +397,9 @@ const zhCN: Messages = {
 
   // AI Picks detail
   "picks.detail_rating": "评级详情",
+  "picks.mode_top": "综合评分",
+  "picks.mode_opp": "稳健机会",
+  "picks.mode_risk": "高风险动能",
   "picks.detail_ai": "AI分析",
   "picks.adaptive": "AI综合分",
   "picks.percentile_rank": "市场排名",

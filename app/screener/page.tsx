@@ -161,6 +161,7 @@ export default function ScreenerPage() {
     <div className="p-4 md:p-6 max-w-[1500px]">
       <div className="mb-4">
         <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("screener.title")}</h1>
+        <p className="text-xs text-blue-600 font-medium mt-0.5 mb-1">{t("screener.combined_description")}</p>
         <p className="text-sm font-medium text-slate-500 mt-1">
           {t(`temp.${stats.marketTemperature}` as Parameters<typeof t>[0]) ?? stats.marketTemperature}
           　{t("screener.bull_count")} {stats.bullCount} ({stats.bullRate}%)　{stats.total} {t("screener.result_count")}
