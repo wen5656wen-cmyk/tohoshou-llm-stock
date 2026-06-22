@@ -57,9 +57,9 @@ function decryptMsg(encryptedBase64: string): string {
   decipher.setAutoPadding(false);
   const raw = Buffer.concat([decipher.update(cipherBuf), decipher.final()]);
 
-  // PKCS7 unpadding
+  // PKCS7 unpadding — 企业微信 PKCS7 block_size=32（非 AES 的 16），padLen 合法范围 1-32
   const padLen = raw[raw.length - 1];
-  if (padLen < 1 || padLen > 16) throw new Error(`无效 PKCS7 padding: ${padLen}`);
+  if (padLen < 1 || padLen > 32) throw new Error(`无效 PKCS7 padding: ${padLen}`);
   const unpadded = raw.slice(0, raw.length - padLen);
   if (unpadded.length < 20) throw new Error(`解密后内容过短: ${unpadded.length}B（key 可能错误）`);
 
@@ -101,12 +101,12 @@ export async function GET(req: NextRequest): Promise<Response> {
   const nonce = rawParam(req, "nonce");
   const echostr = rawParam(req, "echostr");
 
+  const token = process.env.WECOM_TOKEN ?? "";
+  const aesKeyRaw = process.env.WECOM_AES_KEY ?? "";
+
   console.log(
     `[wecom-callback] GET: sig=${msgSig.slice(0, 8)}… ts=${timestamp} nonce=${nonce} echostr_len=${echostr.length}`
   );
-
-  const token = process.env.WECOM_TOKEN ?? "";
-  const aesKeyRaw = process.env.WECOM_AES_KEY ?? "";
 
   // 环境变量校验
   if (!token) {
@@ -134,7 +134,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     return new Response("signature mismatch", { status: 403 });
   }
 
-  // 解密 echostr
+  // 解密 echostr（失败返回 403，不返回 400）
   try {
     const plaintext = decryptMsg(echostr);
     console.log("[wecom-callback] GET: ✅ URL 验证成功，返回明文 echostr");
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[wecom-callback] GET: 解密失败 —", msg);
-    return new Response("decryption failed: " + msg, { status: 400 });
+    return new Response("decryption failed: " + msg, { status: 403 });
   }
 }
 
