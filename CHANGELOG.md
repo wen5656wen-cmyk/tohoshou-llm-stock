@@ -16,8 +16,15 @@
 4. **console 输出**：`[line] ⚠ 月配额超限（HTTP 429）— 非核心数据故障`（原 `❌ alert failed`）
 
 ### Result
-- Build ✅ · Health ✅ CRITICAL=0 (`Status: WARNING  ✅16 ❌0 ⚠️5 ℹ️0`) · Deployed ✅
+- Build ✅ · Health ✅ CRITICAL=0 (`Status: WARNING  ✅17 ❌0 ⚠️4 ℹ️0`) · Deployed ✅
 - LINE 429 明确显示为 `⚠️ [WARNING]`，不计入 CRITICAL，health guard 返回 exit 0
+
+### 2127.T 数据补丁（2026-06-22，无代码修改）
+- `stale_strongbuy` WARNING 来源：2127.T `lastSyncAt=2026-06-19`，本地 DB 缺 2026-06-20/06-22 两根 Bar
+- 调查：Yahoo Finance 有活跃行情；J-Quants 有 2026-06-19/06-22 数据；股票正常交易，**非退市/停牌/脚本漏洞**
+- 原因：本地 DB 无日常 cron price sync（生产服务器 cron 每日 06:00 JST 自动同步，生产无此警告）
+- 修复：内联脚本 J-Quants 拉取并写入本地 DB，`lastSyncAt` 更新为当前时间
+- 结论：**纯本地 DB gap，生产无影响，不需要部署**
 
 ---
 
