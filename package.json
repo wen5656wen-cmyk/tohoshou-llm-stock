@@ -62,9 +62,7 @@
     "update-backtest": "npx tsx scripts/update-backtest.ts",
     "update-backtest:force": "npx tsx scripts/update-backtest.ts --all",
     "line:watchlist-alerts": "npx tsx scripts/send-watchlist-alerts.ts",
-    "line:watchlist-alerts:dry": "DRY_RUN=1 npx tsx scripts/send-watchlist-alerts.ts",
-    "wechat:watchlist-alerts": "npx tsx scripts/send-watchlist-wechat-alerts.ts",
-    "wechat:watchlist-alerts:dry": "npx tsx scripts/send-watchlist-wechat-alerts.ts --dry-run"
+    "line:watchlist-alerts:dry": "DRY_RUN=1 npx tsx scripts/send-watchlist-alerts.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
