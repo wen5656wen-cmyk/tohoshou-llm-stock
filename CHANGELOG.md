@@ -24,7 +24,7 @@
 - Data fills automatically as prices sync nightly; until Monday 2026-06-23 open prices are available, entryPrice = null
 
 ### Result
-- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit TBD
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit `9e2bbb5` · Pushed ✅
 - Production: 1 cohort (2026-06-20), 0/500 filled (expected — awaiting Monday 2026-06-23 price sync)
 
 ---
