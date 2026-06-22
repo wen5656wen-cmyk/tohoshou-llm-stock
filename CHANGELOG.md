@@ -2,6 +2,78 @@
 
 ---
 
+## [11.7] - 2026-06-23 — 微信客服 KF 48h 通道探测 + 晨报格式升级
+
+### New Files
+- **`lib/notify/wecom-customer-service.ts`**: 微信客服 KF API 模块
+  - `getWecomToken()` — 获取 access_token（复用 WECOM_CUSTOMER_SECRET）
+  - `listKfAccounts()` — 列出客服账号（`GET /cgi-bin/kf/account/list`）
+  - `syncKfMessages()` — 拉取近期客户消息 + 活跃会话
+  - `sendKfMsg()` — 48h 窗口内直发（无需人工确认）
+  - `kfErrHint()` — errcode → 人类可读说明
+- **`scripts/test-wecom-customer-service.ts`**: 完整通道探测 + 测试脚本
+  - Step1: gettoken · Step2: 筛选外部联系人（仅温老头/深山老林）
+  - Step3: kf/account/list 探测权限 + 账号状态
+  - Step4: kf/sync_msg 查近期客户消息（活跃 KF 会话）
+  - Step5: kf/send_msg → 温老头 — 报告 errcode/errmsg
+  - 含「开通步骤」说明 + 官方限制总结表
+
+### Modified
+- **`scripts/send-morning-report.ts`**: 晨报格式全面升级
+  - 新格式：纯文本风格，①②③圆圈数字，`━━━━━━━━` 分隔线
+  - 新字段：`entryLow/entryHigh`（建议区间）、`target1`（目标价）、`actionRiskLevel`（风险等级）
+  - TOP5 组合绩效：近1月收益（return20d 均值）、超越日经225、胜率
+
+### API 探测结论（实测，2026-06-23）
+| 接口 | 状态 | 说明 |
+|------|------|------|
+| `externalcontact/send_msg` | HTTP 404 | 不存在 |
+| `kf/account/list` | errcode=48002 | API 未授权 + 无账号 |
+| `kf/send_msg` | errcode=48002 | API 未授权 |
+| `kf/sync_msg` | errcode=48002 | API 未授权 |
+
+### 官方限制说明
+- 外部联系人主动发消息：仅 `add_msg_template`（员工确认）/ `send_welcome_msg`（新增时一次性）/ `send_msg_on_event`（事件触发）
+- 48h 无确认直发：需开通独立**微信客服**（kf）模块 + 创建客服账号（open_kfid）
+
+### 开通微信客服步骤
+1. 企业微信管理后台 → 应用管理 → 微信客服 → 创建客服账号
+2. 记录 `open_kfid`（wk 开头）→ 写入 `.env WECOM_KF_ID=wk..`
+3. 客户联系应用 → 开启「微信客服」API 权限（或创建独立应用）
+4. 设置 KF 消息回调 URL → 接收客户消息事件
+5. 让客户扫客服账号二维码发消息 → 开启 48h 会话窗口
+
+---
+
+## [11.6] - 2026-06-23 — 企业微信客户联系一对一私信群发
+
+### New Files
+- **`scripts/send-wecom-private-test.ts`**: 全自动客户联系私信测试
+  - gettoken → get_follow_user_list → externalcontact/list（分页）→ externalcontact/get（打印客户昵称）→ add_msg_template
+  - 支持按客户名筛选（TARGET_NAME 参数）
+
+### Verified Results（2026-06-23）
+- 4 个外部联系人：深山老林 / wmy / 温老头 / 東方駿 村上
+- 向温老头（wmR_snIgAA-YjrtMl3tsw9uRvuEtkGTA）发送成功：errcode=0，msgid=msgR_snIgAAjcdFxa31WNYz7GLMEQAHbQ
+- `add_msg_template chat_type=single`：需员工在企业微信客户端手动确认后发出
+
+---
+
+## [11.5.2] - 2026-06-23 — 企业微信回调 AES 解密双 Bug 修复
+
+### Root Cause（两个独立 Bug）
+1. **WECOM_AES_KEY l/I 混淆**：控制台字体 `l`（小写L）和 `I`（大写i）视觉难辨，复制时出错
+   - 症状：`last_byte` 随机值（66/141/125…）→ 解密后内容全乱
+   - 修复：重新核对 key，确认正确值 `I7HlI6WzEmEQCnrO6CVlGIuGxNXmhBOol2GFBtKYFFp`
+2. **PKCS7 block_size=32 写成 16**：企业微信官方 Python SDK `block_size=32`，非 AES 的 16
+   - 症状：`raw_hex_tail=19191919`（padLen=25，合法但被误判）→ HTTP 403
+   - 修复：`if (padLen < 1 || padLen > 32)`（原来是 `> 16`）
+
+### Modified
+- **`app/api/wecom/callback/route.ts`**: PKCS7 检查 `> 16` → `> 32`（commit 7af81f8）
+
+---
+
 ## [11.5] - 2026-06-22 — 企业微信智能机器人回调 URL
 
 ### New Files
