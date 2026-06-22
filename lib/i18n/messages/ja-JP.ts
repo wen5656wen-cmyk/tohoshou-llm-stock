@@ -619,6 +619,14 @@ const jaJP: Messages = {
   "backtest.col_summary": "AI要約",
   "backtest.pending": "待機中",
   "backtest.as_of": "集計日",
+  "backtest.portfolio_title": "ポートフォリオ比較",
+  "backtest.col_portfolio": "組合",
+  "backtest.col_nikkei": "日経225",
+  "backtest.col_topix": "TOPIX",
+  "backtest.col_excess": "超過",
+  "backtest.col_entry_price": "エントリー",
+  "backtest.entry_note": "エントリー=翌営業日始値 · 手数料/スリッページ/税除く",
+  "backtest.benchmark_note": "ベンチマーク=同期間の日経225/TOPIX騰落率",
 };
 
 export default jaJP;

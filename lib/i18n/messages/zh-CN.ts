@@ -619,6 +619,14 @@ const zhCN: Messages = {
   "backtest.col_summary": "GPT摘要",
   "backtest.pending": "等待中",
   "backtest.as_of": "截至",
+  "backtest.portfolio_title": "组合对比",
+  "backtest.col_portfolio": "组合",
+  "backtest.col_nikkei": "日经225",
+  "backtest.col_topix": "TOPIX",
+  "backtest.col_excess": "超额",
+  "backtest.col_entry_price": "入场价",
+  "backtest.entry_note": "入场价=次日开盘价 · 不含手续费/滑点/税",
+  "backtest.benchmark_note": "基准=同期间日经225/TOPIX涨跌幅",
 };
 
 export default zhCN;

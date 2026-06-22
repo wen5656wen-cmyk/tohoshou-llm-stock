@@ -2,6 +2,33 @@
 
 ---
 
+## [10.1] - 2026-06-22 — Backtest Logic Upgrade: entry/exit via true trading days + portfolio + benchmark
+
+### Schema Changes (`prisma/schema.prisma`)
+- **`DailyRecommendation`**: 7 new fields — `entryDate/entryPrice/entryPriceType/exitDate7d/exitDate30d/exitDate90d/priceSource`; entry = next trading day open; exit = strict Nth trading day adjClose??close; `priceSource` = "ADJUSTED"/"RAW"
+- **`BacktestResult`**: 6 new fields — `portfolioSize/benchmarkNikkeiReturn/benchmarkTopixReturn/excessVsNikkei/excessVsTopix/maxDrawdown`; unique key changed to `[date, horizon, portfolioSize]`; portfolioSize = "ALL"/"TOP5"/"TOP10"/"TOP20"
+
+### Modified Files
+- **`scripts/update-backtest.ts`**: Full rewrite — true trading day counting (prices[0]=entry, prices[7]=exit7d, prices[30]=exit30d, prices[90]=exit90d); batch fetch per cohort; TOP5/TOP10/TOP20/ALL equal-weight portfolio stats; GlobalMarket benchmark (Nikkei225/TOPIX same-period return); `excessVsNikkei/excessVsTopix` alpha computation; fixed raw SQL to use camelCase column names (Prisma 7 production column naming)
+- **`app/api/backtest/summary/route.ts`**: New response structure — `portfolios: { TOP5/TOP10/TOP20/ALL: { 7d/30d/90d: HorizonStat } }`; benchmark fields in HorizonStat; `entryPrice` in cohort/winners/losers lists
+- **`app/backtest/page.tsx`**: Portfolio comparison table (rows=TOP5/TOP10/TOP20/ALL, cols=7d/30d/90d × avgReturn/winRate/vs Nikkei/vs TOPIX); horizon stat cards use ALL data; entry price column in cohort table; disclaimer notes
+- **`lib/i18n/types.ts`** + all 3 locale files: 8 new keys (`backtest.portfolio_title/col_portfolio/col_nikkei/col_topix/col_excess/col_entry_price/entry_note/benchmark_note`)
+
+### Key Fix
+- Production DB columns use camelCase (`entryDate` not `entry_date`) — raw SQL in update-backtest.ts updated to quote identifiers correctly
+
+### Design
+- Entry price = raw open on next trading day (no look-ahead bias); exit price = adjClose??close on strict Nth trading day
+- Portfolio returns: equal-weight avg of filled stocks; winRate = % with return > 0; maxDrawdown = worst individual return
+- Benchmark: GlobalMarket nikkei/topix at entryDate and exitDate; alpha = avgReturn − benchmarkReturn
+- Data fills automatically as prices sync nightly; until Monday 2026-06-23 open prices are available, entryPrice = null
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit TBD
+- Production: 1 cohort (2026-06-20), 0/500 filled (expected — awaiting Monday 2026-06-23 price sync)
+
+---
+
 ## [10.0 P2] - 2026-06-21 — Backtest Winners/Losers empty state fix
 
 ### Modified Files

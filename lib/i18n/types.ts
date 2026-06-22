@@ -620,6 +620,15 @@ export type Messages = {
   "backtest.col_summary": string;
   "backtest.pending": string;
   "backtest.as_of": string;
+  // v10.1 portfolio + benchmark
+  "backtest.portfolio_title": string;
+  "backtest.col_portfolio": string;
+  "backtest.col_nikkei": string;
+  "backtest.col_topix": string;
+  "backtest.col_excess": string;
+  "backtest.col_entry_price": string;
+  "backtest.entry_note": string;
+  "backtest.benchmark_note": string;
 };
 
 export type MessageKey = keyof Messages;

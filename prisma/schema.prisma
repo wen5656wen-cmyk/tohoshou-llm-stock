@@ -552,15 +552,23 @@ model DailyRecommendation {
   adaptiveScore   Float
   gptScore        Float
   gptRating       String?
-  buyPrice        Float?                     // StockScore.latestClose at time of recommendation
+  buyPrice        Float?                     // StockScore.latestClose at rec time (reference only)
   summaryZh       String?  @db.Text
-  price7d         Float?                     // Closing price 7 trading days later
-  price30d        Float?                     // Closing price 30 trading days later
-  price90d        Float?                     // Closing price 90 trading days later
-  return7d        Float?                     // (price7d - buyPrice) / buyPrice * 100
-  return30d       Float?                     // (price30d - buyPrice) / buyPrice * 100
-  return90d       Float?                     // (price90d - buyPrice) / buyPrice * 100
-  filledAt        DateTime?                  // when price fills were last attempted
+  // v10.1: accurate entry/exit pricing
+  entryDate       DateTime? @db.Date          // first trading day after rec date
+  entryPrice      Float?                      // raw open price on entryDate
+  entryPriceType  String?                     // "NEXT_OPEN" | "NEXT_OPEN_FALLBACK"
+  exitDate7d      DateTime? @db.Date          // 7th trading day after entryDate
+  exitDate30d     DateTime? @db.Date          // 30th trading day after entryDate
+  exitDate90d     DateTime? @db.Date          // 90th trading day after entryDate
+  priceSource     String?                     // "ADJUSTED" (adjClose) | "RAW" (close)
+  price7d         Float?                      // adjClose??close at exitDate7d
+  price30d        Float?                      // adjClose??close at exitDate30d
+  price90d        Float?                      // adjClose??close at exitDate90d
+  return7d        Float?                      // (price7d - entryPrice) / entryPrice * 100
+  return30d       Float?                      // (price30d - entryPrice) / entryPrice * 100
+  return90d       Float?                      // (price90d - entryPrice) / entryPrice * 100
+  filledAt        DateTime?                   // when price fills were last attempted
   createdAt       DateTime @default(now())
 
   @@unique([date, symbol])
@@ -587,9 +595,17 @@ model BacktestResult {
   bestSymbol            String?
   worstSymbol           String?
   computedAt            DateTime @default(now())
+  // v10.1: portfolio size + benchmark
+  portfolioSize         String   @default("ALL")  // "ALL" | "TOP5" | "TOP10" | "TOP20"
+  benchmarkNikkeiReturn Float?
+  benchmarkTopixReturn  Float?
+  excessVsNikkei        Float?
+  excessVsTopix         Float?
+  maxDrawdown           Float?   // simplified: worstReturn within portfolio
 
-  @@unique([date, horizon])
+  @@unique([date, horizon, portfolioSize])
   @@index([date(sort: Desc)])
+  @@index([portfolioSize])
   @@map("backtest_results")
 }
 

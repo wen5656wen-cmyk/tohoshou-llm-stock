@@ -619,6 +619,14 @@ const enUS: Messages = {
   "backtest.col_summary": "AI summary",
   "backtest.pending": "Pending",
   "backtest.as_of": "As of",
+  "backtest.portfolio_title": "Portfolio Comparison",
+  "backtest.col_portfolio": "Portfolio",
+  "backtest.col_nikkei": "Nikkei",
+  "backtest.col_topix": "TOPIX",
+  "backtest.col_excess": "Alpha",
+  "backtest.col_entry_price": "Entry",
+  "backtest.entry_note": "Entry = next-day open · No fees / slippage / tax",
+  "backtest.benchmark_note": "Benchmark = same-period Nikkei225 / TOPIX return",
 };
 
 export default enUS;
