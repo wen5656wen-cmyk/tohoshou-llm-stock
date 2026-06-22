@@ -647,6 +647,22 @@ model BacktestError {
   @@map("backtest_errors")
 }
 
+// V11.1: Per-alert dedup log — prevents same stock+type+channel from re-firing on same trading day
+model AlertLog {
+  id         Int      @id @default(autoincrement())
+  symbol     String
+  alertType  String   // RSI_HIGH | RSI_EXTREME | BELOW_MA20 | NEAR_52W_HIGH | VOL_SPIKE | AI_BUY_SIGNAL | NEWS_RISK
+  channel    String   // LINE | WECHAT
+  tradingDay DateTime @db.Date   // JST date (UTC+9 floor)
+  value      String?             // numeric snapshot at alert time, e.g. "76.3"
+  sentAt     DateTime @default(now())
+
+  @@unique([symbol, alertType, channel, tradingDay])
+  @@index([symbol])
+  @@index([tradingDay(sort: Desc)])
+  @@map("alert_logs")
+}
+
 // Per-user AI system settings (V7.9.3 System Control)
 model UserAiSettings {
   id             Int      @id @default(autoincrement())
