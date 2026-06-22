@@ -1,5 +1,5 @@
 /**
- * 企业微信 VIP 客户私信服务（v12.1 — 最终架构）
+ * 企业微信 VIP 客户私信服务（v12.2 — 最终架构）
  *
  * 唯一发送通道：add_msg_template（需员工在企业微信 App 手动确认）
  * VIP 白名单：温老头 / 深山老林（仅允许这两位）
@@ -7,12 +7,19 @@
  * 环境变量：
  *   WECOM_CORP_ID           企业 ID
  *   WECOM_CUSTOMER_SECRET   客户联系应用 Secret
+ *   WECOM_VIP_UIDS          逗号分隔的 VIP external_userid（快速路径，跳过 API 查询）
  */
 
 const BASE = "https://qyapi.weixin.qq.com";
 
 export const VIP_NAMES = ["温老头", "深山老林"];
 const SENDER_UID = "WenZhiYong";
+
+// 已确认的 VIP external_userid（避免每次推送都查询 externalcontact API）
+const HARDCODED_VIPS: VipContact[] = [
+  { external_userid: "wmR_snIgAA-YjrtMl3tsw9uRvuEtkGTA", name: "温老头" },
+  { external_userid: "wmR_snIgAASOVTxH1XxRJwXBdyOEVLlg", name: "深山老林" },
+];
 
 // ── Token ─────────────────────────────────────────────────────────────────────
 
@@ -39,41 +46,18 @@ export interface VipContact {
  * 动态查询所有客户，筛选白名单 VIP。
  * 每次调用约耗时 2-5s（4 个客户 × API 调用）。
  */
-export async function findVipContacts(token: string): Promise<VipContact[]> {
-  // 获取跟进员工列表
-  const fr = await fetch(`${BASE}/cgi-bin/externalcontact/get_follow_user_list?access_token=${token}`);
-  const fd = await fr.json() as { errcode: number; follow_user?: string[] };
-  if (fd.errcode !== 0) throw new Error(`get_follow_user_list errcode=${fd.errcode}`);
-
-  const results: VipContact[] = [];
-  const seen = new Set<string>();
-
-  for (const userId of fd.follow_user ?? []) {
-    let cursor = "";
-    do {
-      const params = new URLSearchParams({ access_token: token, userid: userId });
-      if (cursor) params.set("cursor", cursor);
-      const lr = await fetch(`${BASE}/cgi-bin/externalcontact/list?${params}`);
-      const ld = await lr.json() as { errcode: number; external_userid?: string[]; next_cursor?: string };
-      if (ld.errcode !== 0) break;
-
-      for (const eid of ld.external_userid ?? []) {
-        if (seen.has(eid)) continue;
-        seen.add(eid);
-        const gr = await fetch(`${BASE}/cgi-bin/externalcontact/get?access_token=${token}&external_userid=${eid}`);
-        const gd = await gr.json() as { errcode: number; external_contact?: { external_userid: string; name: string } };
-        if (gd.errcode === 0 && gd.external_contact) {
-          const { name, external_userid } = gd.external_contact;
-          if (VIP_NAMES.includes(name)) {
-            results.push({ external_userid, name });
-          }
-        }
-      }
-      cursor = ld.next_cursor ?? "";
-    } while (cursor);
+export async function findVipContacts(_token: string): Promise<VipContact[]> {
+  // 优先使用 WECOM_VIP_UIDS env（逗号分隔）；不存在则 fallback 到代码内置列表
+  const envUids = process.env.WECOM_VIP_UIDS;
+  if (envUids) {
+    const pairs = envUids.split(",").map(s => s.trim()).filter(Boolean);
+    // 格式：uid:name,uid:name
+    return pairs.map(p => {
+      const [external_userid, name] = p.split(":").map(s => s.trim());
+      return { external_userid, name: name ?? "" };
+    }).filter(v => VIP_NAMES.includes(v.name));
   }
-
-  return results;
+  return HARDCODED_VIPS;
 }
 
 // ── add_msg_template ──────────────────────────────────────────────────────────
