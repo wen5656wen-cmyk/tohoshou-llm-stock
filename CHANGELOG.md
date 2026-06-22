@@ -2,6 +2,26 @@
 
 ---
 
+## [10.1.1] - 2026-06-22 — Backtest Auto Fill: pipeline --all + health API + BacktestError + Sync card
+
+### New Files
+- **`app/api/backtest/health/route.ts`**: `GET /api/backtest/health` — returns `latestRecommendationDate/totalRecommendations/filled7d/30d/90d/fillRate7d/30d/90d/latestPriceDate/recentErrors/status`; status logic: HEALTHY(fillRate7d≥80%) / WAITING_PRICE(filled7d=0) / PARTIAL / FAILED
+
+### Schema Changes (`prisma/schema.prisma`)
+- **`BacktestError`** model (@@map("backtest_errors")): `symbol/recommendDate/horizon/reason/createdAt`; indexes on date/symbol/reason; reason codes: `NO_DAILY_PRICE` / `NO_ENTRY_PRICE` / `NO_EXIT_PRICE`
+
+### Modified Files
+- **`scripts/daily-ai-pipeline.ts`**: Step 8 changed from `update-backtest.ts []` → `update-backtest.ts ["--all"]`, timeout 5min → 10min; ensures all cohorts refill daily
+- **`scripts/update-backtest.ts`**: v10.1.1 — adds BacktestError recording per cohort: NO_DAILY_PRICE (age>5d, no prices), NO_ENTRY_PRICE (open=0), NO_EXIT_PRICE (age>15/50/135d per horizon); batch createMany with skipDuplicates; FORCE mode clears stale errors first
+- **`app/sync/page.tsx`**: Backtest health card between Data Health and Source cards — shows status badge (🟢/🟡/🔴), latest rec date, total count, 7D/30D/90D fill counts + rates, latest price date, recent error count; fetched on load + refresh
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit TBD
+- Production: backtest_errors table created; health API returns `WAITING_PRICE` (expected — 2026-06-23 prices not yet available)
+- Automation: daily pipeline Step 8 now always runs `--all`, no manual intervention needed
+
+---
+
 ## [10.1] - 2026-06-22 — Backtest Logic Upgrade: entry/exit via true trading days + portfolio + benchmark
 
 ### Schema Changes (`prisma/schema.prisma`)

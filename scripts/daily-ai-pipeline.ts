@@ -231,9 +231,9 @@ async function main(): Promise<void> {
       results.push({ name: "rerank-top500", durationMs: 0, success: false, skipped: true });
     }
 
-    // Step 8: Fill backtest price data for matured cohorts (best-effort, never blocks pipeline)
+    // Step 8: Fill ALL backtest cohorts (--all ensures new and historical cohorts are always updated)
     results.push(
-      runScript("update-backtest", "update-backtest.ts", [], 5 * 60 * 1000),
+      runScript("update-backtest", "update-backtest.ts", ["--all"], 10 * 60 * 1000),
     );
   }
 

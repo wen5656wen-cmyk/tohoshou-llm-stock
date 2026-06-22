@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * scripts/update-backtest.ts v10.1 — Accurate backtest fill
+ * scripts/update-backtest.ts v10.1.1 — Accurate backtest fill + error tracking
  *
  * Entry : raw open on the first trading day AFTER the rec date (prices[0].open)
  * Exit  : adjClose ?? close on the N-th trading day after entryDate
@@ -11,6 +11,7 @@
  *
  * Portfolio: equal-weight TOP5 / TOP10 / TOP20 / ALL
  * Benchmark: Nikkei225 / TOPIX from GlobalMarket table (nearest trading day)
+ * Errors: BacktestError rows for NO_DAILY_PRICE / NO_ENTRY_PRICE / NO_EXIT_PRICE
  *
  * Known limitations (by design):
  *   - entryPrice = raw open (no adjOpen in schema); exitPrice = adjClose → slight inconsistency on split stocks
@@ -19,8 +20,8 @@
  *   - no fees / slippage / tax
  *
  * Usage:
- *   npm run update-backtest          # fill unfilled cohorts
- *   npm run update-backtest:force    # re-fill all cohorts (--all)
+ *   npm run update-backtest          # fill unfilled cohorts (normal mode)
+ *   npm run update-backtest:force    # re-fill ALL cohorts (--all)
  */
 
 import "dotenv/config";
@@ -57,6 +58,10 @@ function median(nums: number[]): number | null {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+function daysSince(recDate: Date, now: Date): number {
+  return (now.getTime() - recDate.getTime()) / (1000 * 60 * 60 * 24);
+}
+
 type PriceRow = { symbol: string; date: Date; open: number; close: number; adjClose: number | null };
 
 type FilledStock = {
@@ -77,6 +82,8 @@ type FilledStock = {
   return90d: number | null;
   priceSource: string;
 };
+
+type ErrorEntry = { symbol: string; recommendDate: Date; horizon: string | null; reason: string };
 
 // Fetch closest GlobalMarket row on-or-after a date (within +7 calendar days)
 const gmCache = new Map<string, { nikkei: number | null; topix: number | null }>();
@@ -105,7 +112,7 @@ async function main() {
     cohortDates = await prisma.$queryRaw<{ date: Date }[]>`
       SELECT DISTINCT date FROM daily_recommendations ORDER BY date ASC
     `;
-    console.log(`📊 update-backtest v10.1 — ALL ${cohortDates.length} cohort dates [--all]`);
+    console.log(`📊 update-backtest v10.1.1 — ALL ${cohortDates.length} cohort dates [--all]`);
   } else {
     cohortDates = await prisma.$queryRaw<{ date: Date }[]>`
       SELECT DISTINCT date FROM daily_recommendations
@@ -115,7 +122,7 @@ async function main() {
          OR ("return90d" IS NULL AND "entryDate" IS NOT NULL)
       ORDER BY date ASC
     `;
-    console.log(`📊 update-backtest v10.1 — ${cohortDates.length} cohort dates need fill`);
+    console.log(`📊 update-backtest v10.1.1 — ${cohortDates.length} cohort dates need fill`);
   }
 
   if (cohortDates.length === 0) {
@@ -126,6 +133,7 @@ async function main() {
 
   let updatedRecs = 0;
   let upsertedResults = 0;
+  let totalErrors = 0;
 
   for (const { date: recDate } of cohortDates) {
     const recDateStr = new Date(recDate).toISOString().slice(0, 10);
@@ -140,6 +148,7 @@ async function main() {
     if (recs.length === 0) continue;
 
     const symbols = recs.map((r) => r.symbol);
+    const age = daysSince(new Date(recDate), now);
 
     // Batch-fetch prices: first 135 calendar days after recDate (covers 90td ≈ 126cd + buffer)
     const priceUntil = addCalendarDays(recDate, 135);
@@ -163,11 +172,16 @@ async function main() {
 
     // ── Process each stock ─────────────────────────────────────────────────
     const filled: FilledStock[] = [];
+    const cohortErrors: ErrorEntry[] = [];
 
     for (const rec of recs) {
       const prices = priceMap.get(rec.symbol) ?? [];
 
       if (prices.length === 0) {
+        // Only flag NO_DAILY_PRICE for cohorts old enough that prices should exist
+        if (age > 5) {
+          cohortErrors.push({ symbol: rec.symbol, recommendDate: new Date(recDate), horizon: null, reason: "NO_DAILY_PRICE" });
+        }
         filled.push({
           id: rec.id, symbol: rec.symbol, gptRank: rec.gptRank,
           entryDate: null, entryPrice: null, entryPriceType: null,
@@ -186,11 +200,21 @@ async function main() {
       const p30 = prices[30] ?? null;
       const p90 = prices[90] ?? null;
 
-      const entryPrice = p0.open; // raw open (no adjOpen in schema)
+      const entryPrice = p0.open;
+
+      // Flag NO_ENTRY_PRICE if open is zero (data quality issue)
+      if (entryPrice === 0) {
+        cohortErrors.push({ symbol: rec.symbol, recommendDate: new Date(recDate), horizon: null, reason: "NO_ENTRY_PRICE" });
+      }
 
       const price7d  = p7  ? (p7.adjClose  ?? p7.close)  : null;
       const price30d = p30 ? (p30.adjClose ?? p30.close) : null;
       const price90d = p90 ? (p90.adjClose ?? p90.close) : null;
+
+      // Flag NO_EXIT_PRICE only when the cohort is old enough that exit data should be available
+      if (!p7  && age > 15)  cohortErrors.push({ symbol: rec.symbol, recommendDate: new Date(recDate), horizon: "7d",  reason: "NO_EXIT_PRICE" });
+      if (!p30 && age > 50)  cohortErrors.push({ symbol: rec.symbol, recommendDate: new Date(recDate), horizon: "30d", reason: "NO_EXIT_PRICE" });
+      if (!p90 && age > 135) cohortErrors.push({ symbol: rec.symbol, recommendDate: new Date(recDate), horizon: "90d", reason: "NO_EXIT_PRICE" });
 
       const anyAdj = [p7, p30, p90].some((p) => p?.adjClose != null);
       const priceSource = anyAdj ? "ADJUSTED" : "RAW";
@@ -236,6 +260,19 @@ async function main() {
       updatedRecs++;
     }
 
+    // ── Persist BacktestError records ─────────────────────────────────────
+    if (cohortErrors.length > 0) {
+      if (FORCE) {
+        // Clear stale errors for this cohort before re-recording
+        await prisma.backtestError.deleteMany({ where: { recommendDate: new Date(recDate) } });
+      }
+      await prisma.backtestError.createMany({
+        data: cohortErrors,
+        skipDuplicates: true,
+      });
+      totalErrors += cohortErrors.length;
+    }
+
     // ── Compute portfolio stats ────────────────────────────────────────────
     const cohortEntryDate = filled.find((r) => r.entryDate != null)?.entryDate ?? null;
 
@@ -252,7 +289,6 @@ async function main() {
 
       for (const h of ["7d", "30d", "90d"] as HorizonKey[]) {
         const exitKey = `exitDate${h}` as "exitDate7d" | "exitDate30d" | "exitDate90d";
-        // Use first stock in TOP20 that has the exit date
         const repDate = filled.slice(0, 20).find((r) => r[exitKey] != null)?.[exitKey] ?? null;
         if (!repDate) continue;
         const bmExit = await getGlobalMarket(new Date(repDate));
@@ -317,10 +353,11 @@ async function main() {
     }
 
     const filledCount = filled.filter((r) => r.entryDate != null).length;
-    console.log(`     ✅ ${filledCount}/${recs.length} stocks filled`);
+    const errSuffix = cohortErrors.length > 0 ? ` · ${cohortErrors.length} errors` : "";
+    console.log(`     ✅ ${filledCount}/${recs.length} stocks filled${errSuffix}`);
   }
 
-  console.log(`\n✅ Done — ${updatedRecs} DailyRecommendation rows updated, ${upsertedResults} BacktestResults upserted`);
+  console.log(`\n✅ Done — ${updatedRecs} DailyRecommendation rows updated, ${upsertedResults} BacktestResults upserted, ${totalErrors} errors recorded`);
   await prisma.$disconnect();
 }
 

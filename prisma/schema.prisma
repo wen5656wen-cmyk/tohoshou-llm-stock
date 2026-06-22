@@ -609,6 +609,21 @@ model BacktestResult {
   @@map("backtest_results")
 }
 
+// Per-cohort error log when price data is missing (v10.1.1)
+model BacktestError {
+  id            Int      @id @default(autoincrement())
+  symbol        String
+  recommendDate DateTime @db.Date
+  horizon       String?              // "7d" | "30d" | "90d" | null (entry-level error)
+  reason        String               // "NO_DAILY_PRICE" | "NO_ENTRY_PRICE" | "NO_EXIT_PRICE"
+  createdAt     DateTime @default(now())
+
+  @@index([recommendDate(sort: Desc)])
+  @@index([symbol])
+  @@index([reason])
+  @@map("backtest_errors")
+}
+
 // Per-user AI system settings (V7.9.3 System Control)
 model UserAiSettings {
   id             Int      @id @default(autoincrement())
