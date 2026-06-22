@@ -8,7 +8,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { sendToVipSubscribers, getWecomToken } from "../lib/notify/wecom-customer-service";
+import { sendToVipCustomers, getWecomToken } from "../lib/notify/wecom-customer-service";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -252,11 +252,11 @@ async function main() {
     console.log(md);
   } else {
     const token = await getWecomToken();
-    const results = await sendToVipSubscribers(md, token);
-    if (results.some(r => r.errcode === 0)) {
+    const r = await sendToVipCustomers(md, token);
+    if (r.errcode === 0) {
       await recordAlerts(newAlerts, tradingDay);
     }
-    console.log(`[wecom:stock-alert] 推送完成，${results.length} 人：`, results.map(r => `${r.name}(${r.channel})`).join(", ") || "无订阅者");
+    console.log(`[wecom:stock-alert] errcode=${r.errcode} vip=${r.vipNames.join(",")}`);
   }
 
   await prisma.$disconnect();

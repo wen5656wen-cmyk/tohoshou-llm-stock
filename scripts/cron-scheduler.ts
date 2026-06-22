@@ -181,12 +181,6 @@ cron.schedule("*/30 9-16 * * 1-5", () => {
   run("check-alerts.ts", "異動アラートチェック");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 毎10分 JST — KF 消息轮询（工作日 08:00-16:00）— 检测「开始接收AI策略」触发词
-cron.schedule("*/10 8-16 * * 1-5", () => {
-  if (!hasWecom()) return;
-  run("kf-poll-messages.ts", "KF 消息轮询");
-}, { timezone: "Asia/Tokyo" });
-
 // ── 毎15分 JST — WeCom 股票预警（工作日 09:00-15:30）───────────────────────
 cron.schedule("*/15 9-15 * * 1-5", () => {
   log("INFO", "⏰ 毎15分 触发：WeCom 股票预警");

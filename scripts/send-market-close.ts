@@ -1,136 +1,151 @@
 #!/usr/bin/env npx tsx
 /**
- * 企业微信收盘总结（每日 15:30 JST 工作日）
- * 推送：STRONG BUY/BUY/WATCH 数量 / 今日表现最佳 / 今日跌幅最大
+ * TOHOSHOU AI — 每日收盘复盘（15:30 JST 工作日）
+ * 发送渠道：add_msg_template（员工确认后发出）
  */
 
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { sendToVipSubscribers, getWecomToken } from "../lib/notify/wecom-customer-service";
+import { sendToVipCustomers, getWecomToken } from "../lib/notify/wecom-customer-service";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
 
 const DRY_RUN = process.env.DRY_RUN === "1";
+const SEP = "━━━━━━━━━━━━━━━━━━━━";
 
-const DOW_ZH = ["日", "一", "二", "三", "四", "五", "六"];
-
-function fmtReturn(v: number | null | undefined): string {
+function fmtJpy(v: number | null | undefined): string {
   if (v == null) return "—";
-  const sign = v >= 0 ? "+" : "";
-  return `${sign}${v.toFixed(2)}%`;
+  return `¥${Math.round(v).toLocaleString("ja-JP")}`;
 }
 
-function fmtPrice(v: number | null | undefined): string {
+function fmtPct(v: number | null | undefined): string {
   if (v == null) return "—";
-  return `¥${v.toLocaleString("ja-JP")}`;
+  return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
-function sentimentBar(strongBuy: number, buy: number, hold: number, watch: number, avoid: number): string {
-  const total = strongBuy + buy + hold + watch + avoid;
+function sentimentLabel(strongBuy: number, buy: number, avoid: number, total: number): string {
   if (total === 0) return "—";
-  const bullish = Math.round(((strongBuy + buy) / total) * 10);
-  const bearish = Math.round((avoid / total) * 10);
-  const neutral = 10 - bullish - bearish;
-  return "🟢".repeat(Math.max(bullish, 0)) + "⚪".repeat(Math.max(neutral, 0)) + "🔴".repeat(Math.max(bearish, 0));
+  const bullRatio = (strongBuy + buy) / total;
+  const bearRatio = avoid / total;
+  if (bullRatio >= 0.20) return "偏多";
+  if (bearRatio >= 0.30) return "偏空";
+  return "中性";
 }
 
 async function main() {
-  console.log(`[wecom:market-close] ${DRY_RUN ? "DRY RUN" : "发送模式"} 启动`);
-
+  console.log(`[wecom:close] ${DRY_RUN ? "DRY RUN" : "执行"}`);
 
   const now = new Date();
-  const jstMs = now.getTime() + 9 * 3600000;
-  const jst = new Date(jstMs);
-  const dateStr = jst.toISOString().split("T")[0];
-  const dow = DOW_ZH[jst.getUTCDay()];
+  const jst = new Date(now.getTime() + 9 * 3600_000);
+  const days = ["日", "一", "二", "三", "四", "五", "六"];
+  const dateLabel = `${jst.getUTCFullYear()}年${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日`;
+  const weekday = days[jst.getUTCDay()];
 
-  const [
-    strongBuyCount,
-    buyCount,
-    holdCount,
-    watchCount,
-    avoidCount,
-    totalCount,
-    avgAgg,
-    topGainer,
-    topLoser,
-    topBuyNow,
-  ] = await Promise.all([
-    prisma.stockScore.count({ where: { recommendationV2: "STRONG_BUY", priceCount: { gte: 20 } } }),
-    prisma.stockScore.count({ where: { recommendationV2: "BUY", priceCount: { gte: 20 } } }),
-    prisma.stockScore.count({ where: { recommendationV2: "HOLD", priceCount: { gte: 20 } } }),
-    prisma.stockScore.count({ where: { recommendationV2: "WATCH", priceCount: { gte: 20 } } }),
-    prisma.stockScore.count({ where: { recommendationV2: "AVOID", priceCount: { gte: 20 } } }),
-    prisma.stockScore.count({ where: { priceCount: { gte: 20 } } }),
-    prisma.stockScore.aggregate({
-      _avg: { adaptiveScore: true },
-      where: { priceCount: { gte: 20 } },
-    }),
-    prisma.stockScore.findFirst({
-      where: { priceCount: { gte: 20 }, return5d: { not: null } },
-      orderBy: { return5d: "desc" },
-      select: { symbol: true, name: true, nameZh: true, latestClose: true, return5d: true, recommendationV2: true },
-    }),
-    prisma.stockScore.findFirst({
-      where: { priceCount: { gte: 20 }, return5d: { not: null } },
-      orderBy: { return5d: "asc" },
-      select: { symbol: true, name: true, nameZh: true, latestClose: true, return5d: true, recommendationV2: true },
-    }),
-    prisma.stockScore.findFirst({
-      where: { tradingAction: "BUY_NOW", priceCount: { gte: 20 }, adaptiveScore: { gte: 65 } },
-      orderBy: { adaptiveScore: "desc" },
-      select: { symbol: true, name: true, nameZh: true, adaptiveScore: true, return5d: true },
-    }),
-  ]);
+  // 评级分布统计
+  const groups = await prisma.stockScore.groupBy({
+    by: ["recommendationV2"],
+    _count: { symbol: true },
+    where: { recommendationV2: { not: null } },
+  });
+  const cm: Record<string, number> = {};
+  for (const g of groups) cm[g.recommendationV2 ?? ""] = g._count.symbol;
+  const total = Object.values(cm).reduce((a, b) => a + b, 0);
+  const sB = cm["STRONG_BUY"] ?? 0;
+  const buy = cm["BUY"] ?? 0;
+  const hold = cm["HOLD"] ?? 0;
+  const watch = cm["WATCH"] ?? 0;
+  const avoid = cm["AVOID"] ?? 0;
 
-  const bar = sentimentBar(strongBuyCount, buyCount, holdCount, watchCount, avoidCount);
-  const avgScore = (avgAgg._avg.adaptiveScore ?? 0).toFixed(1);
+  // 涨幅前3（近5日）
+  const gainers = await prisma.stockScore.findMany({
+    where: { return5d: { not: null }, priceCount: { gte: 20 } },
+    orderBy: { return5d: "desc" },
+    take: 3,
+    select: { symbol: true, name: true, nameZh: true, latestClose: true, return5d: true, recommendationV2: true },
+  });
 
-  const gainerLine = topGainer
-    ? `📈 涨幅最大（5日）：**${topGainer.nameZh ?? topGainer.name}** \`${topGainer.symbol}\`  ${fmtPrice(topGainer.latestClose)} <font color="info">${fmtReturn(topGainer.return5d)}</font>`
-    : "📈 涨幅最大：暂无数据";
+  // 跌幅前3（近5日）
+  const losers = await prisma.stockScore.findMany({
+    where: { return5d: { not: null }, priceCount: { gte: 20 } },
+    orderBy: { return5d: "asc" },
+    take: 3,
+    select: { symbol: true, name: true, nameZh: true, latestClose: true, return5d: true },
+  });
 
-  const loserLine = topLoser
-    ? `📉 跌幅最大（5日）：**${topLoser.nameZh ?? topLoser.name}** \`${topLoser.symbol}\`  ${fmtPrice(topLoser.latestClose)} <font color="red">${fmtReturn(topLoser.return5d)}</font>`
-    : "📉 跌幅最大：暂无数据";
+  // STRONG_BUY 总数（明日关注）
+  const sbCount = await prisma.stockScore.count({
+    where: { recommendationV2: "STRONG_BUY", priceCount: { gte: 20 } },
+  });
 
-  const buyNowLine = topBuyNow
-    ? `🎯 AI推荐：**${topBuyNow.nameZh ?? topBuyNow.name}** \`${topBuyNow.symbol}\`（评分 ${topBuyNow.adaptiveScore?.toFixed(1) ?? "—"}）`
-    : "";
+  const lines: string[] = [
+    "TOHOSHOU AI 研究院",
+    "每日收盘复盘",
+    "",
+    SEP,
+    "",
+    `${dateLabel}（${weekday}）15:30`,
+    "",
+    "【市场评级分布】",
+    "",
+    `强烈买入：${sB.toLocaleString()}只　买入：${buy.toLocaleString()}只`,
+    `持有：${hold.toLocaleString()}只　　观察/回避：${(watch + avoid).toLocaleString()}只`,
+    "",
+    `情绪倾向：${sentimentLabel(sB, buy, avoid, total)}`,
+  ];
 
-  const md = [
-    `## 📊 TOHOSHOU AI 收盘总结`,
-    `**${dateStr}（${dow}）**`,
-    `━━━━━━━━━━━━━━━━━━━━━━`,
-    `### 评级分布（共 ${totalCount} 只）`,
-    `🔴 STRONG BUY：**${strongBuyCount}只**　🟢 BUY：**${buyCount}只**　⚪ HOLD：**${holdCount}只**`,
-    `🟡 WATCH：**${watchCount}只**　⚫ AVOID：**${avoidCount}只**`,
-    ``,
-    `市场情绪：${bar}`,
-    `平均AI评分：**${avgScore}**`,
-    `━━━━━━━━━━━━━━━━━━━━━━`,
-    gainerLine,
-    loserLine,
-    ...(buyNowLine ? [``, buyNowLine] : []),
-    `━━━━━━━━━━━━━━━━━━━━━━`,
-    `_注：涨跌幅基于5日收益率（日内数据次日更新）_`,
-  ].join("\n");
+  // 涨幅领先
+  if (gainers.length > 0) {
+    lines.push("");
+    lines.push(SEP);
+    lines.push("");
+    lines.push("【近5日涨幅领先】");
+    for (const s of gainers) {
+      const name = s.nameZh ?? s.name;
+      lines.push(`• ${name}（${s.symbol}）  ${fmtPct(s.return5d)}  现价 ${fmtJpy(s.latestClose)}`);
+    }
+  }
+
+  // 跌幅较大
+  if (losers.length > 0) {
+    lines.push("");
+    lines.push("【近5日跌幅较大】");
+    for (const s of losers) {
+      const name = s.nameZh ?? s.name;
+      lines.push(`• ${name}（${s.symbol}）  ${fmtPct(s.return5d)}  现价 ${fmtJpy(s.latestClose)}`);
+    }
+  }
+
+  lines.push("");
+  lines.push(SEP);
+  lines.push("");
+  lines.push("【明日关注】");
+  lines.push("");
+  lines.push(`模型评级「强烈买入」标的共 ${sbCount} 只，`);
+  lines.push("建议持续跟踪并结合基本面审慎评估。");
+  lines.push("");
+  lines.push(SEP);
+  lines.push("");
+  lines.push("本报告基于量化模型，不构成投资建议。");
+  lines.push("历史业绩不代表未来表现，请合理控制仓位。");
+  lines.push("");
+  lines.push("TOHOSHOU AI 研究院");
+
+  const content = lines.join("\n");
 
   if (DRY_RUN) {
-    console.log("[wecom:market-close] DRY RUN 预览:");
-    console.log(md);
+    console.log("\n" + content);
   } else {
     const token = await getWecomToken();
-    const results = await sendToVipSubscribers(md, token);
-    console.log(`[wecom:market-close] 推送完成，${results.length} 人：`, results.map(r => `${r.name}(${r.channel})`).join(", ") || "无订阅者");
+    const r = await sendToVipCustomers(content, token);
+    console.log(`[wecom:close] errcode=${r.errcode} vip=${r.vipNames.join(",")}`);
   }
 
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error("[wecom:market-close] 致命错误:", err);
+main().catch(err => {
+  console.error("[wecom:close] 错误:", err);
   process.exit(1);
 });

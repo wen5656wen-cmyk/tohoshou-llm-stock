@@ -2,6 +2,50 @@
 
 ---
 
+## [12.1] - 2026-06-23 — 最终架构确认：VIP 人工确认私信模式
+
+### Architecture Final
+- **唯一发送通道**: `add_msg_template`（员工手动确认，无 KF 48h 自动逻辑）
+- **白名单 VIP**: 温老头 / 深山老林（运行时动态查询 external_userid，禁止其他客户）
+- **消息风格**: 专业金融机构风格（参考高盛/摩根士丹利/瑞银），禁止「暴涨/翻倍/稳赚」
+
+### Deleted
+- `scripts/kf-poll-messages.ts` — KF 触发词轮询（已停用）
+- cron KF 每10分钟轮询任务
+- `package.json kf:poll` 脚本
+
+### Updated
+- **`lib/notify/wecom-customer-service.ts`** (v12.1 最终版):
+  - 删除全部 KF 逻辑（syncKfMessages/sendKfMsg/pollAndActivate/subscriber storage）
+  - 保留：`getWecomToken`, `findVipContacts`（动态查询 VIP 名称）, `sendToVipCustomers`
+  - `sendToVipCustomers(content)` → 查找 VIP → add_msg_template → 等待员工确认
+- **`scripts/send-morning-report.ts`** (金融机构风格):
+  - "TOHOSHOU AI 研究院 | 晨间策略报告"
+  - TOP3 标的：评级/AI评分/目标价/建议区间/风险等级
+  - 模型组合绩效：收益率/日经225/超额收益/胜率
+- **`scripts/send-wecom-midday.ts`** (信号驱动):
+  - 仅当≥1只标的进入建议区间时创建任务，否则跳过
+  - "买入时机信号"：当前价/建议区间/目标价涨幅空间
+- **`scripts/send-market-close.ts`** (金融机构风格):
+  - "TOHOSHOU AI 研究院 | 每日收盘复盘"
+  - 市场评级分布/情绪倾向/近5日涨跌领先/明日关注
+- **`scripts/test-wecom-customer-service.ts`** (v12.1):
+  - 纯 add_msg_template 测试，无 KF 步骤
+- **`scripts/cron-scheduler.ts`**: 删除 KF 轮询任务
+
+### Send Pipeline (Final)
+```
+系统生成报告内容
+↓
+create add_msg_template → errcode=0
+↓
+企业微信 App（WenZhiYong）待发送队列
+↓
+手动点击"发送"
+↓
+温老头 / 深山老林 收到消息
+```
+
 ## [12.0] - 2026-06-23 — 架构调整：Wecom Bot 下线，VIP 客户私信体系重建
 
 ### Architecture Change

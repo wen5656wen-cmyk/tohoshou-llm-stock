@@ -72,7 +72,6 @@
     "wecom:market-close": "npx tsx scripts/send-market-close.ts",
     "wecom:market-close:dry": "DRY_RUN=1 npx tsx scripts/send-market-close.ts",
     "wecom:test": "npx tsx scripts/test-wecom-customer-service.ts",
-    "kf:poll": "npx tsx scripts/kf-poll-messages.ts",
     "test:chat-api": "npx tsx scripts/test-chat-api.ts"
   },
   "dependencies": {
