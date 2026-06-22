@@ -2,6 +2,48 @@
 
 ---
 
+## [11.3] - 2026-06-22 — 企业微信智能机器人问答接口
+
+### New Files
+- **`app/api/wecom/chat/route.ts`**: `POST /api/wecom/chat` 问答接口 + `GET` 健康检查
+  - Bearer token 鉴权（`CHAT_API_TOKEN`，未配置时生产打 WARNING）
+  - 兼容 `query` / `message` / `text` 三种请求字段
+  - 返回格式：`{ ok, type, text, data }`
+- **`lib/wecom-chat.ts`**: 4类查询核心逻辑（纯 DB，无 GPT）
+  - 股票查询：4位代码 / `xxx.T` / 中文名搜索，返回评分/评级/AI建议/风险/新闻
+  - 今日推荐：DailyRecommendation 最新日期 Top5
+  - STRONG BUY：recommendationV2=STRONG_BUY 或 adaptiveScore≥80 Top10
+  - 回测：BacktestResult 最新日期 7d/30d/90d 摘要，无数据提示"暂无"
+- **`scripts/test-chat-api.ts`**: 5问题直调测试（直接 import lib，无需运行服务器）
+
+### Modified
+- **`package.json`**: 新增 `test:chat-api` 命令
+- **`.env.example`**: 新增 `CHAT_API_TOKEN` 说明
+
+### API 用法
+```bash
+# POST 查询
+curl -X POST https://aitohoshou.com/api/wecom/chat \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "7203能买吗"}'
+
+# GET 健康检查
+curl https://aitohoshou.com/api/wecom/chat
+
+# 本地测试
+npm run test:chat-api
+```
+
+### 测试结果（本地 DB）
+- 「7203」→ type:stock，丰田汽车评分 57.0 ✅
+- 「7203能买吗？」→ type:stock，中文回答 ✅
+- 「今日推荐」→ type:recommendations，暂无数据提示 ✅
+- 「最近有哪些STRONG BUY」→ type:strong_buy，Top1 2127.T ✅
+- 「回测结果」→ type:backtest，暂无数据提示 ✅
+
+---
+
 ## [11.2] - 2026-06-22 — 企业微信群机器人推送模块
 
 ### New Files
