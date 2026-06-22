@@ -2,6 +2,14 @@
 
 ---
 
+## [12.1.1] - 2026-06-23 — 通道验证通过，深山老林 UID 确认
+
+### Verified
+- `npm run wecom:test` 生产环境运行结果：errcode=0，msgid=msgR_snIgAA75yIO0x1C465q4tkje-tHg
+- VIP 双客户均成功查到：温老头 + 深山老林（首次确认）
+- 深山老林 external_userid：`wmR_snIgAASOVTxH1XxRJwXBdyOEVLlg`
+- 任务创建成功，需在企业微信 App「客户群发」确认发送
+
 ## [12.1] - 2026-06-23 — 最终架构确认：VIP 人工确认私信模式
 
 ### Architecture Final
