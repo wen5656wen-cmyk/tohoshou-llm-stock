@@ -2,6 +2,46 @@
 
 ---
 
+## [12.0] - 2026-06-23 — 架构调整：Wecom Bot 下线，VIP 客户私信体系重建
+
+### Architecture Change
+企业微信群机器人（Wecom AI Bot）完全下线，推送架构改为 VIP 客户私信：
+- **Channel A**: KF send_msg（48h 会话窗口，无需确认）— 需 KF 账号改为「智能助手」模式
+- **Channel B**: add_msg_template（保底通道，需员工手动确认）
+- 白名单：仅「温老头」「深山老林」
+
+### Deleted
+- `lib/notify/wecom-aibot.ts` — WecomAiBot WebSocket 客户端 + sendViaWorker + isAibotConfigured
+- `scripts/wecom-aibot-worker.ts` — PM2 长连接 worker（端口 3977）
+- `scripts/send-wecom-aibot-test.ts` — aibot 测试脚本
+- `scripts/kf-send-now.ts` — 临时调试脚本
+
+### New Files
+- **`scripts/send-wecom-midday.ts`**: 11:30 盘中策略更新推送（TOP3 + 市场情绪快照）
+- **`scripts/kf-poll-messages.ts`**: KF 消息轮询 — 检测「开始接收AI策略」触发词，激活订阅者
+
+### Updated
+- **`lib/notify/wecom-customer-service.ts`** (完全重写 v12.0):
+  - 订阅者管理：`data/kf-subscribers.json`，`loadSubscribers/saveSubscribers/upsertSubscriber`
+  - `sendToVipSubscribers(content)` — KF → add_msg_template fallback 双通道
+  - `pollAndActivate(token, openKfId)` — 轮询检测触发词，白名单校验，自动发欢迎消息
+  - `sendAddMsgTemplate()` — add_msg_template 保底通道
+- **`scripts/test-wecom-customer-service.ts`**: 全新测试流程（v12.0）
+- **`scripts/send-morning-report.ts`**: 替换 sendViaWorker → sendToVipSubscribers
+- **`scripts/send-market-close.ts`**: 同上
+- **`scripts/send-stock-alert.ts`**: 同上
+- **`app/api/wecom/callback/route.ts`**: 移除 sendViaWorker 和 handleWecomQuery（bot 已下线）
+- **`scripts/cron-scheduler.ts`**: 
+  - hasWecom() 改为检查 WECOM_CORP_ID + WECOM_CUSTOMER_SECRET
+  - 新增 11:30 盘中推送（工作日）
+  - 新增 08:00-16:00 每10分钟 KF 消息轮询
+- **`package.json`**: 新增 `wecom:midday`, `wecom:test`, `kf:poll`；删除 `wecom:aibot*`
+
+### Known Issues
+- KF send_msg 仍返回 95018（TOHO 账号「接待方式」为「人工接待」）
+- 修复方法：企业微信后台 → 微信客服 → TOHO → 接待设置 → 改为「智能助手」
+- 修复前 Channel A 不可用，自动 fallback 到 Channel B（add_msg_template，需员工确认）
+
 ## [11.7] - 2026-06-23 — 微信客服 KF 48h 通道探测 + 晨报格式升级
 
 ### New Files

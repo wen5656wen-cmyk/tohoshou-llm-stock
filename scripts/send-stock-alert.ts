@@ -8,7 +8,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { sendViaWorker, isAibotConfigured } from "../lib/notify/wecom-aibot";
+import { sendToVipSubscribers, getWecomToken } from "../lib/notify/wecom-customer-service";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -250,18 +250,13 @@ async function main() {
   if (DRY_RUN) {
     console.log("[wecom:stock-alert] DRY RUN 预览:");
     console.log(md);
-  } else if (!isAibotConfigured()) {
-    console.log("[wecom:stock-alert] WECOM_AIBOT_* 未配置，跳过推送。消息内容：");
-    console.log(md);
   } else {
-    const res = await sendViaWorker(md);
-    if (res.ok) {
-      console.log("[wecom:stock-alert] ✅ 推送成功（长连接）");
+    const token = await getWecomToken();
+    const results = await sendToVipSubscribers(md, token);
+    if (results.some(r => r.errcode === 0)) {
       await recordAlerts(newAlerts, tradingDay);
-    } else {
-      // 推送失败不记录 AlertLog，下一次轮询会重试
-      console.warn("[wecom:stock-alert] ⚠️ 推送失败（请检查 tohoshou-wecom-aibot 进程）:", res.errmsg);
     }
+    console.log(`[wecom:stock-alert] 推送完成，${results.length} 人：`, results.map(r => `${r.name}(${r.channel})`).join(", ") || "无订阅者");
   }
 
   await prisma.$disconnect();

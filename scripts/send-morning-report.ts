@@ -7,7 +7,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { sendViaWorker, isAibotConfigured } from "../lib/notify/wecom-aibot";
+import { sendToVipSubscribers, getWecomToken } from "../lib/notify/wecom-customer-service";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -176,16 +176,10 @@ async function main() {
   if (DRY_RUN) {
     console.log("[wecom:morning-report] DRY RUN 预览:");
     console.log(msg);
-  } else if (!isAibotConfigured()) {
-    console.log("[wecom:morning-report] WECOM_AIBOT_* 未配置，跳过推送。消息内容：");
-    console.log(msg);
   } else {
-    const res = await sendViaWorker(msg);
-    if (res.ok) {
-      console.log("[wecom:morning-report] ✅ 推送成功");
-    } else {
-      console.warn("[wecom:morning-report] ⚠️ 推送失败:", res.errmsg);
-    }
+    const token = await getWecomToken();
+    const results = await sendToVipSubscribers(msg, token);
+    console.log(`[wecom:morning-report] 推送完成，${results.length} 人：`, results.map(r => `${r.name}(${r.channel})`).join(", ") || "无订阅者");
   }
 
   await prisma.$disconnect();

@@ -1,8 +1,8 @@
 /**
- * 企业微信智能机器人回调 URL（v11.5.1）
+ * 企业微信回调 URL（v12.0 — bot 已下线）
  *
  * GET  /api/wecom/callback — 企业微信 URL 验证（验签 + 解密 echostr）
- * POST /api/wecom/callback — 消息回调（解密 → 解析 → 调用 wecom-chat → 通过 worker 回复）
+ * POST /api/wecom/callback — 消息回调（仅日志，不处理）
  *
  * ⚠️ 关键：URL 参数必须用原始 query string + decodeURIComponent 解析。
  *    URLSearchParams.get() 会把 base64 的 "+" 解码成空格，导致 AES 解密失败。
@@ -10,13 +10,10 @@
  * 所需环境变量：
  *   WECOM_TOKEN       — 企业微信后台填写的 Token
  *   WECOM_AES_KEY     — EncodingAESKey（43 字符，不含末尾 "="）
- *   WECOM_BOT_ID      — 智能机器人 ID（仅日志）
  */
 
 import { NextRequest } from "next/server";
 import crypto from "crypto";
-import { handleWecomQuery } from "@/lib/wecom-chat";
-import { sendViaWorker } from "@/lib/notify/wecom-aibot";
 
 // ── 原始 query string 解析 ────────────────────────────────────────────────────
 // 不能用 URLSearchParams（它把 "+" 解码成空格，破坏 base64）。
@@ -198,27 +195,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   console.log(`[wecom-callback] msgType=${msgType} chatId=${chatId || "(无)"} from=${fromUser}`);
   if (chatId) console.log(`[wecom-callback] 💡 可配置 WECOM_AIBOT_CHAT_ID=${chatId}`);
 
-  // 文本消息 → AI 问答 → worker 回复
+  // 企业微信 Bot 已下线 — 仅记录日志，不处理消息
   if (msgType === "text" && content) {
-    const query = content.replace(/^@\S+\s*/, "").trim();
-    if (query) {
-      console.log(`[wecom-callback] 收到查询: "${query}"`);
-      try {
-        const result = await handleWecomQuery(query);
-        if (result.ok && result.text) {
-          const replyTarget = chatId || process.env.WECOM_AIBOT_CHAT_ID || "";
-          if (replyTarget) {
-            const sendRes = await sendViaWorker(result.text, replyTarget);
-            if (sendRes.ok) console.log("[wecom-callback] ✅ 回复已发送至", replyTarget);
-            else console.warn("[wecom-callback] ⚠️ 回复失败:", sendRes.errmsg);
-          } else {
-            console.warn("[wecom-callback] 无 chatId，回复内容:", result.text.slice(0, 200));
-          }
-        }
-      } catch (err) {
-        console.error("[wecom-callback] 查询/回复异常:", err);
-      }
-    }
+    console.log(`[wecom-callback] 文本消息（已忽略）: "${content.slice(0, 50)}"`);
   }
 
   return ok();
