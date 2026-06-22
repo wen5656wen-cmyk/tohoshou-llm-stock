@@ -1,13 +1,16 @@
 /**
- * 企业微信智能机器人回调 URL（v11.5）
+ * 企业微信智能机器人回调 URL（v11.5.1）
  *
  * GET  /api/wecom/callback — 企业微信 URL 验证（验签 + 解密 echostr）
  * POST /api/wecom/callback — 消息回调（解密 → 解析 → 调用 wecom-chat → 通过 worker 回复）
  *
+ * ⚠️ 关键：URL 参数必须用原始 query string + decodeURIComponent 解析。
+ *    URLSearchParams.get() 会把 base64 的 "+" 解码成空格，导致 AES 解密失败。
+ *
  * 所需环境变量：
  *   WECOM_TOKEN       — 企业微信后台填写的 Token
- *   WECOM_AES_KEY     — EncodingAESKey（43 字符 base64）
- *   WECOM_BOT_ID      — 智能机器人 ID（仅记录日志，不强制校验）
+ *   WECOM_AES_KEY     — EncodingAESKey（43 字符，不含末尾 "="）
+ *   WECOM_BOT_ID      — 智能机器人 ID（仅日志）
  */
 
 import { NextRequest } from "next/server";
@@ -15,29 +18,55 @@ import crypto from "crypto";
 import { handleWecomQuery } from "@/lib/wecom-chat";
 import { sendViaWorker } from "@/lib/notify/wecom-aibot";
 
-// ── AES 工具 ──────────────────────────────────────────────────────────────────
+// ── 原始 query string 解析 ────────────────────────────────────────────────────
+// 不能用 URLSearchParams（它把 "+" 解码成空格，破坏 base64）。
+// decodeURIComponent 只解码 %XX，不处理 "+"，保留 base64 正确字符。
 
-function getAesKey(): Buffer {
-  // EncodingAESKey 是 43 位 base64，加 "=" 补位后解码为 32 字节
-  return Buffer.from((process.env.WECOM_AES_KEY ?? "") + "=", "base64");
+function rawParam(req: NextRequest, name: string): string {
+  const search = new URL(req.url).search; // 例如 "?msg_signature=xxx&echostr=abc+def"
+  const raw = search.startsWith("?") ? search.slice(1) : search;
+  const re = new RegExp(`(?:^|&)${name}=([^&]*)`);
+  const m = raw.match(re);
+  return m ? decodeURIComponent(m[1]) : "";
 }
+
+// ── AES 工具 ──────────────────────────────────────────────────────────────────
 
 /**
  * 解密企业微信 AES-256-CBC 密文
- * 明文结构：16B random | 4B msg_len (big-endian) | msg | receiveid — PKCS7 padding
+ * 结构：16B random | 4B msg_len (big-endian) | msg | receiveid — PKCS7 padded
+ * key = base64decode(WECOM_AES_KEY + "=")，iv = key[0:16]
  */
 function decryptMsg(encryptedBase64: string): string {
-  const key = getAesKey();
+  const aesKeyRaw = process.env.WECOM_AES_KEY ?? "";
+  if (aesKeyRaw.length !== 43) {
+    throw new Error(`WECOM_AES_KEY 长度 ${aesKeyRaw.length} != 43`);
+  }
+
+  const key = Buffer.from(aesKeyRaw + "=", "base64");
+  if (key.length !== 32) {
+    throw new Error(`AES key 长度 ${key.length} != 32`);
+  }
+
   const iv = key.slice(0, 16);
   const cipherBuf = Buffer.from(encryptedBase64, "base64");
+  if (cipherBuf.length === 0) throw new Error("ciphertext 为空（base64 解码失败？）");
+  if (cipherBuf.length % 16 !== 0) throw new Error(`ciphertext 长度 ${cipherBuf.length} 不是 16 的倍数`);
+
   const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
   decipher.setAutoPadding(false);
   const raw = Buffer.concat([decipher.update(cipherBuf), decipher.final()]);
-  // 去除 PKCS7 padding
+
+  // PKCS7 unpadding
   const padLen = raw[raw.length - 1];
+  if (padLen < 1 || padLen > 16) throw new Error(`无效 PKCS7 padding: ${padLen}`);
   const unpadded = raw.slice(0, raw.length - padLen);
-  // 解析结构
+  if (unpadded.length < 20) throw new Error(`解密后内容过短: ${unpadded.length}B（key 可能错误）`);
+
+  // 解析结构：16B random + 4B msg_len + msg + receiveid
   const msgLen = unpadded.readUInt32BE(16);
+  if (20 + msgLen > unpadded.length) throw new Error(`msgLen ${msgLen} 超出 buffer ${unpadded.length}`);
+
   return unpadded.slice(20, 20 + msgLen).toString("utf8");
 }
 
@@ -58,9 +87,7 @@ function verifySig(
 // ── XML 字段提取（支持 CDATA 和纯文本）────────────────────────────────────────
 
 function xmlField(xml: string, field: string): string {
-  const re = new RegExp(
-    `<${field}>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([^<]*))</${field}>`
-  );
+  const re = new RegExp(`<${field}>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([^<]*))</${field}>`);
   const m = xml.match(re);
   return (m?.[1] ?? m?.[2] ?? "").trim();
 }
@@ -68,42 +95,66 @@ function xmlField(xml: string, field: string): string {
 // ── GET — URL 验证 ────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const sp = req.nextUrl.searchParams;
-  const msgSig = sp.get("msg_signature") ?? "";
-  const timestamp = sp.get("timestamp") ?? "";
-  const nonce = sp.get("nonce") ?? "";
-  const echostr = sp.get("echostr") ?? "";
+  // 必须用原始 query string 解析，避免 URLSearchParams 把 "+" 解码成空格
+  const msgSig = rawParam(req, "msg_signature");
+  const timestamp = rawParam(req, "timestamp");
+  const nonce = rawParam(req, "nonce");
+  const echostr = rawParam(req, "echostr");
+
+  console.log(
+    `[wecom-callback] GET: sig=${msgSig.slice(0, 8)}… ts=${timestamp} nonce=${nonce} echostr_len=${echostr.length}`
+  );
 
   const token = process.env.WECOM_TOKEN ?? "";
-  const aesKeySet = !!process.env.WECOM_AES_KEY;
+  const aesKeyRaw = process.env.WECOM_AES_KEY ?? "";
 
-  if (!token || !aesKeySet) {
-    console.error("[wecom-callback] GET: WECOM_TOKEN / WECOM_AES_KEY 未配置");
-    return new Response("server error", { status: 500 });
+  // 环境变量校验
+  if (!token) {
+    console.error("[wecom-callback] GET: WECOM_TOKEN 未配置");
+    return new Response("server error: WECOM_TOKEN not set", { status: 500 });
+  }
+  if (!aesKeyRaw) {
+    console.error("[wecom-callback] GET: WECOM_AES_KEY 未配置");
+    return new Response("server error: WECOM_AES_KEY not set", { status: 500 });
+  }
+  if (aesKeyRaw.length !== 43) {
+    console.error(`[wecom-callback] GET: WECOM_AES_KEY 长度 ${aesKeyRaw.length} 不是 43`);
+    return new Response(`server error: WECOM_AES_KEY length ${aesKeyRaw.length} != 43`, { status: 500 });
   }
 
+  // 必要参数
+  if (!msgSig || !timestamp || !nonce || !echostr) {
+    console.warn("[wecom-callback] GET: 缺少必要参数", { msgSig: !!msgSig, timestamp: !!timestamp, nonce: !!nonce, echostr: !!echostr });
+    return new Response("missing params", { status: 400 });
+  }
+
+  // 验签
   if (!verifySig(token, timestamp, nonce, echostr, msgSig)) {
-    console.warn("[wecom-callback] GET: 签名校验失败 — 请确认 WECOM_TOKEN 与企业微信配置一致");
+    console.warn("[wecom-callback] GET: 签名校验失败");
     return new Response("signature mismatch", { status: 403 });
   }
 
+  // 解密 echostr
   try {
     const plaintext = decryptMsg(echostr);
-    console.log("[wecom-callback] GET: URL 验证成功，echostr 已解密");
-    return new Response(plaintext, { status: 200 });
+    console.log("[wecom-callback] GET: ✅ URL 验证成功，返回明文 echostr");
+    return new Response(plaintext, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (err) {
-    console.error("[wecom-callback] GET: 解密失败 —", err);
-    return new Response("decryption error", { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[wecom-callback] GET: 解密失败 —", msg);
+    return new Response("decryption failed: " + msg, { status: 400 });
   }
 }
 
 // ── POST — 消息回调 ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const sp = req.nextUrl.searchParams;
-  const msgSig = sp.get("msg_signature") ?? "";
-  const timestamp = sp.get("timestamp") ?? "";
-  const nonce = sp.get("nonce") ?? "";
+  const msgSig = rawParam(req, "msg_signature");
+  const timestamp = rawParam(req, "timestamp");
+  const nonce = rawParam(req, "nonce");
   const token = process.env.WECOM_TOKEN ?? "";
 
   let rawBody: string;
@@ -113,69 +164,55 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ok();
   }
 
-  // 1. 提取加密字段
+  // 提取加密字段
   const encrypted = xmlField(rawBody, "Encrypt");
   if (!encrypted) {
     console.warn("[wecom-callback] POST: body 中无 Encrypt 字段");
     return ok();
   }
 
-  // 2. 验签（未配置 token 时跳过，开发模式）
+  // 验签（未配置 token 时跳过）
   if (token && !verifySig(token, timestamp, nonce, encrypted, msgSig)) {
     console.warn("[wecom-callback] POST: 签名校验失败");
     return ok(); // 返回 200 避免企业微信重试
   }
 
-  // 3. 解密
+  // 解密
   let plainXml: string;
   try {
     plainXml = decryptMsg(encrypted);
   } catch (err) {
-    console.error("[wecom-callback] POST: 解密失败 —", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[wecom-callback] POST: 解密失败 —", msg);
     return ok();
   }
 
   console.log("[wecom-callback] POST 解密内容:", plainXml.slice(0, 300));
 
-  // 4. 解析消息字段
+  // 解析消息字段
   const msgType = xmlField(plainXml, "MsgType");
   const content = xmlField(plainXml, "Content");
   const chatId = xmlField(plainXml, "ChatId");
   const fromUser = xmlField(plainXml, "FromUserName");
-  const createTime = xmlField(plainXml, "CreateTime");
 
-  console.log(
-    `[wecom-callback] msgType=${msgType} chatId=${chatId || "(无)"} from=${fromUser} createTime=${createTime}`
-  );
+  console.log(`[wecom-callback] msgType=${msgType} chatId=${chatId || "(无)"} from=${fromUser}`);
+  if (chatId) console.log(`[wecom-callback] 💡 可配置 WECOM_AIBOT_CHAT_ID=${chatId}`);
 
-  // 首次回调时打印 chatId，便于配置 WECOM_AIBOT_CHAT_ID
-  if (chatId) {
-    console.log(`[wecom-callback] 💡 可配置 WECOM_AIBOT_CHAT_ID=${chatId}`);
-  }
-
-  // 5. 处理文本消息 → 调用 AI 问答 → 通过 worker 回复
+  // 文本消息 → AI 问答 → worker 回复
   if (msgType === "text" && content) {
-    // 去除群聊中的 @机器人 前缀
     const query = content.replace(/^@\S+\s*/, "").trim();
-
     if (query) {
       console.log(`[wecom-callback] 收到查询: "${query}"`);
       try {
         const result = await handleWecomQuery(query);
-        console.log(`[wecom-callback] 查询结果: type=${result.type} ok=${result.ok}`);
-
         if (result.ok && result.text) {
           const replyTarget = chatId || process.env.WECOM_AIBOT_CHAT_ID || "";
           if (replyTarget) {
             const sendRes = await sendViaWorker(result.text, replyTarget);
-            if (sendRes.ok) {
-              console.log("[wecom-callback] ✅ 回复已发送至", replyTarget);
-            } else {
-              console.warn("[wecom-callback] ⚠️ 回复失败（worker 未运行？）:", sendRes.errmsg);
-            }
+            if (sendRes.ok) console.log("[wecom-callback] ✅ 回复已发送至", replyTarget);
+            else console.warn("[wecom-callback] ⚠️ 回复失败:", sendRes.errmsg);
           } else {
-            console.warn("[wecom-callback] 无 chatId，无法回复（消息内容已记录到日志）");
-            console.log("[wecom-callback] 回复内容:", result.text.slice(0, 200));
+            console.warn("[wecom-callback] 无 chatId，回复内容:", result.text.slice(0, 200));
           }
         }
       } catch (err) {
