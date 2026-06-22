@@ -2,6 +2,40 @@
 
 ---
 
+## [11.5] - 2026-06-22 — 企业微信智能机器人回调 URL
+
+### New Files
+- **`app/api/wecom/callback/route.ts`**:
+  - `GET /api/wecom/callback` — URL 验证：验签（SHA1 sort）+ AES-256-CBC 解密 echostr → 返回明文
+  - `POST /api/wecom/callback` — 消息回调：验签 → 解密 → 解析 XML → `handleWecomQuery()` → `sendViaWorker(reply, chatId)`
+  - 自动打印 `chatId`（💡 提示写入 `WECOM_AIBOT_CHAT_ID`）
+  - 无 chatId 时只打印日志（不报错）
+
+### Modified
+- **`lib/notify/wecom-aibot.ts`**: `sendMarkdown(content, chatIdOverride?)` + `sendViaWorker(content, chatId?)` 支持动态 chatId 覆盖
+- **`scripts/wecom-aibot-worker.ts`**: POST /send 接受 `body.chatId`，传递给 `bot.sendMarkdown(content, chatId)`
+
+### New Env (已写入生产 /opt/tohoshou/.env)
+```
+WECOM_BOT_ID=aibJ2TsgQwk6Rsc6-juUHNHpRvuJAyjy59g
+WECOM_TOKEN=R6dDp87oWQcW2EiTFxaxYlab4FgY2kd6
+WECOM_AES_KEY=l7HII6WzEmEQCnrO6CVIGluGxNXmhBOol2GFBtKYFFp
+```
+
+### 验证
+- `curl -I https://aitohoshou.com/api/wecom/callback` → HTTP 403（路由存在，无签名参数）
+- 旧 404 已消除；企业微信保存 URL 时会携带正确参数，验证通过
+
+### 回调链路
+```
+企业微信 → POST /api/wecom/callback
+         → 解密 XML → handleWecomQuery()
+         → sendViaWorker(reply, chatId) → 127.0.0.1:3977/send
+         → WebSocket → 群聊
+```
+
+---
+
 ## [11.4] - 2026-06-22 — 企业微信智能机器人 WebSocket 长连接推送
 
 ### Architecture
