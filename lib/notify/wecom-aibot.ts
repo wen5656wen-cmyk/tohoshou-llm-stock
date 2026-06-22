@@ -1,8 +1,8 @@
 /**
  * 企业微信智能机器人 — WebSocket 长连接客户端（v11.4）
  *
- * 仅供 scripts/wecom-aibot-worker.ts 使用；不得在 Next.js 路由中 import。
- * push 脚本通过 sendViaWorker() 调用本地 HTTP 端点，无需持有 WebSocket 连接。
+ * WecomAiBot 类仅供 scripts/wecom-aibot-worker.ts 使用（ws 依赖，长进程）。
+ * sendViaWorker() / isAibotConfigured() 可在任何 Server 代码（Route Handler、脚本）中使用。
  */
 
 import { EventEmitter } from "events";
@@ -50,22 +50,23 @@ export class WecomAiBot extends EventEmitter {
     if (this.ws) { this.ws.close(); this.ws = null; }
   }
 
-  // 发送 Markdown 消息；返回 ok=false 表示连接未就绪，需调用方处理
-  sendMarkdown(content: string): { ok: boolean; errmsg?: string } {
+  // 发送 Markdown 消息；chatIdOverride 优先于 this.chatId（回调路由使用）
+  sendMarkdown(content: string, chatIdOverride?: string): { ok: boolean; errmsg?: string } {
     if (!this._subscribed || this.ws?.readyState !== WebSocket.OPEN) {
       return { ok: false, errmsg: "未连接或未订阅，请检查 wecom-aibot worker 状态" };
     }
-    if (!this.chatId) {
+    const targetChatId = chatIdOverride || this.chatId;
+    if (!targetChatId) {
       return {
         ok: false,
-        errmsg: "WECOM_AIBOT_CHAT_ID 未配置。请在群里 @机器人，worker 日志会打印 chatid，写入 .env 后重启 worker。",
+        errmsg: "chatid 未配置。请在群里 @机器人，worker 日志会打印 chatid，写入 .env 后重启 worker。",
       };
     }
     this._send({
       cmd: "aibot_send_msg",
       headers: { req_id: reqId() },
       body: {
-        chatid: this.chatId,
+        chatid: targetChatId,
         chat_type: this.chatType,
         msgtype: "markdown",
         markdown: { content },
@@ -196,7 +197,8 @@ export class WecomAiBot extends EventEmitter {
  * 如果 worker 未运行，返回 { ok: false, errmsg: "ECONNREFUSED" }，调用方可降级为日志输出。
  */
 export async function sendViaWorker(
-  content: string
+  content: string,
+  chatId?: string
 ): Promise<{ ok: boolean; errmsg?: string }> {
   const token = process.env.WECOM_AIBOT_INTERNAL_TOKEN;
   const controller = new AbortController();
@@ -209,7 +211,7 @@ export async function sendViaWorker(
         "Content-Type": "application/json",
         ...(token ? { "X-Internal-Token": token } : {}),
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, ...(chatId ? { chatId } : {}) }),
     });
     clearTimeout(timer);
     if (!res.ok) {

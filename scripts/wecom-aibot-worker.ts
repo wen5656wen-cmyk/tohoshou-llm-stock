@@ -112,9 +112,11 @@ const server = http.createServer((req, res) => {
     req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
     req.on("end", () => {
       let content: string;
+      let chatIdOverride: string | undefined;
       try {
         const parsed = JSON.parse(body) as Record<string, unknown>;
         content = String(parsed.content ?? "").trim();
+        chatIdOverride = parsed.chatId ? String(parsed.chatId) : undefined;
       } catch {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, errmsg: "JSON 解析失败" }));
@@ -127,7 +129,7 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      const result = bot.sendMarkdown(content);
+      const result = bot.sendMarkdown(content, chatIdOverride);
       const status = result.ok ? 200 : 503;
       res.writeHead(status, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result));
