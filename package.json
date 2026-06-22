@@ -68,7 +68,8 @@
     "wecom:stock-alert": "npx tsx scripts/send-stock-alert.ts",
     "wecom:stock-alert:dry": "DRY_RUN=1 npx tsx scripts/send-stock-alert.ts",
     "wecom:market-close": "npx tsx scripts/send-market-close.ts",
-    "wecom:market-close:dry": "DRY_RUN=1 npx tsx scripts/send-market-close.ts"
+    "wecom:market-close:dry": "DRY_RUN=1 npx tsx scripts/send-market-close.ts",
+    "test:chat-api": "npx tsx scripts/test-chat-api.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
