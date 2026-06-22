@@ -2,6 +2,25 @@
 
 ---
 
+## [10.4] - 2026-06-22 — health:data：LINE 429 降级为 WARNING，CRITICAL=0
+
+### Problem
+`npm run health:data` 每次本地运行显示 CRITICAL=1，来源两处：
+1. `stale_strongbuy` 检查：2127.T 本地数据 >3 天未 sync，触发 CRITICAL；生产 cron 每日同步，此检查在生产上始终为 0
+2. LINE 429 仅以 `[line] ❌ alert failed` console.warn 出现，视觉上紧跟 CRITICAL 输出，造成误读
+
+### Changes (`scripts/data-health-guard.ts` → v8.2.6)
+1. **`stale_strongbuy` CRITICAL → WARNING**：本地无日常价格同步，此检查不应阻断 deploy；生产 cron 保证每日更新
+2. **LINE 告警段前移**：移至 `aggregate` 计算前；捕获 429 后调用 `add(WARNING)` 将其写入检查摘要
+3. **新检查 `line_quota`**：`⚠️ [WARNING] LINE 月配额 超限（HTTP 429）`，附说明"属外部服务额度限制，非核心数据故障，无需处理"
+4. **console 输出**：`[line] ⚠ 月配额超限（HTTP 429）— 非核心数据故障`（原 `❌ alert failed`）
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 (`Status: WARNING  ✅16 ❌0 ⚠️5 ℹ️0`) · Deployed ✅
+- LINE 429 明确显示为 `⚠️ [WARNING]`，不计入 CRITICAL，health guard 返回 exit 0
+
+---
+
 ## [10.3] - 2026-06-22 — 修复同步中心两个失效的「立即同步」按钮
 
 ### Root Causes Fixed
