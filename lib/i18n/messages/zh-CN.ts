@@ -633,6 +633,27 @@ const zhCN: Messages = {
   "backtest.trend_hint": "移动鼠标查看各日期各组合收益",
   "backtest.error_load": "回测数据加载失败，请稍后重试",
   "backtest.retry": "重试",
+
+  // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
+  "dashboard.up": "上涨",
+  "dashboard.down": "下跌",
+  "dashboard.avg_change": "平均涨幅",
+  "dashboard.market_open": "● 开盘中",
+  "dashboard.market_closed": "○ 休市",
+  "dashboard.last_updated": "最后更新",
+  "dashboard.refresh": "刷新行情",
+  "dashboard.realtime": "实时",
+  "dashboard.risk_section": "风险提醒",
+  "risk.rsi_high": "RSI过热",
+  "risk.rsi_extreme": "RSI极度超买",
+  "risk.below_ma20": "跌破MA20",
+  "risk.near_52w_high": "接近52周高位",
+  "risk.vol_spike": "量比异常",
+  "field.vol_ratio": "量比",
+  "field.turnover": "换手率",
+  "field.52w_pos": "52周位置",
+  "field.ma20_above": "MA20↑",
+  "field.ma20_below": "MA20↓",
 };
 
 export default zhCN;

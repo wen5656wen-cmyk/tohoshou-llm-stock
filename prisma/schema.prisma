@@ -444,11 +444,33 @@ model WatchList {
   market      String?
   note        String?
   targetPrice Float?
+  sortOrder   Int      @default(0)
+  groupName   String?
   addedAt     DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([addedAt(sort: Desc)])
   @@map("watch_list")
+}
+
+// V11: Realtime market snapshot — populated by /api/realtime-market on demand
+model RealtimeMarket {
+  symbol       String   @id
+  price        Float?
+  changePct    Float?
+  volume       Float?
+  volumeRatio  Float?   // today's volume / avg10d volume
+  turnoverRate Float?   // volume / sharesOutstanding * 100
+  marketCap    Float?   // 億円
+  rsi14        Float?
+  ma5          Float?
+  ma20         Float?
+  ma60         Float?
+  week52High   Float?
+  week52Low    Float?
+  updatedAt    DateTime @updatedAt
+
+  @@map("realtime_market")
 }
 
 // Async background sync jobs (e.g. J-Quants full sync)

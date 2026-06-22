@@ -633,6 +633,27 @@ const jaJP: Messages = {
   "backtest.trend_hint": "マウスを動かして各日付のリターンを確認",
   "backtest.error_load": "データの読み込みに失敗しました。しばらくしてから再試行してください。",
   "backtest.retry": "再試行",
+
+  // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
+  "dashboard.up": "上昇",
+  "dashboard.down": "下落",
+  "dashboard.avg_change": "平均騰落率",
+  "dashboard.market_open": "● 取引中",
+  "dashboard.market_closed": "○ 休場",
+  "dashboard.last_updated": "最終更新",
+  "dashboard.refresh": "更新",
+  "dashboard.realtime": "リアルタイム",
+  "dashboard.risk_section": "リスク警告",
+  "risk.rsi_high": "RSI過熱",
+  "risk.rsi_extreme": "RSI極度過熱",
+  "risk.below_ma20": "MA20割れ",
+  "risk.near_52w_high": "52W高値付近",
+  "risk.vol_spike": "出来高急増",
+  "field.vol_ratio": "出来高比",
+  "field.turnover": "売買回転率",
+  "field.52w_pos": "52W位置",
+  "field.ma20_above": "MA20↑",
+  "field.ma20_below": "MA20↓",
 };
 
 export default jaJP;

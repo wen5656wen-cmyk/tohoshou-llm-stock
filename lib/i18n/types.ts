@@ -635,6 +635,29 @@ export type Messages = {
   "backtest.trend_hint": string;
   "backtest.error_load": string;
   "backtest.retry": string;
+
+  // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
+  "dashboard.up": string;
+  "dashboard.down": string;
+  "dashboard.avg_change": string;
+  "dashboard.market_open": string;
+  "dashboard.market_closed": string;
+  "dashboard.last_updated": string;
+  "dashboard.refresh": string;
+  "dashboard.realtime": string;
+  "dashboard.risk_section": string;
+  // Risk alert labels
+  "risk.rsi_high": string;
+  "risk.rsi_extreme": string;
+  "risk.below_ma20": string;
+  "risk.near_52w_high": string;
+  "risk.vol_spike": string;
+  // Realtime field labels
+  "field.vol_ratio": string;
+  "field.turnover": string;
+  "field.52w_pos": string;
+  "field.ma20_above": string;
+  "field.ma20_below": string;
 };
 
 export type MessageKey = keyof Messages;

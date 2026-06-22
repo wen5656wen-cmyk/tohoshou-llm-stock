@@ -633,6 +633,27 @@ const enUS: Messages = {
   "backtest.trend_hint": "Hover to view returns by date",
   "backtest.error_load": "Failed to load backtest data. Please try again later.",
   "backtest.retry": "Retry",
+
+  // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
+  "dashboard.up": "Up",
+  "dashboard.down": "Down",
+  "dashboard.avg_change": "Avg Change",
+  "dashboard.market_open": "● Market Open",
+  "dashboard.market_closed": "○ Market Closed",
+  "dashboard.last_updated": "Updated",
+  "dashboard.refresh": "Refresh",
+  "dashboard.realtime": "Live",
+  "dashboard.risk_section": "Risk Alerts",
+  "risk.rsi_high": "RSI Overbought",
+  "risk.rsi_extreme": "RSI Extreme",
+  "risk.below_ma20": "Below MA20",
+  "risk.near_52w_high": "Near 52W High",
+  "risk.vol_spike": "Volume Spike",
+  "field.vol_ratio": "Vol.Ratio",
+  "field.turnover": "Turnover",
+  "field.52w_pos": "52W Pos",
+  "field.ma20_above": "MA20↑",
+  "field.ma20_below": "MA20↓",
 };
 
 export default enUS;
