@@ -16,7 +16,7 @@
 - **`app/sync/page.tsx`**: Backtest health card between Data Health and Source cards — shows status badge (🟢/🟡/🔴), latest rec date, total count, 7D/30D/90D fill counts + rates, latest price date, recent error count; fetched on load + refresh
 
 ### Result
-- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit TBD
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit `def9fc0` · Pushed ✅
 - Production: backtest_errors table created; health API returns `WAITING_PRICE` (expected — 2026-06-23 prices not yet available)
 - Automation: daily pipeline Step 8 now always runs `--all`, no manual intervention needed
 
