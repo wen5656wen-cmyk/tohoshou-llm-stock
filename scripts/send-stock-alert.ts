@@ -8,7 +8,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { sendMarkdown, isConfigured } from "../lib/notify/wecom";
+import { sendViaWorker, isAibotConfigured } from "../lib/notify/wecom-aibot";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -232,10 +232,6 @@ function buildMarkdown(items: AlertItem[]): string {
 async function main() {
   console.log(`[wecom:stock-alert] ${DRY_RUN ? "DRY RUN" : "发送模式"} 启动`);
 
-  if (!DRY_RUN && !isConfigured()) {
-    console.error("[wecom:stock-alert] WECOM_WEBHOOK_URL 未配置，退出");
-    process.exit(1);
-  }
 
   const tradingDay = jstTradingDay();
   const allAlerts = await gatherAlerts();
@@ -254,14 +250,17 @@ async function main() {
   if (DRY_RUN) {
     console.log("[wecom:stock-alert] DRY RUN 预览:");
     console.log(md);
+  } else if (!isAibotConfigured()) {
+    console.log("[wecom:stock-alert] WECOM_AIBOT_* 未配置，跳过推送。消息内容：");
+    console.log(md);
   } else {
-    const res = await sendMarkdown(md);
+    const res = await sendViaWorker(md);
     if (res.ok) {
-      console.log("[wecom:stock-alert] ✅ 推送成功");
+      console.log("[wecom:stock-alert] ✅ 推送成功（长连接）");
       await recordAlerts(newAlerts, tradingDay);
     } else {
-      console.error("[wecom:stock-alert] ❌ 推送失败:", res.errmsg);
-      process.exit(1);
+      // 推送失败不记录 AlertLog，下一次轮询会重试
+      console.warn("[wecom:stock-alert] ⚠️ 推送失败（请检查 tohoshou-wecom-aibot 进程）:", res.errmsg);
     }
   }
 

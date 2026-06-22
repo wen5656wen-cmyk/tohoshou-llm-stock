@@ -69,7 +69,9 @@
     "wecom:stock-alert:dry": "DRY_RUN=1 npx tsx scripts/send-stock-alert.ts",
     "wecom:market-close": "npx tsx scripts/send-market-close.ts",
     "wecom:market-close:dry": "DRY_RUN=1 npx tsx scripts/send-market-close.ts",
-    "test:chat-api": "npx tsx scripts/test-chat-api.ts"
+    "test:chat-api": "npx tsx scripts/test-chat-api.ts",
+    "wecom:aibot": "npx tsx scripts/wecom-aibot-worker.ts",
+    "wecom:aibot:test": "npx tsx scripts/send-wecom-aibot-test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -87,6 +89,7 @@
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "ws": "^8.21.0",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^3.15.3",
     "zod": "^4.4.3"
@@ -96,6 +99,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

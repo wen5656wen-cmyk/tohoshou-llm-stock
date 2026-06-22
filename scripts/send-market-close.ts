@@ -7,7 +7,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { sendMarkdown, isConfigured } from "../lib/notify/wecom";
+import { sendViaWorker, isAibotConfigured } from "../lib/notify/wecom-aibot";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -39,10 +39,6 @@ function sentimentBar(strongBuy: number, buy: number, hold: number, watch: numbe
 async function main() {
   console.log(`[wecom:market-close] ${DRY_RUN ? "DRY RUN" : "发送模式"} 启动`);
 
-  if (!DRY_RUN && !isConfigured()) {
-    console.error("[wecom:market-close] WECOM_WEBHOOK_URL 未配置，退出");
-    process.exit(1);
-  }
 
   const now = new Date();
   const jstMs = now.getTime() + 9 * 3600000;
@@ -125,13 +121,15 @@ async function main() {
   if (DRY_RUN) {
     console.log("[wecom:market-close] DRY RUN 预览:");
     console.log(md);
+  } else if (!isAibotConfigured()) {
+    console.log("[wecom:market-close] WECOM_AIBOT_* 未配置，跳过推送。消息内容：");
+    console.log(md);
   } else {
-    const res = await sendMarkdown(md);
+    const res = await sendViaWorker(md);
     if (res.ok) {
-      console.log("[wecom:market-close] ✅ 推送成功");
+      console.log("[wecom:market-close] ✅ 推送成功（长连接）");
     } else {
-      console.error("[wecom:market-close] ❌ 推送失败:", res.errmsg);
-      process.exit(1);
+      console.warn("[wecom:market-close] ⚠️ 推送失败（请检查 tohoshou-wecom-aibot 进程）:", res.errmsg);
     }
   }
 
