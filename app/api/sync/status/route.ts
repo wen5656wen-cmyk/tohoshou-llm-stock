@@ -301,7 +301,7 @@ export async function GET() {
         globalAge != null && globalAge > 7
           ? `全球市场数据已 ${globalAge} 天，评分可能使用默认值`
           : null,
-      apiEndpoint: "/api/sync/yahoo",
+      apiEndpoint: "/api/sync/global-market",
       isAsync: false,
       extra: {
         score: globalMarketLatest?.score,

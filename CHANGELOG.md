@@ -2,6 +2,28 @@
 
 ---
 
+## [10.3] - 2026-06-22 — 修复同步中心两个失效的「立即同步」按钮
+
+### Root Causes Fixed
+1. **ComputeScores 同步失败（ENOENT）**：`app/api/sync/scores/route.ts` 用 `join(cwd,"node_modules",".bin","tsx")` 硬编码 tsx 二进制路径，生产环境 tsx 未安装到 node_modules 导致 `spawn ENOENT`
+2. **GlobalMarket 同步返回 HTML**：`app/api/sync/status/route.ts` 将 GlobalMarket 的 `apiEndpoint` 映射到 `/api/sync/yahoo`（股票行情同步，返回 HTML 错误页），而非全球市场数据脚本
+
+### Modified Files
+- **`app/api/sync/scores/route.ts`**: `spawn(tsxBin, ...)` → `spawn("npx", ["tsx", scriptPath], { shell: true })`；与 Cron/daily-pipeline 统一使用系统 npx（`/usr/bin/npx`）
+
+### New Files
+- **`app/api/sync/global-market/route.ts`**: 新路由 `POST /api/sync/global-market`，spawn `npx tsx scripts/fetch-global-market.ts`，返回结构化 JSON；50s 超时
+
+### Status Route Fix
+- **`app/api/sync/status/route.ts` line 304**: `apiEndpoint: "/api/sync/yahoo"` → `"/api/sync/global-market"`
+
+### Result
+- Build ✅ · Health ❌ CRITICAL=1（2127.T 数据陈旧，与本次修改无关）· Deployed ✅
+- 生产验证：`POST /api/sync/global-market` → `{"success":true,"durationMs":3863}` ✅
+- 生产验证：`POST /api/sync/scores` → `{"success":true,"durationMs":44662}` ✅（44s 完成全市场评分）
+
+---
+
 ## [10.2] - 2026-06-22 — Backtest 页面升级：历史趋势图 + 错误处理 + 风险提示
 
 ### New Files

@@ -1,13 +1,13 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 150;
+export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { join } from "path";
 
 export async function GET() {
-  return NextResponse.json({ endpoint: "POST /api/sync/scores — 触发 compute-scores.ts" });
+  return NextResponse.json({ endpoint: "POST /api/sync/global-market — 触发 fetch-global-market.ts" });
 }
 
 export async function POST() {
@@ -15,7 +15,7 @@ export async function POST() {
 
   return new Promise<NextResponse>((resolve) => {
     const cwd = process.cwd();
-    const scriptPath = join(cwd, "scripts", "compute-scores.ts");
+    const scriptPath = join(cwd, "scripts", "fetch-global-market.ts");
 
     const child = spawn("npx", ["tsx", scriptPath], {
       cwd,
@@ -32,29 +32,28 @@ export async function POST() {
       child.kill("SIGTERM");
       resolve(
         NextResponse.json(
-          { success: false, error: "compute-scores 超时（120s）", output: output.slice(-500) },
+          { success: false, error: "fetch-global-market 超时（50s）", output: output.slice(-500) },
           { status: 408 }
         )
       );
-    }, 120_000);
+    }, 50_000);
 
     child.on("close", (code: number | null) => {
       clearTimeout(timer);
       const durationMs = Date.now() - startMs;
       if (code === 0) {
-        // Extract final summary line from output
         const lines = output.split("\n").filter(Boolean);
-        const summary = lines.slice(-5).join(" | ");
+        const summary = lines.slice(-3).join(" | ");
         resolve(
           NextResponse.json({
             success: true,
             status: "SUCCESS",
-            message: `AI评分计算完成`,
+            message: "全球市场数据同步完成",
             durationMs,
-            count: 0,
-            synced: 0,
+            count: 1,
+            synced: 1,
             summary,
-            log: lines.slice(-20),
+            log: lines.slice(-10),
           })
         );
       } else {
@@ -62,7 +61,7 @@ export async function POST() {
           NextResponse.json(
             {
               success: false,
-              error: `compute-scores 退出码 ${code ?? "killed"}`,
+              error: `fetch-global-market 退出码 ${code ?? "killed"}`,
               output: output.slice(-800),
               durationMs,
             },
