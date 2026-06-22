@@ -618,6 +618,7 @@ model BacktestError {
   reason        String               // "NO_DAILY_PRICE" | "NO_ENTRY_PRICE" | "NO_EXIT_PRICE"
   createdAt     DateTime @default(now())
 
+  @@unique([symbol, recommendDate, horizon, reason])
   @@index([recommendDate(sort: Desc)])
   @@index([symbol])
   @@index([reason])

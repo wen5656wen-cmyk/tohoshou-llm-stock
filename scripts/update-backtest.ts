@@ -55,7 +55,7 @@ function median(nums: number[]): number | null {
   if (nums.length === 0) return null;
   const s = [...nums].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  return s.length % 2 ? s[m] : Math.round(((s[m - 1] + s[m]) / 2) * 100) / 100;
 }
 
 function daysSince(recDate: Date, now: Date): number {
@@ -117,9 +117,11 @@ async function main() {
     cohortDates = await prisma.$queryRaw<{ date: Date }[]>`
       SELECT DISTINCT date FROM daily_recommendations
       WHERE "entryDate" IS NULL
-         OR ("return7d"  IS NULL AND "entryDate" IS NOT NULL)
-         OR ("return30d" IS NULL AND "entryDate" IS NOT NULL)
-         OR ("return90d" IS NULL AND "entryDate" IS NOT NULL)
+         OR (
+           "entryDate" IS NOT NULL
+           AND COALESCE("entryPrice", 0) != 0
+           AND ("return7d" IS NULL OR "return30d" IS NULL OR "return90d" IS NULL)
+         )
       ORDER BY date ASC
     `;
     console.log(`📊 update-backtest v10.1.1 — ${cohortDates.length} cohort dates need fill`);
@@ -237,7 +239,7 @@ async function main() {
 
     // Batch-update DailyRecommendation rows
     for (const row of filled) {
-      if (!FORCE && row.entryDate == null) continue; // no data yet
+      if (row.entryDate == null) continue; // no entry price — skip to avoid overwriting valid data
       await prisma.dailyRecommendation.update({
         where: { id: row.id },
         data: {

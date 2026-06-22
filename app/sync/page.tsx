@@ -621,8 +621,7 @@ export default function SyncPage() {
                   {backtestHealth.totalRecommendations.toLocaleString()}
                 </span>
               </div>
-              {(["7D", "30D", "90D"] as const).map((h) => {
-                const key = h.toLowerCase() as "7d" | "30d" | "90d";
+              {(["7d", "30d", "90d"] as const).map((h) => {
                 const filled = backtestHealth[`filled${h}` as keyof BacktestHealthData] as number;
                 const rate   = backtestHealth[`fillRate${h}` as keyof BacktestHealthData] as number;
                 const total  = backtestHealth.totalRecommendations;
