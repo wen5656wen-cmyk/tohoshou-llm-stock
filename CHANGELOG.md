@@ -2,6 +2,54 @@
 
 ---
 
+## [11.4] - 2026-06-22 — 企业微信智能机器人 WebSocket 长连接推送
+
+### Architecture
+- **Method B 架构**：唯一长连接由 PM2 进程 `tohoshou-wecom-aibot` 持有；cron 脚本通过 `POST http://127.0.0.1:3977/send` 发送
+- 废弃 `WECOM_WEBHOOK_URL` 对三个 cron 推送脚本的依赖
+
+### New Files
+- **`lib/notify/wecom-aibot.ts`**:
+  - `WecomAiBot` 类：WebSocket → `wss://openws.work.weixin.qq.com`，`aibot_subscribe`，30s ping，自动重连（5s 延迟）
+  - 回调自动打印 chatid（首次配置辅助）
+  - `sendViaWorker(content)` HTTP 客户端（供 push 脚本调用，5s 超时）
+  - `isAibotConfigured()` 检查三个必须 env 变量
+- **`scripts/wecom-aibot-worker.ts`**:
+  - 启动 WebSocket 长连接，监听 `127.0.0.1:3977`
+  - `POST /send { content }` — 推送 Markdown，需 `X-Internal-Token` 鉴权（可选）
+  - `GET /status` — 返回 `{ ok, subscribed, chatId }`
+  - SIGTERM/SIGINT 优雅退出
+- **`scripts/send-wecom-aibot-test.ts`**: 先 GET /status 验证 worker 再推送测试消息
+
+### Modified
+- **3 个 cron 推送脚本**（send-morning-report/send-stock-alert/send-market-close）：
+  - 移除 `isConfigured()` + `WECOM_WEBHOOK_URL` 检查
+  - 新逻辑：DRY_RUN → print | 未配置 → console 输出（降级） | 已配置 → sendViaWorker
+  - stock-alert 推送失败时不写 AlertLog（下次轮询重试）
+- **`package.json`**: `wecom:aibot` / `wecom:aibot:test`
+- **`.env.example`**: WECOM_AIBOT_ID / SECRET / CHAT_ID / CHAT_TYPE / INTERNAL_TOKEN
+
+### 部署后配置步骤
+```bash
+# 1. 在 /opt/tohoshou/.env 中配置（需要从企业微信开发者后台获取）
+WECOM_AIBOT_ID=<智能机器人 ID>
+WECOM_AIBOT_SECRET=<智能机器人 Secret>
+WECOM_AIBOT_CHAT_ID=<群聊 chatid，首次在群里 @机器人 后从 worker 日志获取>
+WECOM_AIBOT_INTERNAL_TOKEN=<自设随机字符串>
+
+# 2. 启动/重启 worker
+pm2 start tohoshou-wecom-aibot    # 首次已由部署脚本注册
+# 或：pm2 restart tohoshou-wecom-aibot
+
+# 3. 验证（应看到 "subscribed ok" + "ping ok"）
+pm2 logs tohoshou-wecom-aibot --lines 30
+
+# 4. 推送测试
+npm run wecom:aibot:test
+```
+
+---
+
 ## [11.3] - 2026-06-22 — 企业微信智能机器人问答接口
 
 ### New Files
