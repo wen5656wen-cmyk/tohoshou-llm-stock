@@ -2,6 +2,39 @@
 
 ---
 
+## [11.0] - 2026-06-22 — V11 AI Trading Dashboard：我的投资升级为实时行情工作台
+
+### New Files
+- **`app/api/realtime-market/route.ts`**: `GET /api/realtime-market?symbols=...` — Yahoo Finance 实时报价（price/changePct/volume/52wHigh/52wLow/sharesOutstanding）+ DailyPrice计算 MA5/MA20/MA60/RSI14/量比（avg10d）/换手率（volume/sharesOut）；每次调用 upsert `RealtimeMarket` 表；最多30只/请求
+- **`scripts/send-watchlist-alerts.ts`**: 自选股 LINE 风险推送脚本；顺序检查每只（150ms间隔防限流）；触发条件：RSI>75/85、跌破MA20、接近52周高位98%、量比>3x；支持 `DRY_RUN=1`
+
+### Schema Changes (`prisma/schema.prisma`)
+- **`WatchList`**: 新增 `sortOrder Int @default(0)` 和 `groupName String?`
+- **`RealtimeMarket`**: 新模型（@@map("realtime_market")），symbol @id，存储实时行情缓存；@updatedAt 自动更新
+
+### Modified Files
+- **`app/portfolio/page.tsx`**: WatchlistTab 全面升级
+  - 深色渐变仪表盘 header（总只数/上涨数/下跌数/平均涨幅/市场开闭/最后更新时间/刷新按钮）
+  - 风险提醒 panel（最多8条，黄/红颜色区分，显示股名+风险类型+数值）
+  - 每张卡片增强：实时价格（大字）+涨跌幅色标/RSI分格/MA20状态/52周位置/量比/换手率/内嵌风险徽章
+  - 卡片边框随最高风险等级变色（red/amber/默认蓝）
+  - PortfolioTab 和 PriceAlertsTab 保持原样未改
+- **`lib/i18n/types.ts`** + **zh-CN/en-US/ja-JP**: 新增 20 个 V11 key（`dashboard.*` / `risk.*` / `field.*`）
+- **`package.json`**: 新增 `line:watchlist-alerts` / `line:watchlist-alerts:dry` 脚本
+
+### Not Modified (V11 保留原样)
+- `lib/ai-score.ts` / `scripts/compute-scores.ts` / `scripts/update-backtest.ts` / news / stock detail / GPT View / LINE reports
+
+### isTokyoMarketOpen Logic
+- UTC+9 换算 → 判断工作日 + 09:00–11:30 / 12:30–15:30 JST 两个交易时段
+- 非交易时段显示「休市」badge，仍展示最新数据
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deployed ✅ · Commit `9c5cbdd` · Pushed ✅
+- DB: `realtime_market` 表已创建，`watch_list` 新增 `sort_order` / `group_name` 列
+
+---
+
 ## [10.4] - 2026-06-22 — health:data：LINE 429 降级为 WARNING，CRITICAL=0
 
 ### Problem
