@@ -2,6 +2,44 @@
 
 ---
 
+## [10.2] - 2026-06-22 — Backtest 页面升级：历史趋势图 + 错误处理 + 风险提示
+
+### New Files
+- **`app/api/backtest/trend/route.ts`**: `GET /api/backtest/trend?horizon=7d|30d|90d` — 按 cohort 日期返回各组合 avgReturn 时序数据；portfolioSize ∈ {TOP10, TOP50, TOP100, ALL}
+
+### Modified Files
+- **`app/backtest/page.tsx`**: 全面重写
+  - **风险提示横幅**：页面顶部醒目 amber 色 ⚠ 横幅，三语言，说明模拟回测局限性
+  - **错误状态**：fetch 失败时显示红色错误框 + 重试按钮，与真无数据（蓝灰空态）明确区分；HTTP 500 / 网络错误均捕获
+  - **历史趋势图**：纯 SVG 折线图（无新依赖）
+    - 4 条折线：TOP10（蓝）/ TOP50（绿）/ TOP100（琥珀）/ ALL≈500（紫）
+    - 周期切换：7日 / 30日 / 90日
+    - 粒度切换：每日 / 按周（前端聚合，取均值）
+    - 悬停交互：竖线 + 各系列高亮圆点 + 下方数据行实时更新
+    - 自动缩放 Y 轴，零线虚线标注
+    - 数据不足时显示友好空态
+- **`scripts/update-backtest.ts`**: 新增 TOP50 / TOP100 portfolio size（共 6 种：TOP5/10/20/50/100/ALL）
+- **`lib/i18n/types.ts`** + **zh-CN / en-US / ja-JP**: 新增 6 个 key（risk_banner / trend_title / trend_no_data / trend_hint / error_load / retry）
+
+### Result
+- Build ✅ · Health ❌ CRITICAL=1（LINE 月配额超限，与本次修改无关）· Deployed ✅ · Commit `99b442e` · Pushed ✅
+- 生产 update-backtest --all 已执行（1 cohort，19 stocks filled，return7d 尚未满 7 交易日，趋势图将在下周积累数据后显示）
+- **不影响现有推荐评分逻辑**（compute-scores.ts / ai-score.ts 未改动）
+
+---
+
+## [10.1.2] - 2026-06-22 — Code Review 修复：4 个 Backtest 正确性 Bug
+
+### Modified Files
+- **`app/sync/page.tsx`**: 修复 `["7D","30D","90D"]` 大写 D 导致 filled7D/fillRate7D key 匹配失败，健康卡全显 undefined/NaN%
+- **`scripts/update-backtest.ts`**: ① 移除 `!FORCE &&` guard，FORCE 模式也跳过 null-entry 行，防止覆盖有效历史数据；② 正常模式 WHERE 增加 `COALESCE("entryPrice",0)!=0`，排除 entryPrice=0 行的无限重选；③ `median()` 补 `Math.round` 统一2位精度
+- **`prisma/schema.prisma`**: `BacktestError` 增加 `@@unique([symbol,recommendDate,horizon,reason])`，使 `skipDuplicates:true` 真正去重
+
+### Result
+- Build ✅ · Deployed ✅ · Commit `8c8bf5f` · Pushed ✅
+
+---
+
 ## [10.1.1] - 2026-06-22 — Backtest Auto Fill: pipeline --all + health API + BacktestError + Sync card
 
 ### New Files
