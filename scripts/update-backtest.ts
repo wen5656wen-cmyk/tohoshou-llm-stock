@@ -302,11 +302,13 @@ async function main() {
     }
 
     // Upsert BacktestResult for each portfolioSize × horizon
-    const portfolioSizes: Array<{ key: "TOP5" | "TOP10" | "TOP20" | "ALL"; limit: number }> = [
-      { key: "TOP5",  limit: 5   },
-      { key: "TOP10", limit: 10  },
-      { key: "TOP20", limit: 20  },
-      { key: "ALL",   limit: 9999 },
+    const portfolioSizes: Array<{ key: "TOP5" | "TOP10" | "TOP20" | "TOP50" | "TOP100" | "ALL"; limit: number }> = [
+      { key: "TOP5",   limit: 5    },
+      { key: "TOP10",  limit: 10   },
+      { key: "TOP20",  limit: 20   },
+      { key: "TOP50",  limit: 50   },
+      { key: "TOP100", limit: 100  },
+      { key: "ALL",    limit: 9999 },
     ];
 
     for (const { key: ps, limit } of portfolioSizes) {

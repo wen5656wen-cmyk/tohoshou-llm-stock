@@ -629,6 +629,12 @@ export type Messages = {
   "backtest.col_entry_price": string;
   "backtest.entry_note": string;
   "backtest.benchmark_note": string;
+  "backtest.risk_banner": string;
+  "backtest.trend_title": string;
+  "backtest.trend_no_data": string;
+  "backtest.trend_hint": string;
+  "backtest.error_load": string;
+  "backtest.retry": string;
 };
 
 export type MessageKey = keyof Messages;

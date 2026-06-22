@@ -627,6 +627,12 @@ const zhCN: Messages = {
   "backtest.col_entry_price": "入场价",
   "backtest.entry_note": "入场价=次日开盘价 · 不含手续费/滑点/税",
   "backtest.benchmark_note": "基准=同期间日经225/TOPIX涨跌幅",
+  "backtest.risk_banner": "以下为模拟回测结果，非实际收益。入场价按次日开盘价估算，未考虑滑点、手续费、流动性限制和实际成交约束。历史回测不代表未来收益。",
+  "backtest.trend_title": "历史趋势",
+  "backtest.trend_no_data": "暂无历史趋势数据，数据将随每日 pipeline 运行逐步积累",
+  "backtest.trend_hint": "移动鼠标查看各日期各组合收益",
+  "backtest.error_load": "回测数据加载失败，请稍后重试",
+  "backtest.retry": "重试",
 };
 
 export default zhCN;

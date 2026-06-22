@@ -627,6 +627,12 @@ const jaJP: Messages = {
   "backtest.col_entry_price": "エントリー",
   "backtest.entry_note": "エントリー=翌営業日始値 · 手数料/スリッページ/税除く",
   "backtest.benchmark_note": "ベンチマーク=同期間の日経225/TOPIX騰落率",
+  "backtest.risk_banner": "以下はシミュレーション結果であり、実際のリターンではありません。エントリー価格は翌営業日の始値で推定。スリッページ・手数料・流動性・執行制約は考慮外です。過去の実績は将来の成果を保証するものではありません。",
+  "backtest.trend_title": "過去の推移",
+  "backtest.trend_no_data": "データなし。毎日のパイプライン実行後に順次蓄積されます。",
+  "backtest.trend_hint": "マウスを動かして各日付のリターンを確認",
+  "backtest.error_load": "データの読み込みに失敗しました。しばらくしてから再試行してください。",
+  "backtest.retry": "再試行",
 };
 
 export default jaJP;

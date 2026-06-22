@@ -627,6 +627,12 @@ const enUS: Messages = {
   "backtest.col_entry_price": "Entry",
   "backtest.entry_note": "Entry = next-day open · No fees / slippage / tax",
   "backtest.benchmark_note": "Benchmark = same-period Nikkei225 / TOPIX return",
+  "backtest.risk_banner": "Simulated backtest results only — not actual returns. Entry price estimated at next-day open. Excludes slippage, fees, liquidity constraints, and real-world execution limits. Past performance does not guarantee future results.",
+  "backtest.trend_title": "Historical Trend",
+  "backtest.trend_no_data": "No trend data yet. Results accumulate after each daily pipeline run.",
+  "backtest.trend_hint": "Hover to view returns by date",
+  "backtest.error_load": "Failed to load backtest data. Please try again later.",
+  "backtest.retry": "Retry",
 };
 
 export default enUS;
