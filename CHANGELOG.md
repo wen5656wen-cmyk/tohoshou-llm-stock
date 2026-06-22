@@ -2,6 +2,27 @@
 
 ---
 
+## [11.1.1] - 2026-06-22 — chore: 移除微信服务号推送模块
+
+### Deleted
+- **`lib/notify/wechat-official.ts`**: 微信服务号模板消息发送模块（getAccessToken/sendStockAlert/isConfigured）
+- **`scripts/send-watchlist-wechat-alerts.ts`**: 自选股服务号/企业微信推送脚本
+- **`docs/WECHAT_OFFICIAL_SETUP.md`**: 服务号配置说明文档
+
+### Modified
+- **`package.json`**: 移除 `wechat:watchlist-alerts` / `wechat:watchlist-alerts:dry` 两条 npm scripts
+- **`.env.example`**: 移除 `WECHAT_OFFICIAL_APP_ID/APP_SECRET/TEMPLATE_ID_STOCK_ALERT/TOUSER_OPENID` 四个环境变量
+
+### Rationale
+微信服务号 openid 获取链路复杂（需公众号关注 → openid 换取），环境变量缺失在生产会直接失败；企业微信 Webhook 也需配置。保留现有 `lib/wechat.ts`（企业微信群机器人）和 `line:watchlist-alerts`（LINE Bot）作为推送通道。
+
+### Not Modified
+- `lib/wechat.ts` — 保留（被 `app/api/cron/daily-picks/route.ts` 独立使用）
+- `scripts/send-watchlist-alerts.ts` (LINE) — 保留
+- AI评分 / Backtest / 所有核心功能 — 均未改动
+
+---
+
 ## [11.1] - 2026-06-22 — V11.1 微信推送：自选股风险提醒 + AlertLog去重
 
 ### New Files
