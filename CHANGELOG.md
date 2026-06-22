@@ -2,6 +2,53 @@
 
 ---
 
+## [11.2] - 2026-06-22 — 企业微信群机器人推送模块
+
+### New Files
+- **`lib/notify/wecom.ts`**: 企业微信群机器人推送模块（`WECOM_WEBHOOK_URL`）
+  - `sendText(content)` / `sendMarkdown(content)` / `isConfigured()`
+  - 3次指数退避重试（1s/2s/4s）
+  - 独立于旧 `lib/wechat.ts`（`WECHAT_WORK_WEBHOOK_URL`）
+
+- **`scripts/send-morning-report.ts`**: 晨报（08:00 JST 工作日）
+  - STRONG BUY/BUY Top3：评分/评级/5日收益率/BUY NOW标记
+  - 市场情绪（BULLISH/POSITIVE/CAUTIOUS/COLD，基于BUY率）
+  - 数据时间（最新 computedAt JST）
+
+- **`scripts/send-stock-alert.ts`**: 股票预警（每15分钟，09:00-15:30 工作日）
+  - 4类预警：AI_BUY_SIGNAL（tradingAction=BUY_NOW）/ BELOW_MA20（maTrend dead/bearish + SELL）/ RSI_HIGH/EXTREME（≥83）/ NEAR_52W_HIGH（≥98%前高）
+  - AlertLog 去重（channel=WECOM，同日同类型只发一次）
+
+- **`scripts/send-market-close.ts`**: 收盘总结（15:30 JST 工作日）
+  - 5档评级分布（STRONG BUY/BUY/HOLD/WATCH/AVOID）
+  - 情绪色柱（🟢/⚪/🔴 10格）
+  - 5日涨幅/跌幅第一（基于 StockScore.return5d，日内数据次日更新）
+
+### Modified
+- **`scripts/cron-scheduler.ts`**: 新增3条 WeComl 定时任务（08:00/每15分/15:30），hasWecom() 守卫
+- **`package.json`**: `wecom:morning-report` / `wecom:stock-alert` / `wecom:market-close`（各含 `:dry` 变体）
+- **`.env.example`**: 新增 `WECOM_WEBHOOK_URL` 说明
+
+### Usage
+```bash
+# 晨报
+npm run wecom:morning-report
+npm run wecom:morning-report:dry
+
+# 股票预警
+npm run wecom:stock-alert
+npm run wecom:stock-alert:dry
+
+# 收盘总结
+npm run wecom:market-close
+npm run wecom:market-close:dry
+
+# 配置环境变量
+WECOM_WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx
+```
+
+---
+
 ## [11.1.1] - 2026-06-22 — chore: 移除微信服务号推送模块
 
 ### Deleted
