@@ -2,6 +2,37 @@
 
 ---
 
+## [11.1] - 2026-06-22 — V11.1 微信推送：自选股风险提醒 + AlertLog去重
+
+### New Files
+- **`scripts/send-watchlist-wechat-alerts.ts`**: 企业微信群机器人风险推送脚本（复用 `lib/wechat.ts`）
+  - 数据链：`RealtimeMarket` DB缓存（<3h）→ 过期则 Yahoo Finance + DailyPrice 重算
+  - 风险类型：`RSI_EXTREME`(>85) / `RSI_HIGH`(>75) / `BELOW_MA20` / `NEAR_52W_HIGH`(>98%) / `VOL_SPIKE`(>3x) / `AI_BUY_SIGNAL`(BUY_NOW) / `NEWS_RISK`(负面新闻+confidence≥70)
+  - 格式：企业微信 Markdown subset（red/warning/green颜色、clickable链接）
+  - 去重：发送前查 `AlertLog`，成功后写入；同日同股票同类型只发一次
+  - CLI flag `--dry-run` + env `DRY_RUN=1` 均支持
+  - 顺序遍历 150ms 间隔；缓存自动刷新写回 `RealtimeMarket`
+
+### Schema Changes
+- **`AlertLog`** 新模型（`@@map("alert_logs")`）：`symbol/alertType/channel/tradingDay` 四字段 `@@unique`，精确去重
+
+### Not Modified
+- `lib/wechat.ts` — 保持原样，直接复用
+- `scripts/send-watchlist-alerts.ts` (LINE) — 保持原样
+- AI评分 / Backtest / News / 实时行情页面 — 均未改动
+
+### Usage
+```bash
+npm run wechat:watchlist-alerts           # 生产推送
+npm run wechat:watchlist-alerts -- --dry-run  # 预览
+# 需配置：WECHAT_WORK_WEBHOOK_URL 环境变量
+```
+
+### Result
+- Build ✅ · Health ✅ CRITICAL=0 · Deploy ✅ · Commit `86e41c7` · Pushed (pending)
+
+---
+
 ## [11.0] - 2026-06-22 — V11 AI Trading Dashboard：我的投资升级为实时行情工作台
 
 ### New Files
