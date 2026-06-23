@@ -2,6 +2,12 @@
 
 ---
 
+## [8.9.6] - 2026-06-23 — Session 基线确认 + Known Issues 纠正
+
+### Fixed
+- memory/project_llm_stock.md: 移除误混入的 yahoo-auction 项目 P1 issue（`batch-paid/orders.ts` OrderBillItem 未同步），该问题属于独立项目，与 llm-stock 无关
+- 明确本项目实际 Known Issues：LINE 月配额 P2、en-US 股票名 P3、CST/JST cosmetic P3、CHECK 19 INFO
+
 ## [8.9.5] - 2026-06-23 — Deployment History 系统 + 代码审查 Bug 修复
 
 ### Added
