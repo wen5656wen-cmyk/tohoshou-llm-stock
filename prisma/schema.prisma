@@ -575,6 +575,7 @@ model DailyRecommendation {
   gptScore        Float
   gptRating       String?
   buyPrice        Float?                     // StockScore.latestClose at rec time (reference only)
+  recommendation  String?                    // StockScore.recommendationV2 at rec time (STRONG_BUY|BUY|HOLD|WATCH|AVOID)
   summaryZh       String?  @db.Text
   // v10.1: accurate entry/exit pricing
   entryDate       DateTime? @db.Date          // first trading day after rec date

@@ -344,7 +344,25 @@ async function main() {
     details: suspiciousCount > 0 ? ["Review: may be genuine post-tariff moves"] : [],
   });
 
-  // ── CHECK 19: Stale stocks still STRONG_BUY ──────────────────────────────
+  // ── CHECK 19: Today's DailyRecommendation count ──────────────────────────
+  const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
+  const todayJst = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
+  const dailyRecCount = await prisma.dailyRecommendation.count({
+    where: { date: todayJst },
+  });
+  const DAILY_REC_TARGET = 300;  // full rerank writes 325+, threshold catches failed/partial runs
+  add({
+    id: "daily_rec_count",
+    level: "CRITICAL",
+    name: `DailyRecommendation today ≥ ${DAILY_REC_TARGET}`,
+    value: dailyRecCount,
+    pass: dailyRecCount >= DAILY_REC_TARGET,
+    details: dailyRecCount < DAILY_REC_TARGET
+      ? [`today=${todayJst.toISOString().slice(0, 10)}: got ${dailyRecCount}, need ≥${DAILY_REC_TARGET}`, "Fix: npm run rerank:top500"]
+      : [],
+  });
+
+  // ── CHECK 21: Stale stocks still STRONG_BUY ──────────────────────────────
   const staleStrongBuy = await prisma.$queryRaw<{ symbol: string }[]>`
     SELECT ss.symbol FROM "StockScore" ss
     JOIN "Stock" s ON s.symbol = ss.symbol
@@ -357,7 +375,7 @@ async function main() {
     details: staleStrongBuy.map(s => s.symbol),
   });
 
-  // ── CHECK 20: latestClose consistency ────────────────────────────────────
+  // ── CHECK 22: latestClose consistency ────────────────────────────────────
   const inconsistentCount = await prisma.$queryRaw<{ cnt: bigint }[]>`
     SELECT COUNT(*) as cnt FROM "StockScore" ss
     WHERE ss."priceCount" >= ${MIN_PRICE_COUNT}

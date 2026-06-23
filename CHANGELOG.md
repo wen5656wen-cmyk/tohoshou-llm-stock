@@ -2,6 +2,33 @@
 
 ---
 
+## [8.8] - 2026-06-23 — DailyRecommendation 自动快照 + 硬失败链路 + health CRITICAL 检查
+
+### Changed — rerank-top500.ts Step 8 (DailyRecommendation)
+
+- **JST 日期修正**: `today` 改用 UTC+9 计算，不再依赖本机 TZ，避免 UTC 服务器写入前一天
+- **`recommendation` 字段新增**: 从 StockScore.recommendationV2 写入 DailyRecommendation（STRONG_BUY/BUY/HOLD/WATCH/AVOID）
+- **硬失败语义**: 单条 upsert 失败不再静默跳过，累计到 `failedSymbols[]` 后 `throw`，pipeline 以 exit 1 退出
+- **`top500` select 增加 `recommendationV2`**: 随 Step 1 一次性加载，无额外查询
+
+### Added — DailyRecommendation Schema
+
+- `prisma/schema.prisma`: `DailyRecommendation.recommendation String?` — 记录创建时的 StockScore 评级
+- `npx prisma db push` + `npx prisma generate` 已执行
+
+### Added — data-health-guard.ts CHECK 19
+
+- **CRITICAL: DailyRecommendation today ≥ 300** — 今日 JST 记录数不足 300 则阻断推荐
+- 覆盖 pipeline 未运行、部分失败、`--limit=N` 测试遗留等场景
+- 编号 CHECK 19，原 19→20→21 顺移
+
+### Data
+
+- rerank Run 2 (2026-06-23): `gptSuccessCount=210 gptCachedCount=115 gptFailCount=0 finalSaved=325`
+- DailyRecommendation 2026-06-22: 325 entries (含 `recommendation` 字段回填，0 null)
+- GPTScore: `gptRank null=0 filled=325`
+- health:data: CRITICAL=0 (data checks), WARNING=4 (stale sync, 52w suspects, LINE quota)
+
 ## [8.7] - 2026-06-23 — 盘中量比/成交占比 i18n + 15:30 时间门控 + 2026-06-22 回测数据补写
 
 ### Changed — Portfolio 页 Realtime Indicators

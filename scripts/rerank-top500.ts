@@ -279,6 +279,7 @@ async function main() {
       return5d: true, return20d: true, return60d: true,
       rsi14: true, maTrend: true, macdSignalLabel: true,
       latestClose: true, priceCount: true, computedAt: true,
+      recommendationV2: true,
     },
   });
 
@@ -371,6 +372,7 @@ async function main() {
     symbol: string;
     adaptiveScore: number;
     percentileRank: number | null;
+    recommendation: string | null;
     gptScore: number;
     finalScore: number;
     gptRating: string;
@@ -401,6 +403,7 @@ async function main() {
           symbol: sc.symbol,
           adaptiveScore: ruleScore,
           percentileRank: sc.percentileRank,
+          recommendation: sc.recommendationV2 ?? null,
           gptScore: cachedGptScore,
           finalScore,
           gptRating,
@@ -418,6 +421,7 @@ async function main() {
       const gptRating = computeRating(ruleScore, sc.percentileRank);
       scored.push({
         symbol: sc.symbol, adaptiveScore: ruleScore, percentileRank: sc.percentileRank,
+        recommendation: sc.recommendationV2 ?? null,
         gptScore: ruleScore, finalScore: ruleScore, gptRating,
         gptRank: null, upsertData: null as never, fromCache: false,
       });
@@ -468,12 +472,12 @@ async function main() {
         riskScore:       gptResp.riskScore,
         confidence:  gptResp.confidence,
         action:      gptResp.action,
-        summaryZh:   gptResp.summaryZh,
-        summaryJa:   gptResp.summaryJa,
-        summaryEn:   gptResp.summaryEn,
-        thesisZh:    gptResp.thesisZh,
-        thesisJa:    gptResp.thesisJa,
-        thesisEn:    gptResp.thesisEn,
+        summaryZh:   gptResp.summaryZh   ?? "暂无摘要",
+        summaryJa:   gptResp.summaryJa   ?? "概要なし",
+        summaryEn:   gptResp.summaryEn   ?? "No summary.",
+        thesisZh:    gptResp.thesisZh    ?? "仅供研究参考，不构成投资建议。",
+        thesisJa:    gptResp.thesisJa    ?? "投資判断の参考情報のみ。",
+        thesisEn:    gptResp.thesisEn    ?? "For research only.",
         strengths:   gptResp.strengths,
         risks:       gptResp.risks,
         catalysts:   gptResp.catalysts,
@@ -483,6 +487,7 @@ async function main() {
 
       scored.push({
         symbol: sc.symbol, adaptiveScore: ruleScore, percentileRank: sc.percentileRank,
+        recommendation: sc.recommendationV2 ?? null,
         gptScore: gptResp.gptScore, finalScore, gptRating,
         gptRank: null, upsertData, fromCache: false,
       });
@@ -599,20 +604,12 @@ async function main() {
   // ── Step 8: Save DailyRecommendation snapshot ────────────────────────────
   if (!DRY_RUN) {
     console.log("📸 Step 8 — saving DailyRecommendation snapshot …");
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use JST date: UTC+9
+    const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
+    const today = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
 
-    // Fetch buy prices from StockScore.latestClose in one query
+    // Fetch summaryZh from freshly upserted GPTScore
     const symbols = scored.map((s) => s.symbol);
-    const priceRows = await prisma.stockScore.findMany({
-      where: { symbol: { in: symbols } },
-      select: { symbol: true, latestClose: true },
-    });
-    const priceMap = new Map<string, number | null>(
-      priceRows.map((r) => [r.symbol, r.latestClose ?? null]),
-    );
-
-    // Fetch GPT summaryZh for display
     const gptRows = await prisma.gPTScore.findMany({
       where: { symbol: { in: symbols } },
       select: { symbol: true, summaryZh: true },
@@ -621,7 +618,20 @@ async function main() {
       gptRows.map((r) => [r.symbol, r.summaryZh]),
     );
 
+    // latestClose already in top500 — build from existing data via StockScore
+    const priceRows = await prisma.stockScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, latestClose: true, recommendationV2: true },
+    });
+    const priceMap = new Map<string, number | null>(
+      priceRows.map((r) => [r.symbol, r.latestClose ?? null]),
+    );
+    const recMap = new Map<string, string | null>(
+      priceRows.map((r) => [r.symbol, r.recommendationV2 ?? null]),
+    );
+
     let savedCount = 0;
+    const failedSymbols: string[] = [];
     for (const entry of scored) {
       try {
         await prisma.dailyRecommendation.upsert({
@@ -635,6 +645,7 @@ async function main() {
             gptScore: entry.gptScore,
             gptRating: entry.gptRating ?? null,
             buyPrice: priceMap.get(entry.symbol) ?? null,
+            recommendation: recMap.get(entry.symbol) ?? entry.recommendation ?? null,
             summaryZh: summaryMap.get(entry.symbol) ?? null,
           },
           update: {
@@ -644,15 +655,20 @@ async function main() {
             gptScore: entry.gptScore,
             gptRating: entry.gptRating ?? null,
             buyPrice: priceMap.get(entry.symbol) ?? null,
+            recommendation: recMap.get(entry.symbol) ?? entry.recommendation ?? null,
             summaryZh: summaryMap.get(entry.symbol) ?? null,
           },
         });
         savedCount++;
-      } catch {
-        // individual upsert failure — continue
+      } catch (e) {
+        failedSymbols.push(entry.symbol);
+        console.error(`  ❌ DailyRecommendation upsert failed for ${entry.symbol}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
     console.log(`  ✅ saved ${savedCount}/${scored.length} entries for ${today.toISOString().slice(0, 10)}`);
+    if (failedSymbols.length > 0) {
+      throw new Error(`DailyRecommendation write failed for ${failedSymbols.length} stocks: ${failedSymbols.slice(0, 10).join(", ")}`);
+    }
   } else {
     console.log("  [DRY_RUN] skip DailyRecommendation snapshot");
   }
