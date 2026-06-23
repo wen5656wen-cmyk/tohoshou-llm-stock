@@ -2,6 +2,24 @@
 
 ---
 
+## [9.0.0] - 2026-06-23 — 完全移除所有推送系统（LINE + 企业微信）
+
+### Removed
+- **LINE 全栈删除**：`lib/line.ts` / `lib/line-push.ts` / `lib/line-flex.ts` / `lib/line-flex-v79.ts` / `lib/line-agent.ts` / `lib/line-chat.ts` / `lib/line-intent.ts`（7个lib）
+- **企业微信全栈删除**：`lib/wechat.ts` / `lib/wecom-chat.ts` / `lib/notify/wecom.ts` / `lib/notify/wecom-customer-service.ts`（4个lib）
+- **Chat pipeline 删除**：`lib/intent-engine.ts` / `lib/query-engine.ts` / `lib/answer-builder.ts` / `lib/ai-agent.ts` / `lib/ai-control.ts` / `lib/intent-schema.ts` / `lib/daily-picks-report.ts`（7个lib）
+- **API routes 删除**：`/api/line/*`（2）/ `/api/wecom/*`（2）/ `/api/notifications/*`（6）/ `/api/cron/daily-picks` / `/api/chat`（12个路由）
+- **Pages 删除**：`/chat` / `/notifications`
+- **Scripts 删除**：21个 send-*/test-*/validate-* 推送脚本
+
+### Changed
+- `scripts/cron-scheduler.ts`：移除所有 LINE/WeChat cron jobs（08:00朝報/08:30日報/11:30盘中/12:30午間/15:30收盘/15:45大引/16:35リスク/毎30分アラート/毎15分预警），保留数据同步调度（05:30市場/06:00価格/07:00-22:00ニュース/07:30AI評分/18:30空売り/22:00メタ/22:30配当）
+- `scripts/data-health-guard.ts`：移除 LINE import + LINE 告警发送块（LINE 429 WARNING 不再出现）
+- `package.json`：移除所有 `line:*` / `wecom:*` / `send-daily` / `validate:line-*` / `test:intent-engine` / `test:chat-api` npm scripts（删除23个命令）
+
+### Preserved
+- Dashboard / Watchlist / Backtest / DailyRecommendation / Cron 数据同步 / DeploymentLog / AI 评分 / AI Value Chain / Sectors / Portfolio / News 全部保留
+
 ## [8.9.6] - 2026-06-23 — Session 基线确认 + Known Issues 纠正
 
 ### Fixed
