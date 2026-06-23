@@ -2,6 +2,33 @@
 
 ---
 
+## [8.9] - 2026-06-23 — /admin/verify 内部验证页面（8模块）
+
+### Added — app/admin/verify/page.tsx
+
+- Module 1: System Status — commit hash, build time, environment, Node version, health status, CRITICAL/WARNING count, Allow recommendation, top issues
+- Module 2: Data Sync — latest price date, stock count, GPTScore total/ranked, DailyRecommendation count by date
+- Module 3: DailyRecommendation Snapshot — 100行表格，按 date/symbol 过滤，含 return7d/30d 颜色标注
+- Module 4: Historical Snapshot — 按 symbol 查历次 rank/score，确认无覆盖
+- Module 5: Indicator Breakdown — volumeRatio (今日量/10日均量) 公式+数字，turnoverRate 展示，10日K线明细表
+- Module 6: GPT Score — gptRank/gptScore/finalScore/rating/summary/risks，gptRank=null 高亮红色 + 计数告警
+- Module 7: Backtest — 组合业绩汇总（winRate/avgReturn/medianReturn/bestSymbol/worstSymbol），逐笔明细含 WIN/LOSS 标注
+- Module 8: Errors — BacktestError 列表，无数据时显示 "✓ No errors"
+
+### Added — app/api/admin/verify/route.ts
+
+- module=system|sync|dailyrec|history|indicators|gpt|backtest|errors|all
+- ADMIN_TOKEN 认证（未设置时 open access for dev）
+- indicators: 计算 volumeRatio (DailyPrice 10日均) + RealtimeMarket 实时数据
+
+### Build / Deploy
+
+- npm run build: ✅ PASS
+- npm run health:data: CRITICAL=0 ✅
+- Deployed to https://tohoshou.com/admin/verify
+
+---
+
 ## [8.8.1] - 2026-06-23 — health CHECK 19 时间门控修正（WARNING/CRITICAL 分离）
 
 ### Changed — data-health-guard.ts CHECK 19
