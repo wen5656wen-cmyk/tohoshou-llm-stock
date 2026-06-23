@@ -344,23 +344,81 @@ async function main() {
     details: suspiciousCount > 0 ? ["Review: may be genuine post-tariff moves"] : [],
   });
 
-  // ── CHECK 19: Today's DailyRecommendation count ──────────────────────────
+  // ── CHECK 19: DailyRecommendation freshness ──────────────────────────────
+  // Pipeline runs at 21:00 UTC (06:00 JST); allow 1-hour buffer → due by 07:00 JST.
+  // Before 07:00 JST: pipeline not yet due → check latest date (WARNING if stale, not CRITICAL).
+  // After 07:00 JST:  pipeline must have run → check today (CRITICAL if missing).
+  // Weekend/holiday: latest date may be 1-3 days back; allow up to 4 calendar days.
   const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
   const todayJst = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
-  const dailyRecCount = await prisma.dailyRecommendation.count({
-    where: { date: todayJst },
-  });
-  const DAILY_REC_TARGET = 300;  // full rerank writes 325+, threshold catches failed/partial runs
-  add({
-    id: "daily_rec_count",
-    level: "CRITICAL",
-    name: `DailyRecommendation today ≥ ${DAILY_REC_TARGET}`,
-    value: dailyRecCount,
-    pass: dailyRecCount >= DAILY_REC_TARGET,
-    details: dailyRecCount < DAILY_REC_TARGET
-      ? [`today=${todayJst.toISOString().slice(0, 10)}: got ${dailyRecCount}, need ≥${DAILY_REC_TARGET}`, "Fix: npm run rerank:top500"]
-      : [],
-  });
+  const jstHour = nowJst.getUTCHours();
+  const pipelineDue = jstHour >= 7;
+  const DAILY_REC_TARGET = 300;
+
+  const todayCount = await prisma.dailyRecommendation.count({ where: { date: todayJst } });
+
+  if (todayCount >= DAILY_REC_TARGET) {
+    add({
+      id: "daily_rec_count", level: "CRITICAL",
+      name: `DailyRecommendation today ≥ ${DAILY_REC_TARGET}`,
+      value: todayCount, pass: true,
+    });
+  } else {
+    // today < threshold — inspect latest available date
+    const latestRec = await prisma.dailyRecommendation.findFirst({
+      orderBy: { date: "desc" }, select: { date: true },
+    });
+    const latestCount = latestRec
+      ? await prisma.dailyRecommendation.count({ where: { date: latestRec.date } })
+      : 0;
+    const latestDateStr = latestRec?.date?.toISOString().slice(0, 10) ?? "none";
+    const daysSinceLatest = latestRec
+      ? Math.floor((todayJst.getTime() - latestRec.date.getTime()) / 86400000)
+      : 99;
+    // Fresh = latest date has ≥ target records AND is within 4 days (covers long weekends)
+    const latestFresh = latestCount >= DAILY_REC_TARGET && daysSinceLatest <= 4;
+
+    if (pipelineDue) {
+      if (latestFresh) {
+        // Pipeline due but today empty; latest date has data → degrade to WARNING
+        add({
+          id: "daily_rec_count", level: "WARNING",
+          name: `DailyRecommendation today=0 (latest=${latestDateStr}: ${latestCount})`,
+          value: `today=${todayCount}, latest=${latestCount}`,
+          pass: false,
+          details: [`today snapshot missing; latest=${latestDateStr} (${daysSinceLatest}d ago) has ${latestCount} rows`, "Fix: npm run rerank:top500"],
+        });
+      } else {
+        // Pipeline due AND no fresh data anywhere → CRITICAL
+        add({
+          id: "daily_rec_count", level: "CRITICAL",
+          name: `DailyRecommendation stale (latest=${latestDateStr}: ${latestCount})`,
+          value: `today=${todayCount}, latest=${latestCount}`,
+          pass: false,
+          details: [`No fresh snapshot (latest=${latestDateStr}, ${daysSinceLatest}d ago, ${latestCount} rows < ${DAILY_REC_TARGET})`, "Fix: npm run rerank:top500"],
+        });
+      }
+    } else {
+      if (latestFresh) {
+        // Pre-pipeline; latest is fresh → INFO pass
+        add({
+          id: "daily_rec_count", level: "INFO",
+          name: `DailyRecommendation pre-pipeline (latest=${latestDateStr}: ${latestCount})`,
+          value: latestCount, pass: true,
+          details: [`JST ${String(jstHour).padStart(2,"0")}:xx < 07:00 — pipeline not yet due; latest=${latestDateStr} has ${latestCount} rows`],
+        });
+      } else {
+        // Pre-pipeline AND no fresh data → CRITICAL (stale regardless of time)
+        add({
+          id: "daily_rec_count", level: "CRITICAL",
+          name: `DailyRecommendation stale pre-pipeline (latest=${latestDateStr}: ${latestCount})`,
+          value: `today=${todayCount}, latest=${latestCount}`,
+          pass: false,
+          details: [`Latest snapshot ${latestDateStr} (${daysSinceLatest}d ago) has only ${latestCount} rows`, "Fix: npm run rerank:top500"],
+        });
+      }
+    }
+  }
 
   // ── CHECK 21: Stale stocks still STRONG_BUY ──────────────────────────────
   const staleStrongBuy = await prisma.$queryRaw<{ symbol: string }[]>`

@@ -2,6 +2,24 @@
 
 ---
 
+## [8.8.1] - 2026-06-23 — health CHECK 19 时间门控修正（WARNING/CRITICAL 分离）
+
+### Changed — data-health-guard.ts CHECK 19
+
+- **时间门控**: 07:00 JST 前（pipeline 未到时）检查 latest date，不强制 today
+  - 今日无数据 + latest date ≥ 300 且 ≤ 4 天内 → **WARNING**（非 CRITICAL）
+  - 今日无数据 + latest date 陈旧/不足 → **CRITICAL**
+- **07:00 JST 后（pipeline 应已完成）**:
+  - 今日 ≥ 300 → **PASS**
+  - 今日 0 + latest fresh → **WARNING**（降级，不阻断）
+  - 今日 0 + latest stale → **CRITICAL**
+- 4 天窗口覆盖长周末（日本连休）
+
+### 验证
+
+- health:data CHECK 19: `⚠️ WARNING today=0, latest=2026-06-22:325` (1d ago, fresh)
+- CRITICAL = 0 ✅ / Allow recommendations: YES
+
 ## [8.8] - 2026-06-23 — DailyRecommendation 自动快照 + 硬失败链路 + health CRITICAL 检查
 
 ### Changed — rerank-top500.ts Step 8 (DailyRecommendation)
