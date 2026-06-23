@@ -90,7 +90,7 @@ function computeRisks(rt: RealtimeData | undefined, score: WatchScore | null, t:
   }
 
   const vr = rt.volumeRatio;
-  if (vr != null && vr > 3) {
+  if (vr != null && vr > 3 && isVolRatioReliable()) {
     alerts.push({ key: "vol_spike", level: "warn", label: t("risk.vol_spike"), value: `${vr.toFixed(1)}x` });
   }
 
@@ -106,6 +106,17 @@ function isTokyoMarketOpen(): boolean {
   if (dow === 0 || dow === 6) return false;
   const mins = jst.getUTCHours() * 60 + jst.getUTCMinutes();
   return (mins >= 9 * 60 && mins < 11 * 60 + 30) || (mins >= 12 * 60 + 30 && mins < 15 * 60 + 30);
+}
+
+// volumeRatio is reliable only after 15:30 JST (full-day volume vs 10-day avg is meaningful)
+// Before close, intraday partial volume / full-day avg is systematically understated.
+function isVolRatioReliable(): boolean {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+  const dow = jst.getUTCDay();
+  if (dow === 0 || dow === 6) return false;
+  const mins = jst.getUTCHours() * 60 + jst.getUTCMinutes();
+  return mins >= 15 * 60 + 30;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -482,10 +493,14 @@ function WatchlistTab() {
                 {rt && (rt.volumeRatio != null || rt.turnoverRate != null) && (
                   <div className="flex gap-3 text-[10px] mb-2 text-slate-500">
                     {rt.volumeRatio != null && (
-                      <span>{t("field.vol_ratio")}: <b className={`text-slate-700 ${rt.volumeRatio > 3 ? "text-amber-600" : ""}`}>{fmtNum(rt.volumeRatio)}x</b></span>
+                      <span title={t("field.vol_ratio.tip")} className="cursor-help">
+                        {t("field.vol_ratio")}: <b className={`text-slate-700 ${isVolRatioReliable() && rt.volumeRatio > 3 ? "text-amber-600" : ""}`}>{fmtNum(rt.volumeRatio)}x</b>
+                      </span>
                     )}
                     {rt.turnoverRate != null && (
-                      <span>{t("field.turnover")}: <b className="text-slate-700">{fmtNum(rt.turnoverRate)}%</b></span>
+                      <span title={t("field.turnover.tip")} className="cursor-help">
+                        {t("field.turnover")}: <b className="text-slate-700">{fmtNum(rt.turnoverRate)}%</b>
+                      </span>
                     )}
                   </div>
                 )}

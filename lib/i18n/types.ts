@@ -654,7 +654,9 @@ export type Messages = {
   "risk.vol_spike": string;
   // Realtime field labels
   "field.vol_ratio": string;
+  "field.vol_ratio.tip": string;
   "field.turnover": string;
+  "field.turnover.tip": string;
   "field.52w_pos": string;
   "field.ma20_above": string;
   "field.ma20_below": string;

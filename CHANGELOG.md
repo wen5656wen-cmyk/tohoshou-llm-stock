@@ -2,6 +2,28 @@
 
 ---
 
+## [8.7] - 2026-06-23 — 盘中量比/成交占比 i18n + 15:30 时间门控 + 2026-06-22 回测数据补写
+
+### Changed — Portfolio 页 Realtime Indicators
+
+- **量比 → 盘中量比** (`field.vol_ratio`): zh-CN / ja-JP（日中出来高比）/ en-US（Intraday Vol.）
+- **换手率 → 成交占比** (`field.turnover`): zh-CN / en-US（Shr.Flow）/ ja-JP（売買比率）
+- 新增 hover tooltip 说明口径（三语言），HTML `title` 属性
+- `isVolRatioReliable()` 函数：vol_spike badge 和橙色只在 15:30 JST 后（平日）触发
+- 影响文件：`app/portfolio/page.tsx`, `lib/i18n/types.ts`, `lib/i18n/messages/zh-CN.ts`, `en-US.ts`, `ja-JP.ts`
+
+### Added — 2026-06-22 DailyRecommendation 补写
+
+- `scripts/backfill-daily-rec-20260622.ts`: 补写 2026-06-22 历史回测首日数据
+- 写入 22 条记录（1 STRONG_BUY + 1 BUY + 20 WATCH Top20），全标记 `BACKFILLED_FROM_AVAILABLE_DATA`
+- GPTScore pipeline 今日未完整运行（仅10条无 gptRank 记录），Top50 FinalScore 无法补全
+- entryPrice 使用 2026-06-22 收盘价，upsert key = date + symbol
+
+### Deployed
+
+- 生产服务器: `rsync .next/ root@8.209.247.68 + pm2 restart tohoshou-web`
+- Bundle 确认: `.next/server/chunks/ssr/lib_i18n_index_tsx_0vavxq_._.js` 含「盘中量比」「成交占比」
+
 ## [12.1.1] - 2026-06-23 — 通道验证通过，深山老林 UID 确认
 
 ### Verified
