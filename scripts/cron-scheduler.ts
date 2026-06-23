@@ -3,12 +3,16 @@
  * TOHOSHOU AI 定时任务调度器
  *
  * 东京时间（Asia/Tokyo）：
- *   06:00  股票价格同步
- *   07:00  新闻抓取
- *   07:30  AI 评分计算
- *   08:30  LINE AI 日报推送
- *   16:35  LINE 风险预警（工作日）
- *   22:00  日终复盘
+ *   05:30  グローバル市場データ取得
+ *   06:00  株価同期
+ *   07:00 / 12:00 / 18:00 / 22:00  新聞取得
+ *   07:00  TDnet 開示同期（工作日）
+ *   07:30  AI 評分計算 + データ健全性チェック
+ *   18:30  JPX 空売り比率取得（工作日）
+ *   22:00  日終メタ同期
+ *   22:30  配当历史同步
+ *   金曜 16:30  J-Quants 機構資金流向
+ *   月曜 07:15  J-Quants 機構資金流向（バックアップ）
  *
  * 启动：npm run cron
  * 生产：pm2 start ecosystem.config.js --only tohoshou-cron
@@ -37,7 +41,7 @@ function run(script: string, label: string) {
     execSync(`npx tsx ${join(process.cwd(), "scripts", script)}`, {
       stdio: "inherit",
       env: { ...process.env, TZ: "Asia/Tokyo" },
-      timeout: 10 * 60 * 1000, // 10min max
+      timeout: 10 * 60 * 1000,
     });
     log("INFO", `✅ 完成 ${label}`);
   } catch (err) {
@@ -46,35 +50,23 @@ function run(script: string, label: string) {
 }
 
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-log("INFO", "TOHOSHOU AI 调度器启动");
-log("INFO", `LINE：${process.env.LINE_CHANNEL_ACCESS_TOKEN ? "✅ 已配置" : "❌ 未配置"}`);
-log("INFO", `AI Key：${(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY) ? "✅ 已配置" : "⚠️  未配置（模板回复模式）"}`);
-log("INFO", `WeCom KF：${process.env.WECOM_KF_ID && process.env.WECOM_CUSTOMER_SECRET ? "✅ 已配置" : "⚠️  未配置（add_msg_template fallback）"}`);
+log("INFO", "TOHOSHOU AI 調度器启动");
+log("INFO", `AI Key：${(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY) ? "✅ 已配置" : "⚠️  未配置"}`);
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-function hasLine(): boolean {
-  return !!process.env.LINE_CHANNEL_ACCESS_TOKEN;
-}
-
-// WeCom: WECOM_CORP_ID + WECOM_CUSTOMER_SECRET 即可（add_msg_template fallback 始终可用）
-function hasWecom(): boolean {
-  return !!(process.env.WECOM_CORP_ID && process.env.WECOM_CUSTOMER_SECRET);
-}
-
 // ── 毎週金曜 16:30 JST — J-Quants 機構資金流向 週次同期 ─────────────────────
-// 市場引け後の公表タイミングに合わせて金曜夕方に取得
 cron.schedule("30 16 * * 5", () => {
   log("INFO", "⏰ 金曜 16:30 触发：J-Quants 機構資金流向同期");
   run("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 月曜 07:15 JST — 週初バックアップ取得（金曜に失敗した場合のフォールバック）
+// ── 月曜 07:15 JST — 週初バックアップ取得 ───────────────────────────────────
 cron.schedule("15 7 * * 1", () => {
   log("INFO", "⏰ 月曜 07:15 触发：J-Quants 機構資金流向（週初バックアップ）");
   run("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向（バックアップ）");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 05:30 JST — グローバル市場データ取得（AI評分前に必要）────────────────────
+// ── 05:30 JST — グローバル市場データ取得 ────────────────────────────────────
 cron.schedule("30 5 * * *", () => {
   log("INFO", "⏰ 05:30 触发：グローバル市場取得");
   run("fetch-global-market.ts", "グローバル市場取得");
@@ -106,89 +98,21 @@ cron.schedule("0 12 * * *", () => runNewsSync("12:00"), { timezone: "Asia/Tokyo"
 cron.schedule("0 18 * * *", () => runNewsSync("18:00"), { timezone: "Asia/Tokyo" });
 cron.schedule("0 22 * * *", () => runNewsSync("22:00"), { timezone: "Asia/Tokyo" });
 
-// ── 07:00 JST — TDnet 当日开示数据同步（工作日，开市前）────────────────────────
+// ── 07:00 JST — TDnet 当日开示数据同步（工作日）────────────────────────────
 cron.schedule("0 7 * * 1-5", () => {
-  log("INFO", "⏰ 07:00 触发：TDnet 真实开示同步");
+  log("INFO", "⏰ 07:00 触发：TDnet 真実開示同期");
   run("fetch-tdnet.ts", "TDnet 開示同步");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 07:30 JST — AI 評分計算 + データ健全性チェック ────────────────────────────────
+// ── 07:30 JST — AI 評分計算 + データ健全性チェック ────────────────────────────
 cron.schedule("30 7 * * *", () => {
   log("INFO", "⏰ 07:30 触发：AI 評分計算");
   run("compute-scores.ts", "AI 評分計算");
-  // Run health guard immediately after scoring; exit 1 is caught by run() — daily picks still proceed
   log("INFO", "▶ 評分後データ健全性チェック");
   run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 08:00 JST — LINE 朝報 + WeCom 晨报（開場前・工作日）───────────────────────
-cron.schedule("0 8 * * 1-5", () => {
-  log("INFO", "⏰ 08:00 触发：LINE 朝報 + WeCom 晨报");
-  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); } else {
-    run("send-morning-brief.ts", "LINE 朝報");
-  }
-  if (!hasWecom()) { log("WARN", "WeCom 未配置，スキップ晨报"); } else {
-    run("send-morning-report.ts", "WeCom 晨报");
-  }
-}, { timezone: "Asia/Tokyo" });
-
-// ── 08:30 JST — LINE AI 日報（詳細・毎日）────────────────────────────────────
-cron.schedule("30 8 * * *", () => {
-  log("INFO", "⏰ 08:30 触发：LINE AI 日報");
-  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
-  run("send-daily-line.ts", "LINE AI 日報");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 11:30 JST — WeCom 盘中策略更新（工作日）──────────────────────────────────
-cron.schedule("30 11 * * 1-5", () => {
-  log("INFO", "⏰ 11:30 触发：WeCom 盘中更新");
-  if (!hasWecom()) { log("WARN", "WeCom 未配置，スキップ"); return; }
-  run("send-wecom-midday.ts", "WeCom 盘中更新");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 12:30 JST — LINE 午間速報（工作日）───────────────────────────────────────
-cron.schedule("30 12 * * 1-5", () => {
-  log("INFO", "⏰ 12:30 触发：LINE 午間速報");
-  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
-  run("send-midday-flash.ts", "LINE 午間速報");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 15:30 JST — WeCom 收盘总结（工作日）──────────────────────────────────────
-cron.schedule("30 15 * * 1-5", () => {
-  log("INFO", "⏰ 15:30 触发：WeCom 收盘总结");
-  if (!hasWecom()) { log("WARN", "WeCom 未配置，スキップ"); return; }
-  run("send-market-close.ts", "WeCom 收盘总结");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 15:45 JST — LINE 大引けまとめ（工作日）───────────────────────────────────
-cron.schedule("45 15 * * 1-5", () => {
-  log("INFO", "⏰ 15:45 触发：LINE 大引けまとめ");
-  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
-  run("send-closing-summary.ts", "LINE 大引けまとめ");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 16:35 JST — LINE リスク警告（工作日）─────────────────────────────────────
-cron.schedule("35 16 * * 1-5", () => {
-  log("INFO", "⏰ 16:35 触发：LINE リスク警告");
-  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
-  run("send-line-risk-alert.ts", "LINE リスク警告");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 毎30分 JST — 異動アラートチェック（工作日 09:00-16:00）────────────────────
-cron.schedule("*/30 9-16 * * 1-5", () => {
-  log("INFO", "⏰ 毎30分 触发：異動アラートチェック");
-  if (!hasLine()) { log("WARN", "LINE 未配置，スキップ"); return; }
-  run("check-alerts.ts", "異動アラートチェック");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 毎15分 JST — WeCom 股票预警（工作日 09:00-15:30）───────────────────────
-cron.schedule("*/15 9-15 * * 1-5", () => {
-  log("INFO", "⏰ 毎15分 触发：WeCom 股票预警");
-  if (!hasWecom()) { log("WARN", "WeCom 未配置，スキップ"); return; }
-  run("send-stock-alert.ts", "WeCom 股票预警");
-}, { timezone: "Asia/Tokyo" });
-
-// ── 18:30 JST — JPX 空売り比率 取得（工作日）────────────────────────────────
+// ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
 cron.schedule("30 18 * * 1-5", () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");
   run("fetch-short-selling-ratio.ts", "JPX 空売り比率取得");
@@ -208,8 +132,5 @@ cron.schedule("30 22 * * *", () => {
 
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
-log("INFO", "           05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース / 07:30 AI評分");
-log("INFO", "           08:00 朝報+WeCom晨报 / 08:30 日報 / 12:30 午間 / 15:30 WeCom收盘");
-log("INFO", "           15:45 大引 / 16:35 リスク / 18:30 空売り比率(工作日)");
-log("INFO", "           22:00 複盤 / 22:30 配当历史");
-log("INFO", "           09:00-16:00 毎30分 異動アラート / 09:00-15:30 毎15分 WeCom预警（工作日）");
+log("INFO", "           05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース");
+log("INFO", "           07:30 AI評分+健全性 / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");

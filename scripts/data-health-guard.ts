@@ -11,7 +11,6 @@ import * as fs from "fs";
 import * as path from "path";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { isConfigured, broadcastMessage } from "../lib/line";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -444,47 +443,6 @@ async function main() {
     id: "latestclose_consistency", level: "INFO", name: "StockScore.latestClose valid (>0)",
     value: inconsistent === 0 ? "OK" : `${inconsistent} invalid`, pass: inconsistent === 0,
   });
-
-  // ── LINE 告警发送（聚合前，捕获配额超限作为 WARNING 检查）────────────────
-  // LINE 429 = 外部服务月配额超限，非核心数据故障，不计入 CRITICAL
-  if (isConfigured()) {
-    const ts = now.toISOString().replace("T", " ").slice(0, 16);
-    const tentCriticals = checks.filter(c => !c.pass && c.level === "CRITICAL");
-    const tentWarnings  = checks.filter(c => !c.pass && c.level === "WARNING");
-
-    if (tentCriticals.length > 0 || tentWarnings.length > 0) {
-      const level = tentCriticals.length > 0 ? "CRITICAL" : "WARNING";
-      const issueLines = [...tentCriticals, ...tentWarnings]
-        .slice(0, 5)
-        .map(c => `・${c.name}: ${c.value}`)
-        .join("\n");
-      const action = level === "CRITICAL"
-        ? "Daily Pick blocked. Run npm run audit:data."
-        : "Daily Pick not blocked. Please review.";
-      const alertText = [`⚠ TOHOSHOU DATA ${level}`, `Time: ${ts}`, "", issueLines, "", action].join("\n");
-
-      try {
-        await broadcastMessage([{ type: "text", text: alertText }]);
-        console.log(`[line] ✅ ${level} alert sent`);
-      } catch (e) {
-        const err = e as Error;
-        const isQuota = err.name === "QuotaExceededError" || err.message.includes("429");
-        if (isQuota) {
-          console.log(`[line] ⚠ 月配额超限（HTTP 429）— 非核心数据故障`);
-          add({
-            id: "line_quota",
-            level: "WARNING",
-            name: "LINE 月配额",
-            value: "超限（HTTP 429）",
-            pass: false,
-            details: ["LINE 月配额超限，属外部服务额度限制，非核心数据故障，无需处理"],
-          });
-        } else {
-          console.warn(`[line] ⚠ 告警发送失败: ${err.message}`);
-        }
-      }
-    }
-  }
 
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const criticals = checks.filter(c => !c.pass && c.level === "CRITICAL");
