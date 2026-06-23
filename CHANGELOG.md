@@ -2,6 +2,25 @@
 
 ---
 
+## [10.1.0] - 2026-06-23 — v10 Stable Final Audit & Fix
+
+### Fixed (P1)
+- **P1-1: gptRank null=0** — Already resolved before session start (all 325 stocks scored).
+- **P1-2: DailyRecommendation today=0** — Root cause: `rerank-top500.ts` was not in the cron schedule. Fixed by adding it to `cron-scheduler.ts` after `compute-scores.ts` (07:30 JST). Ran manually: 325 entries for 2026-06-23 now in DB. Health check confirms ✅ today=325.
+- **P1-3: RealtimeMarket Staleness Indicator** — Created `components/StalenessTag.tsx` (≤5min LIVE green, ≤60min Xm ago blue, ≤3h Xh ago amber, >3h stale gray). Added `computedAt` to: `api/watchlist/route.ts` (StockScore select), `api/stocks/[symbol]/ai-score/route.ts` (response), `app/page.tsx` (getDashboardData). Displayed in: Dashboard header, Watchlist title, Stock Detail AI score section.
+
+### Fixed (P2 — TypeScript)
+- **DeploymentRow badge loop** (`app/admin/verify/page.tsx`): Replaced `d[k as keyof DeploymentRow] as string` with a typed `as const` tuple of `{ key, label }` pairs. No more unsafe keyof cast; labels hardcoded instead of runtime string manipulation. `npx tsc --noEmit` → 0 errors.
+
+### Build/Deploy
+- `npm run build` ✅ PASS
+- `npx tsc --noEmit` ✅ 0 errors
+- `npm run health:data` ✅ CRITICAL=0, DailyRecommendation today=325
+- rsync → pm2 restart tohoshou-web + tohoshou-cron ✅
+- commit `73d253e` → push ✅
+
+---
+
 ## [10.0.0] - 2026-06-23 — Legacy Cleanup Phase 1（LINE/AIAnalysis残留物清除）
 
 ### Removed (P0 — 生产 UI 显示错误修复)
