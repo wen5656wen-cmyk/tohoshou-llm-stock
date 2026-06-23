@@ -2,6 +2,22 @@
 
 ---
 
+## [9.0.1] - 2026-06-23 — 全局项目边界污染审核清理
+
+### Fixed (docs/chore)
+- `docs/KNOWN_ISSUES.md`: 删除 yahoo-auction 跨项目污染（P0 note / P1-4 LINE quota / P2-4 sendWxWon+auctionBid.ts / P2-5 POST /bill/api / P3-1 H5 PackageImages / P3-2 sendWxEnding / P3-3 SystemConfig TOCTOU）
+- `docs/ROADMAP.md`: 删除 yahoo-auction P0-1 条目及 note、删除 P2-2 AI Chat（系统已移除）、删除 P3-1 LINE push re-enable、删除 P3-3 WeChat Work（系统已移除）；重新排号剩余条目
+- `docs/API_MAP.md`: 删除"AI / Chat"整节（/api/chat, /api/wecom/callback, /api/wecom/chat）和"Notifications"整节（/api/notifications，v9.0已删除）
+- `lib/stock-display-name.ts`: 删除注释"All LINE pushes must use this function"（LINE 系统已于 v9.0 全量删除）
+- `PROJECT_STATUS.md`: 删除"H5/小程序 PackageImages img src 未经 proxyImgMedium"行（yahoo-auction 项目内容）
+
+### Verified Legitimate (not contamination)
+- `lib/i18n/market-labels.ts`: 物流 → 日本市场板块标签（Warehouse & Transport）
+- `scripts/seed-ai-themes.ts`: 物流自動化 AI 主题（Daifuku 等真实日股）
+- `CHANGELOG.md`: 历史 wecom/LINE 条目 → 已删系统的正规变更记录
+
+---
+
 ## [9.0.0] - 2026-06-23 — 完全移除所有推送系统（LINE + 企业微信）
 
 ### Removed
