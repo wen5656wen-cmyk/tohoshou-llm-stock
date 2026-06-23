@@ -20,11 +20,7 @@
 
 ## P0 — Critical (Must Fix Next)
 
-| # | Issue | Severity | File |
-|---|-------|----------|------|
-| P0-1 | Admin batch-paid / confirm-payment / confirm-receipt don't sync `OrderBillItem('API手续费').isPaid` | Critical data | `backend/src/routes/orders.ts` |
-
-> Note: P0-1 is in the **yahoo-auction** backend project, not this repo.
+*None in this repository.*
 
 ---
 
@@ -44,11 +40,10 @@
 | # | Feature | Notes |
 |---|---------|-------|
 | P2-1 | Screener desktop card redesign (same as watchlist compact style) | Apply RSI·MA·52W row; remove old chip row |
-| P2-2 | AI Chat web interface improvements | Better intent display; "explain this stock" UX |
-| P2-3 | Backtest win-rate chart (time-series) | Currently only table view |
-| P2-4 | Portfolio P&L calculation (using DailyPrice history) | Currently only current price |
-| P2-5 | `/admin/verify` auto-refresh every 5 min in background | WebSocket or polling interval |
-| P2-6 | `record-deployment.ts` — warn when `--files` value contains commas (ambiguous parsing) | UX improvement |
+| P2-2 | Backtest win-rate chart (time-series) | Currently only table view |
+| P2-3 | Portfolio P&L calculation (using DailyPrice history) | Currently only current price |
+| P2-4 | `/admin/verify` auto-refresh every 5 min in background | WebSocket or polling interval |
+| P2-5 | `record-deployment.ts` — warn when `--files` value contains commas (ambiguous parsing) | UX improvement |
 
 ---
 
@@ -56,12 +51,10 @@
 
 | # | Feature | Notes |
 |---|---------|-------|
-| P3-1 | LINE push — re-enable after monthly quota resets | Currently over limit |
-| P3-2 | Mobile PWA optimization | Screener/watchlist mobile layout |
-| P3-3 | WeChat Work morning report upgrade | Multi-section layout |
-| P3-4 | Dividend calendar page | From Dividend table |
-| P3-5 | Sector rotation heatmap | Aggregate by sector + return period |
-| P3-6 | Deployment History CI integration | GitHub Actions → auto POST to /api/admin/deployments |
+| P3-1 | Mobile PWA optimization | Screener/watchlist mobile layout |
+| P3-2 | Dividend calendar page | From Dividend table |
+| P3-3 | Sector rotation heatmap | Aggregate by sector + return period |
+| P3-4 | Deployment History CI integration | GitHub Actions → auto POST to /api/admin/deployments |
 
 ---
 

@@ -5,10 +5,7 @@ export type StockNameFields = {
   nameEn?: string | null;
 };
 
-/**
- * Primary display name: nameZh → name(nameJa) → nameEn → symbol
- * All LINE pushes must use this function — never raw name/nameJa fields.
- */
+/** Primary display name: nameZh → name(nameJa) → nameEn → symbol */
 export function getStockDisplayName(stock: StockNameFields): string {
   return stock.nameZh?.trim() || stock.name?.trim() || stock.nameEn?.trim() || stock.symbol;
 }

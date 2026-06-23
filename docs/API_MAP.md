@@ -34,16 +34,6 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
 
 ---
 
-## AI / Chat
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/chat` | — | Web AI chat (intent engine → DB → answer) |
-| POST | `/api/wecom/callback` | HMAC | WeChat Work message webhook |
-| POST | `/api/wecom/chat` | HMAC | WeChat Work chat handler |
-
----
-
 ## Sectors / Themes
 
 | Method | Path | Auth | Description |
@@ -133,14 +123,6 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
   operator?: string; deployedAt?: string;   // ISO string, defaults to now()
 }
 ```
-
----
-
-## Notifications
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/api/notifications` | — | User notification list |
 
 ---
 
