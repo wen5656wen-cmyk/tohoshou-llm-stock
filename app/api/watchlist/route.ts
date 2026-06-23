@@ -13,7 +13,7 @@ export async function GET() {
   const symbols = items.map((i) => i.symbol);
 
   // Batch fetch — avoids N+1 queries
-  const [scoreRows, stockRows, gptRows] = await Promise.all([
+  const [scoreRows, stockRows, gptRows, rtRows] = await Promise.all([
     prisma.stockScore.findMany({
       where: { symbol: { in: symbols } },
       select: {
@@ -29,22 +29,28 @@ export async function GET() {
     }),
     prisma.stock.findMany({
       where: { symbol: { in: symbols } },
-      select: { symbol: true, nameZh: true, nameEn: true },
+      select: { symbol: true, nameZh: true, nameEn: true, high52w: true, low52w: true },
     }),
     prisma.gPTScore.findMany({
       where: { symbol: { in: symbols } },
       select: { symbol: true, gptScore: true, finalScore: true, gptRating: true, gptRank: true },
+    }),
+    prisma.realtimeMarket.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, volumeRatio: true, turnoverRate: true },
     }),
   ]);
 
   const scoreMap = new Map(scoreRows.map((s) => [s.symbol, s]));
   const stockMap = new Map(stockRows.map((s) => [s.symbol, s]));
   const gptMap   = new Map(gptRows.map((g) => [g.symbol, g]));
+  const rtMap    = new Map(rtRows.map((r) => [r.symbol, r]));
 
   const enriched = items.map((w) => {
     const base  = scoreMap.get(w.symbol) ?? null;
     const stock = stockMap.get(w.symbol) ?? null;
     const gpt   = gptMap.get(w.symbol) ?? null;
+    const rt    = rtMap.get(w.symbol) ?? null;
 
     const adaptiveScore   = base?.adaptiveScore ?? null;
     const finalScore      = gpt?.finalScore ?? adaptiveScore ?? 0;
@@ -52,6 +58,15 @@ export async function GET() {
     const gptRank         = gpt?.gptRank ?? null;
     const gptRating       = gpt?.gptRating ?? null;
     const effectiveRating = gptRating ?? base?.recommendationV2 ?? null;
+
+    // 52W position: (close - low52w) / (high52w - low52w) * 100
+    const h52 = stock?.high52w ?? null;
+    const l52 = stock?.low52w ?? null;
+    const close = base?.latestClose ?? null;
+    const week52Pct =
+      h52 != null && l52 != null && close != null && h52 > l52
+        ? Math.round(((close - l52) / (h52 - l52)) * 100)
+        : null;
 
     return {
       ...w,
@@ -83,6 +98,9 @@ export async function GET() {
             gptRank,
             gptRating,
             effectiveRating,
+            volumeRatio: rt?.volumeRatio ?? null,
+            turnoverRate: rt?.turnoverRate ?? null,
+            week52Pct,
           }
         : null,
     };
