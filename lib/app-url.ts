@@ -1,8 +1,8 @@
 /**
  * Centralized URL utilities for TOHOSHOU AI
  *
- * Always use these functions for any URL that appears in LINE messages or
- * Flex Message buttons. Never hardcode localhost or relative paths.
+ * Always use these functions for URLs in server-side responses.
+ * Never hardcode localhost or relative paths.
  */
 
 export function getBaseUrl(): string {
@@ -31,7 +31,3 @@ export const stockUrl = (symbol: string): string =>
 export const aiPicksUrl = (): string => `${getBaseUrl()}/ai-picks`;
 export const aiThemeUrl = (): string => `${getBaseUrl()}/ai-theme`;
 export const screenerUrl = (): string => `${getBaseUrl()}/screener`;
-export const newsUrl = (): string => `${getBaseUrl()}/news`;
-export const notificationsUrl = (): string => `${getBaseUrl()}/notifications`;
-export const portfolioUrl = (): string => `${getBaseUrl()}/portfolio`;
-export const syncUrl = (): string => `${getBaseUrl()}/sync`;

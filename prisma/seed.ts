@@ -375,71 +375,9 @@ const news = [
   },
 ];
 
-const analyses = [
-  {
-    symbol: "7203.T",
-    model: "gpt-4o-mini",
-    analysisType: "COMPREHENSIVE",
-    score: 78,
-    recommendation: "BUY",
-    summary:
-      "トヨタ自動車はPER8.5倍という低バリュエーションと14.1%のROEを誇り、ハイブリッド・EV双方への対応力が際立つ。円安恩恵に加え、北米需要の堅調さが業績を支える。配当利回り2.1%も魅力的。ただし中国市場での競争激化と原材料コスト上昇がリスク要因。",
-    bullPoints: [
-      "PER8.5倍の低バリュエーション",
-      "HV・EV両にらみの柔軟な戦略",
-      "配当利回り2.1%の安定還元",
-      "北米市場での強固なシェア",
-    ],
-    bearPoints: [
-      "中国EV競合の台頭でシェア圧迫",
-      "円高進行時の業績下振れリスク",
-    ],
-    targetPrice: 3200,
-    riskLevel: "LOW",
-  },
-  {
-    symbol: "6758.T",
-    model: "gpt-4o-mini",
-    analysisType: "COMPREHENSIVE",
-    score: 71,
-    recommendation: "BUY",
-    summary:
-      "ソニーグループはゲーム・音楽・映画・半導体と多角化した収益基盤が強み。PS5の普及によるゲームサービス収益の成長が加速中。CMOSイメージセンサーはスマホ向けで圧倒的シェア。ただし映像機器市場の縮小と投資事業の変動性に留意が必要。",
-    bullPoints: [
-      "PS5普及でゲームサービス収益拡大",
-      "CMOSセンサーで圧倒的世界シェア",
-      "音楽・映画IPポートフォリオが安定収益源",
-    ],
-    bearPoints: [
-      "テレビ等映像機器市場の構造的縮小",
-      "投資・金融事業の業績変動",
-    ],
-    targetPrice: 3300,
-    riskLevel: "MEDIUM",
-  },
-  {
-    symbol: "7974.T",
-    model: "deepseek-chat",
-    analysisType: "DAILY_PICK",
-    score: 82,
-    recommendation: "BUY",
-    summary:
-      "任天堂はSwitch 2発売期待から株価上昇余地が大きい。マリオ・ゼルダ等の強力なIP資産とソフト・ハード一体型のエコシステムが競争優位を形成。現金豊富なバランスシートと2.5%の高配当も評価できる。",
-    bullPoints: [
-      "Switch 2発売による業績加速期待",
-      "マリオ・ポケモン等の不変IP価値",
-      "潤沢な手元キャッシュと2.5%配当",
-    ],
-    bearPoints: ["Switch 2普及ペースの不確実性", "モバイルゲーム収益の伸び悩み"],
-    targetPrice: 9500,
-    riskLevel: "LOW",
-  },
-];
-
 async function main() {
   console.log("🌱 Seeding database...");
 
-  await prisma.aIAnalysis.deleteMany();
   await prisma.news.deleteMany();
   await prisma.financial.deleteMany();
   await prisma.portfolio.deleteMany();
@@ -471,14 +409,6 @@ async function main() {
     });
   }
   console.log(`  ✅ News: ${news.length}件`);
-
-  for (const a of analyses) {
-    const { symbol, ...data } = a;
-    await prisma.aIAnalysis.create({
-      data: { ...data, stockId: stockMap[symbol] },
-    });
-  }
-  console.log(`  ✅ AIAnalysis: ${analyses.length}件`);
 
   await prisma.portfolio.createMany({
     data: [

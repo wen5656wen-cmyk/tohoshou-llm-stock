@@ -50,8 +50,6 @@ type Summary = {
   bullRate: number;
   disclosureTotal: number;
   disclosureCoveredSymbols: number;
-  lineConfigured: boolean;
-  gptConfigured: boolean;
 };
 
 type SyncLogEntry = {
@@ -269,12 +267,7 @@ const CRON_SCHEDULE = [
   { time: "07:15 JST", task: "InstitutionalFlow 备份（每周一）" },
   { time: "07:00/12/18/22 JST", task: "Kabutan News（每日4次）" },
   { time: "07:30 JST", task: "ComputeScores + Pass2（每日）" },
-  { time: "08:00 JST", task: "LINE 朝报（工作日）" },
-  { time: "08:30 JST", task: "LINE 日报 TOP10" },
-  { time: "12:30 JST", task: "LINE 午间速报（工作日）" },
-  { time: "15:45 JST", task: "LINE 大引け总结（工作日）" },
   { time: "16:30 JST", task: "InstitutionalFlow（J-Quants，每周五）" },
-  { time: "16:35 JST", task: "LINE 风险提示（工作日）" },
   { time: "18:30 JST", task: "空売り比率（JPX PDF，工作日）" },
   { time: "22:00 JST", task: "Stock Master 元数据同步（每日）" },
   { time: "22:30 JST", task: "配当历史（J-Quants fins/summary，每日）" },
@@ -438,7 +431,7 @@ export default function SyncPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("sync.title")}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            TOHOSHOU AI v7.7
+            TOHOSHOU AI v10
             {refreshedAt && (
               <span className="ml-2 text-slate-400">
                 · {lang === "ja-JP" ? "最終更新" : lang === "en-US" ? "Last refreshed" : "最后刷新"}：
@@ -754,18 +747,6 @@ export default function SyncPage() {
                       {src.extra.score != null && (
                         <span>全球分 {String(src.extra.score)}/10</span>
                       )}
-                    </div>
-                  )}
-
-                  {/* Extra stats for line_gpt */}
-                  {src.id === "line_gpt" && (
-                    <div className="flex gap-4 mb-3 text-xs">
-                      <span className={src.extra.lineConfigured ? "text-green-600" : "text-red-500"}>
-                        {src.extra.lineConfigured ? "✅ LINE 已配置" : "✗ LINE 未配置"}
-                      </span>
-                      <span className={src.extra.gptConfigured ? "text-green-600" : "text-red-500"}>
-                        {src.extra.gptConfigured ? "✅ GPT 已配置" : "✗ GPT 未配置"}
-                      </span>
                     </div>
                   )}
 

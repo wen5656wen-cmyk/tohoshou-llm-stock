@@ -324,9 +324,6 @@ const enUS: Messages = {
   "tabs.portfolio": "Portfolio",
   "tabs.priceAlerts": "Price Alerts",
 
-  // Chat moved notice
-  "chat.movedToLine": "AI Chat is available via LINE Bot",
-
   // Page merged notices
   "page.merged_screener": "This page has been merged into AI Screener",
   "page.go_screener": "Go to AI Screener",

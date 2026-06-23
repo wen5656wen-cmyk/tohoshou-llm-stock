@@ -339,9 +339,6 @@ export type Messages = {
   "tabs.portfolio": string;
   "tabs.priceAlerts": string;
 
-  // ─── Chat moved notice ─────────────────────────────────────────────────────
-  "chat.movedToLine": string;
-
   // ─── Page merged notices ───────────────────────────────────────────────────
   "page.merged_screener": string;
   "page.go_screener": string;

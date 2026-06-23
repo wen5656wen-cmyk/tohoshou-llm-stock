@@ -324,9 +324,6 @@ const jaJP: Messages = {
   "tabs.portfolio": "ポートフォリオ",
   "tabs.priceAlerts": "価格アラート",
 
-  // Chat moved notice
-  "chat.movedToLine": "AIチャットはLINE Botでご利用ください",
-
   // Page merged notices
   "page.merged_screener": "このページはAI銘柄選定に統合されました",
   "page.go_screener": "AI銘柄選定へ",

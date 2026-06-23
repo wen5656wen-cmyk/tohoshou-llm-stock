@@ -31,35 +31,10 @@ export async function POST(
     stock.disclosures
   );
 
-  const analysis = await prisma.aIAnalysis.create({
-    data: {
-      stockId: stock.id,
-      model: result.model,
-      analysisType: "COMPREHENSIVE",
-      score: result.score,
-      scoreGrowth: result.scoreGrowth,
-      scoreValuation: result.scoreValuation,
-      scoreProfitability: result.scoreProfitability,
-      scoreCapitalFlow: result.scoreCapitalFlow,
-      scoreSentiment: result.scoreSentiment,
-      stars: result.stars,
-      recommendation: result.recommendation,
-      grade: result.grade,
-      summary: result.summary,
-      bullPoints: result.bullPoints,
-      bearPoints: result.bearPoints,
-      targetPrice: result.targetPrice,
-      upsideRate: result.upsideRate,
-      riskLevel: result.riskLevel,
-      riskWarnings: result.riskWarnings,
-      investReason: result.investReason,
-    },
-  });
-
   await prisma.stock.update({
     where: { id: stock.id },
     data: { aiScore: result.score },
   });
 
-  return NextResponse.json(analysis);
+  return NextResponse.json(result);
 }

@@ -19,10 +19,6 @@ export async function GET(
         orderBy: { publishedAt: "desc" },
         take: 10,
       },
-      analyses: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
     },
   });
 

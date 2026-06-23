@@ -324,9 +324,6 @@ const zhCN: Messages = {
   "tabs.portfolio": "持仓",
   "tabs.priceAlerts": "价格提醒",
 
-  // Chat moved notice
-  "chat.movedToLine": "AI对话已迁移至 LINE Bot",
-
   // Page merged notices
   "page.merged_screener": "此页面已合并至 AI选股",
   "page.go_screener": "前往 AI选股",

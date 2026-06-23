@@ -52,8 +52,6 @@ export type StatusResponse = {
     bullRate: number;
     disclosureTotal: number;
     disclosureCoveredSymbols: number;
-    lineConfigured: boolean;
-    gptConfigured: boolean;
   };
   recentLogs: {
     id: number;
@@ -175,11 +173,6 @@ export async function GET() {
 
   const shortSellAge = ageDays(shortSellLatest?.date ?? null);
   const dividendAge = ageDays(dividendLatest?.createdAt ?? null);
-
-  const lineConfigured = !!(
-    process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.LINE_ACCESS_TOKEN
-  );
-  const gptConfigured = !!(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY);
 
   const sources: SourceInfo[] = [
     {
@@ -436,32 +429,6 @@ export async function GET() {
       isAsync: false,
       extra: { latestYear: dividendLatest?.year },
     },
-    {
-      id: "line_gpt",
-      taskName: "LINE / GPT",
-      icon: "◇",
-      description: "LINE推送（朝报 / 午间 / 大引け）+ GPT /api/chat（Phase1.5）",
-      status: lineConfigured && gptConfigured ? "REAL" : lineConfigured || gptConfigured ? "PARTIAL" : "FALLBACK",
-      source: "config",
-      lastSyncedAt: null,
-      latestDate: null,
-      ageDays: null,
-      rowsInserted: null,
-      totalCount: null,
-      coveredSymbols: null,
-      nextCron: "08:00 朝报 / 08:30 日报 / 12:30 午间 / 15:45 大引け",
-      errorMessage: !lineConfigured
-        ? "LINE_CHANNEL_ACCESS_TOKEN 未配置"
-        : !gptConfigured
-        ? "OPENAI_API_KEY / DEEPSEEK_API_KEY 未配置"
-        : null,
-      apiEndpoint: null,
-      isAsync: false,
-      extra: {
-        lineConfigured,
-        gptConfigured,
-      },
-    },
   ];
 
   const realCount = sources.filter((s) => s.status === "REAL").length;
@@ -488,8 +455,6 @@ export async function GET() {
       bullRate,
       disclosureTotal: disclosureCount,
       disclosureCoveredSymbols,
-      lineConfigured,
-      gptConfigured,
     },
     recentLogs: recentLogs.map((l) => ({
       id: l.id,

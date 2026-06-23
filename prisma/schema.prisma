@@ -42,7 +42,6 @@ model Stock {
 
   financials  Financial[]
   news        News[]
-  analyses    AIAnalysis[]
   portfolios  Portfolio[]
   disclosures Disclosure[]
 }
@@ -149,36 +148,6 @@ model News {
   @@index([category])
 }
 
-model AIAnalysis {
-  id               Int      @id @default(autoincrement())
-  stockId          Int
-  stock            Stock    @relation(fields: [stockId], references: [id])
-  model            String
-  analysisType     String
-  score            Int?     // 0-100
-  // Phase 2: 5次元スコア
-  scoreGrowth      Int?     // 成長性 0-100
-  scoreValuation   Int?     // バリュエーション 0-100
-  scoreProfitability Int?   // 収益性 0-100
-  scoreCapitalFlow Int?     // 資金面 0-100
-  scoreSentiment   Int?     // ニュース感情 0-100
-  stars            Int?     // 1-5
-  recommendation   String?  // BUY | WATCH | AVOID
-  grade            String?  // STRONG_BUY | BUY | WATCH | AVOID | STRONG_AVOID
-  summary          String?  @db.Text
-  bullPoints       Json?
-  bearPoints       Json?
-  targetPrice      Float?
-  upsideRate       Float?   // 目標価格への上昇余地 %
-  riskLevel        String?
-  riskWarnings     Json?    // string[]
-  investReason     String?  @db.Text
-  createdAt        DateTime @default(now())
-
-  @@index([stockId])
-  @@index([createdAt(sort: Desc)])
-}
-
 model Portfolio {
   id        Int      @id @default(autoincrement())
   stockId   Int?
@@ -192,20 +161,6 @@ model Portfolio {
   updatedAt DateTime @updatedAt
 
   @@index([symbol])
-}
-
-model PortfolioDiagnosis {
-  id              Int      @id @default(autoincrement())
-  symbol          String
-  portfolioId     Int?
-  riskLevel       String   // LOW | MEDIUM | HIGH | CRITICAL
-  diagnosis       String   @db.Text
-  suggestedAction String   // HOLD | WATCH | REDUCE | TAKE_PROFIT | STOP_LOSS | HEDGE
-  triggerReason   String   @db.Text
-  createdAt       DateTime @default(now())
-
-  @@index([symbol])
-  @@index([createdAt(sort: Desc)])
 }
 
 model SyncLog {
@@ -356,83 +311,6 @@ model GlobalMarket {
   createdAt     DateTime @default(now())
 
   @@index([date(sort: Desc)])
-}
-
-model NotificationLog {
-  id           Int       @id @default(autoincrement())
-  type         String    // MORNING_REPORT | MIDDAY_REPORT | CLOSE_REPORT | REALTIME_ALERT | NEWS_ALERT | PORTFOLIO_ALERT | TEST
-  title        String
-  content      String    @db.Text
-  symbols      String[]  @default([])
-  status       String    @default("PENDING") // PENDING | SUCCESS | FAILED
-  sentAt       DateTime?
-  errorMessage String?
-  createdAt    DateTime  @default(now())
-
-  @@index([type])
-  @@index([createdAt(sort: Desc)])
-  @@map("notification_logs")
-}
-
-model NotificationSetting {
-  id                    Int      @id @default(autoincrement())
-  lineUserId            String?  @unique
-  enabled               Boolean  @default(true)
-  morningReportEnabled  Boolean  @default(true)
-  middayReportEnabled   Boolean  @default(true)
-  closeReportEnabled    Boolean  @default(true)
-  realtimeAlertEnabled  Boolean  @default(true)
-  portfolioAlertEnabled Boolean  @default(false)
-  minScoreChange        Int      @default(10)
-  minPriceChangePct     Float    @default(5.0)
-  minVolumeRatio        Float    @default(2.0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@map("notification_settings")
-}
-
-model TelegramUser {
-  id         Int       @id @default(autoincrement())
-  chatId     String    @unique
-  username   String?
-  firstName  String?
-  isActive   Boolean   @default(true)
-  lastSeenAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  @@map("telegram_users")
-}
-
-// LINE Bot groups – tracks LINE groups the bot has been added to
-model LineGroup {
-  id          Int       @id @default(autoincrement())
-  groupId     String    @unique
-  name        String?
-  isActive    Boolean   @default(true)
-  firstSeenAt DateTime  @default(now())
-  lastSeenAt  DateTime?
-  updatedAt   DateTime  @updatedAt
-
-  @@index([isActive])
-  @@map("line_groups")
-}
-
-// LINE Bot users – tracks followers for push notifications and context
-model LineUser {
-  id          Int       @id @default(autoincrement())
-  userId      String    @unique
-  displayName String?
-  pictureUrl  String?
-  lastSymbol  String?   // last queried stock (context awareness for follow-up questions)
-  isActive    Boolean   @default(true)
-  firstSeenAt DateTime  @default(now())
-  lastSeenAt  DateTime?
-  updatedAt   DateTime  @updatedAt
-
-  @@index([isActive])
-  @@map("line_users")
 }
 
 // User watchlist – stocks to follow (separate from Portfolio which tracks actual positions)
@@ -646,36 +524,6 @@ model BacktestError {
   @@index([symbol])
   @@index([reason])
   @@map("backtest_errors")
-}
-
-// V11.1: Per-alert dedup log — prevents same stock+type+channel from re-firing on same trading day
-model AlertLog {
-  id         Int      @id @default(autoincrement())
-  symbol     String
-  alertType  String   // RSI_HIGH | RSI_EXTREME | BELOW_MA20 | NEAR_52W_HIGH | VOL_SPIKE | AI_BUY_SIGNAL | NEWS_RISK
-  channel    String   // LINE | WECHAT
-  tradingDay DateTime @db.Date   // JST date (UTC+9 floor)
-  value      String?             // numeric snapshot at alert time, e.g. "76.3"
-  sentAt     DateTime @default(now())
-
-  @@unique([symbol, alertType, channel, tradingDay])
-  @@index([symbol])
-  @@index([tradingDay(sort: Desc)])
-  @@map("alert_logs")
-}
-
-// Per-user AI system settings (V7.9.3 System Control)
-model UserAiSettings {
-  id             Int      @id @default(autoincrement())
-  userId         String   @unique  // LINE userId or web sessionId
-  aiEnabled      Boolean  @default(true)
-  mode           String   @default("STOCK")  // STOCK | CHAT | OFF
-  strictRealData Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([userId])
-  @@map("user_ai_settings")
 }
 
 // Production Deployment History (v8.9.5)
