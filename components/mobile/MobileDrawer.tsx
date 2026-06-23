@@ -20,7 +20,8 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
   ];
 
   const ADMIN_ITEMS = [
-    { href: "/sync", label: t("nav.systemStatus"), icon: "⟳" },
+    { href: "/sync",          label: t("nav.systemStatus"), icon: "⟳" },
+    { href: "/admin/verify",  label: t("nav.systemVerify"), icon: "✅" },
   ];
 
   const isActive = (href: string) =>
