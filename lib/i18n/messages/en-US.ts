@@ -316,6 +316,7 @@ const enUS: Messages = {
   "nav.aiValueChain": "AI Value Chain",
   "nav.myInvestments": "My Investments",
   "nav.systemStatus": "System Status",
+  "nav.systemVerify": "System Verify",
   "nav.admin": "Admin",
 
   // My Investments tabs

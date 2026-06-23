@@ -29,6 +29,7 @@ export type Messages = {
   "nav.aiValueChain": string;
   "nav.myInvestments": string;
   "nav.systemStatus": string;
+  "nav.systemVerify": string;
   "nav.admin": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────

@@ -316,6 +316,7 @@ const jaJP: Messages = {
   "nav.aiValueChain": "AI投資テーマ",
   "nav.myInvestments": "マイ投資",
   "nav.systemStatus": "システム状態",
+  "nav.systemVerify": "システム検証",
   "nav.admin": "管理者",
 
   // My Investments tabs

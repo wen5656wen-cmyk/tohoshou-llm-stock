@@ -316,6 +316,7 @@ const zhCN: Messages = {
   "nav.aiValueChain": "AI产业链",
   "nav.myInvestments": "我的投资",
   "nav.systemStatus": "系统状态",
+  "nav.systemVerify": "系统校验",
   "nav.admin": "管理员",
 
   // My Investments tabs

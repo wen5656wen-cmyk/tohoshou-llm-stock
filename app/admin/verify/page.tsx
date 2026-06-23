@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ModuleStatus = "PASS" | "WARNING" | "FAIL";
@@ -43,16 +43,29 @@ type HistoryRow = {
   recommendation: string | null; return7d: number | null; return30d: number | null; return90d: number | null;
 };
 
-type BacktestPick = {
-  date: string; symbol: string; name: string; gptRank: number; gptRating: string | null;
-  buyPrice: number | null; entryPrice: number | null; entryDate: string | null;
-  return7d: number | null; return30d: number | null; return90d: number | null;
-  price7d: number | null; price30d: number | null;
-};
 type BacktestResult = {
   date: string; horizon: string; portfolioSize: string; winRate: number | null;
   avgReturn: number | null; medianReturn: number | null; filled: number; totalRecommendations: number;
   bestReturn: number | null; worstReturn: number | null; bestSymbol: string | null; worstSymbol: string | null;
+};
+
+type BacktestPick = {
+  date: string; symbol: string; name: string; gptRank: number; gptRating: string | null;
+  buyPrice: number | null; entryPrice: number | null;
+  return7d: number | null; return30d: number | null; return90d: number | null;
+  price7d: number | null; price30d: number | null;
+};
+
+// ── i18n label maps ───────────────────────────────────────────────────────────
+const MODULE_LABELS: Record<string, string> = {
+  system:      "系统状态 / System",
+  data_sync:   "数据同步 / Data Sync",
+  daily_rec:   "每日推荐 / Daily Recommendation",
+  ai_scores:   "AI评分 / AI Scores",
+  backtest:    "回测结果 / Backtest",
+  cron:        "定时任务 / Cron & Health",
+  health:      "数据健康守卫 / Data Health Guard",
+  api_routes:  "接口路由 / API Routes",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,61 +82,56 @@ function retColor(v: number | null) {
 function ratingBadge(r: string | null): React.ReactElement {
   const map: Record<string, string> = {
     STRONG_BUY: "bg-violet-100 text-violet-800",
-    BUY: "bg-blue-100 text-blue-700",
-    HOLD: "bg-slate-100 text-slate-600",
-    WATCH: "bg-amber-100 text-amber-700",
-    AVOID: "bg-red-100 text-red-600",
+    BUY:        "bg-blue-100 text-blue-700",
+    HOLD:       "bg-slate-100 text-slate-600",
+    WATCH:      "bg-amber-100 text-amber-700",
+    AVOID:      "bg-red-100 text-red-600",
   };
-  const cls = map[r ?? ""] ?? "bg-slate-100 text-slate-500";
-  return <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${cls}`}>{r ?? "—"}</span>;
+  return <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${map[r ?? ""] ?? "bg-slate-100 text-slate-500"}`}>{r ?? "—"}</span>;
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+// ── Status badge (bilingual) ──────────────────────────────────────────────────
 function StatusBadge({ status, size = "sm" }: { status: ModuleStatus; size?: "sm" | "lg" }) {
-  const cls = {
-    PASS:    "bg-emerald-100 text-emerald-800 border-emerald-200",
-    WARNING: "bg-amber-100 text-amber-800 border-amber-200",
-    FAIL:    "bg-red-100 text-red-800 border-red-200",
+  const cfg = {
+    PASS:    { cls: "bg-emerald-100 text-emerald-800 border-emerald-300", label: "通过 / PASS",    icon: "✓" },
+    WARNING: { cls: "bg-amber-100  text-amber-800  border-amber-300",  label: "警告 / WARNING", icon: "⚠" },
+    FAIL:    { cls: "bg-red-100    text-red-800    border-red-300",    label: "失败 / FAIL",    icon: "✗" },
   }[status];
-  const icon = { PASS: "✓", WARNING: "⚠", FAIL: "✗" }[status];
   const sz = size === "lg" ? "px-3 py-1 text-sm font-bold" : "px-2 py-0.5 text-xs font-bold";
   return (
-    <span className={`inline-flex items-center gap-1 rounded border ${cls} ${sz} font-mono`}>
-      {icon} {status}
+    <span className={`inline-flex items-center gap-1 rounded border font-mono ${cfg.cls} ${sz}`}>
+      {cfg.icon} {cfg.label}
     </span>
   );
 }
 
-// ── Module card ───────────────────────────────────────────────────────────────
+// ── Module card (bilingual expand) ────────────────────────────────────────────
 function ModuleCard({ mod }: { mod: VerifyModule }) {
   const [open, setOpen] = useState(false);
-  const borderCls = {
-    PASS:    "border-emerald-200 bg-emerald-50/30",
-    WARNING: "border-amber-200 bg-amber-50/30",
-    FAIL:    "border-red-200 bg-red-50/30",
-  }[mod.status];
+  const borderCls = { PASS: "border-emerald-200 bg-emerald-50/30", WARNING: "border-amber-200 bg-amber-50/30", FAIL: "border-red-200 bg-red-50/40" }[mod.status];
+  const displayName = MODULE_LABELS[mod.key] ?? mod.name;
 
   return (
-    <div className={`rounded-xl border ${borderCls} p-4 cursor-pointer select-none`}
-         onClick={() => setOpen(o => !o)}>
+    <div className={`rounded-xl border ${borderCls} p-4 cursor-pointer select-none`} onClick={() => setOpen(o => !o)}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <StatusBadge status={mod.status} />
-          <span className="font-semibold text-slate-800 text-sm">{mod.name}</span>
-          <span className="text-xs text-slate-500 truncate hidden sm:block">{mod.message}</span>
+          <span className="font-semibold text-slate-800 text-sm">{displayName}</span>
         </div>
         <span className="text-slate-400 text-xs shrink-0">{open ? "▲" : "▼"}</span>
       </div>
-
+      {!open && (
+        <p className="mt-1 text-xs text-slate-500 pl-1 truncate">{mod.message}</p>
+      )}
       {open && (
-        <div className="mt-3 space-y-1.5 border-t border-slate-200/60 pt-3">
-          <Row label="Current"  value={String(mod.current ?? "—")} mono />
-          <Row label="Expected" value={mod.expected} />
-          <Row label="Status"   value={mod.message} />
+        <div className="mt-3 space-y-2 border-t border-slate-200/60 pt-3">
+          <BiRow label="当前值 / Current"  value={String(mod.current ?? "—")} mono />
+          <BiRow label="期望值 / Expected" value={mod.expected} />
+          <BiRow label="状态说明 / Message" value={mod.message} />
           {mod.fixHint && (
-            <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-2">
-              <span className="text-xs font-semibold text-amber-700">Fix: </span>
-              <span className="text-xs text-amber-700 font-mono">{mod.fixHint}</span>
+            <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-1">
+              <span className="text-xs font-bold text-amber-700">修复建议 / Fix Hint：</span>
+              <span className="text-xs text-amber-700 font-mono ml-1">{mod.fixHint}</span>
             </div>
           )}
         </div>
@@ -132,22 +140,20 @@ function ModuleCard({ mod }: { mod: VerifyModule }) {
   );
 }
 
-function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function BiRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex gap-3 text-xs">
-      <span className="w-24 shrink-0 text-slate-400">{label}</span>
+      <span className="w-40 shrink-0 text-slate-400 font-medium">{label}</span>
       <span className={`text-slate-700 break-all ${mono ? "font-mono" : ""}`}>{value}</span>
     </div>
   );
 }
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
+// ── Section ───────────────────────────────────────────────────────────────────
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-4">
-      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">
-        {title}
-      </h2>
+      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">{title}</h2>
       {children}
     </section>
   );
@@ -155,15 +161,14 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminVerifyPage() {
-  const [status, setStatus]       = useState<StatusData | null>(null);
-  const [loading, setLoading]     = useState(true);
+  const [status, setStatus]         = useState<StatusData | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [copied, setCopied]       = useState(false);
+  const [copied, setCopied]         = useState(false);
 
-  // Detail tabs
-  const [recDate, setRecDate]     = useState("");
-  const [recSymbol, setRecSymbol] = useState("");
-  const [recRows, setRecRows]     = useState<DailyRecRow[]>([]);
+  const [recDate, setRecDate]       = useState("");
+  const [recSymbol, setRecSymbol]   = useState("");
+  const [recRows, setRecRows]       = useState<DailyRecRow[]>([]);
   const [availDates, setAvailDates] = useState<{ date: string; count: number }[]>([]);
   const [recLoading, setRecLoading] = useState(false);
 
@@ -171,11 +176,11 @@ export default function AdminVerifyPage() {
   const [histData, setHistData]     = useState<{ symbol: string; name: string; nameZh: string | null; rows: HistoryRow[] } | null>(null);
   const [histLoading, setHistLoading] = useState(false);
 
-  const [btPicks, setBtPicks]     = useState<BacktestPick[]>([]);
-  const [btResults, setBtResults] = useState<BacktestResult[]>([]);
-  const [btLoading, setBtLoading] = useState(false);
+  const [btPicks, setBtPicks]       = useState<BacktestPick[]>([]);
+  const [btResults, setBtResults]   = useState<BacktestResult[]>([]);
+  const [btLoading, setBtLoading]   = useState(false);
 
-  // ── Load status ────────────────────────────────────────────────────────────
+  // ── Loaders ────────────────────────────────────────────────────────────────
   const loadStatus = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -187,14 +192,6 @@ export default function AdminVerifyPage() {
     }
   }, []);
 
-  useEffect(() => {
-    loadStatus();
-    loadDailyRec("", "");
-    loadBacktest();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Loaders ────────────────────────────────────────────────────────────────
   const loadDailyRec = useCallback((date: string, sym: string) => {
     setRecLoading(true);
     const p = new URLSearchParams({ module: "dailyrec", limit: "100" });
@@ -223,127 +220,150 @@ export default function AdminVerifyPage() {
       .finally(() => setBtLoading(false));
   }, []);
 
-  // ── Copy report ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    loadStatus();
+    loadDailyRec("", "");
+    loadBacktest();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Copy acceptance report ─────────────────────────────────────────────────
   const copyReport = useCallback(() => {
     if (!status) return;
-    const mods = status.modules;
-    const get = (key: string) => mods.find(m => m.key === key);
-    const fmt2 = (m: VerifyModule | undefined) =>
-      m ? `${m.status.padEnd(7)} | ${m.current}` : "—";
-
-    const rec = get("daily_rec");
-    const ai  = get("ai_scores");
-    const bt  = get("backtest");
-    const hlt = get("health");
-
+    const get = (key: string) => status.modules.find(m => m.key === key);
+    const line = (m: VerifyModule | undefined) => m ? `${m.status.padEnd(7)} | ${m.current}` : "—";
     const txt = [
       "PRODUCTION ACCEPTANCE REPORT",
-      `Checked At : ${new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" })} JST`,
-      "─".repeat(55),
-      `PM2        : (check server: pm2 list)`,
-      `BUILD      : (local: npm run build)`,
-      `HEALTH     : ${fmt2(hlt)}`,
-      `DAILY REC  : ${fmt2(rec)}`,
-      `AI SCORES  : ${fmt2(ai)}`,
-      `BACKTEST   : ${fmt2(bt)}`,
-      `ADMIN PAGE : 200 OK · /admin/verify`,
-      "─".repeat(55),
-      `BLOCKING ISSUES (${status.blockingIssues.length}):`,
-      ...(status.blockingIssues.length > 0
-        ? status.blockingIssues.map(i => `  ✗ ${i}`)
-        : ["  (none)"]),
-      "─".repeat(55),
-      `PRODUCTION DEPLOY: ${status.ready ? "YES ✓" : "NO ✗"}`,
+      `检查时间 Checked At: ${new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" })} JST`,
+      "─".repeat(56),
+      `PM2            : (ssh: pm2 list)`,
+      `BUILD          : (local: npm run build)`,
+      `HEALTH         : ${line(get("health"))}`,
+      `每日推荐 DAILY REC : ${line(get("daily_rec"))}`,
+      `AI评分 AI SCORES  : ${line(get("ai_scores"))}`,
+      `回测 BACKTEST     : ${line(get("backtest"))}`,
+      `页面 ADMIN PAGE   : 200 OK · /admin/verify`,
+      "─".repeat(56),
+      `阻断问题 BLOCKING ISSUES (${status.blockingIssues.length}):`,
+      ...(status.blockingIssues.length ? status.blockingIssues.map(i => `  ✗ ${i}`) : ["  (无 / none)"]),
+      "─".repeat(56),
+      `生产部署 PRODUCTION DEPLOY: ${status.ready ? "YES ✓" : "NO ✗"}`,
     ].join("\n");
-
-    navigator.clipboard.writeText(txt).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(txt).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   }, [status]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-400 text-sm animate-pulse">Running checks…</div>
+        <div className="text-slate-400 text-sm animate-pulse">正在检查 / Running checks…</div>
       </div>
     );
   }
 
-  const ready = status?.ready ?? false;
+  const ready    = status?.ready ?? false;
   const blocking = status?.blockingIssues ?? [];
   const warnings = status?.warnings ?? [];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
 
-      {/* ── Top status banner ──────────────────────────────────────────────── */}
-      <div className={`rounded-2xl border-2 p-5 mb-6 ${
-        ready ? "bg-emerald-50 border-emerald-300" : "bg-red-50 border-red-300"
-      }`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className={`text-2xl font-black ${ready ? "text-emerald-700" : "text-red-700"}`}>
-                {ready ? "✓ PRODUCTION READY" : "✗ NOT READY"}
-              </span>
+      {/* ── 顶部总状态 Banner ──────────────────────────────────────────────── */}
+      <div className={`rounded-2xl border-2 p-5 mb-6 ${ready ? "bg-emerald-50 border-emerald-300" : "bg-red-50 border-red-300"}`}>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="min-w-0">
+            {/* 主状态 */}
+            <div className={`text-xl font-black mb-0.5 ${ready ? "text-emerald-700" : "text-red-700"}`}>
+              {ready ? "✓ 生产环境就绪" : "✗ 生产环境未就绪"}
             </div>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <span className={`font-semibold ${status?.meta.healthAllowRec ? "text-emerald-700" : "text-slate-500"}`}>
-                Allow Recommendation: {status?.meta.healthAllowRec === true ? "YES" : status?.meta.healthAllowRec === false ? "NO" : "—"}
-              </span>
-              <span className={`font-semibold ${blocking.length === 0 ? "text-emerald-700" : "text-red-700"}`}>
-                Blocking Issues: {blocking.length}
-              </span>
-              {warnings.length > 0 && (
-                <span className="text-amber-700 font-semibold">Warnings: {warnings.length}</span>
-              )}
+            <div className={`text-sm font-semibold mb-3 ${ready ? "text-emerald-600" : "text-red-600"}`}>
+              {ready ? "Production Ready" : "Not Production Ready"}
             </div>
+
+            {/* 指标行 */}
+            <div className="flex flex-wrap gap-4 text-sm mb-2">
+              <div>
+                <span className="text-slate-500 text-xs">允许推荐 / Allow Recommendation</span>
+                <div className={`font-bold ${status?.meta.healthAllowRec ? "text-emerald-700" : "text-slate-400"}`}>
+                  {status?.meta.healthAllowRec === true ? "YES ✓" : status?.meta.healthAllowRec === false ? "NO ✗" : "—"}
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-xs">阻断问题 / Blocking Issues</span>
+                <div className={`font-bold ${blocking.length === 0 ? "text-emerald-700" : "text-red-700"}`}>
+                  {blocking.length}
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-xs">警告 / Warnings</span>
+                <div className={`font-bold ${warnings.length > 0 ? "text-amber-600" : "text-emerald-700"}`}>
+                  {warnings.length}
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-xs">股票总数 / Stocks</span>
+                <div className="font-bold text-slate-700">{status?.meta.stockCount?.toLocaleString() ?? "—"}</div>
+              </div>
+            </div>
+
+            {/* 阻断问题列表 */}
             {blocking.length > 0 && (
-              <ul className="mt-2 space-y-1">
+              <div className="mt-2 space-y-1">
+                <div className="text-xs font-bold text-red-600 uppercase">阻断问题 / Blocking Issues</div>
                 {blocking.map((issue, i) => (
-                  <li key={i} className="text-xs text-red-700 font-mono">✗ {issue}</li>
+                  <div key={i} className="text-xs text-red-700 font-mono bg-red-100/60 rounded px-2 py-1">✗ {issue}</div>
                 ))}
-              </ul>
+              </div>
             )}
+
+            {/* 警告列表 */}
             {warnings.length > 0 && (
-              <ul className="mt-1 space-y-0.5">
+              <div className="mt-2 space-y-0.5">
+                <div className="text-xs font-bold text-amber-600 uppercase">警告 / Warnings</div>
                 {warnings.map((w, i) => (
-                  <li key={i} className="text-xs text-amber-600 font-mono">⚠ {w}</li>
+                  <div key={i} className="text-xs text-amber-700 font-mono">⚠ {w}</div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
-          <div className="flex flex-col gap-2 shrink-0">
+
+          {/* 操作按钮 */}
+          <div className="flex flex-col gap-2 shrink-0 min-w-[160px]">
             <button
               onClick={loadStatus}
               disabled={refreshing}
               className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg font-semibold transition"
             >
-              {refreshing ? "Checking…" : "⟳ Refresh All Checks"}
+              {refreshing ? "检查中…" : "⟳ 刷新全部检查"}
             </button>
+            <div className="text-xs text-slate-400 text-center -mt-1">Refresh All Checks</div>
             <button
               onClick={copyReport}
               className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm px-4 py-2 rounded-lg font-semibold transition"
             >
-              {copied ? "✓ Copied!" : "⎘ Copy Acceptance Report"}
+              {copied ? "✓ 已复制!" : "⎘ 复制验收报告"}
             </button>
-            <p className="text-xs text-slate-400 text-center">
-              Last checked: {status ? new Date(status.checkedAt).toLocaleTimeString("zh-CN", { timeZone: "Asia/Tokyo" }) + " JST" : "—"}
-            </p>
+            <div className="text-xs text-slate-400 text-center -mt-1">Copy Acceptance Report</div>
+            <div className="text-xs text-slate-400 text-center mt-1">
+              最后检查 / Last checked:<br />
+              {status ? new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" }).slice(0, 16) + " JST" : "—"}
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Nav ────────────────────────────────────────────────────────────── */}
-      <div className="flex gap-2 text-xs text-slate-400 mb-4 flex-wrap">
-        {["modules","dailyrec","history","backtest"].map(id => (
-          <a key={id} href={`#${id}`} className="hover:text-slate-700 capitalize">{id}</a>
-        ))}
+      <div className="flex gap-3 text-xs text-slate-400 mb-4 flex-wrap">
+        <a href="#modules"   className="hover:text-slate-700">模块检查 / Modules</a>
+        <span>·</span>
+        <a href="#dailyrec"  className="hover:text-slate-700">每日推荐 / Daily Rec</a>
+        <span>·</span>
+        <a href="#history"   className="hover:text-slate-700">历史快照 / History</a>
+        <span>·</span>
+        <a href="#backtest"  className="hover:text-slate-700">回测结果 / Backtest</a>
       </div>
 
-      {/* ── Module status cards ─────────────────────────────────────────────── */}
-      <Section id="modules" title="Module Checks — click to expand">
+      {/* ── 模块检查 / Module Checks ─────────────────────────────────────── */}
+      <Section id="modules" title="模块检查 / Module Checks — 点击展开 / click to expand">
         <div className="space-y-2">
           {(status?.modules ?? []).map(mod => (
             <ModuleCard key={mod.key} mod={mod} />
@@ -351,48 +371,48 @@ export default function AdminVerifyPage() {
         </div>
       </Section>
 
-      {/* ── DailyRecommendation detail ──────────────────────────────────────── */}
-      <Section id="dailyrec" title="DailyRecommendation Snapshot">
-        <div className="flex gap-2 mb-3 flex-wrap">
+      {/* ── 每日推荐快照 / DailyRecommendation Snapshot ─────────────────── */}
+      <Section id="dailyrec" title="每日推荐快照 / DailyRecommendation Snapshot">
+        <div className="flex gap-2 mb-3 flex-wrap items-center">
           <select
             value={recDate}
             onChange={e => { setRecDate(e.target.value); loadDailyRec(e.target.value, recSymbol); }}
             className="border border-slate-200 rounded px-2 py-1 text-xs bg-white"
           >
-            <option value="">All dates</option>
+            <option value="">全部日期 / All dates</option>
             {availDates.map(d => (
-              <option key={d.date} value={d.date}>{d.date} ({d.count})</option>
+              <option key={d.date} value={d.date}>{d.date}（{d.count} 条）</option>
             ))}
           </select>
           <input
-            type="text" placeholder="Symbol…" value={recSymbol}
+            type="text" placeholder="代码 / Symbol…" value={recSymbol}
             onChange={e => setRecSymbol(e.target.value)}
             onKeyDown={e => e.key === "Enter" && loadDailyRec(recDate, recSymbol)}
             className="border border-slate-200 rounded px-2 py-1 text-xs w-28 font-mono"
           />
           <button onClick={() => loadDailyRec(recDate, recSymbol)}
-            className="bg-slate-700 text-white text-xs px-3 py-1 rounded">Filter</button>
-          <span className="text-xs text-slate-400 self-center">{recRows.length} rows</span>
+            className="bg-slate-700 text-white text-xs px-3 py-1 rounded">筛选 / Filter</button>
+          <span className="text-xs text-slate-400">{recRows.length} 条</span>
         </div>
-        {recLoading ? <p className="text-xs text-slate-400 animate-pulse">Loading…</p> : (
+        {recLoading ? <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-50">
-                  {["Date","Sym","Name","Rank","Final","Rule","GPT","GPT Rating","Rec","Price","7d%","30d%"].map(h => (
+                  {["日期/Date","代码/Sym","名称/Name","排名/Rank","综合分","规则分","GPT分","GPT评级","推荐","价格/Price","7日%","30日%"].map(h => (
                     <th key={h} className="text-left px-2 py-1.5 text-slate-500 font-semibold border-b border-slate-100 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {recRows.length === 0 && (
-                  <tr><td colSpan={12} className="text-center py-6 text-slate-400">No data</td></tr>
+                  <tr><td colSpan={12} className="text-center py-6 text-slate-400">暂无数据 / No data</td></tr>
                 )}
                 {recRows.map((r, i) => (
                   <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="px-2 py-1 font-mono text-slate-400">{r.date}</td>
                     <td className="px-2 py-1 font-mono font-bold text-indigo-600">{r.symbol}</td>
-                    <td className="px-2 py-1 max-w-[100px] truncate text-slate-600" title={r.nameZh ?? r.name}>{r.nameZh ?? r.name}</td>
+                    <td className="px-2 py-1 max-w-[90px] truncate text-slate-600" title={r.nameZh ?? r.name}>{r.nameZh ?? r.name}</td>
                     <td className="px-2 py-1 font-semibold text-slate-700">#{r.gptRank}</td>
                     <td className="px-2 py-1 font-mono">{fmt(r.finalScore)}</td>
                     <td className="px-2 py-1 font-mono text-slate-500">{fmt(r.adaptiveScore)}</td>
@@ -410,30 +430,30 @@ export default function AdminVerifyPage() {
         )}
       </Section>
 
-      {/* ── History ─────────────────────────────────────────────────────────── */}
-      <Section id="history" title="Historical Snapshot by Symbol">
+      {/* ── 历史快照 / Historical Snapshot ──────────────────────────────── */}
+      <Section id="history" title="历史快照 / Historical Snapshot — 按代码查询">
         <div className="flex gap-2 mb-3">
           <input
-            type="text" placeholder="e.g. 7203.T" value={histSymbol}
+            type="text" placeholder="如 / e.g. 7203.T" value={histSymbol}
             onChange={e => setHistSymbol(e.target.value.toUpperCase())}
             onKeyDown={e => e.key === "Enter" && loadHistory(histSymbol)}
             className="border border-slate-200 rounded px-2 py-1 text-xs w-32 font-mono"
           />
           <button onClick={() => loadHistory(histSymbol)}
-            className="bg-slate-700 text-white text-xs px-3 py-1 rounded">Search</button>
+            className="bg-slate-700 text-white text-xs px-3 py-1 rounded">查询 / Search</button>
         </div>
-        {histLoading && <p className="text-xs text-slate-400 animate-pulse">Loading…</p>}
+        {histLoading && <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p>}
         {histData && !histLoading && (
           <div>
             <p className="text-sm font-semibold text-slate-700 mb-2">
               {histData.symbol} · {histData.nameZh ?? histData.name}
-              <span className="ml-2 text-xs text-slate-400">{histData.rows.length} dates</span>
+              <span className="ml-2 text-xs text-slate-400">{histData.rows.length} 日</span>
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50">
-                    {["Date","Rank","Final","Rule","GPT","Rating","Rec","Price","7d","30d","90d"].map(h => (
+                    {["日期","排名","综合分","规则分","GPT分","GPT评级","推荐","参考价","7日%","30日%","90日%"].map(h => (
                       <th key={h} className="text-left px-2 py-1 text-slate-500 font-semibold border-b border-slate-100">{h}</th>
                     ))}
                   </tr>
@@ -461,18 +481,18 @@ export default function AdminVerifyPage() {
         )}
       </Section>
 
-      {/* ── Backtest ─────────────────────────────────────────────────────────── */}
-      <Section id="backtest" title="Backtest Results">
-        {btLoading ? <p className="text-xs text-slate-400 animate-pulse">Loading…</p> : (
+      {/* ── 回测结果 / Backtest ───────────────────────────────────────────── */}
+      <Section id="backtest" title="回测结果 / Backtest Results">
+        {btLoading ? <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p> : (
           <>
             {btResults.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-slate-500 mb-2">Cohort Summary</p>
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-slate-500 mb-2">组合绩效汇总 / Portfolio Summary</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50">
-                        {["Date","Size","Horizon","WinRate","AvgRtn","Median","Filled","Best","Worst"].map(h => (
+                        {["日期","规模","周期","胜率","均收益","中位数","样本","最佳%","最差%"].map(h => (
                           <th key={h} className="text-left px-2 py-1 text-slate-500 font-semibold border-b border-slate-100">{h}</th>
                         ))}
                       </tr>
@@ -497,20 +517,20 @@ export default function AdminVerifyPage() {
               </div>
             )}
             <p className="text-xs font-semibold text-slate-500 mb-2">
-              Picks with Entry Price ({btPicks.length})
+              逐笔明细 / Individual Picks（含入场价 / with entry price）：{btPicks.length} 条
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50">
-                    {["Date","Sym","Rank","Rating","BuyPx","EntryPx","7d%","30d%","Win"].map(h => (
+                    {["日期","代码","排名","评级","推荐价","入场价","7日%","30日%","胜负"].map(h => (
                       <th key={h} className="text-left px-2 py-1 text-slate-500 font-semibold border-b border-slate-100">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {btPicks.length === 0 && (
-                    <tr><td colSpan={9} className="text-center py-4 text-slate-400">No picks with entry price yet</td></tr>
+                    <tr><td colSpan={9} className="text-center py-4 text-slate-400">暂无入场价记录 / No picks with entry price yet</td></tr>
                   )}
                   {btPicks.map((p, i) => {
                     const win = p.return30d != null ? p.return30d > 0 : p.return7d != null ? p.return7d > 0 : null;
@@ -525,8 +545,8 @@ export default function AdminVerifyPage() {
                         <td className={`px-2 py-1 font-mono ${retColor(p.return7d)}`}>{fmtPct(p.return7d)}</td>
                         <td className={`px-2 py-1 font-mono ${retColor(p.return30d)}`}>{fmtPct(p.return30d)}</td>
                         <td className="px-2 py-1 font-bold">
-                          {win === true ? <span className="text-emerald-600">WIN</span>
-                           : win === false ? <span className="text-red-500">LOSS</span>
+                          {win === true ? <span className="text-emerald-600">盈 WIN</span>
+                           : win === false ? <span className="text-red-500">亏 LOSS</span>
                            : <span className="text-slate-300">—</span>}
                         </td>
                       </tr>
@@ -540,7 +560,7 @@ export default function AdminVerifyPage() {
       </Section>
 
       <p className="text-center text-xs text-slate-300 pb-4">
-        Internal tool · Read-only · /admin/verify · v8.9.1
+        内部工具 · 只读 / Internal tool · Read-only · /admin/verify · v8.9.2
       </p>
     </div>
   );
