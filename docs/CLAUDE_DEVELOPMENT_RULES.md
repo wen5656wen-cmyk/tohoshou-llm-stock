@@ -120,4 +120,65 @@ REMAINING ISSUES:
 
 ---
 
+---
+
+## Rule 7. Deployment History（v8.9.5 起强制）
+
+每次 production deploy 完成后，必须执行以下步骤，缺一不可：
+
+### 7.1 本地记录（写入本地 DB）
+
+```bash
+npm run record:deployment -- \
+  --commit=<7位hash> \
+  --summary="<本次变更摘要>" \
+  --productionReady=true \
+  --build=PASS \
+  --health=PASS \
+  --api=PASS \
+  --page=PASS \
+  --database=PASS \
+  --pm2=PASS \
+  "--files=file1.tsx,file2.ts" \
+  "--warnings=w1,w2" \
+  --blockingIssues="" \
+  --operator=Claude
+```
+
+### 7.2 生产记录（POST 到生产 API 写入生产 DB）
+
+```bash
+curl -s -X POST "https://aitohoshou.com/api/admin/deployments" \
+  -H "Content-Type: application/json" \
+  -d '{ ...same fields as JSON... }'
+```
+
+### 7.3 验证写入成功
+
+```bash
+curl -s "https://aitohoshou.com/api/admin/deployments" | head -c 500
+```
+
+确认 `total` 增加，最新记录位于 `rows[0]`。
+
+### 7.4 Rule 6 验收报告追加字段
+
+```
+MODIFIED FILES:
+BUILD:               PASS / FAIL
+HEALTH:              PASS / FAIL
+API VERIFY:          PASS / FAIL
+PAGE VERIFY:         PASS / FAIL
+DATABASE VERIFY:     PASS / FAIL
+PM2:                 PASS / FAIL
+DEPLOYMENT HISTORY:  PASS / FAIL  ← 新增必填
+LATEST DEPLOYMENT:   <commit hash>
+PRODUCTION:          YES / NO
+REMAINING ISSUES:
+```
+
+**没有写入 Deployment History，不允许写 Production Completed。**
+
+---
+
 *此文档为永久开发规范，以后所有任务必须遵守。*
