@@ -677,3 +677,26 @@ model UserAiSettings {
   @@index([userId])
   @@map("user_ai_settings")
 }
+
+// Production Deployment History (v8.9.5)
+model DeploymentLog {
+  id              Int      @id @default(autoincrement())
+  commitHash      String
+  summary         String
+  modifiedFiles   Json     // string[]
+  buildStatus     String   @default("SKIP")   // PASS | FAIL | SKIP
+  healthStatus    String   @default("SKIP")   // PASS | WARNING | FAIL | SKIP
+  apiStatus       String   @default("SKIP")   // PASS | FAIL | SKIP
+  pageStatus      String   @default("SKIP")   // PASS | FAIL | SKIP
+  databaseStatus  String   @default("SKIP")   // PASS | FAIL | SKIP
+  pm2Status       String   @default("SKIP")   // PASS | FAIL | SKIP
+  productionReady Boolean  @default(false)
+  warnings        Json     @default("[]")     // string[]
+  blockingIssues  Json     @default("[]")     // string[]
+  operator        String   @default("Claude")
+  deployedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([deployedAt(sort: Desc)])
+  @@map("deployment_logs")
+}

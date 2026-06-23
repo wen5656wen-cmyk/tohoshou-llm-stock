@@ -56,6 +56,25 @@ type BacktestPick = {
   price7d: number | null; price30d: number | null;
 };
 
+type DeploymentRow = {
+  id: number;
+  commitHash: string;
+  summary: string;
+  modifiedFiles: string[];
+  buildStatus: string;
+  healthStatus: string;
+  apiStatus: string;
+  pageStatus: string;
+  databaseStatus: string;
+  pm2Status: string;
+  productionReady: boolean;
+  warnings: string[];
+  blockingIssues: string[];
+  operator: string;
+  deployedAt: string;
+  deployedAtJst: string;
+};
+
 // ── i18n label maps ───────────────────────────────────────────────────────────
 const MODULE_LABELS: Record<string, string> = {
   system:      "系统状态 / System",
@@ -180,6 +199,11 @@ export default function AdminVerifyPage() {
   const [btResults, setBtResults]   = useState<BacktestResult[]>([]);
   const [btLoading, setBtLoading]   = useState(false);
 
+  const [deploys, setDeploys]       = useState<DeploymentRow[]>([]);
+  const [deplTotal, setDeplTotal]   = useState(0);
+  const [deplLoading, setDeplLoading] = useState(false);
+  const [deplExpanded, setDeplExpanded] = useState<number | null>(null);
+
   // ── Loaders ────────────────────────────────────────────────────────────────
   const loadStatus = useCallback(async () => {
     setRefreshing(true);
@@ -220,10 +244,19 @@ export default function AdminVerifyPage() {
       .finally(() => setBtLoading(false));
   }, []);
 
+  const loadDeploys = useCallback(() => {
+    setDeplLoading(true);
+    fetch("/api/admin/deployments?limit=20")
+      .then(r => r.json())
+      .then(d => { setDeploys(d.rows ?? []); setDeplTotal(d.total ?? 0); })
+      .finally(() => setDeplLoading(false));
+  }, []);
+
   useEffect(() => {
     loadStatus();
     loadDailyRec("", "");
     loadBacktest();
+    loadDeploys();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -353,13 +386,15 @@ export default function AdminVerifyPage() {
 
       {/* ── Nav ────────────────────────────────────────────────────────────── */}
       <div className="flex gap-3 text-xs text-slate-400 mb-4 flex-wrap">
-        <a href="#modules"   className="hover:text-slate-700">模块检查 / Modules</a>
+        <a href="#modules"     className="hover:text-slate-700">模块检查 / Modules</a>
         <span>·</span>
-        <a href="#dailyrec"  className="hover:text-slate-700">每日推荐 / Daily Rec</a>
+        <a href="#dailyrec"    className="hover:text-slate-700">每日推荐 / Daily Rec</a>
         <span>·</span>
-        <a href="#history"   className="hover:text-slate-700">历史快照 / History</a>
+        <a href="#history"     className="hover:text-slate-700">历史快照 / History</a>
         <span>·</span>
-        <a href="#backtest"  className="hover:text-slate-700">回测结果 / Backtest</a>
+        <a href="#backtest"    className="hover:text-slate-700">回测结果 / Backtest</a>
+        <span>·</span>
+        <a href="#deployments" className="hover:text-slate-700 font-medium text-blue-400">部署历史 / Deployments</a>
       </div>
 
       {/* ── 模块检查 / Module Checks ─────────────────────────────────────── */}
@@ -559,8 +594,108 @@ export default function AdminVerifyPage() {
         )}
       </Section>
 
+      {/* ── 部署历史 / Deployment History ───────────────────────────────────── */}
+      <Section id="deployments" title={`部署历史 / Deployment History · デプロイ履歴 — 共 ${deplTotal} 条`}>
+        {deplLoading ? (
+          <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p>
+        ) : deploys.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-sm">
+            暂无部署记录 / No deployment records yet<br />
+            <span className="text-xs font-mono mt-1 block">npm run record:deployment -- --commit=xxx ...</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {deploys.map((d, i) => {
+              const isLatest  = i === 0;
+              const expanded  = deplExpanded === d.id;
+              const allPass   = [d.buildStatus, d.apiStatus, d.pageStatus, d.pm2Status].every(s => s === "PASS");
+              const hasWarning = d.healthStatus === "WARNING";
+              const hasFail   = [d.buildStatus, d.healthStatus, d.apiStatus, d.pageStatus, d.pm2Status].some(s => s === "FAIL");
+              const borderCls = d.productionReady
+                ? "border-emerald-200 bg-emerald-50/20"
+                : hasFail
+                  ? "border-red-200 bg-red-50/20"
+                  : "border-slate-200";
+
+              return (
+                <div key={d.id} className={`rounded-xl border ${borderCls} overflow-hidden`}>
+                  {/* Header row */}
+                  <div
+                    className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50/50"
+                    onClick={() => setDeplExpanded(expanded ? null : d.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {isLatest && (
+                        <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase tracking-wide">Latest</span>
+                      )}
+                      <span className={`shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${d.productionReady ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+                        {d.productionReady ? "✓" : "✗"}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-semibold text-slate-800 truncate leading-tight">{d.summary}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{d.deployedAtJst} · {d.commitHash} · {d.operator}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {["buildStatus","healthStatus","apiStatus","pageStatus","pm2Status"].map(k => {
+                        const v = d[k as keyof DeploymentRow] as string;
+                        const cls = v === "PASS" ? "bg-emerald-100 text-emerald-700"
+                                  : v === "WARNING" ? "bg-amber-100 text-amber-700"
+                                  : v === "FAIL" ? "bg-red-100 text-red-600"
+                                  : "bg-slate-100 text-slate-400";
+                        const label = k.replace("Status","").replace("build","Build").replace("health","Health").replace("api","API").replace("page","Page").replace("pm2","PM2");
+                        return (
+                          <span key={k} className={`text-[9px] font-bold px-1 py-0.5 rounded font-mono ${cls}`}>{label}</span>
+                        );
+                      })}
+                      <span className="text-slate-300 text-xs ml-1">{expanded ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+
+                  {/* Expanded detail */}
+                  {expanded && (
+                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
+                      {/* Full acceptance report */}
+                      <div className="bg-slate-800 text-green-400 font-mono text-[10px] rounded-lg p-3 leading-relaxed whitespace-pre-wrap">
+{`DEPLOYMENT ACCEPTANCE REPORT
+${"─".repeat(48)}
+Commit:     ${d.commitHash}
+Summary:    ${d.summary}
+DeployedAt: ${d.deployedAtJst}
+Operator:   ${d.operator}
+${"─".repeat(48)}
+Build:      ${d.buildStatus}
+Health:     ${d.healthStatus}
+API:        ${d.apiStatus}
+Page:       ${d.pageStatus}
+Database:   ${d.databaseStatus}
+PM2:        ${d.pm2Status}
+${"─".repeat(48)}
+Modified Files (${(d.modifiedFiles ?? []).length}):
+${(d.modifiedFiles ?? []).map((f: string) => `  · ${f}`).join("\n") || "  (none)"}
+${"─".repeat(48)}
+Warnings (${(d.warnings ?? []).length}):
+${(d.warnings ?? []).map((w: string) => `  ⚠ ${w}`).join("\n") || "  (none)"}
+Blocking Issues (${(d.blockingIssues ?? []).length}):
+${(d.blockingIssues ?? []).map((b: string) => `  ✗ ${b}`).join("\n") || "  (none)"}
+${"─".repeat(48)}
+Result: Production Ready = ${d.productionReady ? "YES ✓" : "NO ✗"}`}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="mt-3 text-[10px] text-slate-300 text-right">
+          每次部署完成后执行 / After each deploy:<br />
+          <code className="font-mono">npm run record:deployment -- --commit=xxx --summary="..." --productionReady=true ...</code>
+        </div>
+      </Section>
+
       <p className="text-center text-xs text-slate-300 pb-4">
-        内部工具 · 只读 / Internal tool · Read-only · /admin/verify · v8.9.2
+        内部工具 · 只读 / Internal tool · Read-only · /admin/verify · v8.9.5
       </p>
     </div>
   );
