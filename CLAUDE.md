@@ -85,11 +85,21 @@ npm run health:data
 # 3. rsync .next/ to production (does NOT overwrite .env)
 sshpass -p 'Wen565656' rsync -avz --exclude node_modules .next/ root@8.209.247.68:/opt/tohoshou/.next/
 
-# 4. Restart
+# 4. If schema changed: push schema + regenerate on server
+sshpass -p 'Wen565656' scp prisma/schema.prisma root@8.209.247.68:/opt/tohoshou/prisma/
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
+  "cd /opt/tohoshou && npx prisma db push --accept-data-loss && npx prisma generate"
+
+# 5. Restart
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-web --update-env"
 
-# 5. Verify
-sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 logs tohoshou-web --lines 20 --nostream"
+# 6. Record deployment (MANDATORY — see Rule 7 in docs/CLAUDE_DEVELOPMENT_RULES.md)
+curl -s -X POST "https://aitohoshou.com/api/admin/deployments" \
+  -H "Content-Type: application/json" \
+  -d '{"commitHash":"<hash>","summary":"<summary>","modifiedFiles":[...],"buildStatus":"PASS","healthStatus":"PASS","apiStatus":"PASS","pageStatus":"PASS","databaseStatus":"PASS","pm2Status":"PASS","productionReady":true,"warnings":[],"blockingIssues":[],"operator":"Claude"}'
+
+# 7. Verify
+curl -s "https://aitohoshou.com/api/admin/deployments" | head -c 200
 ```
 
 ### Every Task — Required Output
@@ -156,6 +166,16 @@ npx tsc --noEmit         # Type-check without building
 npx prisma generate      # Regenerate client after schema changes
 npx prisma db push --accept-data-loss  # Apply schema to production (no migration history)
 npx prisma studio        # Local DB GUI
+
+# Deployment history (MANDATORY after every production deploy)
+npm run record:deployment -- --commit=<hash> --summary="..." --productionReady=true \
+  --build=PASS --health=PASS --api=PASS --page=PASS --database=PASS --pm2=PASS \
+  --files="file1,file2" --warnings="w1,w2" --operator=Claude
+# Then POST to production API: curl -X POST https://aitohoshou.com/api/admin/deployments ...
+# Verify: curl https://aitohoshou.com/api/admin/deployments | head -c 200
+
+# Admin verification center
+# https://aitohoshou.com/admin/verify  — production health, modules, daily rec, backtest, deploy history
 
 # AI Scoring pipeline (run in this order)
 npm run fetch-global-market        # Fetch NASDAQ/VIX/USDJPY/Nikkei → GlobalMarket table

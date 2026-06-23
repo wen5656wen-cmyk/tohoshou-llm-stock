@@ -65,7 +65,7 @@ export async function GET() {
     const close = base?.latestClose ?? null;
     const week52Pct =
       h52 != null && l52 != null && close != null && h52 > l52
-        ? Math.round(((close - l52) / (h52 - l52)) * 100)
+        ? Math.min(100, Math.max(0, Math.round(((close - l52) / (h52 - l52)) * 100)))
         : null;
 
     return {

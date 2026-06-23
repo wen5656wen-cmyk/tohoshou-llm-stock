@@ -2,6 +2,34 @@
 
 ---
 
+## [8.9.5] - 2026-06-23 — Deployment History 系统 + 代码审查 Bug 修复
+
+### Added
+- `prisma/schema.prisma`: DeploymentLog model (`deployment_logs` 表，含 commitHash/summary/modifiedFiles/buildStatus/healthStatus/apiStatus/pageStatus/databaseStatus/pm2Status/productionReady/warnings/blockingIssues/operator/deployedAt)
+- `scripts/record-deployment.ts`: CLI 部署记录脚本，支持全部验收字段作为参数
+- `app/api/admin/deployments/route.ts`: GET（列表，最新优先）+ POST（创建）
+- `package.json`: `npm run record:deployment` 脚本
+- `app/admin/verify/page.tsx`: 部署历史区块 — 状态徽章 + 终端风格验收报告 + 展开详情
+- `docs/ARCHITECTURE.md`: 系统架构文档（新建）
+- `docs/API_MAP.md`: 所有 API 路由映射（新建）
+- `docs/ROADMAP.md`: 功能路线图（新建）
+- `docs/KNOWN_ISSUES.md`: 已知问题清单（新建）
+- `docs/CLAUDE_DEVELOPMENT_RULES.md`: Rule 7 — 强制部署历史记录
+- `CLAUDE.md`: 更新 Deploy Sequence + 新增 record:deployment 命令
+
+### Fixed (code review findings)
+- `app/api/watchlist/route.ts`: `week52Pct` 未 clamp — 当 close > high52w（牛市中常见）时会返回 >100，现已 `Math.min(100, Math.max(0, ...))`
+- `app/api/admin/deployments/route.ts`: GET/POST DB 调用缺少 try/catch — migration 缺失时返回 HTML 500，现返回 JSON error
+- `app/api/admin/deployments/route.ts`: 无效 `deployedAt` 字符串（如 locale 格式）产生 `Invalid Date` 静默写入 — 现加 `isNaN` 守卫 fallback 到 `new Date()`
+
+### Fixed — Navigation
+- `components/mobile/MobileDrawer.tsx`: 补充系统校验入口（v8.9.3）
+- `components/Sidebar.tsx` + `lib/i18n/*`: 系统校验三语言 key（v8.9.2）
+
+### Changed — Watchlist (v8.9.4)
+- `app/watchlist/page.tsx`: 4 列紧凑卡片（名称+代码同行、价格+涨跌同行、RSI·MA↑↑/↑/—/↓/↓↓·52W% 指标行、量比·成交占比灰色底栏、Score 74 格式、📈🗑 右上角图标按钮）
+- `app/api/watchlist/route.ts`: 加入 RealtimeMarket join（volumeRatio, turnoverRate）+ Stock high52w/low52w → week52Pct
+
 ## [8.9.1] - 2026-06-23 — /admin/verify 升级为生产校验中心 + rerank timeHorizon 修复
 
 ### Changed — app/api/admin/verify/route.ts
