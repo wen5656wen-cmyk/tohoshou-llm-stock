@@ -2,6 +2,39 @@
 
 ---
 
+## [10.0.0] - 2026-06-23 — Legacy Cleanup Phase 1（LINE/AIAnalysis残留物清除）
+
+### Removed (P0 — 生产 UI 显示错误修复)
+- `app/api/sync/status/route.ts`: 删除 `lineConfigured` 变量、`LINE_CHANNEL_ACCESS_TOKEN`/`LINE_ACCESS_TOKEN` 检测、`line_gpt` 整个数据源块（含 24 行）、summary 返回值中的 `lineConfigured`/`gptConfigured` 字段
+- `app/sync/page.tsx`: 删除 5 条 LINE CRON 条目（08:00朝报/08:30TOP10/12:30午间/15:45收盘/16:35风险提示）、`line_gpt` 配置状态 UI 块、版本字符串更新 v7.7 → v10
+
+### Removed (P1 — 配置/i18n 清理)
+- `.env.example`: 删除 13 个 LINE/WeChat/WeCom 环境变量；新增 `APP_URL` / `ADMIN_TOKEN` / `OPENAI_MODEL=gpt-5.5` / `JQUANTS_API_KEY` / `JQUANTS_REFRESH_TOKEN`
+- `lib/i18n/types.ts` + 3个语言文件: 删除 `chat.movedToLine` key（LINE Chat 迁移通知，系统已无 LINE）
+
+### Removed (P2 — 孤立代码)
+- `app/api/ai/daily-picks/route.ts`: 整文件删除（调用已删 AIAnalysis 模型和 generateDailyPicks）
+- `lib/ai.ts`: 删除 `generateDailyPicks` 函数（46行），保留 `analyzeStock`
+- `lib/app-url.ts`: 修复注释（移除 LINE 引用），删除未使用 export（`newsUrl`/`notificationsUrl`/`portfolioUrl`/`syncUrl`）
+
+### Removed (Prisma — schema-only，不 DROP 数据库表)
+- 删除 9 个孤立模型：`AIAnalysis` / `PortfolioDiagnosis` / `NotificationLog` / `NotificationSetting` / `TelegramUser` / `LineGroup` / `LineUser` / `AlertLog` / `UserAiSettings`
+- 同步清理 `Stock` model 的 `analyses AIAnalysis[]` relation
+- 运行 `npx prisma generate`（仅客户端重生成，不修改数据库）
+
+### Fixed (副作用修复)
+- `app/api/stocks/[symbol]/analysis/route.ts`: 改为直接返回 `analyzeStock` 结果，不再 persist 到已删的 AIAnalysis 表
+- `app/api/stocks/[symbol]/route.ts`: 删除 `analyses` include 字段
+- `prisma/seed.ts`: 删除 AIAnalysis deleteMany + create 块及 `analyses` 变量
+
+### Build/Deploy
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0
+- rsync → pm2 restart tohoshou-web + tohoshou-cron ✅
+- commit `21fb96f` → push ✅
+
+---
+
 ## [9.0.1] - 2026-06-23 — 全局项目边界污染审核清理
 
 ### Fixed (docs/chore)
