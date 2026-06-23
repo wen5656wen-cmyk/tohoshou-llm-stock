@@ -17,7 +17,7 @@ export async function GET() {
     prisma.stockScore.findMany({
       where: { symbol: { in: symbols } },
       select: {
-        symbol: true,
+        symbol: true, computedAt: true,
         latestClose: true, latestDate: true,
         return5d: true, return20d: true, return60d: true,
         rsi14: true, maTrend: true, macdSignalLabel: true,
@@ -101,6 +101,7 @@ export async function GET() {
             volumeRatio: rt?.volumeRatio ?? null,
             turnoverRate: rt?.turnoverRate ?? null,
             week52Pct,
+            computedAt: base?.computedAt?.toISOString() ?? null,
           }
         : null,
     };

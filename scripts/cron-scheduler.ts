@@ -104,11 +104,13 @@ cron.schedule("0 7 * * 1-5", () => {
   run("fetch-tdnet.ts", "TDnet 開示同步");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 07:30 JST — AI 評分計算 + データ健全性チェック ────────────────────────────
+// ── 07:30 JST — AI 評分計算 → rerank Top500 → データ健全性チェック ─────────────
 cron.schedule("30 7 * * *", () => {
   log("INFO", "⏰ 07:30 触发：AI 評分計算");
   run("compute-scores.ts", "AI 評分計算");
-  log("INFO", "▶ 評分後データ健全性チェック");
+  log("INFO", "▶ 評分後 rerank Top500 → DailyRecommendation snapshot");
+  run("rerank-top500.ts", "GPT Rerank Top500");
+  log("INFO", "▶ rerank 後データ健全性チェック");
   run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 
@@ -133,4 +135,4 @@ cron.schedule("30 22 * * *", () => {
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
 log("INFO", "           05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース");
-log("INFO", "           07:30 AI評分+健全性 / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
+log("INFO", "           07:30 AI評分+rerank+健全性 / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");

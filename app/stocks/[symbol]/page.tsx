@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
+import { StalenessTag } from "@/components/StalenessTag";
 import { getRec, returnColorClass, fmtPct, fmtJpy, finalScoreHex } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
 import { getNameLines } from "@/lib/i18n/stock-name";
@@ -118,6 +119,7 @@ type V2Score = {
   actionRiskLevel: string | null;
   actionReasons: string[];
   actionWarnings: string[];
+  computedAt: string | null;
 };
 
 type StockData = {
@@ -1005,8 +1007,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
                     {/* Left: Score + V7.7 label */}
                     <div className="shrink-0">
-                      <div className="text-xs font-semibold tracking-widest mb-1" style={{ color: "#475569" }}>
-                        TOHOSHOU AI V7.7
+                      <div className="flex items-center gap-1.5 text-xs font-semibold tracking-widest mb-1" style={{ color: "#475569" }}>
+                        TOHOSHOU AI v10
+                        {aiScore.computedAt && <StalenessTag date={aiScore.computedAt} />}
                       </div>
                       <div style={{ fontSize: 10, color: "#334155", marginBottom: 12 }}>
                         {sourceLabelFor(aiScore.scoreSource) ?? aiScore.scoreSource}

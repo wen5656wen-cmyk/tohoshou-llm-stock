@@ -106,6 +106,7 @@ export async function GET(
     prisma.stockScore.findUnique({
       where: { symbol },
       select: {
+        computedAt: true,
         adaptiveScore: true, stockStyle: true, scoreSource: true,
         highRiskFlag: true, rawScore: true, catalystScore: true,
         percentileRank: true, marketRank: true,
@@ -161,5 +162,6 @@ export async function GET(
     actionRiskLevel:  precomputed?.actionRiskLevel ?? null,
     actionReasons:    precomputed?.actionReasons ?? [],
     actionWarnings:   precomputed?.actionWarnings ?? [],
+    computedAt:       precomputed?.computedAt?.toISOString() ?? null,
   });
 }

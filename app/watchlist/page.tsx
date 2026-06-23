@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n/types";
 import { getPrimaryName, getSecondaryName } from "@/lib/company-name";
 import { getRec, getRecommendationLabel, finalScoreColor, fmtJpy, returnColorClass, fmtPct } from "@/lib/rec-config";
+import { StalenessTag } from "@/components/StalenessTag";
 
 type WatchScore = {
   latestClose: number | null;
@@ -35,6 +36,7 @@ type WatchScore = {
   volumeRatio: number | null;
   turnoverRate: number | null;
   week52Pct: number | null;
+  computedAt: string | null;
 };
 
 type WatchItem = {
@@ -330,7 +332,12 @@ export default function WatchListPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("watchlist.title")}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{t("common.ai_score_tab")}</p>
+          <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+            {t("common.ai_score_tab")}
+            {items.length > 0 && items[0].score?.computedAt && (
+              <StalenessTag date={items[0].score.computedAt} />
+            )}
+          </p>
         </div>
         <button
           onClick={() => setShowAdd(true)}

@@ -29,6 +29,13 @@ async function getDashboardData() {
       prisma.stockScore.count({ where: { priceCount: { gte: 20 } } }),
     ]);
 
+  // Latest computedAt for staleness indicator
+  const latestScore = await prisma.stockScore.findFirst({
+    orderBy: { computedAt: "desc" },
+    select: { computedAt: true },
+  });
+  const computedAt = latestScore?.computedAt?.toISOString() ?? null;
+
   // Merge finalScore from GPTScore
   const gptRows = await prisma.gPTScore.findMany({
     where: { symbol: { in: rawScores.map((s) => s.symbol) } },
@@ -49,7 +56,7 @@ async function getDashboardData() {
   const watchCount = scores.filter((s) => s.recommendationV2 === "WATCH").length;
   const top3 = scores.slice(0, 3);
 
-  return { stockCount, priceCount, scoreCount, buyCount, watchCount, latestDateStr, top3, scores };
+  return { stockCount, priceCount, scoreCount, buyCount, watchCount, latestDateStr, computedAt, top3, scores };
 }
 
 export default async function DashboardPage() {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { HomeTop3, HomeScoreGrid } from "./HomeStockDisplay";
+import { StalenessTag } from "@/components/StalenessTag";
 
 export type DashboardScore = {
   symbol: string;
@@ -35,13 +36,14 @@ type Props = {
   buyCount: number;
   watchCount: number;
   latestDateStr: string;
+  computedAt: string | null;
   top3: DashboardScore[];
   scores: DashboardScore[];
 };
 
 export function HomeDashboardClient({
   stockCount, scoreCount, priceCount, buyCount, watchCount,
-  latestDateStr, top3, scores,
+  latestDateStr, computedAt, top3, scores,
 }: Props) {
   const { t, lang } = useI18n();
 
@@ -62,7 +64,10 @@ export function HomeDashboardClient({
     <div className="p-4 md:p-6 max-w-7xl">
       <div className="mb-4">
         <h1 className="text-[28px] font-bold text-slate-900 leading-tight">{t("nav.dashboard")}</h1>
-        <p className="text-xs font-medium text-slate-500 mt-0.5">{dataLine}</p>
+        <p className="text-xs font-medium text-slate-500 mt-0.5 flex items-center gap-1.5">
+          {dataLine}
+          {computedAt && <StalenessTag date={computedAt} />}
+        </p>
       </div>
 
       {/* Stats Cards — compact 5-col desktop, 2-col mobile */}

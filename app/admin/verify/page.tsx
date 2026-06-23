@@ -637,15 +637,20 @@ export default function AdminVerifyPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {["buildStatus","healthStatus","apiStatus","pageStatus","pm2Status"].map(k => {
-                        const v = d[k as keyof DeploymentRow] as string;
+                      {([
+                        { key: "buildStatus",  label: "Build"  },
+                        { key: "healthStatus", label: "Health" },
+                        { key: "apiStatus",    label: "API"    },
+                        { key: "pageStatus",   label: "Page"   },
+                        { key: "pm2Status",    label: "PM2"    },
+                      ] as const).map(({ key, label }) => {
+                        const v = d[key];
                         const cls = v === "PASS" ? "bg-emerald-100 text-emerald-700"
                                   : v === "WARNING" ? "bg-amber-100 text-amber-700"
                                   : v === "FAIL" ? "bg-red-100 text-red-600"
                                   : "bg-slate-100 text-slate-400";
-                        const label = k.replace("Status","").replace("build","Build").replace("health","Health").replace("api","API").replace("page","Page").replace("pm2","PM2");
                         return (
-                          <span key={k} className={`text-[9px] font-bold px-1 py-0.5 rounded font-mono ${cls}`}>{label}</span>
+                          <span key={key} className={`text-[9px] font-bold px-1 py-0.5 rounded font-mono ${cls}`}>{label}</span>
                         );
                       })}
                       <span className="text-slate-300 text-xs ml-1">{expanded ? "▲" : "▼"}</span>
