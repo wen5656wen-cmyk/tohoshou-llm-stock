@@ -2,6 +2,35 @@
 
 ---
 
+## [8.9.1] - 2026-06-23 — /admin/verify 升级为生产校验中心 + rerank timeHorizon 修复
+
+### Changed — app/api/admin/verify/route.ts
+
+- **标准化响应结构**: `{ ready, blockingIssues, warnings, modules[], checkedAt, meta }`
+- `modules[]` 每项含 `{ key, name, status, current, expected, message, fixHint }`
+- `module=status` (默认) 返回系统整体状态
+- 新增 8 个检查模块: System / DataSync / DailyRecommendation / AIScores / Backtest / Cron / DataHealth / APIRoutes
+- 每模块独立 PASS / WARNING / FAIL 判断，含修复建议 fixHint
+
+### Changed — app/admin/verify/page.tsx
+
+- **顶部总状态 Banner**: `PRODUCTION READY: YES/NO`，Allow Recommendation，Blocking Issues 数量
+- 每个模块显示 PASS/WARNING/FAIL 徽章，点击展开 current/expected/message/fixHint
+- **"⟳ Refresh All Checks"** 按钮：重新请求 /api/admin/verify，无需刷新页面
+- **"⎘ Copy Acceptance Report"** 按钮：复制标准格式验收报告到剪贴板
+- 保留 DailyRec 快照表、History 查询、Backtest 明细
+
+### Fixed — scripts/rerank-top500.ts
+
+- `timeHorizon: undefined` → `?? "1-3M"` 防止 Prisma 7 validation error
+- `strengths/risks/catalysts` 加 `Array.isArray()` + `filter(typeof === "string")` 防止 GPT 返回嵌套数组导致 DB 类型错误
+
+### Data — 2026-06-23 生产 rerank
+
+- 第一次运行：500/500 GPT 完成，但 Step 5 (GPTScore upsert) 因 timeHorizon=undefined 失败，Step 8 未执行
+- 修复后第二次运行（全部 cache hit）：Step 8 成功写入 500 条 2026-06-23 DailyRecommendation
+- health:data: CRITICAL=0 ✅ Allow recommendations: YES
+
 ## [8.9] - 2026-06-23 — /admin/verify 内部验证页面（8模块）
 
 ### Added — app/admin/verify/page.tsx

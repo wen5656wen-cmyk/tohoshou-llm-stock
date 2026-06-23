@@ -478,10 +478,10 @@ async function main() {
         thesisZh:    gptResp.thesisZh    ?? "仅供研究参考，不构成投资建议。",
         thesisJa:    gptResp.thesisJa    ?? "投資判断の参考情報のみ。",
         thesisEn:    gptResp.thesisEn    ?? "For research only.",
-        strengths:   gptResp.strengths,
-        risks:       gptResp.risks,
-        catalysts:   gptResp.catalysts,
-        timeHorizon: gptResp.timeHorizon,
+        strengths:   Array.isArray(gptResp.strengths) ? gptResp.strengths.filter((s: unknown) => typeof s === "string") : [],
+        risks:       Array.isArray(gptResp.risks)    ? gptResp.risks.filter((s: unknown) => typeof s === "string")    : [],
+        catalysts:   Array.isArray(gptResp.catalysts) ? gptResp.catalysts.filter((s: unknown) => typeof s === "string") : [],
+        timeHorizon: gptResp.timeHorizon ?? "1-3M",
         inputHash,
       };
 
