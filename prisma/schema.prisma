@@ -140,12 +140,14 @@ model News {
   importance             Int      @default(0)
   category               String   @default("OTHER")
   relatedSymbolConfidence Int     @default(0)
+  tradeEffectiveDate     DateTime? @db.Date  // V12.0: first trading day on which this news can be used
   createdAt              DateTime @default(now())
 
   @@index([stockId])
   @@index([publishedAt(sort: Desc)])
   @@index([relatedSymbolConfidence])
   @@index([category])
+  @@index([tradeEffectiveDate])
 }
 
 model Portfolio {
@@ -244,6 +246,22 @@ model StockScore {
   actionRiskLevel    String?   // LOW | MEDIUM | HIGH | EXTREME
   actionReasons      Json?     // string[]
   actionWarnings     Json?     // string[]
+  // V12.0: Decision Engine Safety Rules
+  ruleConfidence     Float?    // 0-100: how complete are the rule inputs
+  newsConfidence     Float?    // 0-100: news data quality/recency
+  industryConfidence Float?    // 0-100: sector/industry data completeness
+  modelConfidence    Float?    // 0-100: TOHOSHOU model confidence (0 = disabled)
+  overallConfidence  Float?    // 0-100: weighted overall confidence
+  riskOverride       String?   @default("NONE") // NONE | SOFT_BLOCK | HARD_BLOCK
+  ruleEngineVersion        String? // e.g. "v1.0"
+  globalEventEngineVersion String? // e.g. "v0.1"
+  llmModelVersion          String? // e.g. "gpt-4o-mini"
+  tohoshouModelVersion     String? // e.g. "disabled"
+  scoringSchemaVersion     String? // e.g. "v1.0"
+  shadowModelScore         Float?  // TOHOSHOU shadow score (not used in production)
+  shadowRecommendation     String? // TOHOSHOU shadow recommendation
+  shadowRank               Int?    // TOHOSHOU shadow rank
+  shadowGeneratedAt        DateTime? // when shadow score was generated
 
   @@index([totalScore(sort: Desc)])
   @@index([adaptiveScore(sort: Desc)])
@@ -471,6 +489,13 @@ model DailyRecommendation {
   return90d       Float?                      // (price90d - entryPrice) / entryPrice * 100
   filledAt        DateTime?                   // when price fills were last attempted
   createdAt       DateTime @default(now())
+  // V12.0: Decision Engine Safety Rules
+  overallConfidence        Float?  // snapshot of overallConfidence at rec time
+  riskOverride             String? // snapshot of riskOverride at rec time
+  ruleEngineVersion        String? // engine version used for this rec
+  globalEventEngineVersion String?
+  llmModelVersion          String?
+  scoringSchemaVersion     String?
 
   @@unique([date, symbol])
   @@index([date(sort: Desc)])

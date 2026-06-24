@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { AISafetyPanel } from "@/components/AISafetyPanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ModuleStatus = "PASS" | "WARNING" | "FAIL";
@@ -395,6 +396,11 @@ export default function AdminVerifyPage() {
         <a href="#backtest"    className="hover:text-slate-700">回测结果 / Backtest</a>
         <span>·</span>
         <a href="#deployments" className="hover:text-slate-700 font-medium text-blue-400">部署历史 / Deployments</a>
+      </div>
+
+      {/* ── AI 安全规范 / Decision Engine Safety Rules ──────────────────── */}
+      <div className="mb-4">
+        <AISafetyPanel />
       </div>
 
       {/* ── 模块检查 / Module Checks ─────────────────────────────────────── */}

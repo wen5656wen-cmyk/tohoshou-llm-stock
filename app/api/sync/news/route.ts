@@ -10,6 +10,7 @@ import {
   classifyCategory,
   calcImportance,
 } from "@/lib/news-utils";
+import { calcTradeEffectiveDate } from "@/lib/safety-rules";
 
 function tdnetCategoryToNews(tdnetCat: string): string {
   const map: Record<string, string> = {
@@ -150,6 +151,7 @@ async function runNewsSync(jobId: string, symbols: string[]) {
           const importance = calcImportance(item.title, category);
           const sentiment = classifySentiment(item.title);
 
+          const tradeEffDate = calcTradeEffectiveDate(item.publishedAt);
           await prisma.news
             .upsert({
               where: { url: item.url },
@@ -163,8 +165,9 @@ async function runNewsSync(jobId: string, symbols: string[]) {
                 category,
                 importance,
                 relatedSymbolConfidence: 20,
+                tradeEffectiveDate: tradeEffDate,
               },
-              update: { sentiment, category, importance },
+              update: { sentiment, category, importance, tradeEffectiveDate: tradeEffDate },
             })
             .catch(() => null);
           yahooCount++;
@@ -192,6 +195,7 @@ async function runNewsSync(jobId: string, symbols: string[]) {
           const items = await fetchKabutanNews(symbol);
           for (const item of items) {
             if (!item.url || !item.title) continue;
+            const kabuTradeEffDate = calcTradeEffectiveDate(item.publishedAt);
             await prisma.news
               .upsert({
                 where: { url: item.url },
@@ -205,6 +209,7 @@ async function runNewsSync(jobId: string, symbols: string[]) {
                   category: item.category,
                   importance: item.importance,
                   relatedSymbolConfidence: item.relatedSymbolConfidence,
+                  tradeEffectiveDate: kabuTradeEffDate,
                 },
                 update: {
                   sentiment: item.sentiment,
@@ -212,6 +217,7 @@ async function runNewsSync(jobId: string, symbols: string[]) {
                   importance: item.importance,
                   relatedSymbolConfidence: item.relatedSymbolConfidence,
                   stockId,
+                  tradeEffectiveDate: kabuTradeEffDate,
                 },
               })
               .catch(() => null);
@@ -260,6 +266,7 @@ async function runNewsSync(jobId: string, symbols: string[]) {
         const sentiment = classifySentiment(d.title);
         const newsUrl = `tdnet:${d.url}`;
 
+        const tdnetTradeEffDate = calcTradeEffectiveDate(d.publishedAt);
         await prisma.news
           .upsert({
             where: { url: newsUrl },
@@ -273,8 +280,9 @@ async function runNewsSync(jobId: string, symbols: string[]) {
               category,
               importance: d.importance,
               relatedSymbolConfidence: 95,
+              tradeEffectiveDate: tdnetTradeEffDate,
             },
-            update: { sentiment, category, importance: d.importance, stockId: stockId ?? undefined },
+            update: { sentiment, category, importance: d.importance, stockId: stockId ?? undefined, tradeEffectiveDate: tdnetTradeEffDate },
           })
           .catch(() => null);
 

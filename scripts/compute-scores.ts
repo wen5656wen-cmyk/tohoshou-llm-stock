@@ -17,6 +17,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { calcIndicators } from "../lib/indicators";
 import { calcAiScore, type ScoreInput, type GlobalMarketData, type InstitutionalFlowData, computeCatalystScore, calcDividendScore } from "../lib/ai-score";
 import { computeTradingAction } from "../lib/trading-action";
+import {
+  computeConfidence,
+  computeRiskOverride,
+  applyAllGuards,
+  VERSION_SNAPSHOT,
+  type RiskOverride,
+} from "../lib/safety-rules";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -203,7 +210,7 @@ async function main() {
 
         const [div, recentNews, recentDisclosures] = await Promise.all([
           prisma.dividend.findFirst({ where: { symbol: stock.symbol }, orderBy: { year: "desc" }, select: { dividend: true, yieldRate: true, payoutRatio: true } }),
-          prisma.news.findMany({ where: { stockId: stock.id, relatedSymbolConfidence: { gte: 70 }, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { sentiment: true } }),
+          prisma.news.findMany({ where: { stockId: stock.id, relatedSymbolConfidence: { gte: 70 }, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { sentiment: true, publishedAt: true }, orderBy: { publishedAt: "desc" } }),
           prisma.disclosure.findMany({ where: { symbol: stock.symbol, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { category: true } }),
         ]);
 
@@ -216,6 +223,12 @@ async function main() {
         const negativeNewsCount = recentNews.filter((n) => n.sentiment === "NEGATIVE").length;
         const totalNewsCount = recentNews.length;
         const newsScore = totalNewsCount > 0 ? Math.round(50 + ((positiveNewsCount - negativeNewsCount) / totalNewsCount) * 50) : null;
+
+        // Confidence inputs (V12.0 Safety Rules)
+        const latestNewsDate = recentNews.length > 0 ? recentNews[0].publishedAt : null;
+        const newsDataAgeDays = latestNewsDate
+          ? (Date.now() - latestNewsDate.getTime()) / 86400000
+          : 999;
 
         const input: ScoreInput = {
           symbol: stock.symbol, name: stock.name,
@@ -245,54 +258,63 @@ async function main() {
         const divPayout = div ? toNum(div.payoutRatio) : null;
         const dividendScore = calcDividendScore(divYield, divPayout);
 
+        // V12.0: compute confidence in Pass 1 (all data is available here)
+        const confidence = computeConfidence({
+          priceCount:       prices.length,
+          hasFinancial:     best != null,
+          financialCount:   fins.length,
+          recentNewsCount:  totalNewsCount,
+          newsDataAgeDays,
+          hasGlobalMarket:  globalMarketData != null,
+          hasInstitutional: institutionalFlowData != null,
+          hasSector:        stock.sector != null,
+        });
+        const riskOverride = computeRiskOverride({
+          highRiskFlag: score.highRiskFlag,
+          rsi14: ind.rsi14,
+          return20d: ind.return20d,
+        });
+
+        const sharedFields = {
+          name: stock.name, nameZh: stock.nameZh ?? null,
+          market: stock.market ?? null, sector: stock.sector ?? null,
+          industry: stock.industry ?? null, scaleCategory: stock.scaleCategory ?? null,
+          computedAt, priceCount: prices.length,
+          latestDate: ind.latestDate || null, latestClose: ind.latestClose,
+          return5d: ind.return5d, return20d: ind.return20d, return60d: ind.return60d,
+          rsi14: ind.rsi14, macd: ind.macd, macdSignal: ind.macdSignal, macdHist: ind.macdHist,
+          maTrend: ind.maTrend, macdSignalLabel: ind.macdSignalLabel,
+          technicalScore: score.technicalScore, fundamentalScore: score.fundamentalScore,
+          moneyFlowScore: score.moneyFlowScore, newsSentimentScore: score.newsSentimentScore,
+          globalTrendScore: score.globalTrendScore, riskScore: score.riskScore,
+          totalScore: score.totalScore, recommendation: score.recommendation,
+          starsLabel: score.starsLabel, summaryReason: score.summaryReason,
+          newsSummary: score.newsSummary,
+          moneyFlowSource: score.moneyFlowSource, globalTrendSource: score.globalTrendSource,
+          scoreSource: score.scoreSource,
+          rawScore: score.rawScore, adaptiveScore: score.adaptiveScore,
+          stockStyle: score.stockStyle, highRiskFlag: score.highRiskFlag,
+          fxSensitivity: score.fxSensitivity, catalystScore: score.catalystScore,
+          dividendScore, shortSellingSource,
+          // V12.0 Safety Rules (confidence filled here; rec/override applied in Pass 2)
+          ruleConfidence:          confidence.ruleConfidence,
+          newsConfidence:          confidence.newsConfidence,
+          industryConfidence:      confidence.industryConfidence,
+          modelConfidence:         confidence.modelConfidence,
+          overallConfidence:       confidence.overallConfidence,
+          riskOverride,
+          ruleEngineVersion:        VERSION_SNAPSHOT.ruleEngineVersion,
+          globalEventEngineVersion: VERSION_SNAPSHOT.globalEventEngineVersion,
+          llmModelVersion:          VERSION_SNAPSHOT.llmModelVersion,
+          tohoshouModelVersion:     VERSION_SNAPSHOT.tohoshouModelVersion,
+          scoringSchemaVersion:     VERSION_SNAPSHOT.scoringSchemaVersion,
+          // Pass 2 fills: percentileRank, marketRank, recommendationV2, recommendationReason, opportunityScore/Rank/Label
+        };
+
         await prisma.stockScore.upsert({
           where: { symbol: stock.symbol },
-          create: {
-            symbol: stock.symbol, name: stock.name,
-            nameZh: stock.nameZh ?? null,
-            market: stock.market ?? null, sector: stock.sector ?? null,
-            industry: stock.industry ?? null, scaleCategory: stock.scaleCategory ?? null,
-            computedAt, priceCount: prices.length,
-            latestDate: ind.latestDate || null, latestClose: ind.latestClose,
-            return5d: ind.return5d, return20d: ind.return20d, return60d: ind.return60d,
-            rsi14: ind.rsi14, macd: ind.macd, macdSignal: ind.macdSignal, macdHist: ind.macdHist,
-            maTrend: ind.maTrend, macdSignalLabel: ind.macdSignalLabel,
-            technicalScore: score.technicalScore, fundamentalScore: score.fundamentalScore,
-            moneyFlowScore: score.moneyFlowScore, newsSentimentScore: score.newsSentimentScore,
-            globalTrendScore: score.globalTrendScore, riskScore: score.riskScore,
-            totalScore: score.totalScore, recommendation: score.recommendation,
-            starsLabel: score.starsLabel, summaryReason: score.summaryReason,
-            newsSummary: score.newsSummary,
-            moneyFlowSource: score.moneyFlowSource, globalTrendSource: score.globalTrendSource,
-            scoreSource: score.scoreSource,
-            rawScore: score.rawScore, adaptiveScore: score.adaptiveScore,
-            stockStyle: score.stockStyle, highRiskFlag: score.highRiskFlag,
-            fxSensitivity: score.fxSensitivity, catalystScore: score.catalystScore,
-            dividendScore, shortSellingSource,
-            // V7.7 fields will be filled in Pass 2
-          },
-          update: {
-            name: stock.name, nameZh: stock.nameZh ?? null,
-            market: stock.market ?? null, sector: stock.sector ?? null,
-            industry: stock.industry ?? null, scaleCategory: stock.scaleCategory ?? null,
-            computedAt, priceCount: prices.length,
-            latestDate: ind.latestDate || null, latestClose: ind.latestClose,
-            return5d: ind.return5d, return20d: ind.return20d, return60d: ind.return60d,
-            rsi14: ind.rsi14, macd: ind.macd, macdSignal: ind.macdSignal, macdHist: ind.macdHist,
-            maTrend: ind.maTrend, macdSignalLabel: ind.macdSignalLabel,
-            technicalScore: score.technicalScore, fundamentalScore: score.fundamentalScore,
-            moneyFlowScore: score.moneyFlowScore, newsSentimentScore: score.newsSentimentScore,
-            globalTrendScore: score.globalTrendScore, riskScore: score.riskScore,
-            totalScore: score.totalScore, recommendation: score.recommendation,
-            starsLabel: score.starsLabel, summaryReason: score.summaryReason,
-            newsSummary: score.newsSummary,
-            moneyFlowSource: score.moneyFlowSource, globalTrendSource: score.globalTrendSource,
-            scoreSource: score.scoreSource,
-            rawScore: score.rawScore, adaptiveScore: score.adaptiveScore,
-            stockStyle: score.stockStyle, highRiskFlag: score.highRiskFlag,
-            fxSensitivity: score.fxSensitivity, catalystScore: score.catalystScore,
-            dividendScore, shortSellingSource,
-          },
+          create: { symbol: stock.symbol, ...sharedFields },
+          update: sharedFields,
         });
         computed++;
       } catch (e) {
@@ -319,6 +341,8 @@ async function main() {
       symbol: true, adaptiveScore: true,
       moneyFlowScore: true, catalystScore: true,
       rsi14: true, highRiskFlag: true, fundamentalScore: true,
+      // V12.0 Safety Rules fields
+      overallConfidence: true, riskOverride: true,
     },
   });
 
@@ -351,20 +375,36 @@ async function main() {
   const oppRanked = [...withOpp].sort((a, b) => b.oppScore - a.oppScore);
   const oppRankMap = new Map(oppRanked.map((s, i) => [s.symbol, i + 1]));
 
+  // Build safety override map from Pass 1 data
+  const safetyMap = new Map(allScores.map((s) => [s.symbol, {
+    overallConfidence: s.overallConfidence ?? 100,
+    riskOverride: (s.riskOverride ?? "NONE") as RiskOverride,
+  }]));
+
+  let guardDowngraded = 0;
+
   for (let i = 0; i < withOpp.length; i += UPDATE_BATCH) {
     const batch = withOpp.slice(i, i + UPDATE_BATCH);
     await Promise.all(batch.map(({ symbol, rank, percentile, oppScore, oppLabel }) => {
-      const { rec, reason } = computeRecommendationV2(
+      const { rec: rawRec, reason } = computeRecommendationV2(
         allScores[rank - 1]?.adaptiveScore ?? 0,
         percentile,
       );
+      // V12.0: apply confidence guard + risk override
+      const safety = safetyMap.get(symbol) ?? { overallConfidence: 100, riskOverride: "NONE" as RiskOverride };
+      const fakeConf = { ruleConfidence: 100, newsConfidence: 100, industryConfidence: 100, modelConfidence: 0, overallConfidence: safety.overallConfidence };
+      const finalRec = applyAllGuards(rawRec, fakeConf, safety.riskOverride);
+      if (finalRec !== rawRec) guardDowngraded++;
+
       return prisma.stockScore.update({
         where: { symbol },
         data: {
           marketRank:          rank,
           percentileRank:      Math.round(percentile * 10) / 10,
-          recommendationV2:    rec,
-          recommendationReason: reason,
+          recommendationV2:    finalRec,
+          recommendationReason: finalRec !== rawRec
+            ? `${reason}【⚠ 守卫降级 ${rawRec}→${finalRec}：confidence=${safety.overallConfidence} override=${safety.riskOverride}】`
+            : reason,
           opportunityScore:    oppScore,
           opportunityRank:     oppRankMap.get(symbol) ?? null,
           opportunityLabel:    oppLabel,
@@ -376,7 +416,7 @@ async function main() {
   }
 
   const pass2s = ((Date.now() - pass2start) / 1000).toFixed(1);
-  console.log(`\n  Pass 2 完成（${pass2s}s）\n`);
+  console.log(`\n  Pass 2 完成（${pass2s}s）  守卫降级: ${guardDowngraded} 只\n`);
 
   // ── 统计 recommendationV2 分布 ─────────────────────────────────────────────
   const [sb, b, h, w, av, totalCount] = await Promise.all([
