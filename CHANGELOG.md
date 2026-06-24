@@ -2,6 +2,49 @@
 
 ---
 
+## [11.0.0] - 2026-06-24 — AI Portfolio Engine
+
+### New Features
+- **`/portfolio`** 页面完全重写：AI Portfolio Engine（取代旧版手动持仓追踪器）
+  - 初始资金 10,000,000 JPY；每日自动从 DailyRecommendation Top10 等权买入（每只 100 万）
+  - 6张汇总卡片：当前资产(JPY) / 累计收益(%) / TOPIX ETF(%) / Alpha(%) / 胜率(%) / 最大回撤(%)
+  - 持仓表：symbol/公司名/AI评级/AI建议（ADD/HOLD/REDUCE/SELL）/持有天数/买入价/当前价/收益%
+  - SVG收益曲线：portfolioReturn / topixReturn / alpha；时间窗口 [7D][30D][90D][ALL]
+  - 历史成绩表：per-cohort BacktestResult TOP10 数据
+- **新 API 路由**：`/api/portfolio/summary`、`/api/portfolio/trend`、`/api/portfolio/history`
+- **i18n**：29个 `portfolio.*` 键，覆盖 zh-CN / en-US / ja-JP
+- **health:data**：新增 portfolio_top10(WARNING) / portfolio_value(WARNING) / portfolio_backtest(INFO) 三项检查
+- **Sidebar**：`/portfolio` 导航标签改为 `nav.aiPortfolio`（「AI组合」）
+
+### Verification
+- `npm run build` → PASS ✅
+- `npm run health:data` → CRITICAL=0, WARNING=4 ✅
+- `https://aitohoshou.com/portfolio` → HTTP 200 ✅
+- `https://aitohoshou.com/api/portfolio/summary` → 返回 cohortDate/positions/alpha 数据 ✅
+- Deployment History id=10 写入成功 ✅
+
+### Technical Notes
+- `maxDrawdown` 暂为 null（trend API 已有计算占位，TODO: 实现滚动最大回撤算法）
+- `portfolio_backtest INFO count=0`：BacktestResult TOP10 条目由定时任务生成，预期 INFO 非 CRITICAL
+- 旧 `/api/portfolio` CRUD 路由保留（手动持仓管理），不影响新 AI Portfolio 路由
+- commit `a126dde`
+
+---
+
+## [10.3.0] - 2026-06-24 — Backtest Page v10.3 Polish
+
+### Changed
+- Backtest 页面标题 → 「AI历史回测」/ subtitle → 「AI组合收益与TOPIX基准对比」
+- 免责声明：amber Banner → 结构化 ✓/✗ 网格
+- 6张汇总卡片：移除标签中 「(7D)」，添加 sub-label 说明（horizon/proxy/日期）
+- Waiting 状态：显示预计可用日期（7D: +11天, 30D: +40天, 90D: +102天）
+- 趋势图标题 → 「累计收益率」；TOPIX legend → 「TOPIX ETF」
+- Cohort 表头 → 「推荐日期」/「推荐数量」；数据修复 ISO 时间字符串 → `.slice(0,10)`
+- 页脚新增 TOPIX ETF Proxy 注释
+- commit `68ca0a0`，Deployment History id=9
+
+---
+
 ## [10.1.2] - 2026-06-24 — Hotfix: 2026-06-23 DailyRecommendation gptRank 重复污染修复
 
 ### Fixed (DB Hotfix — 无代码改动)
