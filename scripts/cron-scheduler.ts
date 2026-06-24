@@ -79,27 +79,20 @@ cron.schedule("0 6 * * *", () => {
 }, { timezone: "Asia/Tokyo" });
 
 // ── 07:00 / 12:00 / 18:00 / 22:00 JST — ニュース取得 ────────────────────────
+// P1 fix: call scripts/sync-news.ts directly as a child process instead of HTTP POST.
+// This means pm2 restart of tohoshou-web cannot kill the sync — it runs in its own process.
 function runNewsSync(label: string) {
-  log("INFO", `⏰ ${label} 触发：ニュース取得`);
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aitohoshou.com";
+  log("INFO", `⏰ ${label} 触发：ニュース取得 (worker mode)`);
   try {
-    const raw = execSync(
-      `curl -s -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"`,
-      { timeout: 10 * 60 * 1000 }
-    ).toString();
-
-    let resp: Record<string, unknown> = {};
-    try { resp = JSON.parse(raw); } catch { /* non-JSON, treat as error */ }
-
-    if (resp.skipped === true) {
-      log("WARN", `⚠️  SKIPPED ${label} ニュース取得: existing running job (jobId=${resp.jobId})`);
-    } else if (resp.staleAutoFailed === true) {
-      log("WARN", `⚠️  ${label} stale job auto-failed, new job started (jobId=${resp.jobId})`);
-    } else if (resp.success === true) {
-      log("INFO", `✅ 完成 ${label} ニュース取得 (jobId=${resp.jobId}, total=${resp.total})`);
-    } else {
-      log("ERROR", `❌ 失败 ${label} ニュース取得: ${raw.slice(0, 200)}`);
-    }
+    execSync(
+      `npx tsx ${join(process.cwd(), "scripts", "sync-news.ts")}`,
+      {
+        stdio: "inherit",
+        env: { ...process.env, TZ: "Asia/Tokyo" },
+        timeout: 30 * 60 * 1000, // 30 min — 200 stocks × 800ms ≈ 2.7 min, generous margin
+      }
+    );
+    log("INFO", `✅ 完成 ${label} ニュース取得`);
   } catch (err) {
     log("ERROR", `❌ 失败 ${label} ニュース取得：${err instanceof Error ? err.message : err}`);
   }
