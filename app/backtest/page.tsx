@@ -437,16 +437,16 @@ function LatestRecCard({
     ? `Top1：${top1Symbol}${top1Name ? "  " + top1Name : ""}`
     : "Top1：—";
   return (
-    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 flex flex-col gap-1">
-      <div className="text-slate-500 text-[11px]">{label}</div>
-      <div className="text-[32px] font-bold text-slate-200 leading-none">{date ?? "—"}</div>
-      <div className="text-[13px] font-semibold text-emerald-400">
-        {count != null ? `${count} ${countSuffix}` : "—"}
+    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 flex flex-col gap-1.5">
+      <div className="text-slate-500 text-xs">{label}</div>
+      <div className="text-2xl font-bold font-mono text-slate-200">{date ?? "—"}</div>
+      <div className="text-[10px] text-emerald-400 font-medium">
+        {count != null ? `${count} ${countSuffix}` : ""}
       </div>
-      <div className="text-[11px] text-[#94A3B8] truncate">{top1Line}</div>
-      <div className="text-[10px] text-[#64748B]">
-        {jstTime ? `${updatedPrefix} ${jstTime} JST` : ""}
-      </div>
+      <div className="text-[10px] text-[#94A3B8] truncate">{top1Line}</div>
+      {jstTime && (
+        <div className="text-[10px] text-slate-600">{updatedPrefix} {jstTime} JST</div>
+      )}
     </div>
   );
 }
