@@ -644,6 +644,19 @@ export type Messages = {
   "backtest.col_date": string;
   "backtest.col_alpha": string;
   "backtest.cohort_pending": string;
+  "backtest.disclaimer_title": string;
+  "backtest.disclaimer_intro": string;
+  "backtest.disclaimer_entry": string;
+  "backtest.disclaimer_return": string;
+  "backtest.disclaimer_date": string;
+  "backtest.disclaimer_no_slippage": string;
+  "backtest.disclaimer_no_future": string;
+  "backtest.waiting_title": string;
+  "backtest.waiting_subtitle": string;
+  "backtest.topix_proxy_note": string;
+  "backtest.sub_winrate": string;
+  "backtest.sub_alpha": string;
+  "backtest.sub_recs_suffix": string;
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": string;

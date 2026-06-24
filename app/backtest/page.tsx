@@ -78,7 +78,7 @@ const CHART_SERIES = [
   { key: "TOP50"  as const, label: "TOP50",   color: "#34d399" },
   { key: "TOP100" as const, label: "TOP100",  color: "#fbbf24" },
   { key: "ALL"    as const, label: "ALL≈500", color: "#a78bfa" },
-  { key: "topix"  as const, label: "TOPIX",   color: "#fb7185" },
+  { key: "topix"  as const, label: "TOPIX ETF", color: "#fb7185" },
 ] as const;
 
 const M = { top: 28, right: 20, bottom: 34, left: 50 };
@@ -115,6 +115,12 @@ function groupWeekly(series: TrendPoint[]): TrendPoint[] {
       topix:  avg(pts.map((p) => p.topix)),
     };
   });
+}
+
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 function returnColor(v: number | null): string {
@@ -455,6 +461,15 @@ export default function BacktestPage() {
   const allP = data?.portfolios?.["ALL"];
   const stat7d = allP?.["7d"] ?? null;
 
+  const totalPicks = cohortsData?.rows.reduce((s, r) => s + r.count, 0) ?? null;
+  const cohortDays = cohortsData?.rows.length ?? data?.cohortCount ?? 0;
+  const earliestCohortDate = cohortsData?.rows?.length
+    ? cohortsData.rows[cohortsData.rows.length - 1].date.slice(0, 10)
+    : data?.latestDate?.slice(0, 10) ?? null;
+  const expected7d  = earliestCohortDate ? addDays(earliestCohortDate, 11)  : null;
+  const expected30d = earliestCohortDate ? addDays(earliestCohortDate, 40)  : null;
+  const expected90d = earliestCohortDate ? addDays(earliestCohortDate, 102) : null;
+
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
@@ -466,65 +481,72 @@ export default function BacktestPage() {
         )}
       </div>
 
-      {/* Risk Banner */}
-      <div className="mb-6 bg-amber-950/40 border border-amber-800/50 rounded-lg px-4 py-3 flex items-start gap-2.5">
-        <span className="text-amber-500 text-sm flex-shrink-0 mt-0.5">⚠</span>
-        <span className="text-amber-300/80 text-xs leading-relaxed">{t("backtest.risk_banner")}</span>
+      {/* Risk Banner — Structured */}
+      <div className="mb-6 bg-[#131c30] border border-slate-700/60 rounded-xl px-5 py-4">
+        <div className="flex items-center gap-2 mb-2.5">
+          <span className="text-amber-400 text-sm">⚠</span>
+          <span className="text-slate-300 text-xs font-semibold tracking-wide">{t("backtest.disclaimer_title")}</span>
+        </div>
+        <p className="text-slate-500 text-xs mb-3 leading-relaxed">{t("backtest.disclaimer_intro")}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-8 text-xs">
+          <span className="flex items-center gap-1.5 text-emerald-500"><span className="font-semibold">✓</span>{t("backtest.disclaimer_entry")}</span>
+          <span className="flex items-center gap-1.5 text-emerald-500"><span className="font-semibold">✓</span>{t("backtest.disclaimer_return")}</span>
+          <span className="flex items-center gap-1.5 text-emerald-500"><span className="font-semibold">✓</span>{t("backtest.disclaimer_date")}</span>
+          <span className="flex items-center gap-1.5 text-slate-500"><span className="font-semibold">✗</span>{t("backtest.disclaimer_no_slippage")}</span>
+          <span className="flex items-center gap-1.5 text-slate-500"><span className="font-semibold">✗</span>{t("backtest.disclaimer_no_future")}</span>
+        </div>
       </div>
 
       {/* ── P4: Summary Cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <SummaryCard
-          label={`${t("backtest.summary_ai_return")} (7D)`}
+          label={t("backtest.summary_ai_return")}
           value={stat7d?.avgReturn != null
             ? `${stat7d.avgReturn > 0 ? "+" : ""}${stat7d.avgReturn.toFixed(2)}%`
             : "—"}
-          sub={stat7d?.filled ? `n=${stat7d.filled}` : undefined}
+          sub={t("backtest.horizon_7d") + (stat7d?.filled ? ` · n=${stat7d.filled}` : "")}
           valueColor={stat7d?.avgReturn != null
             ? (stat7d.avgReturn > 0 ? "text-emerald-400" : "text-red-400")
             : undefined}
         />
         <SummaryCard
-          label={`${t("backtest.summary_topix")} (7D)`}
+          label={t("backtest.summary_topix")}
           value={stat7d?.benchmarkTopixReturn != null
             ? `${stat7d.benchmarkTopixReturn > 0 ? "+" : ""}${stat7d.benchmarkTopixReturn.toFixed(2)}%`
             : "—"}
-          sub={healthData?.latestTopix != null
-            ? `TOPIX ${healthData.latestTopix.toFixed(0)}`
-            : undefined}
+          sub="1306.T ETF Proxy"
           valueColor={stat7d?.benchmarkTopixReturn != null
             ? (stat7d.benchmarkTopixReturn > 0 ? "text-emerald-400" : "text-red-400")
             : undefined}
         />
         <SummaryCard
-          label={`${t("backtest.summary_alpha")} (7D)`}
+          label={t("backtest.summary_alpha")}
           value={stat7d?.excessVsTopix != null
             ? `${stat7d.excessVsTopix > 0 ? "+" : ""}${stat7d.excessVsTopix.toFixed(2)}%`
             : "—"}
-          sub={healthData?.latestTopixDate
-            ? `as of ${healthData.latestTopixDate}`
-            : undefined}
+          sub={t("backtest.sub_alpha")}
           valueColor={stat7d?.excessVsTopix != null
             ? (stat7d.excessVsTopix > 0 ? "text-emerald-400" : "text-red-400")
             : undefined}
         />
         <SummaryCard
-          label={`${t("backtest.summary_winrate")} (7D)`}
+          label={t("backtest.summary_winrate")}
           value={stat7d?.winRate != null ? `${stat7d.winRate.toFixed(1)}%` : "—"}
+          sub={t("backtest.sub_winrate")}
           valueColor={stat7d?.winRate != null
             ? (stat7d.winRate >= 55 ? "text-emerald-400" : "text-yellow-400")
             : undefined}
         />
         <SummaryCard
           label={t("backtest.summary_recs")}
-          value={data ? String(data.cohortCount * 500) : "—"}
-          sub={data?.cohortCount ? `${data.cohortCount} ${t("backtest.cohorts")}` : undefined}
+          value={totalPicks != null ? String(totalPicks) : data ? String(data.cohortCount * 500) : "—"}
+          sub={cohortDays > 0 ? `${cohortDays}${t("backtest.sub_recs_suffix")}` : undefined}
         />
         <SummaryCard
           label={t("backtest.summary_updated")}
-          value={data?.latestDate ? data.latestDate.slice(5) : "—"}
+          value={data?.latestDate ? data.latestDate.slice(0, 10) : "—"}
           sub={healthData?.latestTopixDate
-            ? `TOPIX: ${healthData.latestTopixDate.slice(5)}`
+            ? `TOPIX: ${healthData.latestTopixDate}`
             : undefined}
         />
       </div>
@@ -546,8 +568,18 @@ export default function BacktestPage() {
       )}
 
       {!loading && !error && !data?.latestDate && (
-        <div className="bg-[#1a2035] rounded-xl p-8 text-center text-slate-400 text-sm border border-slate-700/40">
-          {t("backtest.no_data")}
+        <div className="bg-[#1a2035] rounded-xl p-8 border border-slate-700/40">
+          <div className="text-center mb-4">
+            <p className="text-slate-200 text-base font-semibold">{t("backtest.waiting_title")}</p>
+            <p className="text-slate-500 text-xs mt-1">{t("backtest.waiting_subtitle")}</p>
+          </div>
+          {(expected7d || expected30d || expected90d) && (
+            <div className="flex flex-wrap justify-center gap-6 text-xs text-slate-500 mt-3 border-t border-slate-700/40 pt-3">
+              {expected7d  && <span>7D: <span className="text-slate-300 font-mono">{expected7d}</span> 起</span>}
+              {expected30d && <span>30D: <span className="text-slate-300 font-mono">{expected30d}</span> 起</span>}
+              {expected90d && <span>90D: <span className="text-slate-300 font-mono">{expected90d}</span> 起</span>}
+            </div>
+          )}
         </div>
       )}
 
@@ -558,12 +590,19 @@ export default function BacktestPage() {
             {HORIZONS.map((h) => {
               const stat = allP?.[h] ?? null;
               if (!stat) {
+                const expectedDate = h === "7d" ? expected7d : h === "30d" ? expected30d : expected90d;
                 return (
                   <div key={h} className="bg-[#1a2035] rounded-xl p-5 border border-slate-700/40">
-                    <div className="text-slate-400 text-sm mb-1">
-                      {t(`backtest.horizon_${h}` as "backtest.horizon_7d")}
+                    <div className="text-slate-400 text-sm font-medium mb-2">
+                      {t(`backtest.horizon_${h}` as "backtest.horizon_7d")} · ALL≈500
                     </div>
-                    <div className="text-slate-500 text-xs">{t("backtest.no_data")}</div>
+                    <div className="text-slate-400 text-xs font-medium">{t("backtest.waiting_title")}</div>
+                    <div className="text-slate-600 text-[10px] mt-0.5">{t("backtest.waiting_subtitle")}</div>
+                    {expectedDate && (
+                      <div className="mt-2 text-slate-600 text-[10px]">
+                        → <span className="text-slate-400 font-mono">{expectedDate}</span>
+                      </div>
+                    )}
                   </div>
                 );
               }
@@ -595,7 +634,7 @@ export default function BacktestPage() {
                     </div>
                   </div>
                   <div className="mt-2 text-slate-600 text-xs">
-                    {t("backtest.as_of")} {new Date(stat.date).toLocaleDateString()}
+                    {t("backtest.as_of")} {stat.date.slice(0, 10)}
                   </div>
                 </div>
               );
@@ -648,6 +687,8 @@ export default function BacktestPage() {
               <span>{t("backtest.entry_note")}</span>
               <span>·</span>
               <span>{t("backtest.benchmark_note")}</span>
+              <span>·</span>
+              <span className="text-slate-700">{t("backtest.topix_proxy_note")}</span>
             </div>
           </div>
 
@@ -731,7 +772,7 @@ export default function BacktestPage() {
                 <tbody>
                   {cohortsData.rows.map((row) => (
                     <tr key={row.date} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                      <td className="px-3 py-2 text-slate-400 font-mono">{row.date}</td>
+                      <td className="px-3 py-2 text-slate-400 font-mono">{row.date.slice(0, 10)}</td>
                       <td className="px-2 py-2 text-right text-slate-300 font-mono">{row.count}</td>
                       <CohortStatCell s={row["7d"]}  pending={t("backtest.cohort_pending")} />
                       <CohortStatCell s={row["30d"]} pending={t("backtest.cohort_pending")} />
@@ -860,8 +901,8 @@ export default function BacktestPage() {
                           {row.entryPrice ? fmtJpy(row.entryPrice) : "—"}
                         </td>
                         <td className="px-4 py-3 text-right"><ReturnBadge value={row.return30d} /></td>
-                        <td className="px-4 py-3 text-right text-slate-500 text-xs">
-                          {new Date(row.date).toLocaleDateString()}
+                        <td className="px-4 py-3 text-right text-slate-500 text-xs font-mono">
+                          {row.date.slice(0, 10)}
                         </td>
                       </tr>
                     ))
