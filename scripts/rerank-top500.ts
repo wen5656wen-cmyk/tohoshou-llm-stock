@@ -21,6 +21,7 @@ import crypto from "crypto";
 import OpenAI from "openai";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { VERSION_SNAPSHOT } from "../lib/safety-rules";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -621,7 +622,7 @@ async function main() {
     // latestClose already in top500 — build from existing data via StockScore
     const priceRows = await prisma.stockScore.findMany({
       where: { symbol: { in: symbols } },
-      select: { symbol: true, latestClose: true, recommendationV2: true },
+      select: { symbol: true, latestClose: true, recommendationV2: true, overallConfidence: true, riskOverride: true },
     });
     const priceMap = new Map<string, number | null>(
       priceRows.map((r) => [r.symbol, r.latestClose ?? null]),
@@ -634,30 +635,32 @@ async function main() {
     const failedSymbols: string[] = [];
     for (const entry of scored) {
       try {
+        // Fetch confidence/riskOverride snapshot from StockScore for this rec
+        const ss = priceRows.find((r) => r.symbol === entry.symbol);
+
+        const recPayload = {
+          gptRank: entry.gptRank!,
+          finalScore: entry.finalScore,
+          adaptiveScore: entry.adaptiveScore,
+          gptScore: entry.gptScore,
+          gptRating: entry.gptRating ?? null,
+          buyPrice: priceMap.get(entry.symbol) ?? null,
+          recommendation: recMap.get(entry.symbol) ?? entry.recommendation ?? null,
+          summaryZh: summaryMap.get(entry.symbol) ?? null,
+          // V12.0: Version Freeze — snapshot engine versions at rec time
+          ruleEngineVersion:        VERSION_SNAPSHOT.ruleEngineVersion,
+          globalEventEngineVersion: VERSION_SNAPSHOT.globalEventEngineVersion,
+          llmModelVersion:          VERSION_SNAPSHOT.llmModelVersion,
+          scoringSchemaVersion:     VERSION_SNAPSHOT.scoringSchemaVersion,
+          // Confidence & risk override snapshot
+          overallConfidence: ss?.overallConfidence ?? null,
+          riskOverride:      ss?.riskOverride ?? "NONE",
+        };
+
         await prisma.dailyRecommendation.upsert({
           where: { date_symbol: { date: today, symbol: entry.symbol } },
-          create: {
-            date: today,
-            symbol: entry.symbol,
-            gptRank: entry.gptRank!,
-            finalScore: entry.finalScore,
-            adaptiveScore: entry.adaptiveScore,
-            gptScore: entry.gptScore,
-            gptRating: entry.gptRating ?? null,
-            buyPrice: priceMap.get(entry.symbol) ?? null,
-            recommendation: recMap.get(entry.symbol) ?? entry.recommendation ?? null,
-            summaryZh: summaryMap.get(entry.symbol) ?? null,
-          },
-          update: {
-            gptRank: entry.gptRank!,
-            finalScore: entry.finalScore,
-            adaptiveScore: entry.adaptiveScore,
-            gptScore: entry.gptScore,
-            gptRating: entry.gptRating ?? null,
-            buyPrice: priceMap.get(entry.symbol) ?? null,
-            recommendation: recMap.get(entry.symbol) ?? entry.recommendation ?? null,
-            summaryZh: summaryMap.get(entry.symbol) ?? null,
-          },
+          create: { date: today, symbol: entry.symbol, ...recPayload },
+          update: recPayload,
         });
         savedCount++;
       } catch (e) {

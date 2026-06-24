@@ -97,6 +97,12 @@ async function main() {
   console.log("=== AI评分全量计算 V7.7 ===\n");
   const start = Date.now();
 
+  // V12.0 Rule 1: No Look-Ahead Bias
+  // todayJST = JST calendar date at the time compute-scores runs.
+  // Only news with tradeEffectiveDate <= todayJST may influence today's scores.
+  const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
+  const todayJST = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
+
   // ── 预加载空売り比率 ──────────────────────────────────────────────────────────
   const latestShortSelling = await prisma.shortSellingRatio.findFirst({
     where: { market: "ALL", source: "jpx_real" },
@@ -210,7 +216,21 @@ async function main() {
 
         const [div, recentNews, recentDisclosures] = await Promise.all([
           prisma.dividend.findFirst({ where: { symbol: stock.symbol }, orderBy: { year: "desc" }, select: { dividend: true, yieldRate: true, payoutRatio: true } }),
-          prisma.news.findMany({ where: { stockId: stock.id, relatedSymbolConfidence: { gte: 70 }, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { sentiment: true, publishedAt: true }, orderBy: { publishedAt: "desc" } }),
+          // V12.0 Rule 1: only news whose tradeEffectiveDate <= today (no look-ahead)
+          // Falls back to publishedAt filter for legacy rows without tradeEffectiveDate
+          prisma.news.findMany({
+            where: {
+              stockId: stock.id,
+              relatedSymbolConfidence: { gte: 70 },
+              publishedAt: { gte: new Date(Date.now() - 30 * 86400000) },
+              OR: [
+                { tradeEffectiveDate: { lte: todayJST } },
+                { tradeEffectiveDate: null }, // legacy rows without the field
+              ],
+            },
+            select: { sentiment: true, publishedAt: true },
+            orderBy: { publishedAt: "desc" },
+          }),
           prisma.disclosure.findMany({ where: { symbol: stock.symbol, publishedAt: { gte: new Date(Date.now() - 30 * 86400000) } }, select: { category: true } }),
         ]);
 
