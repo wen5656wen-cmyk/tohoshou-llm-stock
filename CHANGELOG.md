@@ -2,6 +2,45 @@
 
 ---
 
+## [11.2.0] - 2026-06-25 — 新闻同步僵尸 Job 修复
+
+### Bug Fix (P0)
+- **根因**：2026-06-20T13:01 起 SyncJob(`cmqmd7on50000o3oza9pi2hda`) 卡死 RUNNING 状态
+  - 导致 5天内每次 POST `/api/sync/news` 命中早返回（"已有正在运行"），0 新闻入库
+  - cron 日志全部假 ✅，实际无任何同步
+- **修复 1**：手动将僵尸 Job 标记为 FAILED，恢复同步（新增 263+ 条新闻）
+- **修复 2**：`POST /api/sync/news` 加入 2小时超时守卫 (`STALE_JOB_THRESHOLD_MS`)
+  - job 年龄 ≤ 2h → `skipped:true`，正常跳过
+  - job 年龄 > 2h → 自动标记 FAILED，`staleAutoFailed:true`，允许新建
+- **修复 3**：`cron-scheduler.ts` `runNewsSync` 解析 JSON 响应
+  - `skipped:true` → `⚠️ SKIPPED: existing running job`
+  - `staleAutoFailed:true` → `⚠️ stale job auto-failed, new job started`
+  - 正常启动 → `✅ 完成 (jobId=... total=...)`
+  - 禁止假 ✅
+
+### Verification
+- `npm run build` → PASS ✅
+- `npm run health:data` → CRITICAL=0 ✅
+- 僵尸 Job 手动 FAILED → 新同步启动 → newsCount 2496 → 3300+ ✅
+- `GET /api/sync/news runningJob.processed` 逐步递增 → 正常工作 ✅
+- commit `aaec849`
+
+---
+
+## [11.1.0] - 2026-06-25 — 我的自选组合真实数据
+
+### New Features
+- `我的自选组合` Tab 接入真实 WatchList 数据（GET /api/watchlist）
+  - 空状态：「还没有加入自选股」+ 「去股票列表添加」→ /stocks
+  - Section A：AI评分排序（按 finalScore 降序）
+  - Section B：模拟建仓（100M JPY 等权，BUY/STRONG_BUY，最多 Top10）
+  - Section C：调仓建议（per-stock 建议纳入/继续观察/建议剔除）
+- 懒加载：首次切换到 Tab 时才请求数据
+- i18n：11个 `portfolio.wl_*` 键（zh-CN / en-US / ja-JP）
+- commit `c2601bb`，Deployment History id=15
+
+---
+
 ## [11.0.0] - 2026-06-24 — AI Portfolio Engine
 
 ### New Features
