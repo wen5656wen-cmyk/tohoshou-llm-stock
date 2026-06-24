@@ -107,7 +107,7 @@ async function main() {
     fetchSymbol("^IXIC"),
     fetchSymbol("JPY=X"),
     fetchSymbol("^N225"),
-    fetchSymbol("^TOPIX"),  // correct Yahoo Finance symbol for TOPIX (^TOPX was invalid)
+    fetchSymbol("1306.T"),   // Nomura TOPIX ETF — historical available; ^TOPIX is spot-only on some regions
   ]);
 
   // VIX: use quote() for real-time spot price — historical() can return null close on some dates

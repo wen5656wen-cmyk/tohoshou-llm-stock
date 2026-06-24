@@ -28,13 +28,15 @@ async function main() {
   console.log(`Range: ${period1.toISOString().slice(0, 10)} → ${period2.toISOString().slice(0, 10)}`);
   console.log(`DAYS=${DAYS}\n`);
 
-  console.log("Fetching ^TOPIX ...");
+  // 1306.T = Nomura TOPIX ETF — historical available where ^TOPIX is not.
+  // Returns are representative of TOPIX index returns.
+  console.log("Fetching 1306.T (TOPIX ETF proxy) ...");
   let topixHist: Array<{ date: Date; close: number }> = [];
   try {
-    topixHist = (await yf.historical("^TOPIX", { period1, period2, interval: "1d" })) as typeof topixHist;
+    topixHist = (await yf.historical("1306.T", { period1, period2, interval: "1d" })) as typeof topixHist;
     console.log(`  Got ${topixHist.length} rows`);
   } catch (e) {
-    console.error("  ^TOPIX fetch failed:", e);
+    console.error("  1306.T fetch failed:", e);
   }
 
   console.log("Fetching ^N225 ...");
