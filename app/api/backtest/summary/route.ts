@@ -73,7 +73,7 @@ export async function GET() {
       select: { date: true },
     });
 
-    const latestCohort = latestDate
+    const latestCohortRaw = latestDate
       ? await prisma.dailyRecommendation.findMany({
           where: { date: latestDate.date },
           orderBy: { gptRank: "asc" },
@@ -82,9 +82,27 @@ export async function GET() {
             symbol: true, gptRank: true, finalScore: true, gptRating: true,
             buyPrice: true, entryPrice: true,
             return7d: true, return30d: true, return90d: true, summaryZh: true,
+            createdAt: true,
           },
         })
       : [];
+
+    const latestUpdatedAt = latestCohortRaw[0]?.createdAt?.toISOString() ?? null;
+    const top1Symbol = latestCohortRaw[0]?.symbol ?? null;
+    const latestCohort = latestCohortRaw.map(({ createdAt: _c, ...rest }) => rest);
+
+    // Stock name for rank-1
+    const top1Stock = top1Symbol
+      ? await prisma.stock.findUnique({
+          where: { symbol: top1Symbol },
+          select: { nameZh: true, name: true },
+        })
+      : null;
+
+    // Latest date rec count
+    const latestDateCount = latestDate
+      ? (cohortDates.find((r) => r.date.getTime() === latestDate.date.getTime())?._count.date ?? null)
+      : null;
 
     // ── All-time top/bottom 10 by 30d return ───────────────────────────────
     const [top30d, bottom30d] = await Promise.all([
@@ -105,6 +123,10 @@ export async function GET() {
     return NextResponse.json({
       cohortCount: cohortDates.length,
       latestDate: latestDate?.date ?? null,
+      latestDateCount,
+      top1Symbol,
+      top1Name: top1Stock ? (top1Stock.nameZh ?? top1Stock.name ?? null) : null,
+      latestUpdatedAt,
       portfolios,
       latestCohort,
       topWinners: top30d,

@@ -686,6 +686,8 @@ const zhCN: Messages = {
   "backtest.sub_winrate": "盈利股票占比",
   "backtest.sub_alpha": "AI收益 − TOPIX",
   "backtest.sub_recs_suffix": "个推荐日期",
+  "backtest.rec_count_suffix": "支股票",
+  "backtest.rec_updated_prefix": "更新于",
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": "上涨",

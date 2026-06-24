@@ -51,6 +51,10 @@ type CohortEntry = {
 type Summary = {
   cohortCount: number;
   latestDate: string | null;
+  latestDateCount: number | null;
+  top1Symbol: string | null;
+  top1Name: string | null;
+  latestUpdatedAt: string | null;
   portfolios: Record<string, PortfolioRow>;
   topWinners: PickEntry[];
   topLosers: PickEntry[];
@@ -408,6 +412,45 @@ function SummaryCard({
   );
 }
 
+function fmtJst(iso: string): string {
+  const d = new Date(iso);
+  const totalMin = d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60;
+  const h = Math.floor(totalMin / 60) % 24;
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function LatestRecCard({
+  label, date, count, top1Symbol, top1Name, updatedAt, countSuffix, updatedPrefix,
+}: {
+  label: string;
+  date: string | null;
+  count: number | null;
+  top1Symbol: string | null;
+  top1Name: string | null;
+  updatedAt: string | null;
+  countSuffix: string;
+  updatedPrefix: string;
+}) {
+  const jstTime = updatedAt ? fmtJst(updatedAt) : null;
+  const top1Line = top1Symbol
+    ? `Top1：${top1Symbol}${top1Name ? "  " + top1Name : ""}`
+    : "Top1：—";
+  return (
+    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 flex flex-col gap-1">
+      <div className="text-slate-500 text-[11px]">{label}</div>
+      <div className="text-[32px] font-bold text-slate-200 leading-none">{date ?? "—"}</div>
+      <div className="text-[13px] font-semibold text-emerald-400">
+        {count != null ? `${count} ${countSuffix}` : "—"}
+      </div>
+      <div className="text-[11px] text-[#94A3B8] truncate">{top1Line}</div>
+      <div className="text-[10px] text-[#64748B]">
+        {jstTime ? `${updatedPrefix} ${jstTime} JST` : ""}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function BacktestPage() {
@@ -542,12 +585,15 @@ export default function BacktestPage() {
           value={totalPicks != null ? String(totalPicks) : data ? String(data.cohortCount * 500) : "—"}
           sub={cohortDays > 0 ? `${cohortDays}${t("backtest.sub_recs_suffix")}` : undefined}
         />
-        <SummaryCard
+        <LatestRecCard
           label={t("backtest.summary_updated")}
-          value={data?.latestDate ? data.latestDate.slice(0, 10) : "—"}
-          sub={healthData?.latestTopixDate
-            ? `TOPIX: ${healthData.latestTopixDate}`
-            : undefined}
+          date={data?.latestDate ? data.latestDate.slice(0, 10) : null}
+          count={data?.latestDateCount ?? null}
+          top1Symbol={data?.top1Symbol ?? null}
+          top1Name={data?.top1Name ?? null}
+          updatedAt={data?.latestUpdatedAt ?? null}
+          countSuffix={t("backtest.rec_count_suffix")}
+          updatedPrefix={t("backtest.rec_updated_prefix")}
         />
       </div>
 

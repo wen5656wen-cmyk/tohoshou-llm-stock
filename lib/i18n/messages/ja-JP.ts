@@ -686,6 +686,8 @@ const jaJP: Messages = {
   "backtest.sub_winrate": "利益銘柄の割合",
   "backtest.sub_alpha": "AIリターン − TOPIX",
   "backtest.sub_recs_suffix": "推奨日",
+  "backtest.rec_count_suffix": "銘柄",
+  "backtest.rec_updated_prefix": "更新:",
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": "上昇",

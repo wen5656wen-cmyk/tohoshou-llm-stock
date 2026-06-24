@@ -686,6 +686,8 @@ const enUS: Messages = {
   "backtest.sub_winrate": "among total picks",
   "backtest.sub_alpha": "AI return − TOPIX",
   "backtest.sub_recs_suffix": " trading dates",
+  "backtest.rec_count_suffix": "stocks",
+  "backtest.rec_updated_prefix": "Updated",
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": "Up",

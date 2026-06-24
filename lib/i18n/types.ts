@@ -687,6 +687,8 @@ export type Messages = {
   "backtest.sub_winrate": string;
   "backtest.sub_alpha": string;
   "backtest.sub_recs_suffix": string;
+  "backtest.rec_count_suffix": string;
+  "backtest.rec_updated_prefix": string;
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": string;
