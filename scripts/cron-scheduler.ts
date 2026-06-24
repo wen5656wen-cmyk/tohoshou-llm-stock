@@ -83,11 +83,23 @@ function runNewsSync(label: string) {
   log("INFO", `⏰ ${label} 触发：ニュース取得`);
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aitohoshou.com";
   try {
-    execSync(`curl -s -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"`, {
-      stdio: "inherit",
-      timeout: 10 * 60 * 1000,
-    });
-    log("INFO", `✅ 完成 ${label} ニュース取得`);
+    const raw = execSync(
+      `curl -s -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"`,
+      { timeout: 10 * 60 * 1000 }
+    ).toString();
+
+    let resp: Record<string, unknown> = {};
+    try { resp = JSON.parse(raw); } catch { /* non-JSON, treat as error */ }
+
+    if (resp.skipped === true) {
+      log("WARN", `⚠️  SKIPPED ${label} ニュース取得: existing running job (jobId=${resp.jobId})`);
+    } else if (resp.staleAutoFailed === true) {
+      log("WARN", `⚠️  ${label} stale job auto-failed, new job started (jobId=${resp.jobId})`);
+    } else if (resp.success === true) {
+      log("INFO", `✅ 完成 ${label} ニュース取得 (jobId=${resp.jobId}, total=${resp.total})`);
+    } else {
+      log("ERROR", `❌ 失败 ${label} ニュース取得: ${raw.slice(0, 200)}`);
+    }
   } catch (err) {
     log("ERROR", `❌ 失败 ${label} ニュース取得：${err instanceof Error ? err.message : err}`);
   }

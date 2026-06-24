@@ -53,20 +53,40 @@ export async function GET() {
   });
 }
 
+const STALE_JOB_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 export async function POST() {
   const existingJob = await prisma.syncJob.findFirst({
     where: { source: "news", status: { in: ["PENDING", "RUNNING"] } },
     orderBy: { createdAt: "desc" },
   });
+
+  let staleAutoFailed = false;
+
   if (existingJob) {
-    return NextResponse.json({
-      success: true,
-      jobId: existingJob.id,
-      status: existingJob.status,
-      message: "已有正在运行的新闻同步任务",
-      total: existingJob.total,
-      processed: existingJob.processed,
+    const ageMs = Date.now() - existingJob.createdAt.getTime();
+    if (ageMs <= STALE_JOB_THRESHOLD_MS) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        jobId: existingJob.id,
+        status: existingJob.status,
+        message: "已有正在运行的新闻同步任务",
+        total: existingJob.total,
+        processed: existingJob.processed,
+      });
+    }
+    // Stale job (>2h) — auto-fail and allow new job
+    await prisma.syncJob.update({
+      where: { id: existingJob.id },
+      data: {
+        status: "FAILED",
+        finishedAt: new Date(),
+        errorMessage: "Auto failed by stale job guard (>2h without completion)",
+      },
     });
+    console.warn(`[news] stale job ${existingJob.id} auto-failed (age: ${Math.round(ageMs / 60000)}min)`);
+    staleAutoFailed = true;
   }
 
   const scored = await prisma.stockScore.findMany({
@@ -87,6 +107,7 @@ export async function POST() {
 
   return NextResponse.json({
     success: true,
+    staleAutoFailed,
     jobId: job.id,
     status: "RUNNING",
     message: `新闻同步任务已开始，共 ${scored.length} 只股票`,
