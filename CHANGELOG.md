@@ -2,6 +2,56 @@
 
 ---
 
+## [12.0.0] - 2026-06-25 — TOHOSHOU AI Decision Engine v1.0
+
+### New: 六大铁律安全框架
+
+**铁律一 No Look-Ahead Bias**
+- `News.tradeEffectiveDate` 新字段：JST 15:00 截止，周末/节假日顺延到下一交易日
+- 所有新闻同步路径（Yahoo/Kabutan/TDnet）自动写入
+- `lib/safety-rules.ts` → `calcTradeEffectiveDate()`
+
+**铁律二 Normalization（标准化）**
+- `ImpactLevel` 枚举：VERY_NEGATIVE(-2) → VERY_POSITIVE(+2)
+- `impactLevelToSigma()` 统一映射，LLM 禁止输出任意 impact 数值
+
+**铁律三 Confidence Guard（置信度守卫）**
+- 5维置信度：ruleConfidence / newsConfidence / industryConfidence / modelConfidence / overallConfidence
+- overallConfidence < 60 → STRONG_BUY 自动降为 BUY
+- overallConfidence < 40 → 封顶 WATCH
+- Pass 1 计算，Pass 2 保护 recommendationV2
+
+**铁律四 Risk Override（风险熔断）**
+- SOFT_BLOCK：STRONG_BUY→BUY，BUY→WATCH（暴跌 / 高风险 + RSI 极端触发）
+- HARD_BLOCK：封顶 WATCH（Phase 2 接入退市/停牌数据）
+- `computeRiskOverride()` + `applyRiskOverride()`
+
+**铁律五 Version Freeze（版本冻结）**
+- StockScore / DailyRecommendation 快照记录全部版本字段
+- `ruleEngine=v1.0 / globalEvent=v0.1 / schema=v1.0 / tohoshou=disabled / llm=gpt-4o-mini`
+
+**铁律六 Shadow Mode（影子模式）**
+- TOHOSHOU MODEL 生产权重 = 0，字段预留（shadowModelScore/Recommendation/Rank/GeneratedAt）
+
+### Schema 变更 (V12.0)
+- StockScore: +15字段 (confidence×5, riskOverride, version×5, shadow×4)
+- DailyRecommendation: +6字段 (confidence, riskOverride, version×4)
+- News: +tradeEffectiveDate + index
+- 废弃孤儿表清理: line_users / notification_logs / user_ai_settings
+
+### Other
+- `components/AISafetyPanel.tsx`: admin/verify 页面七条规则状态面板
+- `docs/TOHOSHOU_AI_DECISION_ENGINE.md`: 六大铁律完整文档
+
+### Verification
+- `npm run build` → PASS ✅
+- `npm run health:data` → CRITICAL=0 ✅
+- `compute-scores.ts` 运行 47s，STRONG_BUY criteria violations = 0 ✅
+- 守卫降级日志输出正常 ✅
+- Deployment id=17, commit `7680d8f`
+
+---
+
 ## [11.2.0] - 2026-06-25 — 新闻同步僵尸 Job 修复
 
 ### Bug Fix (P0)
