@@ -2,6 +2,23 @@
 
 ---
 
+## [10.1.2] - 2026-06-24 — Hotfix: 2026-06-23 DailyRecommendation gptRank 重复污染修复
+
+### Fixed (DB Hotfix — 无代码改动)
+- **2026-06-23 DailyRecommendation 550→500**：`rerank-top500.ts` 当日执行两次，导致50个 gptRank 值各有2条记录（两次运行评分略有差异，`@@unique([date,symbol])` 约束防止了 symbol 重复，但 gptRank 无唯一约束）
+- 修复策略：每个重复 gptRank 保留 `finalScore` 最高的一条，删除低分条目（50条）
+- 验证：`COUNT(*) = 500` ✅，`COUNT(DISTINCT gptRank) = 500` ✅，`MIN(gptRank) = 1, MAX = 500` ✅，无重复 ✅
+
+### Verification
+- `npm run health:data` → CRITICAL=0, WARNING=3, Allow recommendations: YES ✅
+- `/api/backtest/health` → WAITING_PRICE（预期，latestPriceDate=2026-06-23）✅
+- Deployment History id=7 写入成功 ✅
+
+### No Code Deploy
+DB-only hotfix，无需构建或 rsync。commit `88302b5`（docs only）。
+
+---
+
 ## [10.1.1] - 2026-06-24 — 状态文档全面核验与统一
 
 ### Verified (生产 API + DB 核验，无代码改动)
