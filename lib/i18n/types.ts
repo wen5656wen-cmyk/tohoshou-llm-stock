@@ -28,6 +28,7 @@ export type Messages = {
   "nav.aiScreener": string;
   "nav.aiValueChain": string;
   "nav.myInvestments": string;
+  "nav.aiPortfolio": string;
   "nav.systemStatus": string;
   "nav.systemVerify": string;
   "nav.admin": string;
@@ -298,6 +299,35 @@ export type Messages = {
   // ─── Portfolio ─────────────────────────────────────────────────────────────
   "portfolio.title": string;
   "portfolio.empty": string;
+  // ─── Portfolio v11.0 (AI Engine) ──────────────────────────────────────────
+  "portfolio.ai_title": string;
+  "portfolio.ai_subtitle": string;
+  "portfolio.current_assets": string;
+  "portfolio.cumulative_return": string;
+  "portfolio.topix_etf": string;
+  "portfolio.alpha": string;
+  "portfolio.max_drawdown": string;
+  "portfolio.holdings_title": string;
+  "portfolio.col_buy_price": string;
+  "portfolio.col_current": string;
+  "portfolio.col_suggestion": string;
+  "portfolio.col_value": string;
+  "portfolio.col_days": string;
+  "portfolio.suggest_hold": string;
+  "portfolio.suggest_add": string;
+  "portfolio.suggest_reduce": string;
+  "portfolio.suggest_sell": string;
+  "portfolio.trend_title": string;
+  "portfolio.trend_ai": string;
+  "portfolio.history_title": string;
+  "portfolio.history_col_return7d": string;
+  "portfolio.history_col_winrate": string;
+  "portfolio.history_col_topix": string;
+  "portfolio.history_col_alpha": string;
+  "portfolio.pending_entry": string;
+  "portfolio.no_data": string;
+  "portfolio.loading_error": string;
+  "portfolio.retry": string;
 
   // ─── Notifications ─────────────────────────────────────────────────────────
   "notif.title": string;

@@ -14,7 +14,7 @@ export default function Sidebar() {
     { href: "/screener",  label: t("nav.aiScreener"),    icon: "✦" },
     { href: "/ai-theme",  label: t("nav.aiValueChain"),  icon: "⚡" },
     { href: "/sectors",   label: t("nav.sectors"),       icon: "▤" },
-    { href: "/portfolio", label: t("nav.myInvestments"), icon: "◇" },
+    { href: "/portfolio", label: t("nav.aiPortfolio"), icon: "◇" },
     { href: "/news",      label: t("nav.news"),          icon: "◎" },
     { href: "/backtest",  label: t("nav.backtest"),      icon: "📊" },
   ];

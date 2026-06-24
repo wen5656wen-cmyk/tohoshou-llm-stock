@@ -1,833 +1,595 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { usePathname } from "next/navigation";
-import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import { getPrimaryName } from "@/lib/company-name";
-import { getRec, finalScoreColor } from "@/lib/rec-config";
+import type { MessageKey } from "@/lib/i18n";
+import type { PortfolioSummary } from "@/app/api/portfolio/summary/route";
+import type { TrendData } from "@/app/api/portfolio/trend/route";
+import type { HistoryData, HistoryCohort } from "@/app/api/portfolio/history/route";
 
-// ─── Shared score type ──────────────────────────────────────────────────────
+// ── Chart constants ────────────────────────────────────────────────────────────
 
-type WatchScore = {
-  latestClose: number | null;
-  return5d: number | null;
-  return20d: number | null;
-  rsi14: number | null;
-  maTrend: string | null;
-  adaptiveScore: number | null;
-  recommendationV2: string | null;
-  summaryReason: string | null;
-  finalScore: number;
-  gptScore: number | null;
-  gptRank: number | null;
-  gptRating: string | null;
-  effectiveRating: string | null;
-};
+const M = { top: 28, right: 20, bottom: 34, left: 54 };
+const VW = 800;
+const VH = 280;
+const CW = VW - M.left - M.right;
+const CH = VH - M.top - M.bottom;
 
-type WatchItem = {
-  id: number;
-  symbol: string;
-  name: string;
-  nameZh: string | null;
-  nameEn: string | null;
-  sector: string | null;
-  market: string | null;
-  note: string | null;
-  targetPrice: number | null;
-  addedAt: string;
-  score: WatchScore | null;
-};
+type WindowKey = "7D" | "30D" | "90D" | "ALL";
 
-// ─── Realtime data type ──────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-type RealtimeData = {
-  symbol: string;
-  price: number | null;
-  changePct: number | null;
-  volume: number | null;
-  volumeRatio: number | null;
-  turnoverRate: number | null;
-  marketCap: number | null;
-  rsi14: number | null;
-  ma5: number | null;
-  ma20: number | null;
-  ma60: number | null;
-  week52High: number | null;
-  week52Low: number | null;
-  updatedAt: string;
-};
-
-// ─── Risk alert computation ──────────────────────────────────────────────────
-
-type RiskAlert = {
-  key: string;
-  level: "warn" | "danger";
-  label: string;
-  value?: string;
-};
-
-function computeRisks(rt: RealtimeData | undefined, score: WatchScore | null, t: (k: Parameters<ReturnType<typeof useI18n>["t"]>[0]) => string): RiskAlert[] {
-  if (!rt) return [];
-  const alerts: RiskAlert[] = [];
-
-  const rsi = rt.rsi14 ?? score?.rsi14 ?? null;
-  if (rsi != null) {
-    if (rsi > 85)       alerts.push({ key: "rsi_extreme", level: "danger", label: t("risk.rsi_extreme"), value: rsi.toFixed(1) });
-    else if (rsi > 75)  alerts.push({ key: "rsi_high",    level: "warn",   label: t("risk.rsi_high"),    value: rsi.toFixed(1) });
-  }
-
-  const price = rt.price;
-  const ma20  = rt.ma20;
-  if (price != null && ma20 != null && price < ma20) {
-    alerts.push({ key: "below_ma20", level: "danger", label: t("risk.below_ma20") });
-  }
-
-  const w52h = rt.week52High;
-  if (price != null && w52h != null && w52h > 0 && price >= w52h * 0.98) {
-    alerts.push({ key: "near_52w_high", level: "warn", label: t("risk.near_52w_high") });
-  }
-
-  const vr = rt.volumeRatio;
-  if (vr != null && vr > 3 && isVolRatioReliable()) {
-    alerts.push({ key: "vol_spike", level: "warn", label: t("risk.vol_spike"), value: `${vr.toFixed(1)}x` });
-  }
-
-  return alerts;
+function returnColor(v: number | null): string {
+  if (v == null) return "text-slate-400";
+  return v > 0 ? "text-emerald-400" : v < 0 ? "text-red-400" : "text-slate-400";
 }
 
-// ─── Tokyo market open check ─────────────────────────────────────────────────
-
-function isTokyoMarketOpen(): boolean {
-  const now = new Date();
-  const jst = new Date(now.getTime() + 9 * 3600 * 1000);
-  const dow  = jst.getUTCDay(); // 0=Sun, 6=Sat
-  if (dow === 0 || dow === 6) return false;
-  const mins = jst.getUTCHours() * 60 + jst.getUTCMinutes();
-  return (mins >= 9 * 60 && mins < 11 * 60 + 30) || (mins >= 12 * 60 + 30 && mins < 15 * 60 + 30);
+function fmtReturn(v: number | null): string {
+  if (v == null) return "—";
+  return `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
-// volumeRatio is reliable only after 15:30 JST (full-day volume vs 10-day avg is meaningful)
-// Before close, intraday partial volume / full-day avg is systematically understated.
-function isVolRatioReliable(): boolean {
-  const now = new Date();
-  const jst = new Date(now.getTime() + 9 * 3600 * 1000);
-  const dow = jst.getUTCDay();
-  if (dow === 0 || dow === 6) return false;
-  const mins = jst.getUTCHours() * 60 + jst.getUTCMinutes();
-  return mins >= 15 * 60 + 30;
+function fmtJPY(v: number): string {
+  return v.toLocaleString("ja-JP") + " JPY";
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+function fmtPct(v: number | null, dec = 2): string {
+  if (v == null) return "—";
+  return `${v > 0 ? "+" : ""}${v.toFixed(dec)}%`;
+}
 
-function RetBadge({ val, size = "xs" }: { val: number | null; size?: "xs" | "sm" }) {
-  if (val == null) return <span className="text-slate-300 text-xs">—</span>;
-  const up = val >= 0;
-  const cls = size === "sm" ? "text-sm font-bold" : "text-xs font-medium";
+// ── Rating badge ───────────────────────────────────────────────────────────────
+
+function RatingBadge({ rating }: { rating: string | null }) {
+  if (!rating) return <span className="text-slate-500 text-xs">—</span>;
+  const cls =
+    rating === "STRONG_BUY"
+      ? "bg-emerald-900/60 text-emerald-400"
+      : rating === "BUY"
+      ? "bg-blue-900/60 text-blue-400"
+      : "bg-slate-700 text-slate-400";
   return (
-    <span className={`tabular-nums ${cls} ${up ? "text-emerald-600" : "text-red-500"}`}>
-      {up ? "▲" : "▼"}{Math.abs(val).toFixed(2)}%
-    </span>
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cls}`}>{rating}</span>
   );
 }
 
-function fmtPrice(v: number | null): string {
-  if (v == null) return "—";
-  return `¥${v.toLocaleString()}`;
+// ── Suggestion badge ───────────────────────────────────────────────────────────
+
+function SuggestionBadge({ suggestion, t }: { suggestion: string; t: (k: MessageKey) => string }) {
+  const map: Record<string, { cls: string; labelKey: MessageKey }> = {
+    ADD:    { cls: "bg-emerald-900/60 text-emerald-400", labelKey: "portfolio.suggest_add" },
+    HOLD:   { cls: "bg-blue-900/60 text-blue-400",       labelKey: "portfolio.suggest_hold" },
+    REDUCE: { cls: "bg-yellow-900/60 text-yellow-400",   labelKey: "portfolio.suggest_reduce" },
+    SELL:   { cls: "bg-red-900/60 text-red-400",         labelKey: "portfolio.suggest_sell" },
+  };
+  const cfg = map[suggestion] ?? map["HOLD"];
+  return (
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.cls}`}>{t(cfg.labelKey)}</span>
+  );
 }
 
-function fmtNum(v: number | null, decimals = 1): string {
-  if (v == null) return "—";
-  return v.toFixed(decimals);
+// ── SVG Trend Chart ────────────────────────────────────────────────────────────
+
+const PORTFOLIO_SERIES = [
+  { key: "portfolioReturn" as const, color: "#60a5fa", dashed: false },
+  { key: "topixReturn"     as const, color: "#fb7185", dashed: true  },
+  { key: "alpha"           as const, color: "#34d399", dashed: false },
+] as const;
+
+function filterByWindow(points: TrendData["points"], window: WindowKey) {
+  if (window === "ALL" || points.length === 0) return points;
+  const days = window === "7D" ? 7 : window === "30D" ? 30 : 90;
+  const cutoff = new Date(Date.now() - days * 24 * 3600 * 1000);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return points.filter((p) => p.date >= cutoffStr);
 }
 
-// ─── Watchlist Tab ──────────────────────────────────────────────────────────
+function TrendChart({
+  data,
+  loading,
+  window: win,
+  t,
+}: {
+  data: TrendData | null;
+  loading: boolean;
+  window: WindowKey;
+  t: (k: MessageKey) => string;
+}) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-function WatchlistTab() {
-  const { t, lang } = useI18n();
-  const pathname = usePathname();
-  const [items, setItems] = useState<WatchItem[]>([]);
-  const [rtMap, setRtMap] = useState<Map<string, RealtimeData>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [rtLoading, setRtLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [addSymbol, setAddSymbol] = useState("");
-  const [addName, setAddName] = useState("");
-  const [addNote, setAddNote] = useState("");
-  const [addTarget, setAddTarget] = useState("");
-  const [addLoading, setAddLoading] = useState(false);
-  const symbolsRef = useRef<string[]>([]);
+  const rawPoints = data?.points ?? [];
+  const series = filterByWindow(rawPoints, win);
+  const N = series.length;
 
-  const loadRealtime = useCallback(async (symbols: string[]) => {
-    if (symbols.length === 0) return;
-    setRtLoading(true);
-    try {
-      const res = await fetch(`/api/realtime-market?symbols=${encodeURIComponent(symbols.join(","))}`);
-      if (!res.ok) throw new Error("fetch failed");
-      const data: RealtimeData[] = await res.json();
-      const map = new Map<string, RealtimeData>();
-      data.forEach((d) => { if (!("error" in d)) map.set(d.symbol, d); });
-      setRtMap(map);
-      setLastUpdated(new Date());
-    } catch {
-      // realtime fetch failed — still show static data
-    } finally {
-      setRtLoading(false);
-    }
-  }, []);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!svgRef.current || N < 2) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      const chartXPct = (pct * VW - M.left) / CW;
+      const idx = Math.max(0, Math.min(N - 1, Math.round(chartXPct * (N - 1))));
+      setHoverIdx(idx);
+    },
+    [N],
+  );
+  const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    fetch("/api/watchlist")
-      .then((r) => r.json())
-      .then((d: WatchItem[]) => {
-        setItems(d);
-        setLoading(false);
-        const syms = d.map((i) => i.symbol);
-        symbolsRef.current = syms;
-        loadRealtime(syms);
-      })
-      .catch(() => setLoading(false));
-  }, [loadRealtime]);
+  if (loading) return <div className="h-52 animate-pulse bg-slate-800/30 rounded-lg" />;
 
-  useEffect(() => { load(); }, [load]);
-
-  const handleRefresh = () => loadRealtime(symbolsRef.current);
-
-  const handleLookup = async () => {
-    if (!addSymbol) return;
-    const code = addSymbol.replace(/\.T$/i, "").padEnd(4, "0").slice(0, 4) + ".T";
-    const res = await fetch(`/api/stocks/${encodeURIComponent(code)}`);
-    if (res.ok) { const d = await res.json(); setAddName(d.name || ""); }
-  };
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addSymbol || !addName) return;
-    setAddLoading(true);
-    const code = addSymbol.replace(/\.T$/i, "").slice(0, 4) + ".T";
-    await fetch("/api/watchlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: code, name: addName, note: addNote || null, targetPrice: addTarget ? parseFloat(addTarget) : null }),
-    });
-    setAddLoading(false);
-    setShowAdd(false);
-    setAddSymbol(""); setAddName(""); setAddNote(""); setAddTarget("");
-    load();
-  };
-
-  const handleDelete = async (symbol: string) => {
-    setDeleting(symbol);
-    await fetch(`/api/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: "DELETE" });
-    setDeleting(null);
-    load();
-  };
-
-  // ─── Dashboard stats ────────────────────────────────────────────────────────
-
-  const rtList = items.map((i) => rtMap.get(i.symbol)).filter(Boolean) as RealtimeData[];
-  const upCount   = rtList.filter((r) => (r.changePct ?? 0) > 0).length;
-  const downCount = rtList.filter((r) => (r.changePct ?? 0) < 0).length;
-  const validChanges = rtList.map((r) => r.changePct).filter((v): v is number => v != null);
-  const avgChange = validChanges.length > 0
-    ? validChanges.reduce((a, b) => a + b, 0) / validChanges.length
-    : null;
-  const marketOpen = isTokyoMarketOpen();
-
-  // ─── Risk alerts ─────────────────────────────────────────────────────────────
-
-  const allRisks = items.flatMap((item) => {
-    const rt = rtMap.get(item.symbol);
-    const risks = computeRisks(rt, item.score, t);
-    return risks.map((r) => ({ ...r, symbol: item.symbol, name: getPrimaryName(item, lang) }));
-  });
-
-  // ─── Render ──────────────────────────────────────────────────────────────────
-
-  if (loading) {
+  if (N < 2) {
     return (
-      <div className="flex items-center justify-center h-40">
-        <div className="text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
+      <div className="h-52 flex items-center justify-center">
+        <span className="text-slate-500 text-sm">{t("portfolio.no_data")}</span>
       </div>
     );
   }
 
-  return (
-    <div>
-      {/* ── Dashboard header ── */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 mb-5 text-white">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xl font-bold">
-                {lang === "zh-CN" ? `共 ${items.length} 只` : lang === "ja-JP" ? `${items.length}銘柄` : `${items.length} Stocks`}
-              </span>
-              {rtList.length > 0 && (
-                <>
-                  <span className="text-emerald-400 text-sm font-medium">↑ {upCount} {t("dashboard.up")}</span>
-                  <span className="text-red-400 text-sm font-medium">↓ {downCount} {t("dashboard.down")}</span>
-                  {avgChange != null && (
-                    <span className={`text-sm font-medium ${avgChange >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                      {t("dashboard.avg_change")}: {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
-              <span className={marketOpen ? "text-emerald-400" : "text-slate-400"}>
-                {marketOpen ? t("dashboard.market_open") : t("dashboard.market_closed")}
-              </span>
-              {lastUpdated && (
-                <span>{t("dashboard.last_updated")}: {lastUpdated.toLocaleTimeString(lang === "en-US" ? "en-US" : lang === "ja-JP" ? "ja-JP" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={handleRefresh}
-            disabled={rtLoading}
-            className="text-xs bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg transition-colors shrink-0 flex items-center gap-1.5"
-          >
-            {rtLoading ? (
-              <span className="animate-spin inline-block w-3 h-3 border border-white border-t-transparent rounded-full" />
-            ) : "↻"}
-            {t("dashboard.refresh")}
-          </button>
-        </div>
-      </div>
+  const allVals: number[] = [];
+  for (const pt of series) {
+    for (const s of PORTFOLIO_SERIES) {
+      const v = pt[s.key];
+      if (v != null) allVals.push(v);
+    }
+  }
+  const rawMin = Math.min(0, ...allVals);
+  const rawMax = Math.max(0, ...allVals);
+  const pad = Math.max(0.5, (rawMax - rawMin) * 0.12);
+  const minY = rawMin - pad;
+  const maxY = rawMax + pad;
+  const rangeY = maxY - minY || 1;
 
-      {/* ── Risk alerts panel ── */}
-      {allRisks.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-amber-600 text-sm font-semibold">⚠ {t("dashboard.risk_section")} ({allRisks.length})</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {allRisks.slice(0, 8).map((r, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                  r.level === "danger"
-                    ? "bg-red-50 border border-red-200 text-red-700"
-                    : "bg-amber-50 border border-amber-200 text-amber-700"
-                }`}
-              >
-                {r.level === "danger" ? "⛔" : "⚠"} {r.name} · {r.label}{r.value ? ` (${r.value})` : ""}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+  const xPos = (i: number) => M.left + (i / Math.max(N - 1, 1)) * CW;
+  const yPos = (v: number) => M.top + CH * (1 - (v - minY) / rangeY);
+  const zeroY = yPos(0);
 
-      {/* ── Add button + form ── */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-slate-500">{items.length} {t("screener.result_count")}</div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          + {t("stock.add_watchlist")}
-        </button>
-      </div>
+  const yTicks = Array.from({ length: 5 }, (_, i) => minY + (i / 4) * rangeY);
+  const xStep = Math.max(1, Math.ceil(N / 6));
+  const xLabels = series
+    .map((pt, i) => ({ i, label: pt.date.slice(5) }))
+    .filter((_, i) => i === 0 || i % xStep === 0 || i === N - 1);
 
-      {showAdd && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
-          <h3 className="font-semibold text-slate-900 mb-3 text-sm">{t("stock.add_watchlist")}</h3>
-          <form onSubmit={handleAdd} className="space-y-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="4桁コード (例: 7203)"
-                value={addSymbol}
-                onChange={(e) => setAddSymbol(e.target.value)}
-                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-              />
-              <button type="button" onClick={handleLookup} className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg font-medium">
-                {t("common.search")}
-              </button>
-            </div>
-            <input
-              type="text"
-              placeholder={t("common.name")}
-              value={addName}
-              onChange={(e) => setAddName(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-            />
-            <div className="flex gap-3">
-              <button type="submit" disabled={addLoading || !addSymbol || !addName}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg disabled:opacity-40">
-                {t("stock.add_watchlist")}
-              </button>
-              <button type="button" onClick={() => setShowAdd(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 rounded-lg">
-                {t("common.close")}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* ── Empty state ── */}
-      {items.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-          <div className="text-4xl mb-3">★</div>
-          <div className="text-slate-700 font-medium mb-1">{t("watchlist.empty")}</div>
-          <Link href="/screener" className="text-sm text-blue-600 hover:underline">{t("page.go_screener")} →</Link>
-        </div>
-      ) : (
-        /* ── Stock cards grid ── */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {items.map((item) => {
-            const s  = item.score;
-            const rt = rtMap.get(item.symbol);
-            const rec = getRec(s?.effectiveRating);
-
-            // Price display: prefer realtime, fallback to StockScore
-            const displayPrice = rt?.price ?? s?.latestClose ?? null;
-            const displayChange = rt?.changePct ?? null;
-
-            // MA20 status
-            const ma20Status: "above" | "below" | null =
-              rt?.price != null && rt?.ma20 != null
-                ? rt.price >= rt.ma20 ? "above" : "below"
-                : null;
-
-            // 52w position %
-            const w52pos =
-              rt?.price != null && rt?.week52High != null && rt?.week52Low != null && rt.week52High > rt.week52Low
-                ? ((rt.price - rt.week52Low) / (rt.week52High - rt.week52Low)) * 100
-                : null;
-
-            const rsi = rt?.rsi14 ?? s?.rsi14 ?? null;
-
-            // Inline risk badges for the card
-            const risks = computeRisks(rt, s, t);
-            const targetHit = item.targetPrice != null && displayPrice != null ? displayPrice >= item.targetPrice : false;
-
-            return (
-              <div
-                key={item.symbol}
-                className={`bg-white rounded-xl border p-3 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 ${
-                  risks.some((r) => r.level === "danger")
-                    ? "border-red-200 hover:border-red-300"
-                    : risks.length > 0
-                    ? "border-amber-200 hover:border-amber-300"
-                    : "border-slate-200 hover:border-blue-200"
-                }`}
-              >
-                {/* ── Header row ── */}
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex-1 min-w-0">
-                    <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
-                      className="text-[14px] font-bold text-slate-900 hover:text-blue-600 leading-tight truncate block">
-                      {getPrimaryName(item, lang)}
-                    </Link>
-                    <div className="text-[10px] text-slate-400 font-mono">{item.symbol}</div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5 shrink-0">
-                    {s?.effectiveRating && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                        {t(`rating.${s.effectiveRating}` as Parameters<typeof t>[0])}
-                      </span>
-                    )}
-                    {s?.gptRank != null && (
-                      <span className="text-[10px] font-mono text-indigo-500">G#{s.gptRank}</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* ── Price row ── */}
-                <div className="flex items-end justify-between mb-2">
-                  <div>
-                    <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="font-bold text-slate-900 text-[15px] tabular-nums">{fmtPrice(displayPrice)}</span>
-                      {rt && <span className={`text-[10px] font-medium px-1 py-0.5 rounded ${displayChange != null && displayChange >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
-                        <RetBadge val={displayChange} />
-                      </span>}
-                    </div>
-                    {!rt && s && (
-                      <div className="text-[10px] text-slate-400">
-                        5D: <RetBadge val={s.return5d} /> 20D: <RetBadge val={s.return20d} />
-                      </div>
-                    )}
-                  </div>
-                  {s && (
-                    <div className="text-right shrink-0 ml-2">
-                      <div className={`text-xl font-bold tabular-nums ${finalScoreColor(s.finalScore)}`}>
-                        {Math.round(s.finalScore)}
-                      </div>
-                      <div className="text-[9px] text-slate-400">{t("score.final")}</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ── Realtime indicators row ── */}
-                {rt && (
-                  <div className="grid grid-cols-3 gap-1 mb-2 text-[10px]">
-                    <div className="bg-slate-50 rounded px-1.5 py-1">
-                      <span className="text-slate-400 block">RSI</span>
-                      <span className={`font-semibold tabular-nums ${rsi != null && rsi > 75 ? "text-amber-600" : rsi != null && rsi > 85 ? "text-red-600" : "text-slate-700"}`}>
-                        {rsi != null ? rsi.toFixed(1) : "—"}
-                      </span>
-                    </div>
-                    <div className="bg-slate-50 rounded px-1.5 py-1">
-                      <span className="text-slate-400 block">MA20</span>
-                      <span className={`font-semibold ${ma20Status === "above" ? "text-emerald-600" : ma20Status === "below" ? "text-red-600" : "text-slate-400"}`}>
-                        {ma20Status === "above" ? t("field.ma20_above") : ma20Status === "below" ? t("field.ma20_below") : "—"}
-                      </span>
-                    </div>
-                    <div className="bg-slate-50 rounded px-1.5 py-1">
-                      <span className="text-slate-400 block">{t("field.52w_pos")}</span>
-                      <span className="font-semibold text-slate-700 tabular-nums">
-                        {w52pos != null ? `${w52pos.toFixed(0)}%` : "—"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Volume row ── */}
-                {rt && (rt.volumeRatio != null || rt.turnoverRate != null) && (
-                  <div className="flex gap-3 text-[10px] mb-2 text-slate-500">
-                    {rt.volumeRatio != null && (
-                      <span title={t("field.vol_ratio.tip")} className="cursor-help">
-                        {t("field.vol_ratio")}: <b className={`text-slate-700 ${isVolRatioReliable() && rt.volumeRatio > 3 ? "text-amber-600" : ""}`}>{fmtNum(rt.volumeRatio)}x</b>
-                      </span>
-                    )}
-                    {rt.turnoverRate != null && (
-                      <span title={t("field.turnover.tip")} className="cursor-help">
-                        {t("field.turnover")}: <b className="text-slate-700">{fmtNum(rt.turnoverRate)}%</b>
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Risk badges inline ── */}
-                {risks.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {risks.slice(0, 3).map((r) => (
-                      <span
-                        key={r.key}
-                        className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
-                          r.level === "danger"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {r.level === "danger" ? "⛔" : "⚠"} {r.label}
-                        {r.value ? ` ${r.value}` : ""}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* ── Target price ── */}
-                {item.targetPrice != null && (
-                  <div className={`text-[10px] mb-1 ${targetHit ? "text-emerald-600 font-medium" : "text-slate-400"}`}>
-                    → {fmtPrice(item.targetPrice)}{targetHit && " ✓"}
-                  </div>
-                )}
-
-                {/* ── Footer ── */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                  {item.note && <p className="text-[10px] text-slate-400 truncate flex-1 mr-2">📝 {item.note}</p>}
-                  <div className="flex gap-1 ml-auto">
-                    <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
-                      className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors">
-                      →
-                    </Link>
-                    <button onClick={() => handleDelete(item.symbol)} disabled={deleting === item.symbol}
-                      className="text-xs text-red-400 hover:text-red-600 px-2 py-1 border border-red-100 hover:border-red-200 rounded-lg transition-colors disabled:opacity-40">
-                      {deleting === item.symbol ? "…" : "🗑"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Portfolio Tab ──────────────────────────────────────────────────────────
-
-type PortfolioScore = {
-  adaptiveScore: number | null;
-  finalScore: number;
-  gptScore: number | null;
-  gptRank: number | null;
-  gptRating: string | null;
-  effectiveRating: string;
-  recommendationV2: string | null;
-  latestClose: number | null;
-  return5d: number | null;
-  return20d: number | null;
-};
-
-type PortfolioItem = {
-  id: number;
-  symbol: string;
-  name: string;
-  shares: number;
-  avgPrice: number;
-  note: string | null;
-  currentPrice: number;
-  value: number;
-  pnl: number;
-  pnlRate: number;
-  stock: { price: number; changeRate: number | null; nameZh: string | null } | null;
-  score: PortfolioScore | null;
-};
-
-type PortfolioData = { items: PortfolioItem[]; totalValue: number; totalCost: number; totalPnl: number };
-
-function PortfolioTab() {
-  const { t, lang } = useI18n();
-  const pathname = usePathname();
-  const [data, setData] = useState<PortfolioData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ symbol: "", name: "", shares: "", avgPrice: "", note: "" });
-  const [saving, setSaving] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch("/api/portfolio");
-    setData(await res.json());
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    await fetch("/api/portfolio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-    setSaving(false);
-    setShowForm(false);
-    setForm({ symbol: "", name: "", shares: "", avgPrice: "", note: "" });
-    fetchData();
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("確認して削除しますか？")) return;
-    await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
-    fetchData();
-  };
-
-  const totalPnlRate = data && data.totalCost > 0 ? (data.totalPnl / data.totalCost) * 100 : 0;
+  const hovered = hoverIdx != null ? series[hoverIdx] : null;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-slate-500">{data?.items.length ?? 0} {t("screener.result_count")}</div>
-        <button onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors">
-          + {t("portfolio.title")}
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
-          <h3 className="font-semibold text-slate-900 mb-3 text-sm">{t("portfolio.title")}</h3>
-          <form onSubmit={handleAdd} className="grid grid-cols-2 gap-3">
-            {[
-              { key: "symbol", label: t("common.symbol"), placeholder: "7203.T" },
-              { key: "name",   label: t("common.name"),   placeholder: "トヨタ自動車" },
-            ].map(({ key, label, placeholder }) => (
-              <div key={key}>
-                <label className="text-xs text-slate-500 mb-1 block">{label} *</label>
-                <input value={form[key as keyof typeof form]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  placeholder={placeholder} required
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            ))}
-            {[
-              { key: "shares", label: "株数", placeholder: "100", type: "number" },
-              { key: "avgPrice", label: "取得単価 (¥)", placeholder: "2650", type: "number" },
-            ].map(({ key, label, placeholder, type }) => (
-              <div key={key}>
-                <label className="text-xs text-slate-500 mb-1 block">{label} *</label>
-                <input type={type} value={form[key as keyof typeof form]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  placeholder={placeholder} required min="0"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            ))}
-            <div className="col-span-2 flex gap-2 justify-end">
-              <button type="button" onClick={() => setShowForm(false)}
-                className="text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-                {t("common.close")}
-              </button>
-              <button type="submit" disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm px-4 py-2 rounded-lg font-medium">
-                {saving ? t("sync.syncing") : t("stock.add_watchlist")}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {data && (
-        <div className="grid grid-cols-4 gap-3 mb-5">
-          {[
-            { label: "総評価額",   value: `¥${Math.round(data.totalValue).toLocaleString()}`,   cls: "text-slate-900" },
-            { label: "取得コスト", value: `¥${Math.round(data.totalCost).toLocaleString()}`,    cls: "text-slate-900" },
-            { label: "評価損益",   value: `${data.totalPnl >= 0 ? "+" : ""}¥${Math.round(data.totalPnl).toLocaleString()}`, cls: data.totalPnl >= 0 ? "text-emerald-600" : "text-red-500" },
-            { label: "損益率",     value: `${totalPnlRate >= 0 ? "+" : ""}${totalPnlRate.toFixed(2)}%`, cls: totalPnlRate >= 0 ? "text-emerald-600" : "text-red-500" },
-          ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="text-xs text-slate-500 mb-1">{s.label}</div>
-              <div className={`text-xl font-bold tabular-nums ${s.cls}`}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="rounded-xl overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
-        ) : data?.items.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-sm">{t("portfolio.empty")}</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {data?.items.map((item) => {
-              const pnlUp = item.pnl >= 0;
-              const pnlCls = pnlUp ? "text-emerald-600" : "text-red-500";
-              const rec = getRec(item.score?.effectiveRating);
-              return (
-                <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-3 hover:border-blue-200 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)} className="block group">
-                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 truncate">
-                          {item.stock?.nameZh || item.name}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono">{item.symbol}</div>
-                      </Link>
-                    </div>
-                    {item.score && (
-                      <div className="text-right shrink-0 ml-1">
-                        <div className={`text-[15px] font-bold tabular-nums ${finalScoreColor(item.score.finalScore)}`}>
-                          {Math.round(item.score.finalScore)}
-                        </div>
-                        <div className={`text-[9px] font-bold ${rec.text}`}>{rec.label}</div>
-                        {item.score.gptRank != null && (
-                          <div className="text-[9px] font-mono text-indigo-500">G#{item.score.gptRank}</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-end justify-between mb-2">
-                    <div>
-                      <div className="text-[13px] font-bold text-slate-900 tabular-nums">
-                        ¥{item.currentPrice.toLocaleString()}
-                        {item.stock?.changeRate != null && (
-                          <span className={`ml-1.5 text-[10px] ${item.stock.changeRate >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                            {item.stock.changeRate >= 0 ? "▲" : "▼"}{Math.abs(item.stock.changeRate).toFixed(2)}%
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-400 tabular-nums">
-                        {item.shares.toLocaleString()}株 @ ¥{item.avgPrice.toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-[13px] font-bold tabular-nums ${pnlCls}`}>
-                        {pnlUp ? "+" : ""}¥{Math.round(item.pnl).toLocaleString()}
-                      </div>
-                      <div className={`text-[10px] tabular-nums ${pnlCls}`}>
-                        {pnlUp ? "+" : ""}{item.pnlRate.toFixed(2)}%
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                    <div className="text-[10px] text-slate-400 tabular-nums">
-                      {lang === "zh-CN" ? "评估额" : lang === "ja-JP" ? "評価額" : "Value"} ¥{Math.round(item.value).toLocaleString()}
-                    </div>
-                    <div className="flex gap-1">
-                      <Link href={buildStockUrl(item.symbol, "portfolio", pathname)}
-                        className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors">
-                        →
-                      </Link>
-                      <button onClick={() => handleDelete(item.id)}
-                        className="text-xs text-red-400 hover:text-red-600 px-2 py-1 border border-red-100 hover:border-red-200 rounded-lg transition-colors">
-                        🗑
-                      </button>
-                    </div>
-                  </div>
-                  {item.note && <div className="text-[10px] text-slate-400 mt-1.5 truncate">📝 {item.note}</div>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Price Alerts Tab ───────────────────────────────────────────────────────
-
-function PriceAlertsTab() {
-  const { t } = useI18n();
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-      <div className="text-4xl mb-3">🔔</div>
-      <div className="text-slate-700 font-medium mb-2">{t("tabs.priceAlerts")}</div>
-      <p className="text-sm text-slate-500 max-w-xs mx-auto">
-        {t("empty.retry")}
-      </p>
-    </div>
-  );
-}
-
-// ─── Main page ──────────────────────────────────────────────────────────────
-
-type Tab = "watchlist" | "portfolio" | "priceAlerts";
-
-export default function MyInvestmentsPage() {
-  const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<Tab>("watchlist");
-
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "watchlist",   label: t("tabs.watchlist") },
-    { key: "portfolio",   label: t("tabs.portfolio") },
-    { key: "priceAlerts", label: t("tabs.priceAlerts") },
-  ];
-
-  return (
-    <div className="p-4 md:p-6 max-w-5xl">
-      <div className="mb-5">
-        <h1 className="text-[28px] font-bold text-slate-900 leading-tight">{t("nav.myInvestments")}</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{t("tabs.watchlist")} · {t("tabs.portfolio")} · {t("tabs.priceAlerts")}</p>
-      </div>
-
-      <div className="flex gap-0 bg-slate-100 rounded-xl p-1 mb-6 w-fit">
-        {tabs.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === key
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            {label}
-          </button>
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-4 text-xs mb-2">
+        {PORTFOLIO_SERIES.map((s) => (
+          <span key={s.key} className="flex items-center gap-1.5">
+            {s.dashed ? (
+              <svg width="20" height="8" className="inline-block">
+                <line x1="0" y1="4" x2="20" y2="4" stroke={s.color} strokeWidth="1.5" strokeDasharray="4 2" />
+              </svg>
+            ) : (
+              <span className="w-5 h-0.5 inline-block rounded-full" style={{ background: s.color }} />
+            )}
+            <span className="text-slate-400">
+              {s.key === "portfolioReturn"
+                ? t("portfolio.trend_ai")
+                : s.key === "topixReturn"
+                ? "TOPIX ETF"
+                : "Alpha"}
+            </span>
+          </span>
         ))}
       </div>
 
-      {activeTab === "watchlist"   && <WatchlistTab />}
-      {activeTab === "portfolio"   && <PortfolioTab />}
-      {activeTab === "priceAlerts" && <PriceAlertsTab />}
+      {/* Hover tooltip */}
+      {hovered && (
+        <div className="flex gap-4 text-xs mb-1 text-slate-400">
+          <span className="font-mono">{hovered.date}</span>
+          <span className={returnColor(hovered.portfolioReturn)}>
+            {t("portfolio.trend_ai")}: {fmtReturn(hovered.portfolioReturn)}
+          </span>
+          {hovered.topixReturn != null && (
+            <span className={returnColor(hovered.topixReturn)}>
+              TOPIX ETF: {fmtReturn(hovered.topixReturn)}
+            </span>
+          )}
+          {hovered.alpha != null && (
+            <span className={returnColor(hovered.alpha)}>
+              Alpha: {fmtReturn(hovered.alpha)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* SVG */}
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${VW} ${VH}`}
+        className="w-full"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        {yTicks.map((v, i) => (
+          <g key={i}>
+            <line x1={M.left} y1={yPos(v)} x2={VW - M.right} y2={yPos(v)} stroke="#1e293b" strokeWidth="0.5" />
+            <text x={M.left - 5} y={yPos(v)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#64748b">
+              {v.toFixed(1)}%
+            </text>
+          </g>
+        ))}
+
+        <line x1={M.left} y1={zeroY} x2={VW - M.right} y2={zeroY} stroke="#475569" strokeWidth="1" strokeDasharray="4 3" />
+
+        {xLabels.map(({ i, label }) => (
+          <text key={i} x={xPos(i)} y={VH - 4} textAnchor="middle" fontSize="9" fill="#64748b">
+            {label}
+          </text>
+        ))}
+
+        {PORTFOLIO_SERIES.map(({ key, color, dashed }) => {
+          const pts = series
+            .map((pt, i) => {
+              const v = pt[key];
+              if (v == null) return null;
+              return `${xPos(i).toFixed(1)},${yPos(v).toFixed(1)}`;
+            })
+            .filter(Boolean);
+          if (pts.length < 2) return null;
+          return (
+            <polyline
+              key={key}
+              points={pts.join(" ")}
+              fill="none"
+              stroke={color}
+              strokeWidth={key === "alpha" ? "1" : "1.5"}
+              strokeDasharray={dashed ? "5 3" : undefined}
+              strokeOpacity={0.9}
+            />
+          );
+        })}
+
+        {/* Hover vertical line */}
+        {hoverIdx != null && (
+          <line
+            x1={xPos(hoverIdx)}
+            y1={M.top}
+            x2={xPos(hoverIdx)}
+            y2={VH - M.bottom}
+            stroke="#475569"
+            strokeWidth="1"
+            strokeDasharray="3 2"
+          />
+        )}
+      </svg>
+    </div>
+  );
+}
+
+// ── Summary Cards ──────────────────────────────────────────────────────────────
+
+function SummaryCard({
+  label,
+  value,
+  valueClass = "text-white",
+  sub,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+  sub?: string;
+}) {
+  return (
+    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40">
+      <div className="text-xs text-slate-400 mb-1">{label}</div>
+      <div className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</div>
+      {sub && <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+// ── Loading skeleton ───────────────────────────────────────────────────────────
+
+function Skeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-slate-800/50 rounded-xl h-20" />
+        ))}
+      </div>
+      <div className="bg-slate-800/50 rounded-xl h-64" />
+      <div className="bg-slate-800/50 rounded-xl h-48" />
+    </div>
+  );
+}
+
+// ── History table ──────────────────────────────────────────────────────────────
+
+function HistoryTable({ cohorts, t }: { cohorts: HistoryCohort[]; t: (k: MessageKey) => string }) {
+  if (cohorts.length === 0) return null;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-slate-700/50 text-xs text-slate-400">
+            <th className="text-left py-2 px-3">{t("table.date")}</th>
+            <th className="text-right py-2 px-3">{t("backtest.col_count")}</th>
+            <th className="text-right py-2 px-3">{t("portfolio.history_col_return7d")}</th>
+            <th className="text-right py-2 px-3">{t("portfolio.history_col_winrate")}</th>
+            <th className="text-right py-2 px-3">{t("portfolio.history_col_topix")}</th>
+            <th className="text-right py-2 px-3">{t("portfolio.history_col_alpha")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cohorts.map((row) => (
+            <tr key={row.date} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+              <td className="py-2 px-3 font-mono text-xs text-slate-300">{row.date}</td>
+              <td className="py-2 px-3 text-right text-slate-400">{row.count}</td>
+              <td className={`py-2 px-3 text-right tabular-nums text-xs ${returnColor(row.avgReturn7d)}`}>
+                {fmtReturn(row.avgReturn7d)}
+              </td>
+              <td className="py-2 px-3 text-right text-slate-400 text-xs">
+                {row.winRate7d != null ? `${row.winRate7d.toFixed(1)}%` : "—"}
+              </td>
+              <td className={`py-2 px-3 text-right tabular-nums text-xs ${returnColor(row.topixReturn7d)}`}>
+                {fmtReturn(row.topixReturn7d)}
+              </td>
+              <td className={`py-2 px-3 text-right tabular-nums text-xs font-medium ${returnColor(row.alpha7d)}`}>
+                {fmtReturn(row.alpha7d)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
+
+export default function PortfolioPage() {
+  const { t } = useI18n();
+
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [trend, setTrend] = useState<TrendData | null>(null);
+  const [history, setHistory] = useState<HistoryData | null>(null);
+
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingTrend, setLoadingTrend] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  const [errorSummary, setErrorSummary] = useState(false);
+  const [trendWindow, setTrendWindow] = useState<WindowKey>("ALL");
+
+  const fetchAll = useCallback(async () => {
+    setLoadingSummary(true);
+    setLoadingTrend(true);
+    setLoadingHistory(true);
+    setErrorSummary(false);
+
+    // Summary
+    fetch("/api/portfolio/summary")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d: PortfolioSummary) => { setSummary(d); setLoadingSummary(false); })
+      .catch(() => { setErrorSummary(true); setLoadingSummary(false); });
+
+    // Trend
+    fetch("/api/portfolio/trend")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d: TrendData) => { setTrend(d); setLoadingTrend(false); })
+      .catch(() => setLoadingTrend(false));
+
+    // History
+    fetch("/api/portfolio/history")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d: HistoryData) => { setHistory(d); setLoadingHistory(false); })
+      .catch(() => setLoadingHistory(false));
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Merge maxDrawdown from trend into summary cards
+  const maxDrawdown = trend?.maxDrawdown ?? null;
+
+  // Loading state
+  if (loadingSummary && !errorSummary) {
+    return (
+      <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
+          <p className="text-sm text-slate-400 mt-1">{t("portfolio.ai_subtitle")}</p>
+        </div>
+        <Skeleton />
+      </div>
+    );
+  }
+
+  // Error state
+  if (errorSummary && !summary) {
+    return (
+      <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
+        </div>
+        <div className="bg-[#1a2035] rounded-xl p-12 text-center border border-slate-700/40">
+          <div className="text-slate-400 mb-4">{t("portfolio.loading_error")}</div>
+          <button
+            onClick={fetchAll}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+          >
+            {t("portfolio.retry")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No data
+  if (!summary) {
+    return (
+      <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
+        </div>
+        <div className="bg-[#1a2035] rounded-xl p-12 text-center border border-slate-700/40">
+          <div className="text-slate-400">{t("portfolio.no_data")}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const windows: WindowKey[] = ["7D", "30D", "90D", "ALL"];
+
+  return (
+    <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{t("portfolio.ai_subtitle")}</p>
+        <p className="text-xs text-slate-500 mt-1 font-mono">{t("table.date")}: {summary.cohortDate}</p>
+      </div>
+
+      {/* 6 Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <SummaryCard
+          label={t("portfolio.current_assets")}
+          value={fmtJPY(summary.currentValue)}
+          sub={`${t("portfolio.ai_subtitle").split("·")[1]?.trim()}`}
+        />
+        <SummaryCard
+          label={t("portfolio.cumulative_return")}
+          value={fmtPct(summary.returnPct)}
+          valueClass={returnColor(summary.returnPct)}
+        />
+        <SummaryCard
+          label="TOPIX ETF"
+          value={fmtPct(summary.topixReturnPct)}
+          valueClass={returnColor(summary.topixReturnPct)}
+          sub="1306.T ETF"
+        />
+        <SummaryCard
+          label={t("portfolio.alpha")}
+          value={fmtPct(summary.alpha)}
+          valueClass={returnColor(summary.alpha)}
+          sub="Alpha"
+        />
+        <SummaryCard
+          label={t("backtest.win_rate")}
+          value={summary.winRate != null ? `${summary.winRate.toFixed(1)}%` : "—"}
+          valueClass="text-blue-400"
+        />
+        <SummaryCard
+          label={t("portfolio.max_drawdown")}
+          value={maxDrawdown != null ? `-${maxDrawdown.toFixed(2)}%` : loadingTrend ? "…" : "—"}
+          valueClass={maxDrawdown != null && maxDrawdown > 5 ? "text-red-400" : "text-slate-300"}
+        />
+      </div>
+
+      {/* Holdings Table */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
+        <div className="px-5 py-4 border-b border-slate-700/40">
+          <h2 className="text-base font-semibold text-white">{t("portfolio.holdings_title")}</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-700/40 text-xs text-slate-400">
+                <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
+                <th className="text-left py-2.5 px-3">{t("common.name")}</th>
+                <th className="text-right py-2.5 px-3">{t("portfolio.col_buy_price")}</th>
+                <th className="text-right py-2.5 px-3">{t("portfolio.col_current")}</th>
+                <th className="text-right py-2.5 px-3">{t("portfolio.cumulative_return")}</th>
+                <th className="text-right py-2.5 px-3">{t("portfolio.col_value")}</th>
+                <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
+                <th className="text-center py-2.5 px-3">{t("portfolio.col_suggestion")}</th>
+                <th className="text-right py-2.5 px-3">{t("portfolio.col_days")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.positions.map((pos) => (
+                <tr key={pos.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+                  <td className="py-2.5 px-4">
+                    <Link
+                      href={`/stocks/${encodeURIComponent(pos.symbol)}`}
+                      className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium"
+                    >
+                      {pos.symbol}
+                    </Link>
+                    <div className="text-[10px] text-slate-500 font-mono">#{pos.gptRank}</div>
+                  </td>
+                  <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[140px] truncate">
+                    {pos.name}
+                  </td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
+                    {pos.entryPrice != null ? `¥${pos.entryPrice.toLocaleString("ja-JP")}` : (
+                      <span className="text-slate-500">{t("portfolio.pending_entry")}</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200">
+                    {pos.currentPrice != null ? `¥${pos.currentPrice.toLocaleString("ja-JP")}` : "—"}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right tabular-nums text-xs font-medium ${returnColor(pos.returnPct)}`}>
+                    {fmtReturn(pos.returnPct)}
+                  </td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
+                    {pos.currentValue != null ? `¥${Math.round(pos.currentValue).toLocaleString("ja-JP")}` : "—"}
+                  </td>
+                  <td className="py-2.5 px-3 text-center">
+                    <RatingBadge rating={pos.gptRating} />
+                  </td>
+                  <td className="py-2.5 px-3 text-center">
+                    <SuggestionBadge suggestion={pos.aiSuggestion} t={t} />
+                  </td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-500">
+                    {pos.daysHeld != null ? pos.daysHeld : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Trend Chart */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
+        <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-base font-semibold text-white">{t("portfolio.trend_title")}</h2>
+          <div className="flex gap-1">
+            {windows.map((w) => (
+              <button
+                key={w}
+                onClick={() => setTrendWindow(w)}
+                className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  trendWindow === w
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-700/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+                }`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="px-5 py-4">
+          <TrendChart
+            data={trend}
+            loading={loadingTrend}
+            window={trendWindow}
+            t={t}
+          />
+        </div>
+      </div>
+
+      {/* History Table */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+        <div className="px-5 py-4 border-b border-slate-700/40">
+          <h2 className="text-base font-semibold text-white">{t("portfolio.history_title")}</h2>
+        </div>
+        <div className="px-2 py-2">
+          {loadingHistory ? (
+            <div className="p-6 text-center text-slate-500 text-sm animate-pulse">{t("common.loading")}</div>
+          ) : history && history.cohorts.length > 0 ? (
+            <HistoryTable cohorts={history.cohorts} t={t} />
+          ) : (
+            <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.no_data")}</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

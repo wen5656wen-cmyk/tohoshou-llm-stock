@@ -444,6 +444,28 @@ async function main() {
     value: inconsistent === 0 ? "OK" : `${inconsistent} invalid`, pass: inconsistent === 0,
   });
 
+  // ── Portfolio Health (v11.0) ──────────────────────────────────────────────
+  const [top10Count, portfolioLatest] = await Promise.all([
+    prisma.dailyRecommendation.count({ where: { gptRank: { lte: 10 } } }),
+    prisma.dailyRecommendation.findFirst({ orderBy: { date: "desc" }, select: { date: true } }),
+  ]);
+
+  let portfolioPriceOk = false;
+  if (portfolioLatest) {
+    const recs = await prisma.dailyRecommendation.findMany({
+      where: { date: portfolioLatest.date, gptRank: { lte: 10 } },
+      select: { symbol: true, entryPrice: true, buyPrice: true },
+    });
+    const withPrice = recs.filter(r => (r.entryPrice ?? r.buyPrice) != null);
+    portfolioPriceOk = withPrice.length >= 5;
+  }
+
+  const top10BacktestCount = await prisma.backtestResult.count({ where: { portfolioSize: "TOP10" } });
+
+  add({ id: "portfolio_top10", level: "WARNING", name: "Portfolio Top10 positions exist", value: top10Count, pass: top10Count > 0 });
+  add({ id: "portfolio_value", level: "WARNING", name: "Portfolio Value computable (≥5 prices)", value: portfolioPriceOk ? "OK" : "FAIL", pass: portfolioPriceOk });
+  add({ id: "portfolio_backtest", level: "INFO", name: "Portfolio BacktestResult (TOP10) exists", value: top10BacktestCount, pass: top10BacktestCount > 0 });
+
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const criticals = checks.filter(c => !c.pass && c.level === "CRITICAL");
   const warnings  = checks.filter(c => !c.pass && c.level === "WARNING");
