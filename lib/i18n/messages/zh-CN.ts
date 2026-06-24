@@ -314,6 +314,16 @@ const zhCN: Messages = {
   "portfolio.cohort_date_label": "推荐日期",
   "portfolio.system_subtitle": "系统AI组合（每日 Top10 等权模拟）",
   "portfolio.coming_soon": "即将推出",
+  "portfolio.wl_empty_title": "还没有加入自选股",
+  "portfolio.wl_empty_btn": "去股票列表添加",
+  "portfolio.wl_section_ranking": "AI评分排序",
+  "portfolio.wl_section_simulate": "模拟建仓",
+  "portfolio.wl_section_adjust": "调仓建议",
+  "portfolio.wl_suggest_buy": "建议纳入",
+  "portfolio.wl_suggest_watch": "继续观察",
+  "portfolio.wl_suggest_sell": "建议剔除",
+  "portfolio.wl_suggest_pending": "待评分",
+  "portfolio.wl_simulate_rule": "从自选股中选 BUY / STRONG_BUY，最多 Top10 等权",
 
   // Notifications
   "notif.title": "通知管理",

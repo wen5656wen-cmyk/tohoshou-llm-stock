@@ -314,6 +314,16 @@ const jaJP: Messages = {
   "portfolio.cohort_date_label": "推奨日",
   "portfolio.system_subtitle": "AIシステム組合（毎日Top10等重み模擬）",
   "portfolio.coming_soon": "近日公開",
+  "portfolio.wl_empty_title": "ウォッチリストに銘柄がありません",
+  "portfolio.wl_empty_btn": "銘柄リストへ",
+  "portfolio.wl_section_ranking": "AIスコアランキング",
+  "portfolio.wl_section_simulate": "模擬建玉",
+  "portfolio.wl_section_adjust": "リバランスシグナル",
+  "portfolio.wl_suggest_buy": "買い推奨",
+  "portfolio.wl_suggest_watch": "様子見",
+  "portfolio.wl_suggest_sell": "売り推奨",
+  "portfolio.wl_suggest_pending": "評価中",
+  "portfolio.wl_simulate_rule": "ウォッチリストからBUY/STRONG_BUYを選択、最大Top10等重み",
 
   // Notifications
   "notif.title": "通知設定",

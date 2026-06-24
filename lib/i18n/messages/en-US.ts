@@ -314,6 +314,16 @@ const enUS: Messages = {
   "portfolio.cohort_date_label": "Rec Date",
   "portfolio.system_subtitle": "AI System Portfolio (Daily Top10 Equal-Weight)",
   "portfolio.coming_soon": "Coming Soon",
+  "portfolio.wl_empty_title": "No stocks in your watchlist",
+  "portfolio.wl_empty_btn": "Browse Stock List",
+  "portfolio.wl_section_ranking": "AI Score Ranking",
+  "portfolio.wl_section_simulate": "Simulated Positions",
+  "portfolio.wl_section_adjust": "Rebalancing Signals",
+  "portfolio.wl_suggest_buy": "Buy Signal",
+  "portfolio.wl_suggest_watch": "Hold & Watch",
+  "portfolio.wl_suggest_sell": "Exit Signal",
+  "portfolio.wl_suggest_pending": "Pending",
+  "portfolio.wl_simulate_rule": "Select BUY / STRONG_BUY from watchlist, equal-weight Top10",
 
   // Notifications
   "notif.title": "Alerts",

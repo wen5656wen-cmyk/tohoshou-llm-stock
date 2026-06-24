@@ -8,6 +8,31 @@ import type { PortfolioSummary } from "@/app/api/portfolio/summary/route";
 import type { TrendData } from "@/app/api/portfolio/trend/route";
 import type { HistoryData, HistoryCohort } from "@/app/api/portfolio/history/route";
 
+// ── Watchlist types ────────────────────────────────────────────────────────────
+
+type WlScore = {
+  latestClose: number | null;
+  finalScore: number;
+  adaptiveScore: number | null;
+  technicalScore: number | null;
+  fundamentalScore: number | null;
+  newsSentimentScore: number | null;
+  effectiveRating: string | null;
+  recommendationV2: string | null;
+  return5d: number | null;
+  return20d: number | null;
+  percentileRank: number | null;
+};
+
+type WatchlistItem = {
+  id: number;
+  symbol: string;
+  name: string;
+  nameZh: string | null;
+  addedAt: string;
+  score: WlScore | null;
+};
+
 // ── Chart constants ────────────────────────────────────────────────────────────
 
 const M = { top: 28, right: 20, bottom: 34, left: 54 };
@@ -325,30 +350,238 @@ function HistoryTable({ cohorts, t }: { cohorts: HistoryCohort[]; t: (k: Message
   );
 }
 
-// ── Watchlist Coming Soon ──────────────────────────────────────────────────────
+// ── Watchlist suggestion badge ─────────────────────────────────────────────────
 
-function WatchlistPanel({ t }: { t: (k: MessageKey) => string }) {
+const BUY_RATINGS = new Set(["STRONG_BUY", "BUY"]);
+const INITIAL_CAPITAL_WL = 100_000_000;
+
+function wlSuggestion(rating: string | null): { labelKey: MessageKey; cls: string } {
+  if (rating === "STRONG_BUY" || rating === "BUY")
+    return { labelKey: "portfolio.wl_suggest_buy",     cls: "bg-emerald-900/60 text-emerald-400" };
+  if (rating === "HOLD")
+    return { labelKey: "portfolio.suggest_hold",        cls: "bg-blue-900/60 text-blue-400" };
+  if (rating === "WATCH")
+    return { labelKey: "portfolio.wl_suggest_watch",   cls: "bg-yellow-900/60 text-yellow-400" };
+  if (rating === "AVOID" || rating === "SELL")
+    return { labelKey: "portfolio.wl_suggest_sell",    cls: "bg-red-900/60 text-red-400" };
+  return   { labelKey: "portfolio.wl_suggest_pending", cls: "bg-slate-700 text-slate-400" };
+}
+
+// ── Watchlist Portfolio Panel ──────────────────────────────────────────────────
+
+function WatchlistPanel({
+  items, loading, t,
+}: {
+  items: WatchlistItem[] | null;
+  loading: boolean;
+  t: (k: MessageKey) => string;
+}) {
+  if (loading) {
+    return (
+      <div className="animate-pulse space-y-4">
+        <div className="bg-slate-800/50 rounded-xl h-48" />
+        <div className="bg-slate-800/50 rounded-xl h-64" />
+      </div>
+    );
+  }
+
+  // ── Empty state ──────────────────────────────────────────────────────────────
+  if (!items || items.length === 0) {
+    return (
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-14 text-center">
+        <div className="text-4xl mb-4 text-slate-600">☆</div>
+        <div className="text-white font-medium mb-2">{t("portfolio.wl_empty_title")}</div>
+        <p className="text-slate-500 text-xs mb-6">{t("portfolio.tab_watchlist_desc")}</p>
+        <Link
+          href="/stocks"
+          className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          {t("portfolio.wl_empty_btn")} →
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Simulate positions ───────────────────────────────────────────────────────
+  const eligible = items
+    .filter((w) => w.score && BUY_RATINGS.has(w.score.effectiveRating ?? ""))
+    .slice(0, 10);
+  const simItems = eligible.length >= 2 ? eligible : items.slice(0, Math.min(10, items.length));
+  const alloc = INITIAL_CAPITAL_WL / simItems.length;
+
+  const positions = simItems
+    .map((w) => {
+      const price = w.score?.latestClose ?? null;
+      const shares = price && price > 0 ? Math.floor(alloc / price) : 0;
+      return { ...w, shares, marketValue: shares * (price ?? 0) };
+    })
+    .filter((p) => p.shares > 0);
+
+  const totalMarketValue = positions.reduce((s, p) => s + p.marketValue, 0);
+  const cash = INITIAL_CAPITAL_WL - totalMarketValue;
+
+  const ratingLabel = (r: string | null) => {
+    const map: Record<string, string> = {
+      STRONG_BUY: "STRONG_BUY", BUY: "BUY", HOLD: "HOLD", WATCH: "WATCH", AVOID: "AVOID",
+    };
+    return r ? (map[r] ?? r) : "—";
+  };
+
   return (
     <div className="space-y-4">
-      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-10 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-blue-900/30 border border-blue-700/40 flex items-center justify-center mx-auto mb-5 text-2xl">
-          ◈
+      {/* ── A. AI评分排序 ─────────────────────────────────────────────────────── */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+        <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-white">{t("portfolio.wl_section_ranking")}</h2>
+          <span className="text-xs text-slate-500">{items.length} 支自选股</span>
         </div>
-        <div className="text-lg font-semibold text-white mb-2">{t("portfolio.tab_watchlist")}</div>
-        <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed mb-6">
-          {t("portfolio.tab_watchlist_desc")}
-        </p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/80 rounded-full text-slate-400 text-xs border border-slate-700/60">
-          ⏳ {t("portfolio.coming_soon")}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-700/40 text-xs text-slate-400">
+                <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
+                <th className="text-left py-2.5 px-3">{t("common.name")}</th>
+                <th className="text-right py-2.5 px-3">AI评分</th>
+                <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
+                <th className="text-right py-2.5 px-3">技术</th>
+                <th className="text-right py-2.5 px-3">基本面</th>
+                <th className="text-right py-2.5 px-3">5D</th>
+                <th className="text-right py-2.5 px-3">20D</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((w) => (
+                <tr key={w.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+                  <td className="py-2.5 px-4">
+                    <Link href={`/stocks/${encodeURIComponent(w.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium">
+                      {w.symbol}
+                    </Link>
+                  </td>
+                  <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[120px] truncate">
+                    {w.nameZh ?? w.name}
+                  </td>
+                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200 font-medium">
+                    {w.score ? w.score.finalScore.toFixed(1) : "—"}
+                  </td>
+                  <td className="py-2.5 px-3 text-center">
+                    {w.score?.effectiveRating ? (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wlSuggestion(w.score.effectiveRating).cls}`}>
+                        {ratingLabel(w.score.effectiveRating)}
+                      </span>
+                    ) : <span className="text-slate-500 text-xs">—</span>}
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-xs text-slate-300 tabular-nums">
+                    {w.score?.technicalScore?.toFixed(0) ?? "—"}
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-xs text-slate-300 tabular-nums">
+                    {w.score?.fundamentalScore?.toFixed(0) ?? "—"}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right tabular-nums text-xs ${returnColor(w.score?.return5d ?? null)}`}>
+                    {w.score?.return5d != null ? `${w.score.return5d > 0 ? "+" : ""}${w.score.return5d.toFixed(1)}%` : "—"}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right tabular-nums text-xs ${returnColor(w.score?.return20d ?? null)}`}>
+                    {w.score?.return20d != null ? `${w.score.return20d > 0 ? "+" : ""}${w.score.return20d.toFixed(1)}%` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {["AI评分排序", "模拟建仓", "调仓建议"].map((feature) => (
-          <div key={feature} className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 opacity-50">
-            <div className="text-xs text-slate-500 font-medium">{feature}</div>
-            <div className="text-slate-600 text-xs mt-1">即将推出</div>
+
+      {/* ── B. 模拟建仓 ───────────────────────────────────────────────────────── */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+        <div className="px-5 py-4 border-b border-slate-700/40">
+          <h2 className="text-base font-semibold text-white">{t("portfolio.wl_section_simulate")}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {t("portfolio.initial_capital_label")} {fmtNum(INITIAL_CAPITAL_WL)} · {t("portfolio.wl_simulate_rule")}
+          </p>
+        </div>
+        {positions.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 text-sm">
+            自选股中暂无 BUY / STRONG_BUY 评级的股票，无法模拟建仓
           </div>
-        ))}
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700/40 text-xs text-slate-400">
+                    <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
+                    <th className="text-left py-2.5 px-3">{t("common.name")}</th>
+                    <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
+                    <th className="text-right py-2.5 px-3">现价</th>
+                    <th className="text-right py-2.5 px-3">仓位</th>
+                    <th className="text-right py-2.5 px-3">股数</th>
+                    <th className="text-right py-2.5 px-3">市值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map((p) => (
+                    <tr key={p.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+                      <td className="py-2.5 px-4">
+                        <Link href={`/stocks/${encodeURIComponent(p.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium">
+                          {p.symbol}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[120px] truncate">
+                        {p.nameZh ?? p.name}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wlSuggestion(p.score?.effectiveRating ?? null).cls}`}>
+                          {ratingLabel(p.score?.effectiveRating ?? null)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200">
+                        {p.score?.latestClose != null ? `¥${p.score.latestClose.toLocaleString("ja-JP")}` : "—"}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-400">
+                        {fmtNum(Math.round(alloc))}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
+                        {p.shares.toLocaleString("ja-JP")}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200 font-medium">
+                        {fmtNum(Math.round(p.marketValue))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-5 py-3 border-t border-slate-700/40 flex flex-wrap gap-6 text-xs text-slate-500">
+              <span>已建仓：<span className="text-slate-200 font-medium">{fmtNum(Math.round(totalMarketValue))}</span></span>
+              <span>现金：<span className="text-slate-400">{fmtNum(Math.round(cash))}</span></span>
+              <span>持仓股数：<span className="text-slate-300">{positions.length}</span></span>
+              <span className="ml-auto italic">{t("portfolio.simulate_disclaimer")}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── C. 调仓建议 ───────────────────────────────────────────────────────── */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+        <div className="px-5 py-4 border-b border-slate-700/40">
+          <h2 className="text-base font-semibold text-white">{t("portfolio.wl_section_adjust")}</h2>
+        </div>
+        <div className="divide-y divide-slate-700/20">
+          {items.map((w) => {
+            const sugg = wlSuggestion(w.score?.effectiveRating ?? null);
+            return (
+              <div key={w.symbol} className="flex items-center justify-between px-5 py-3 hover:bg-slate-800/30 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Link href={`/stocks/${encodeURIComponent(w.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium">
+                    {w.symbol}
+                  </Link>
+                  <span className="text-xs text-slate-300 max-w-[180px] truncate">{w.nameZh ?? w.name}</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${sugg.cls}`}>
+                  {t(sugg.labelKey)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -370,6 +603,11 @@ export default function PortfolioPage() {
   const [errorSummary, setErrorSummary] = useState(false);
 
   const [trendWindow, setTrendWindow] = useState<WindowKey>("ALL");
+
+  // Watchlist portfolio state
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[] | null>(null);
+  const [loadingWatchlist, setLoadingWatchlist] = useState(false);
+  const [watchlistLoaded, setWatchlistLoaded] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoadingSummary(true);
@@ -393,7 +631,20 @@ export default function PortfolioPage() {
       .catch(() => setLoadingHistory(false));
   }, []);
 
+  const fetchWatchlist = useCallback(() => {
+    setLoadingWatchlist(true);
+    fetch("/api/watchlist")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d: WatchlistItem[]) => { setWatchlistItems(d); setWatchlistLoaded(true); setLoadingWatchlist(false); })
+      .catch(() => { setWatchlistItems([]); setWatchlistLoaded(true); setLoadingWatchlist(false); });
+  }, []);
+
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Lazy-load watchlist data on first tab switch
+  useEffect(() => {
+    if (activeTab === "watchlist" && !watchlistLoaded) fetchWatchlist();
+  }, [activeTab, watchlistLoaded, fetchWatchlist]);
 
   const maxDrawdown = trend?.maxDrawdown ?? null;
   const windows: WindowKey[] = ["7D", "30D", "90D", "ALL"];
@@ -624,7 +875,9 @@ export default function PortfolioPage() {
       )}
 
       {/* ── My Watchlist Portfolio ────────────────────────────────────────────── */}
-      {activeTab === "watchlist" && <WatchlistPanel t={t} />}
+      {activeTab === "watchlist" && (
+        <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} />
+      )}
     </div>
   );
 }

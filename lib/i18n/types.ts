@@ -337,6 +337,16 @@ export type Messages = {
   "portfolio.cohort_date_label": string;
   "portfolio.system_subtitle": string;
   "portfolio.coming_soon": string;
+  "portfolio.wl_empty_title": string;
+  "portfolio.wl_empty_btn": string;
+  "portfolio.wl_section_ranking": string;
+  "portfolio.wl_section_simulate": string;
+  "portfolio.wl_section_adjust": string;
+  "portfolio.wl_suggest_buy": string;
+  "portfolio.wl_suggest_watch": string;
+  "portfolio.wl_suggest_sell": string;
+  "portfolio.wl_suggest_pending": string;
+  "portfolio.wl_simulate_rule": string;
 
   // ─── Notifications ─────────────────────────────────────────────────────────
   "notif.title": string;
