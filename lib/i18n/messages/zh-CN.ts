@@ -631,6 +631,17 @@ const zhCN: Messages = {
   "backtest.trend_hint": "移动鼠标查看各日期各组合收益",
   "backtest.error_load": "回测数据加载失败，请稍后重试",
   "backtest.retry": "重试",
+  "backtest.summary_ai_return": "AI组合收益",
+  "backtest.summary_topix": "TOPIX基准",
+  "backtest.summary_alpha": "超额Alpha",
+  "backtest.summary_winrate": "胜率",
+  "backtest.summary_recs": "推荐股票",
+  "backtest.summary_updated": "最近记录",
+  "backtest.cohort_title": "各期回测明细",
+  "backtest.col_count": "推荐数",
+  "backtest.col_date": "日期",
+  "backtest.col_alpha": "Alpha",
+  "backtest.cohort_pending": "待计算",
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": "上涨",

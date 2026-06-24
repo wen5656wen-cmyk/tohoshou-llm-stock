@@ -631,6 +631,17 @@ const enUS: Messages = {
   "backtest.trend_hint": "Hover to view returns by date",
   "backtest.error_load": "Failed to load backtest data. Please try again later.",
   "backtest.retry": "Retry",
+  "backtest.summary_ai_return": "AI Portfolio",
+  "backtest.summary_topix": "TOPIX Benchmark",
+  "backtest.summary_alpha": "Alpha",
+  "backtest.summary_winrate": "Win Rate",
+  "backtest.summary_recs": "Total Picks",
+  "backtest.summary_updated": "Last record",
+  "backtest.cohort_title": "Cohort History",
+  "backtest.col_count": "Count",
+  "backtest.col_date": "Date",
+  "backtest.col_alpha": "Alpha",
+  "backtest.cohort_pending": "Pending",
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": "Up",

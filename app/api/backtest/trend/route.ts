@@ -9,6 +9,7 @@ export type TrendPoint = {
   TOP50: number | null;
   TOP100: number | null;
   ALL: number | null;
+  topix: number | null;
 };
 
 export type TrendData = {
@@ -30,20 +31,23 @@ export async function GET(req: Request) {
     const rows = await prisma.backtestResult.findMany({
       where: { horizon, portfolioSize: { in: [...TREND_SIZES] } },
       orderBy: { date: "asc" },
-      select: { date: true, portfolioSize: true, avgReturn: true },
+      select: { date: true, portfolioSize: true, avgReturn: true, benchmarkTopixReturn: true },
     });
 
     const dateMap = new Map<string, TrendPoint>();
     for (const row of rows) {
       const dateStr = row.date.toISOString().slice(0, 10);
       if (!dateMap.has(dateStr)) {
-        dateMap.set(dateStr, { date: dateStr, TOP10: null, TOP50: null, TOP100: null, ALL: null });
+        dateMap.set(dateStr, { date: dateStr, TOP10: null, TOP50: null, TOP100: null, ALL: null, topix: null });
       }
       const pt = dateMap.get(dateStr)!;
       if (row.portfolioSize === "TOP10")  pt.TOP10  = row.avgReturn;
       if (row.portfolioSize === "TOP50")  pt.TOP50  = row.avgReturn;
       if (row.portfolioSize === "TOP100") pt.TOP100 = row.avgReturn;
-      if (row.portfolioSize === "ALL")    pt.ALL    = row.avgReturn;
+      if (row.portfolioSize === "ALL") {
+        pt.ALL   = row.avgReturn;
+        pt.topix = row.benchmarkTopixReturn;
+      }
     }
 
     return NextResponse.json<TrendData>({ horizon, series: Array.from(dateMap.values()) });

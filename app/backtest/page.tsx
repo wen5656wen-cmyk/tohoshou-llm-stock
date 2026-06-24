@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { fmtJpy } from "@/lib/rec-config";
+import type { BacktestHealthData } from "@/app/api/backtest/health/route";
+import type { CohortsData, CohortStat } from "@/app/api/backtest/cohorts/route";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,6 +63,7 @@ type TrendPoint = {
   TOP50: number | null;
   TOP100: number | null;
   ALL: number | null;
+  topix: number | null;
 };
 
 type TrendData = {
@@ -75,6 +78,7 @@ const CHART_SERIES = [
   { key: "TOP50"  as const, label: "TOP50",   color: "#34d399" },
   { key: "TOP100" as const, label: "TOP100",  color: "#fbbf24" },
   { key: "ALL"    as const, label: "ALL≈500", color: "#a78bfa" },
+  { key: "topix"  as const, label: "TOPIX",   color: "#fb7185" },
 ] as const;
 
 const M = { top: 28, right: 20, bottom: 34, left: 50 };
@@ -90,8 +94,7 @@ function groupWeekly(series: TrendPoint[]): TrendPoint[] {
   const map = new Map<string, TrendPoint[]>();
   for (const pt of series) {
     const d = new Date(pt.date);
-    // Monday-based ISO week key: YYYY-Www
-    const dayOfWeek = (d.getUTCDay() + 6) % 7; // Mon=0, Sun=6
+    const dayOfWeek = (d.getUTCDay() + 6) % 7;
     const monday = new Date(d);
     monday.setUTCDate(d.getUTCDate() - dayOfWeek);
     const key = monday.toISOString().slice(0, 10);
@@ -109,8 +112,19 @@ function groupWeekly(series: TrendPoint[]): TrendPoint[] {
       TOP50:  avg(pts.map((p) => p.TOP50)),
       TOP100: avg(pts.map((p) => p.TOP100)),
       ALL:    avg(pts.map((p) => p.ALL)),
+      topix:  avg(pts.map((p) => p.topix)),
     };
   });
+}
+
+function returnColor(v: number | null): string {
+  if (v == null) return "text-slate-500";
+  return v > 0 ? "text-emerald-400" : v < 0 ? "text-red-400" : "text-slate-400";
+}
+
+function fmtReturn(v: number | null): string {
+  if (v == null) return "—";
+  return `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
 // ── SVG Trend Chart ───────────────────────────────────────────────────────────
@@ -157,7 +171,6 @@ function TrendChart({
     );
   }
 
-  // Y scale
   const allVals: number[] = [];
   for (const pt of series) {
     for (const s of CHART_SERIES) {
@@ -176,10 +189,7 @@ function TrendChart({
   const yPos = (v: number) => M.top + CH * (1 - (v - minY) / rangeY);
   const zeroY = yPos(0);
 
-  // 5 Y ticks
   const yTicks = Array.from({ length: 5 }, (_, i) => minY + (i / 4) * rangeY);
-
-  // ~6 X labels
   const xStep = Math.max(1, Math.ceil(N / 6));
   const xLabels = series
     .map((pt, i) => ({ i, label: pt.date.slice(5) }))
@@ -193,7 +203,13 @@ function TrendChart({
       <div className="flex flex-wrap items-center gap-4 text-xs mb-2">
         {CHART_SERIES.map(({ key, label, color }) => (
           <span key={key} className="flex items-center gap-1.5">
-            <span className="w-5 h-0.5 inline-block rounded-full" style={{ background: color }} />
+            {key === "topix" ? (
+              <svg width="20" height="8" className="inline-block">
+                <line x1="0" y1="4" x2="20" y2="4" stroke={color} strokeWidth="1.5" strokeDasharray="4 2" />
+              </svg>
+            ) : (
+              <span className="w-5 h-0.5 inline-block rounded-full" style={{ background: color }} />
+            )}
             <span className="text-slate-400">{label}</span>
           </span>
         ))}
@@ -207,34 +223,23 @@ function TrendChart({
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Y grid */}
         {yTicks.map((v, i) => (
           <g key={i}>
-            <line
-              x1={M.left} y1={yPos(v)} x2={VW - M.right} y2={yPos(v)}
-              stroke="#1e293b" strokeWidth="0.5"
-            />
-            <text x={M.left - 5} y={yPos(v)} textAnchor="end" dominantBaseline="middle"
-              fontSize="10" fill="#64748b">
+            <line x1={M.left} y1={yPos(v)} x2={VW - M.right} y2={yPos(v)} stroke="#1e293b" strokeWidth="0.5" />
+            <text x={M.left - 5} y={yPos(v)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#64748b">
               {v.toFixed(1)}%
             </text>
           </g>
         ))}
 
-        {/* Zero baseline */}
-        <line
-          x1={M.left} y1={zeroY} x2={VW - M.right} y2={zeroY}
-          stroke="#475569" strokeWidth="1" strokeDasharray="4 3"
-        />
+        <line x1={M.left} y1={zeroY} x2={VW - M.right} y2={zeroY} stroke="#475569" strokeWidth="1" strokeDasharray="4 3" />
 
-        {/* X labels */}
         {xLabels.map(({ i, label }) => (
           <text key={i} x={xPos(i)} y={VH - 4} textAnchor="middle" fontSize="9" fill="#64748b">
             {label}
           </text>
         ))}
 
-        {/* Series lines */}
         {CHART_SERIES.map(({ key, color }) => {
           let d = "";
           for (let i = 0; i < N; i++) {
@@ -246,30 +251,30 @@ function TrendChart({
           if (!d) return null;
           return (
             <path
-              key={key} d={d.trim()}
-              fill="none" stroke={color} strokeWidth="1.8"
-              strokeLinejoin="round" strokeLinecap="round"
+              key={key}
+              d={d.trim()}
+              fill="none"
+              stroke={color}
+              strokeWidth={key === "topix" ? 1.4 : 1.8}
+              strokeDasharray={key === "topix" ? "5 3" : undefined}
+              strokeLinejoin="round"
+              strokeLinecap="round"
               opacity={hoverIdx != null ? 0.65 : 1}
             />
           );
         })}
 
-        {/* Hover indicator */}
         {hoverIdx != null && (
           <g>
             <line
-              x1={xPos(hoverIdx)} y1={M.top}
-              x2={xPos(hoverIdx)} y2={M.top + CH}
+              x1={xPos(hoverIdx)} y1={M.top} x2={xPos(hoverIdx)} y2={M.top + CH}
               stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2"
             />
             {CHART_SERIES.map(({ key, color }) => {
               const v = series[hoverIdx][key];
               if (v == null) return null;
               return (
-                <circle key={key}
-                  cx={xPos(hoverIdx)} cy={yPos(v)} r="4.5"
-                  fill={color} stroke="#0f172a" strokeWidth="2"
-                />
+                <circle key={key} cx={xPos(hoverIdx)} cy={yPos(v)} r="4.5" fill={color} stroke="#0f172a" strokeWidth="2" />
               );
             })}
           </g>
@@ -356,6 +361,47 @@ function StatCell({ stat }: { stat: HorizonStat }) {
   );
 }
 
+function CohortStatCell({ s, pending }: { s: CohortStat | null; pending: string }) {
+  if (!s) {
+    return (
+      <td colSpan={4} className="px-2 py-2 text-center text-slate-700 text-xs">{pending}</td>
+    );
+  }
+  return (
+    <>
+      <td className={`px-2 py-2 text-right font-mono text-xs ${returnColor(s.avgReturn)}`}>
+        {fmtReturn(s.avgReturn)}
+      </td>
+      <td className={`px-2 py-2 text-right font-mono text-xs ${s.winRate != null && s.winRate >= 55 ? "text-emerald-400" : "text-yellow-400"}`}>
+        {s.winRate != null ? `${s.winRate.toFixed(0)}%` : "—"}
+      </td>
+      <td className={`px-2 py-2 text-right font-mono text-xs ${returnColor(s.topix)}`}>
+        {fmtReturn(s.topix)}
+      </td>
+      <td className={`px-2 py-2 text-right font-mono text-xs ${returnColor(s.alpha)}`}>
+        {fmtReturn(s.alpha)}
+      </td>
+    </>
+  );
+}
+
+function SummaryCard({
+  label, value, sub, valueColor,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueColor?: string;
+}) {
+  return (
+    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 flex flex-col gap-1.5">
+      <div className="text-slate-500 text-xs">{label}</div>
+      <div className={`text-2xl font-bold font-mono ${valueColor ?? "text-slate-200"}`}>{value}</div>
+      {sub && <div className="text-slate-600 text-[10px]">{sub}</div>}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function BacktestPage() {
@@ -368,15 +414,14 @@ export default function BacktestPage() {
   const [trendLoad,   setTrendLoad]   = useState(true);
   const [trendH,      setTrendH]      = useState<HorizonKey>("30d");
   const [granularity, setGranularity] = useState<Granularity>("daily");
+  const [healthData,  setHealthData]  = useState<BacktestHealthData | null>(null);
+  const [cohortsData, setCohortsData] = useState<CohortsData | null>(null);
 
   const loadSummary = useCallback(() => {
     setLoading(true);
     setError(null);
     fetch("/api/backtest/summary")
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(setData)
       .catch(() => setError("load_failed"))
       .finally(() => setLoading(false));
@@ -394,9 +439,21 @@ export default function BacktestPage() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
   useEffect(() => { loadTrend(trendH); }, [loadTrend, trendH]);
 
+  useEffect(() => {
+    fetch("/api/backtest/health")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => setHealthData(d ?? null))
+      .catch(() => {});
+    fetch("/api/backtest/cohorts")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => setCohortsData(d ?? null))
+      .catch(() => {});
+  }, []);
+
   const PORTFOLIO_SIZES = ["TOP5", "TOP10", "TOP20", "ALL"] as const;
   const HORIZONS: HorizonKey[] = ["7d", "30d", "90d"];
   const allP = data?.portfolios?.["ALL"];
+  const stat7d = allP?.["7d"] ?? null;
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -405,9 +462,7 @@ export default function BacktestPage() {
         <h1 className="text-2xl font-bold text-white">{t("backtest.title")}</h1>
         <p className="text-slate-400 text-sm mt-1">{t("backtest.subtitle")}</p>
         {data && (
-          <p className="text-slate-500 text-xs mt-1">
-            {t("backtest.cohorts")}: {data.cohortCount}
-          </p>
+          <p className="text-slate-500 text-xs mt-1">{t("backtest.cohorts")}: {data.cohortCount}</p>
         )}
       </div>
 
@@ -417,11 +472,67 @@ export default function BacktestPage() {
         <span className="text-amber-300/80 text-xs leading-relaxed">{t("backtest.risk_banner")}</span>
       </div>
 
+      {/* ── P4: Summary Cards ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <SummaryCard
+          label={`${t("backtest.summary_ai_return")} (7D)`}
+          value={stat7d?.avgReturn != null
+            ? `${stat7d.avgReturn > 0 ? "+" : ""}${stat7d.avgReturn.toFixed(2)}%`
+            : "—"}
+          sub={stat7d?.filled ? `n=${stat7d.filled}` : undefined}
+          valueColor={stat7d?.avgReturn != null
+            ? (stat7d.avgReturn > 0 ? "text-emerald-400" : "text-red-400")
+            : undefined}
+        />
+        <SummaryCard
+          label={`${t("backtest.summary_topix")} (7D)`}
+          value={stat7d?.benchmarkTopixReturn != null
+            ? `${stat7d.benchmarkTopixReturn > 0 ? "+" : ""}${stat7d.benchmarkTopixReturn.toFixed(2)}%`
+            : "—"}
+          sub={healthData?.latestTopix != null
+            ? `TOPIX ${healthData.latestTopix.toFixed(0)}`
+            : undefined}
+          valueColor={stat7d?.benchmarkTopixReturn != null
+            ? (stat7d.benchmarkTopixReturn > 0 ? "text-emerald-400" : "text-red-400")
+            : undefined}
+        />
+        <SummaryCard
+          label={`${t("backtest.summary_alpha")} (7D)`}
+          value={stat7d?.excessVsTopix != null
+            ? `${stat7d.excessVsTopix > 0 ? "+" : ""}${stat7d.excessVsTopix.toFixed(2)}%`
+            : "—"}
+          sub={healthData?.latestTopixDate
+            ? `as of ${healthData.latestTopixDate}`
+            : undefined}
+          valueColor={stat7d?.excessVsTopix != null
+            ? (stat7d.excessVsTopix > 0 ? "text-emerald-400" : "text-red-400")
+            : undefined}
+        />
+        <SummaryCard
+          label={`${t("backtest.summary_winrate")} (7D)`}
+          value={stat7d?.winRate != null ? `${stat7d.winRate.toFixed(1)}%` : "—"}
+          valueColor={stat7d?.winRate != null
+            ? (stat7d.winRate >= 55 ? "text-emerald-400" : "text-yellow-400")
+            : undefined}
+        />
+        <SummaryCard
+          label={t("backtest.summary_recs")}
+          value={data ? String(data.cohortCount * 500) : "—"}
+          sub={data?.cohortCount ? `${data.cohortCount} ${t("backtest.cohorts")}` : undefined}
+        />
+        <SummaryCard
+          label={t("backtest.summary_updated")}
+          value={data?.latestDate ? data.latestDate.slice(5) : "—"}
+          sub={healthData?.latestTopixDate
+            ? `TOPIX: ${healthData.latestTopixDate.slice(5)}`
+            : undefined}
+        />
+      </div>
+
       {loading && (
         <div className="text-slate-400 text-sm animate-pulse py-16 text-center">Loading…</div>
       )}
 
-      {/* Error state */}
       {!loading && error && (
         <div className="bg-red-950/40 border border-red-800/50 rounded-xl p-10 text-center">
           <p className="text-red-400 text-sm mb-4">{t("backtest.error_load")}</p>
@@ -434,7 +545,6 @@ export default function BacktestPage() {
         </div>
       )}
 
-      {/* No data */}
       {!loading && !error && !data?.latestDate && (
         <div className="bg-[#1a2035] rounded-xl p-8 text-center text-slate-400 text-sm border border-slate-700/40">
           {t("backtest.no_data")}
@@ -541,12 +651,11 @@ export default function BacktestPage() {
             </div>
           </div>
 
-          {/* Historical Trend Chart */}
+          {/* ── P5: Historical Trend Chart with TOPIX ───────────────────────── */}
           <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-slate-200 text-sm font-semibold">{t("backtest.trend_title")}</h2>
               <div className="flex items-center gap-3">
-                {/* Granularity toggle */}
                 <div className="flex gap-1 text-xs">
                   {(["daily", "weekly"] as Granularity[]).map((g) => (
                     <button
@@ -562,7 +671,6 @@ export default function BacktestPage() {
                     </button>
                   ))}
                 </div>
-                {/* Horizon tabs */}
                 <div className="flex gap-1">
                   {HORIZONS.map((h) => (
                     <button
@@ -588,6 +696,51 @@ export default function BacktestPage() {
               noDataText={t("backtest.trend_no_data")}
             />
           </div>
+
+          {/* ── P6: Cohort History Table ─────────────────────────────────────── */}
+          {cohortsData && cohortsData.rows.length > 0 && (
+            <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6 overflow-x-auto">
+              <div className="px-4 pt-4 pb-2">
+                <h2 className="text-slate-200 text-sm font-semibold">{t("backtest.cohort_title")}</h2>
+              </div>
+              <table className="w-full text-xs min-w-[720px]">
+                <thead>
+                  <tr className="border-b border-slate-700/40 text-slate-500">
+                    <th className="px-3 py-2 text-left">{t("backtest.col_date")}</th>
+                    <th className="px-2 py-2 text-right">{t("backtest.col_count")}</th>
+                    <th className="px-2 py-2 text-center" colSpan={4}>
+                      <span className="text-slate-400">{t("backtest.horizon_7d")}</span>
+                    </th>
+                    <th className="px-2 py-2 text-center" colSpan={4}>
+                      <span className="text-slate-400">{t("backtest.horizon_30d")}</span>
+                    </th>
+                  </tr>
+                  <tr className="border-b border-slate-800 text-slate-600 text-[10px]">
+                    <th className="px-3 py-1" />
+                    <th className="px-2 py-1" />
+                    {(["7d", "30d"] as const).map((h) => (
+                      <>
+                        <th key={`${h}-r`}  className="px-2 py-1 text-right">{t("backtest.avg_return")}</th>
+                        <th key={`${h}-w`}  className="px-2 py-1 text-right">{t("backtest.win_rate")}</th>
+                        <th key={`${h}-tp`} className="px-2 py-1 text-right">TOPIX</th>
+                        <th key={`${h}-al`} className="px-2 py-1 text-right">{t("backtest.col_alpha")}</th>
+                      </>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cohortsData.rows.map((row) => (
+                    <tr key={row.date} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                      <td className="px-3 py-2 text-slate-400 font-mono">{row.date}</td>
+                      <td className="px-2 py-2 text-right text-slate-300 font-mono">{row.count}</td>
+                      <CohortStatCell s={row["7d"]}  pending={t("backtest.cohort_pending")} />
+                      <CohortStatCell s={row["30d"]} pending={t("backtest.cohort_pending")} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Tab switcher */}
           <div className="flex gap-2 mb-4">

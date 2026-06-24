@@ -633,6 +633,17 @@ export type Messages = {
   "backtest.trend_hint": string;
   "backtest.error_load": string;
   "backtest.retry": string;
+  "backtest.summary_ai_return": string;
+  "backtest.summary_topix": string;
+  "backtest.summary_alpha": string;
+  "backtest.summary_winrate": string;
+  "backtest.summary_recs": string;
+  "backtest.summary_updated": string;
+  "backtest.cohort_title": string;
+  "backtest.col_count": string;
+  "backtest.col_date": string;
+  "backtest.col_alpha": string;
+  "backtest.cohort_pending": string;
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": string;

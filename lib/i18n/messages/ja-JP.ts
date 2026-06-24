@@ -631,6 +631,17 @@ const jaJP: Messages = {
   "backtest.trend_hint": "マウスを動かして各日付のリターンを確認",
   "backtest.error_load": "データの読み込みに失敗しました。しばらくしてから再試行してください。",
   "backtest.retry": "再試行",
+  "backtest.summary_ai_return": "AI組合収益",
+  "backtest.summary_topix": "TOPIX基準",
+  "backtest.summary_alpha": "超過Alpha",
+  "backtest.summary_winrate": "勝率",
+  "backtest.summary_recs": "推奨銘柄",
+  "backtest.summary_updated": "最終記録",
+  "backtest.cohort_title": "コホート別回測",
+  "backtest.col_count": "推奨数",
+  "backtest.col_date": "日付",
+  "backtest.col_alpha": "Alpha",
+  "backtest.cohort_pending": "待算",
 
   // ─── V11: AI Trading Dashboard ──────────────────────────────────────────────
   "dashboard.up": "上昇",
