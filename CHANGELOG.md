@@ -2,6 +2,38 @@
 
 ---
 
+## [10.1.1] - 2026-06-24 — 状态文档全面核验与统一
+
+### Verified (生产 API + DB 核验，无代码改动)
+- `/api/admin/verify`: ready=true, CRITICAL=0, WARNING=4（非阻断）
+- `/api/backtest/health`: status=WAITING_PRICE, latestPriceDate=2026-06-23, filled=0（预期）
+- `/api/admin/deployments`: 最新 id=6, commit=`73d253e`, 2026-06-23 16:08 JST
+- 生产 DB DailyRecommendation: 2026-06-24=500✅, 2026-06-23=550⚠️（异常>500）, 2026-06-20=500
+- 生产 DB Stock=3717, StockScore=3714, GPT nullRank=283（P2 WARNING）
+
+### Docs Updated
+- `PROJECT_STATUS.md`: 全面更新至 2026-06-24 核验状态
+  - 版本号修正：v10.1.1 → v10.1.0（HEAD: `3a3ed1f`）
+  - 生产域名：统一为 https://aitohoshou.com（删除 tohoshou.com 引用）
+  - DB 状态表：移除 UserAiSettings/LineUser 行，更新 DailyRecommendation 为实际 4 日期数据
+  - Cron 时间表：移除 LINE 推送条目（send-morning-brief/midday-flash/closing-summary/risk-alert）
+  - API 路由表：移除 /api/chat、/api/line/webhook，补充 /api/admin/verify、/api/backtest/trend 等
+  - 核心 Lib 索引：移除已删除的 intent-engine/query-engine/answer-builder/ai-control/intent-schema
+  - npm scripts：移除 LINE 相关脚本，移除 test:intent-engine
+  - 代码规则：移除 Intent Engine Pipeline / 系统命令触发词（相关文件已于 v9.0.0 删除）
+  - Known Issues：升级为核验状态（新增 P2: nullRank=283, P2: DailyRec 550 异常）
+  - NEXT SESSION：全面更新为 2026-06-24 实际状态
+- `docs/CLAUDE_DEVELOPMENT_RULES.md`: 新增 Rule 8（生产域名统一规则）
+
+### New Known Issues (发现)
+- **P2: GPT nullRank=283** — 283只股票 gptRank=null，需运行 rerank:top500 补全
+- **P2: DailyRecommendation 2026-06-23=550** — 当日记录超过500条（正常上限），需排查 daily pipeline 重复写入
+
+### No Code Changes / No Deploy
+- 本次会话仅文档更新，无生产代码变动，无需部署
+
+---
+
 ## [10.1.0] - 2026-06-23 — v10 Stable Final Audit & Fix
 
 ### Fixed (P1)

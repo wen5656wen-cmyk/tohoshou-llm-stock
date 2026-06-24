@@ -181,4 +181,40 @@ REMAINING ISSUES:
 
 ---
 
+---
+
+## Rule 8. 生产域名与事实来源统一（v10.1.1 起强制）
+
+### 8.1 唯一生产验收域名
+
+```
+✅ 正确：https://aitohoshou.com
+❌ 禁止：https://tohoshou.com
+```
+
+任何 curl、验收报告、文档中涉及生产 URL，必须使用 `https://aitohoshou.com`。`tohoshou.com` 不是生产验收域名，禁止出现在验收报告中。
+
+### 8.2 事实来源层级（优先级从高到低）
+
+| 数据 | 事实来源 | 禁止来源 |
+|------|---------|---------|
+| 生产 ready 状态 | `curl https://aitohoshou.com/api/admin/verify` | 代码推断、build 日志 |
+| DailyRecommendation 条数 | 生产 DB `psql` 查询 | PROJECT_STATUS.md 的旧记录 |
+| 部署历史 | `curl https://aitohoshou.com/api/admin/deployments` | git log 推断 |
+| Backtest 状态 | `curl https://aitohoshou.com/api/backtest/health` | update-backtest 脚本输出 |
+| 股票/评分数量 | `curl https://aitohoshou.com/api/admin/verify` (.meta) | schema 或代码注释 |
+
+### 8.3 文档更新前必须核验
+
+更新 PROJECT_STATUS.md / CHANGELOG.md 中任何数字或状态前，必须先运行：
+```bash
+curl -s https://aitohoshou.com/api/admin/verify
+curl -s https://aitohoshou.com/api/backtest/health
+# 如涉及 DailyRecommendation 具体条数，必须 psql 查询
+```
+
+**禁止根据上一次会话记忆填写状态数字。**
+
+---
+
 *此文档为永久开发规范，以后所有任务必须遵守。*
