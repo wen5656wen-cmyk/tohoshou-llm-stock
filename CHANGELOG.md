@@ -2,6 +2,26 @@
 
 ---
 
+## [12.2.0] - 2026-06-25 — P1 新闻同步Worker化 + P0 No Look-Ahead过滤 + 版本字段写入
+
+### v12.2.0 — P1: 新闻同步Worker化（pm2 restart不再杀死同步）
+- `scripts/sync-news.ts`：新建独立worker，完整提取 route.ts 中的 `runNewsSync` 逻辑
+  - 包含：2h僵尸Job守卫 / Yahoo+Kabutan+TDnet三源同步 / SyncJob进度更新 / SyncLog写入
+  - 独立进程运行，pm2 restart tohoshou-web 不影响进行中的同步
+- `scripts/cron-scheduler.ts`：`runNewsSync()` 改为 execSync 调用 sync-news.ts（30min超时）
+  - 不再通过 HTTP POST /api/sync/news 触发，彻底消除 pm2 restart 杀死任务风险
+- Deployment id=19, commit `b06d777`
+
+### v12.1.0 — P0: No Look-Ahead Bias过滤 + DailyRecommendation版本字段写入
+- `scripts/compute-scores.ts`：recentNews查询加 `tradeEffectiveDate <= todayJST` 过滤
+  - OR `tradeEffectiveDate IS NULL` 向后兼容历史行（铁律一完整实施）
+- `scripts/rerank-top500.ts`：DailyRecommendation upsert写入 VERSION_SNAPSHOT
+  - ruleEngine/globalEvent/llm/scoringSchema 版本字段 + overallConfidence/riskOverride 快照
+  - 铁律五 Version Freeze 完成闭环
+- Deployment id=18, commit `9536247`
+
+---
+
 ## [12.0.0] - 2026-06-25 — TOHOSHOU AI Decision Engine v1.0
 
 ### New: 六大铁律安全框架
