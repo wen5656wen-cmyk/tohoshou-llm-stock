@@ -17,6 +17,7 @@ const CW = VW - M.left - M.right;
 const CH = VH - M.top - M.bottom;
 
 type WindowKey = "7D" | "30D" | "90D" | "ALL";
+type TabKey = "system" | "watchlist";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -30,8 +31,8 @@ function fmtReturn(v: number | null): string {
   return `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
-function fmtJPY(v: number): string {
-  return v.toLocaleString("ja-JP") + " JPY";
+function fmtNum(v: number): string {
+  return v.toLocaleString("ja-JP");
 }
 
 function fmtPct(v: number | null, dec = 2): string {
@@ -86,10 +87,7 @@ function filterByWindow(points: TrendData["points"], window: WindowKey) {
 }
 
 function TrendChart({
-  data,
-  loading,
-  window: win,
-  t,
+  data, loading, window: win, t,
 }: {
   data: TrendData | null;
   loading: boolean;
@@ -154,7 +152,6 @@ function TrendChart({
 
   return (
     <div>
-      {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-xs mb-2">
         {PORTFOLIO_SERIES.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5">
@@ -166,17 +163,12 @@ function TrendChart({
               <span className="w-5 h-0.5 inline-block rounded-full" style={{ background: s.color }} />
             )}
             <span className="text-slate-400">
-              {s.key === "portfolioReturn"
-                ? t("portfolio.trend_ai")
-                : s.key === "topixReturn"
-                ? "TOPIX ETF"
-                : "Alpha"}
+              {s.key === "portfolioReturn" ? t("portfolio.trend_ai") : s.key === "topixReturn" ? "TOPIX ETF" : "Alpha"}
             </span>
           </span>
         ))}
       </div>
 
-      {/* Hover tooltip */}
       {hovered && (
         <div className="flex gap-4 text-xs mb-1 text-slate-400">
           <span className="font-mono">{hovered.date}</span>
@@ -184,19 +176,14 @@ function TrendChart({
             {t("portfolio.trend_ai")}: {fmtReturn(hovered.portfolioReturn)}
           </span>
           {hovered.topixReturn != null && (
-            <span className={returnColor(hovered.topixReturn)}>
-              TOPIX ETF: {fmtReturn(hovered.topixReturn)}
-            </span>
+            <span className={returnColor(hovered.topixReturn)}>TOPIX ETF: {fmtReturn(hovered.topixReturn)}</span>
           )}
           {hovered.alpha != null && (
-            <span className={returnColor(hovered.alpha)}>
-              Alpha: {fmtReturn(hovered.alpha)}
-            </span>
+            <span className={returnColor(hovered.alpha)}>Alpha: {fmtReturn(hovered.alpha)}</span>
           )}
         </div>
       )}
 
-      {/* SVG */}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VW} ${VH}`}
@@ -212,15 +199,10 @@ function TrendChart({
             </text>
           </g>
         ))}
-
         <line x1={M.left} y1={zeroY} x2={VW - M.right} y2={zeroY} stroke="#475569" strokeWidth="1" strokeDasharray="4 3" />
-
         {xLabels.map(({ i, label }) => (
-          <text key={i} x={xPos(i)} y={VH - 4} textAnchor="middle" fontSize="9" fill="#64748b">
-            {label}
-          </text>
+          <text key={i} x={xPos(i)} y={VH - 4} textAnchor="middle" fontSize="9" fill="#64748b">{label}</text>
         ))}
-
         {PORTFOLIO_SERIES.map(({ key, color, dashed }) => {
           const pts = series
             .map((pt, i) => {
@@ -242,17 +224,11 @@ function TrendChart({
             />
           );
         })}
-
-        {/* Hover vertical line */}
         {hoverIdx != null && (
           <line
-            x1={xPos(hoverIdx)}
-            y1={M.top}
-            x2={xPos(hoverIdx)}
-            y2={VH - M.bottom}
-            stroke="#475569"
-            strokeWidth="1"
-            strokeDasharray="3 2"
+            x1={xPos(hoverIdx)} y1={M.top}
+            x2={xPos(hoverIdx)} y2={VH - M.bottom}
+            stroke="#475569" strokeWidth="1" strokeDasharray="3 2"
           />
         )}
       </svg>
@@ -260,24 +236,32 @@ function TrendChart({
   );
 }
 
-// ── Summary Cards ──────────────────────────────────────────────────────────────
+// ── Cards ──────────────────────────────────────────────────────────────────────
 
-function SummaryCard({
-  label,
-  value,
-  valueClass = "text-white",
-  sub,
+function AssetCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 flex flex-col h-full">
+      <div className="text-xs text-slate-400 mb-2">{label}</div>
+      <div className="text-[40px] font-bold tabular-nums text-white leading-none flex-1 flex items-end pb-0.5">
+        {value}
+      </div>
+      {sub && <div className="text-[13px] text-[#94A3B8] mt-2">{sub}</div>}
+    </div>
+  );
+}
+
+function KPICard({
+  label, value, valueClass = "text-white", sub,
 }: {
-  label: string;
-  value: string;
-  valueClass?: string;
-  sub?: string;
+  label: string; value: string; valueClass?: string; sub?: string;
 }) {
   return (
-    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40">
-      <div className="text-xs text-slate-400 mb-1">{label}</div>
-      <div className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</div>
-      {sub && <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>}
+    <div className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 flex flex-col h-full">
+      <div className="text-xs text-slate-400 mb-2">{label}</div>
+      <div className={`text-2xl font-bold tabular-nums leading-none flex-1 flex items-end pb-0.5 ${valueClass}`}>
+        {value}
+      </div>
+      {sub && <div className="text-[11px] text-slate-500 mt-2">{sub}</div>}
     </div>
   );
 }
@@ -287,9 +271,10 @@ function SummaryCard({
 function Skeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="bg-slate-800/50 rounded-xl h-20" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="col-span-2 md:col-span-1 lg:col-span-2 bg-slate-800/50 rounded-xl h-24" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="bg-slate-800/50 rounded-xl h-24" />
         ))}
       </div>
       <div className="bg-slate-800/50 rounded-xl h-64" />
@@ -340,11 +325,41 @@ function HistoryTable({ cohorts, t }: { cohorts: HistoryCohort[]; t: (k: Message
   );
 }
 
+// ── Watchlist Coming Soon ──────────────────────────────────────────────────────
+
+function WatchlistPanel({ t }: { t: (k: MessageKey) => string }) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-10 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-blue-900/30 border border-blue-700/40 flex items-center justify-center mx-auto mb-5 text-2xl">
+          ◈
+        </div>
+        <div className="text-lg font-semibold text-white mb-2">{t("portfolio.tab_watchlist")}</div>
+        <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed mb-6">
+          {t("portfolio.tab_watchlist_desc")}
+        </p>
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/80 rounded-full text-slate-400 text-xs border border-slate-700/60">
+          ⏳ {t("portfolio.coming_soon")}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {["AI评分排序", "模拟建仓", "调仓建议"].map((feature) => (
+          <div key={feature} className="bg-[#1a2035] rounded-xl p-4 border border-slate-700/40 opacity-50">
+            <div className="text-xs text-slate-500 font-medium">{feature}</div>
+            <div className="text-slate-600 text-xs mt-1">即将推出</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
   const { t } = useI18n();
 
+  const [activeTab, setActiveTab] = useState<TabKey>("system");
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [trend, setTrend] = useState<TrendData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
@@ -352,8 +367,8 @@ export default function PortfolioPage() {
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingTrend, setLoadingTrend] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
-
   const [errorSummary, setErrorSummary] = useState(false);
+
   const [trendWindow, setTrendWindow] = useState<WindowKey>("ALL");
 
   const fetchAll = useCallback(async () => {
@@ -362,19 +377,16 @@ export default function PortfolioPage() {
     setLoadingHistory(true);
     setErrorSummary(false);
 
-    // Summary
     fetch("/api/portfolio/summary")
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d: PortfolioSummary) => { setSummary(d); setLoadingSummary(false); })
       .catch(() => { setErrorSummary(true); setLoadingSummary(false); });
 
-    // Trend
     fetch("/api/portfolio/trend")
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d: TrendData) => { setTrend(d); setLoadingTrend(false); })
       .catch(() => setLoadingTrend(false));
 
-    // History
     fetch("/api/portfolio/history")
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d: HistoryData) => { setHistory(d); setLoadingHistory(false); })
@@ -383,213 +395,236 @@ export default function PortfolioPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Merge maxDrawdown from trend into summary cards
   const maxDrawdown = trend?.maxDrawdown ?? null;
-
-  // Loading state
-  if (loadingSummary && !errorSummary) {
-    return (
-      <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
-          <p className="text-sm text-slate-400 mt-1">{t("portfolio.ai_subtitle")}</p>
-        </div>
-        <Skeleton />
-      </div>
-    );
-  }
-
-  // Error state
-  if (errorSummary && !summary) {
-    return (
-      <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
-        </div>
-        <div className="bg-[#1a2035] rounded-xl p-12 text-center border border-slate-700/40">
-          <div className="text-slate-400 mb-4">{t("portfolio.loading_error")}</div>
-          <button
-            onClick={fetchAll}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
-          >
-            {t("portfolio.retry")}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // No data
-  if (!summary) {
-    return (
-      <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
-        </div>
-        <div className="bg-[#1a2035] rounded-xl p-12 text-center border border-slate-700/40">
-          <div className="text-slate-400">{t("portfolio.no_data")}</div>
-        </div>
-      </div>
-    );
-  }
-
   const windows: WindowKey[] = ["7D", "30D", "90D", "ALL"];
+
+  const TABS: { key: TabKey; label: MessageKey }[] = [
+    { key: "system",    label: "portfolio.tab_system"    },
+    { key: "watchlist", label: "portfolio.tab_watchlist" },
+  ];
 
   return (
     <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
+
+      {/* ── Page header ─────────────────────────────────────────────────────── */}
+      <div className="mb-5">
         <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
-        <p className="text-sm text-slate-400 mt-0.5">{t("portfolio.ai_subtitle")}</p>
-        <p className="text-xs text-slate-500 mt-1 font-mono">{t("table.date")}: {summary.cohortDate}</p>
       </div>
 
-      {/* 6 Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <SummaryCard
-          label={t("portfolio.current_assets")}
-          value={fmtJPY(summary.currentValue)}
-          sub={`${t("portfolio.ai_subtitle").split("·")[1]?.trim()}`}
-        />
-        <SummaryCard
-          label={t("portfolio.cumulative_return")}
-          value={fmtPct(summary.returnPct)}
-          valueClass={returnColor(summary.returnPct)}
-        />
-        <SummaryCard
-          label="TOPIX ETF"
-          value={fmtPct(summary.topixReturnPct)}
-          valueClass={returnColor(summary.topixReturnPct)}
-          sub="1306.T ETF"
-        />
-        <SummaryCard
-          label={t("portfolio.alpha")}
-          value={fmtPct(summary.alpha)}
-          valueClass={returnColor(summary.alpha)}
-          sub="Alpha"
-        />
-        <SummaryCard
-          label={t("backtest.win_rate")}
-          value={summary.winRate != null ? `${summary.winRate.toFixed(1)}%` : "—"}
-          valueClass="text-blue-400"
-        />
-        <SummaryCard
-          label={t("portfolio.max_drawdown")}
-          value={maxDrawdown != null ? `-${maxDrawdown.toFixed(2)}%` : loadingTrend ? "…" : "—"}
-          valueClass={maxDrawdown != null && maxDrawdown > 5 ? "text-red-400" : "text-slate-300"}
-        />
+      {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
+      <div className="flex border-b border-slate-700/40 mb-0">
+        {TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`px-5 py-2.5 text-sm font-medium transition-colors relative ${
+              activeTab === key
+                ? "text-white"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            {t(label)}
+            {activeTab === key && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t-full" />
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Holdings Table */}
-      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
-        <div className="px-5 py-4 border-b border-slate-700/40">
-          <h2 className="text-base font-semibold text-white">{t("portfolio.holdings_title")}</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700/40 text-xs text-slate-400">
-                <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
-                <th className="text-left py-2.5 px-3">{t("common.name")}</th>
-                <th className="text-right py-2.5 px-3">{t("portfolio.col_buy_price")}</th>
-                <th className="text-right py-2.5 px-3">{t("portfolio.col_current")}</th>
-                <th className="text-right py-2.5 px-3">{t("portfolio.cumulative_return")}</th>
-                <th className="text-right py-2.5 px-3">{t("portfolio.col_value")}</th>
-                <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
-                <th className="text-center py-2.5 px-3">{t("portfolio.col_suggestion")}</th>
-                <th className="text-right py-2.5 px-3">{t("portfolio.col_days")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.positions.map((pos) => (
-                <tr key={pos.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
-                  <td className="py-2.5 px-4">
-                    <Link
-                      href={`/stocks/${encodeURIComponent(pos.symbol)}`}
-                      className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium"
-                    >
-                      {pos.symbol}
-                    </Link>
-                    <div className="text-[10px] text-slate-500 font-mono">#{pos.gptRank}</div>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[140px] truncate">
-                    {pos.name}
-                  </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
-                    {pos.entryPrice != null ? `¥${pos.entryPrice.toLocaleString("ja-JP")}` : (
-                      <span className="text-slate-500">{t("portfolio.pending_entry")}</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200">
-                    {pos.currentPrice != null ? `¥${pos.currentPrice.toLocaleString("ja-JP")}` : "—"}
-                  </td>
-                  <td className={`py-2.5 px-3 text-right tabular-nums text-xs font-medium ${returnColor(pos.returnPct)}`}>
-                    {fmtReturn(pos.returnPct)}
-                  </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
-                    {pos.currentValue != null ? `¥${Math.round(pos.currentValue).toLocaleString("ja-JP")}` : "—"}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <RatingBadge rating={pos.gptRating} />
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <SuggestionBadge suggestion={pos.aiSuggestion} t={t} />
-                  </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-500">
-                    {pos.daysHeld != null ? pos.daysHeld : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* ── Tab description ─────────────────────────────────────────────────── */}
+      <div className="px-1 py-3 mb-5">
+        <p className="text-xs text-slate-500 leading-relaxed">
+          {activeTab === "system" ? t("portfolio.tab_system_desc") : t("portfolio.tab_watchlist_desc")}
+        </p>
       </div>
 
-      {/* Trend Chart */}
-      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
-        <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-base font-semibold text-white">{t("portfolio.trend_title")}</h2>
-          <div className="flex gap-1">
-            {windows.map((w) => (
+      {/* ── System AI Portfolio ──────────────────────────────────────────────── */}
+      {activeTab === "system" && (
+        <>
+          {/* Loading */}
+          {loadingSummary && !errorSummary && <Skeleton />}
+
+          {/* Error */}
+          {errorSummary && !summary && (
+            <div className="bg-[#1a2035] rounded-xl p-12 text-center border border-slate-700/40">
+              <div className="text-slate-400 mb-4">{t("portfolio.loading_error")}</div>
               <button
-                key={w}
-                onClick={() => setTrendWindow(w)}
-                className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                  trendWindow === w
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-700/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700"
-                }`}
+                onClick={fetchAll}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
               >
-                {w}
+                {t("portfolio.retry")}
               </button>
-            ))}
-          </div>
-        </div>
-        <div className="px-5 py-4">
-          <TrendChart
-            data={trend}
-            loading={loadingTrend}
-            window={trendWindow}
-            t={t}
-          />
-        </div>
-      </div>
-
-      {/* History Table */}
-      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
-        <div className="px-5 py-4 border-b border-slate-700/40">
-          <h2 className="text-base font-semibold text-white">{t("portfolio.history_title")}</h2>
-        </div>
-        <div className="px-2 py-2">
-          {loadingHistory ? (
-            <div className="p-6 text-center text-slate-500 text-sm animate-pulse">{t("common.loading")}</div>
-          ) : history && history.cohorts.length > 0 ? (
-            <HistoryTable cohorts={history.cohorts} t={t} />
-          ) : (
-            <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.no_data")}</div>
+            </div>
           )}
-        </div>
-      </div>
+
+          {/* No data */}
+          {!loadingSummary && !errorSummary && !summary && (
+            <div className="bg-[#1a2035] rounded-xl p-12 text-center border border-slate-700/40">
+              <div className="text-slate-400">{t("portfolio.no_data")}</div>
+            </div>
+          )}
+
+          {/* Content */}
+          {summary && (
+            <>
+              {/* System meta row */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-300">{t("portfolio.system_subtitle")}</p>
+                  <div className="flex flex-wrap gap-4 mt-0.5 text-xs text-slate-500">
+                    <span>{t("portfolio.initial_capital_label")}：10,000,000</span>
+                    <span>{t("portfolio.cohort_date_label")}：{summary.cohortDate}</span>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-500 bg-slate-800/60 px-3 py-1 rounded-full border border-slate-700/40">
+                  {t("portfolio.simulate_disclaimer")}
+                </span>
+              </div>
+
+              {/* ── 6 KPI Cards (7-col grid) ─────────────────────────────────── */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
+                {/* Assets: 2 cols wide on desktop */}
+                <div className="col-span-2 md:col-span-1 lg:col-span-2">
+                  <AssetCard
+                    label={t("portfolio.current_assets")}
+                    value={fmtNum(summary.currentValue)}
+                    sub={`${t("portfolio.initial_capital_label")}：10,000,000`}
+                  />
+                </div>
+                <KPICard
+                  label={t("portfolio.cumulative_return")}
+                  value={fmtPct(summary.returnPct)}
+                  valueClass={returnColor(summary.returnPct)}
+                />
+                <KPICard
+                  label="TOPIX ETF"
+                  value={fmtPct(summary.topixReturnPct)}
+                  valueClass={returnColor(summary.topixReturnPct)}
+                  sub="1306.T"
+                />
+                <KPICard
+                  label={t("portfolio.alpha")}
+                  value={fmtPct(summary.alpha)}
+                  valueClass={returnColor(summary.alpha)}
+                />
+                <KPICard
+                  label={t("backtest.win_rate")}
+                  value={summary.winRate != null ? `${summary.winRate.toFixed(1)}%` : "—"}
+                  valueClass="text-blue-400"
+                />
+                <KPICard
+                  label={t("portfolio.max_drawdown")}
+                  value={maxDrawdown != null ? `-${maxDrawdown.toFixed(2)}%` : loadingTrend ? "…" : "—"}
+                  valueClass={maxDrawdown != null && maxDrawdown > 5 ? "text-red-400" : "text-slate-300"}
+                />
+              </div>
+
+              {/* ── Holdings Table ────────────────────────────────────────────── */}
+              <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
+                <div className="px-5 py-4 border-b border-slate-700/40">
+                  <h2 className="text-base font-semibold text-white">{t("portfolio.holdings_title")}</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-700/40 text-xs text-slate-400">
+                        <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
+                        <th className="text-left py-2.5 px-3">{t("common.name")}</th>
+                        <th className="text-right py-2.5 px-3">{t("portfolio.col_buy_price")}</th>
+                        <th className="text-right py-2.5 px-3">{t("portfolio.col_current")}</th>
+                        <th className="text-right py-2.5 px-3">{t("portfolio.cumulative_return")}</th>
+                        <th className="text-right py-2.5 px-3">{t("portfolio.col_value")}</th>
+                        <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
+                        <th className="text-center py-2.5 px-3">{t("portfolio.col_suggestion")}</th>
+                        <th className="text-right py-2.5 px-3">{t("portfolio.col_days")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.positions.map((pos) => (
+                        <tr key={pos.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2.5 px-4">
+                            <Link
+                              href={`/stocks/${encodeURIComponent(pos.symbol)}`}
+                              className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium"
+                            >
+                              {pos.symbol}
+                            </Link>
+                            <div className="text-[10px] text-slate-500 font-mono">#{pos.gptRank}</div>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[140px] truncate">{pos.name}</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
+                            {pos.entryPrice != null
+                              ? `¥${pos.entryPrice.toLocaleString("ja-JP")}`
+                              : <span className="text-slate-500">{t("portfolio.pending_entry")}</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200">
+                            {pos.currentPrice != null ? `¥${pos.currentPrice.toLocaleString("ja-JP")}` : "—"}
+                          </td>
+                          <td className={`py-2.5 px-3 text-right tabular-nums text-xs font-medium ${returnColor(pos.returnPct)}`}>
+                            {fmtReturn(pos.returnPct)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
+                            {pos.currentValue != null ? `¥${Math.round(pos.currentValue).toLocaleString("ja-JP")}` : "—"}
+                          </td>
+                          <td className="py-2.5 px-3 text-center"><RatingBadge rating={pos.gptRating} /></td>
+                          <td className="py-2.5 px-3 text-center"><SuggestionBadge suggestion={pos.aiSuggestion} t={t} /></td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-500">
+                            {pos.daysHeld != null ? pos.daysHeld : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ── Trend Chart ───────────────────────────────────────────────── */}
+              <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
+                <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between gap-3 flex-wrap">
+                  <h2 className="text-base font-semibold text-white">{t("portfolio.trend_title")}</h2>
+                  <div className="flex gap-1">
+                    {windows.map((w) => (
+                      <button
+                        key={w}
+                        onClick={() => setTrendWindow(w)}
+                        className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                          trendWindow === w
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-700/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+                        }`}
+                      >
+                        {w}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-5 py-4">
+                  <TrendChart data={trend} loading={loadingTrend} window={trendWindow} t={t} />
+                </div>
+              </div>
+
+              {/* ── History Table ─────────────────────────────────────────────── */}
+              <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+                <div className="px-5 py-4 border-b border-slate-700/40">
+                  <h2 className="text-base font-semibold text-white">{t("portfolio.history_title")}</h2>
+                </div>
+                <div className="px-2 py-2">
+                  {loadingHistory ? (
+                    <div className="p-6 text-center text-slate-500 text-sm animate-pulse">{t("common.loading")}</div>
+                  ) : history && history.cohorts.length > 0 ? (
+                    <HistoryTable cohorts={history.cohorts} t={t} />
+                  ) : (
+                    <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.no_data")}</div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── My Watchlist Portfolio ────────────────────────────────────────────── */}
+      {activeTab === "watchlist" && <WatchlistPanel t={t} />}
     </div>
   );
 }

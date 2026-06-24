@@ -305,6 +305,15 @@ const jaJP: Messages = {
   "portfolio.no_data": "組合データなし",
   "portfolio.loading_error": "読み込み失敗",
   "portfolio.retry": "再試行",
+  "portfolio.tab_system": "AIシステム組合",
+  "portfolio.tab_watchlist": "マイウォッチリスト",
+  "portfolio.tab_system_desc": "毎日AIが推奨するTop10銘柄で等重み模擬組合を自動構築し、推奨モデルの精度を検証します。実際の保有ではありません。",
+  "portfolio.tab_watchlist_desc": "ウォッチリストに銘柄を追加すると、AIがスコアを基に模擬建玉・調整評価を行います。初期資金：100,000,000。模擬分析専用。",
+  "portfolio.simulate_disclaimer": "模擬組合 — 投資助言ではありません",
+  "portfolio.initial_capital_label": "初期資金",
+  "portfolio.cohort_date_label": "推奨日",
+  "portfolio.system_subtitle": "AIシステム組合（毎日Top10等重み模擬）",
+  "portfolio.coming_soon": "近日公開",
 
   // Notifications
   "notif.title": "通知設定",

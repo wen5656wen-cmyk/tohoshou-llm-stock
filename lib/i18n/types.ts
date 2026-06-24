@@ -328,6 +328,15 @@ export type Messages = {
   "portfolio.no_data": string;
   "portfolio.loading_error": string;
   "portfolio.retry": string;
+  "portfolio.tab_system": string;
+  "portfolio.tab_watchlist": string;
+  "portfolio.tab_system_desc": string;
+  "portfolio.tab_watchlist_desc": string;
+  "portfolio.simulate_disclaimer": string;
+  "portfolio.initial_capital_label": string;
+  "portfolio.cohort_date_label": string;
+  "portfolio.system_subtitle": string;
+  "portfolio.coming_soon": string;
 
   // ─── Notifications ─────────────────────────────────────────────────────────
   "notif.title": string;

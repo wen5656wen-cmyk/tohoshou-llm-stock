@@ -305,6 +305,15 @@ const zhCN: Messages = {
   "portfolio.no_data": "暂无组合数据",
   "portfolio.loading_error": "加载失败",
   "portfolio.retry": "重试",
+  "portfolio.tab_system": "系统AI组合",
+  "portfolio.tab_watchlist": "我的自选组合",
+  "portfolio.tab_system_desc": "系统每日基于 AI 推荐 Top10 自动构建模拟组合，用于验证推荐模型表现，不代表真实持仓。",
+  "portfolio.tab_watchlist_desc": "用户加入自选股后，系统会基于 AI评分、技术面、基本面和新闻情绪进行模拟建仓与调仓评估。初始资金为 100,000,000，仅用于模拟分析。",
+  "portfolio.simulate_disclaimer": "模拟组合，不构成投资建议",
+  "portfolio.initial_capital_label": "初始资金",
+  "portfolio.cohort_date_label": "推荐日期",
+  "portfolio.system_subtitle": "系统AI组合（每日 Top10 等权模拟）",
+  "portfolio.coming_soon": "即将推出",
 
   // Notifications
   "notif.title": "通知管理",

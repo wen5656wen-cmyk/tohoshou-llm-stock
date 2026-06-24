@@ -305,6 +305,15 @@ const enUS: Messages = {
   "portfolio.no_data": "No portfolio data",
   "portfolio.loading_error": "Load failed",
   "portfolio.retry": "Retry",
+  "portfolio.tab_system": "AI System Portfolio",
+  "portfolio.tab_watchlist": "My Watchlist",
+  "portfolio.tab_system_desc": "Daily Top10 AI picks form a simulated equal-weight portfolio to validate model performance. Does not represent real holdings.",
+  "portfolio.tab_watchlist_desc": "After adding stocks to your watchlist, AI scores them on technicals, fundamentals, and news to simulate portfolio allocation. Initial capital: 100,000,000. For simulation only.",
+  "portfolio.simulate_disclaimer": "Simulated portfolio — not investment advice",
+  "portfolio.initial_capital_label": "Initial Capital",
+  "portfolio.cohort_date_label": "Rec Date",
+  "portfolio.system_subtitle": "AI System Portfolio (Daily Top10 Equal-Weight)",
+  "portfolio.coming_soon": "Coming Soon",
 
   // Notifications
   "notif.title": "Alerts",
