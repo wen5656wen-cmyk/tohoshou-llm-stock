@@ -2,6 +2,26 @@
 
 ---
 
+## [12.9.0] - 2026-06-25 — AI信号统计日线收盘价口径修正
+
+### 核心修正
+- **`scripts/update-ai-signal-stats.ts` 彻底重写价格逻辑**：
+  - 移除 `StockScore.latestClose` 分支（该值可能来自任意过去日期，导致假 0%）
+  - 改为：先查 `max(DailyPrice.date)` 全局最新日期
+  - 若 `latestPriceDate < tradeDate`：priceMap 为空 → `validTodayCount=0, todayWinRate=null` → **WAITING_DAILY_PRICE**
+  - 若 `latestPriceDate >= tradeDate`：查 `DailyPrice.close` 精确匹配 `date = tradeDate`（不用 adjClose）
+- **收益率 = 0 的处理**：`ret > 0 → win`；`ret < 0 → loss`；`ret = 0 → flat`（计入 validTodayCount，不计 win）
+- **新 DB 字段**：`AISignalDailyStat.todayLossCount Int @default(0)` + `todayFlatCount Int @default(0)`
+- **API `todayStatus`**：`recommendationCount>0 && validTodayCount===0 && todayWinRate===null → "WAITING_DAILY_PRICE"`，否则 `"OK"`
+- **UI**：`SignalCard.todayWinDisplay` 优先判 `todayStatus === "WAITING_DAILY_PRICE"` → 显示「待收盘」（zh）/ 「終値待ち」（ja）/ 「Awaiting close」（en）；历史表 fmt 对 WAITING 行显示「待収」
+- **新 i18n key**：`portfolio.signal_awaiting_close`（3语言）
+
+### 验收结果（2026-06-25 生产）
+- 生产 DailyPrice 已同步至 2026-06-25 → 显示真实 0%（今日无股票上涨）
+- 本地 DailyPrice 止于 2026-06-22 → 显示「WAITING [latestPrice=2026-06-22]」→ 触发「待收盘」
+
+---
+
 ## [12.8.1] - 2026-06-25 — SignalCard 待行情更新守卫 + 2026-06-25 数据补齐
 
 ### 改动
