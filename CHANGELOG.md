@@ -2,6 +2,46 @@
 
 ---
 
+## [13.0.0] - 2026-06-25 — AI信号统计最终形态（v13.0 Final）
+
+### 核心改动
+
+**schema**（`prisma/schema.prisma`）：`AISignalDailyStat` 新增 17 字段
+- 今日扩展：`todayLossCount / todayFlatCount / avgTodayReturnPct / bestTodayReturnPct / worstTodayReturnPct`
+- 今日分布（±3%）：`bigUpTodayCount / smallUpTodayCount / smallDownTodayCount / bigDownTodayCount`
+- 7日扩展：`loss7dCount / flat7dCount / avg7dReturnPct / best7dReturnPct / worst7dReturnPct`
+- 7日分布（±5%）：`bigUp7dCount / smallUp7dCount / smallDown7dCount / bigDown7dCount`
+- 标的去重：`uniqueSymbolCount / uniqueWinCount / uniqueWinRate`
+
+**脚本**（`scripts/update-ai-signal-stats.ts`）：完整重写
+- 新增 `avgOf / maxOf / minOf` helper
+- 今日分布 ±3%：`bigUp≥3% / smallUp 0~3% / flat=0 / smallDown -3~0% / bigDown≤-3%`
+- 7日分布 ±5%：同上阈值 ±5%
+- Cohort（P2）：per-day = regular stats（未来扩展跨日生命周期）
+- PENDING 检测与 v12.9 保持一致（`latestPriceDate < tradeDate`）
+
+**API**（`app/api/ai-signal-stats/route.ts`）
+- 状态机：`todayStatus: "PENDING"|"READY"`（原 WAITING_DAILY_PRICE/OK）+ `weekStatus: "ACCUMULATING"|"READY"`
+- `SignalStatEntry` 扩展全部 17 字段
+- Prisma `select` 覆盖所有新字段
+
+**UI**（`app/portfolio/page.tsx` `SignalCard`）：按 P4 布局重设计
+- 头部：label + 推荐数
+- 今日区块（PENDING→待收盘, validCount=0→待行情更新, READY→完整数据）：W/L/F 计数 + 胜率 + avg/best/worst + 分布条
+- 7日区块（ACCUMULATING→数据积累中, READY→完整数据）：W/L/F + 胜率 + avg/best/worst + 分布条
+- 标的去重行（Cohort）：uniqueWinRate + 分子分母
+
+**i18n**（12 新 key × 3 语言）：`signal_win_short / signal_loss_short / signal_flat_short / signal_best / signal_worst / signal_big_up / signal_small_up / signal_small_down / signal_big_down / signal_unique / signal_today_section / signal_7d_section`
+
+### 验收（2026-06-25 生产）
+- Build: ✅ PASS
+- Health: ✅ CRITICAL=0
+- Deployment id=33，commit `78351bb`
+- 生产脚本输出：2026-06-23 W0L5F2/7(0%)、2026-06-24 W2L1F3/6(33.3% avg+0.64%)、2026-06-25 PENDING（正确）
+- 7日仍 ACCUMULATING（仅3天数据，正常）
+
+---
+
 ## [12.9.0] - 2026-06-25 — AI信号统计日线收盘价口径修正
 
 ### 核心修正
