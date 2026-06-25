@@ -2,6 +2,22 @@
 
 ---
 
+## [12.8.0] - 2026-06-25 — Dashboard 重定位为「系统运行总览」
+
+### 改动
+- **新增 `app/SystemDashboard.tsx`**（`"use client"`）
+  - Row 1 数据概览（4 StatCard）：活跃股票数 / 已评分数 / 价格记录数 / 最新行情日
+  - Row 2 今日推荐（3 StatCard）：STRONG_BUY / BUY / TOTAL，链接到 /ai-picks
+  - Row 3 双列：数据健康面板（client 侧拉 `/api/health/status`，CRITICAL/WARNING/PASS 数 + topIssues）+ 同步状态面板（AI评分 / jquants / 新闻，相对时间 + 颜色编码 12h绿/48h黄/超时红）
+  - 快速导航：AI选股 / AI组合 / 行业分析 / 数据同步
+- **重写 `app/page.tsx`**：纯 server component，并发8个 Prisma 查询，不再引用旧 HomeDashboardClient/HomeStockDisplay
+- **i18n**：6个新键（home.system_overview_desc / data_overview / today_recs / data_health / sync_status / quick_links），zh-CN/ja-JP/en-US 全覆盖
+
+### 移除
+- 首页不再展示 TOP3 推荐、评分卡片格、200股打分结果
+
+---
+
 ## [12.7.0] - 2026-06-25 — AI信号胜率统计模块
 
 ### 新增功能
