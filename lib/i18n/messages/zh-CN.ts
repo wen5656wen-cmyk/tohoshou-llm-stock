@@ -796,6 +796,7 @@ const zhCN: Messages = {
   "portfolio.signal_avg_7d": "7日均涨",
   "portfolio.signal_no_data": "今日推荐未生成",
   "portfolio.signal_updated": "最近30日统计",
+  "portfolio.signal_price_pending": "待行情更新",
   // Sim portfolio
   "portfolio.sim_title": "我的模拟账户",
   "portfolio.sim_initial_cash": "初始资金",

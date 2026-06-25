@@ -796,6 +796,7 @@ const jaJP: Messages = {
   "portfolio.signal_avg_7d": "7日平均騰落",
   "portfolio.signal_no_data": "本日の推薦未生成",
   "portfolio.signal_updated": "直近30日集計",
+  "portfolio.signal_price_pending": "価格更新待ち",
   // Sim portfolio
   "portfolio.sim_title": "シミュレーション口座",
   "portfolio.sim_initial_cash": "初期資金",

@@ -301,6 +301,18 @@ function SignalCard({
   const fmtRate = (v: number | null) =>
     v == null ? t("portfolio.signal_accumulating") : `${v.toFixed(1)}%`;
 
+  const todayWinDisplay =
+    stat.validTodayCount === 0
+      ? t("portfolio.signal_price_pending")
+      : fmtRate(stat.todayWinRate);
+
+  const todayWinColor =
+    stat.validTodayCount === 0 ? "text-slate-500"
+    : stat.todayWinRate == null ? "text-slate-500"
+    : stat.todayWinRate >= 60 ? "text-emerald-400"
+    : stat.todayWinRate >= 50 ? "text-yellow-400"
+    : "text-red-400";
+
   const fmtAvg = (v: number | null) => {
     if (v == null) return "—";
     const sign = v >= 0 ? "+" : "";
@@ -320,13 +332,8 @@ function SignalCard({
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-400">{t("portfolio.signal_today_win")}</span>
           <div className="text-right">
-            <span className={`text-sm font-bold tabular-nums ${
-              stat.todayWinRate == null ? "text-slate-500"
-              : stat.todayWinRate >= 60 ? "text-emerald-400"
-              : stat.todayWinRate >= 50 ? "text-yellow-400"
-              : "text-red-400"
-            }`}>
-              {fmtRate(stat.todayWinRate)}
+            <span className={`text-sm font-bold tabular-nums ${todayWinColor}`}>
+              {todayWinDisplay}
             </span>
             {stat.validTodayCount > 0 && (
               <div className="text-[10px] text-slate-500">{stat.todayWinCount}/{stat.validTodayCount}</div>

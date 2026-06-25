@@ -799,6 +799,7 @@ export type Messages = {
   "portfolio.signal_avg_7d": string;
   "portfolio.signal_no_data": string;
   "portfolio.signal_updated": string;
+  "portfolio.signal_price_pending": string;
   // Sim portfolio
   "portfolio.sim_title": string;
   "portfolio.sim_initial_cash": string;

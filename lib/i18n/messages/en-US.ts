@@ -796,6 +796,7 @@ const enUS: Messages = {
   "portfolio.signal_avg_7d": "Avg 7D Return",
   "portfolio.signal_no_data": "No signals today",
   "portfolio.signal_updated": "Last 30 days",
+  "portfolio.signal_price_pending": "Awaiting price update",
   // Sim portfolio
   "portfolio.sim_title": "My Sim Account",
   "portfolio.sim_initial_cash": "Starting Cash",
