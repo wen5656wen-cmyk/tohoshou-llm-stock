@@ -14,6 +14,12 @@ import type { SnapshotDetail } from "@/app/api/portfolio/snapshots/[date]/route"
 
 type WlScore = {
   latestClose: number | null;
+  realtimePrice: number | null;
+  changePct: number | null;
+  volume: number | null;
+  volumeRatio: number | null;
+  turnoverRate: number | null;
+  realtimeUpdatedAt: string | null;
   finalScore: number;
   adaptiveScore: number | null;
   technicalScore: number | null;
@@ -24,6 +30,7 @@ type WlScore = {
   return5d: number | null;
   return20d: number | null;
   percentileRank: number | null;
+  computedAt: string | null;
 };
 
 type WatchlistItem = {
@@ -593,6 +600,126 @@ function SnapshotsPanel({ t }: { t: (k: MessageKey) => string }) {
   );
 }
 
+// ── Watchlist helpers ──────────────────────────────────────────────────────────
+
+function fmtVol(v: number | null): string {
+  if (v == null) return "—";
+  if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}億`;
+  if (v >= 10_000) return `${(v / 10_000).toFixed(1)}万`;
+  return v.toLocaleString("ja-JP");
+}
+
+function isJSTTradingHours(): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tokyo",
+    weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date());
+  const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+  if (p.weekday === "Sat" || p.weekday === "Sun") return false;
+  const total = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+  return (total >= 540 && total <= 690) || (total >= 750 && total <= 930);
+}
+
+// ── Watchlist Card ─────────────────────────────────────────────────────────────
+
+function WatchlistCard({
+  item, t, onDelete,
+}: {
+  item: WatchlistItem;
+  t: (k: MessageKey) => string;
+  onDelete: (symbol: string) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const s = item.score;
+  const displayPrice = s?.realtimePrice ?? s?.latestClose ?? null;
+  const changePct = s?.changePct ?? null;
+
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm(`删除自选股 ${item.symbol}？`)) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/watchlist?symbol=${encodeURIComponent(item.symbol)}`, { method: "DELETE" });
+      onDelete(item.symbol);
+    } finally {
+      setDeleting(false);
+    }
+  }, [item.symbol, onDelete]);
+
+  const updatedTime = s?.realtimeUpdatedAt
+    ? new Date(s.realtimeUpdatedAt).toLocaleTimeString("ja-JP", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Tokyo",
+      })
+    : null;
+
+  return (
+    <div className="bg-slate-800/50 rounded-xl border border-slate-700/40 p-3 flex flex-col gap-1.5">
+      {/* Header: symbol + name + rating */}
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1 mr-1">
+          <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300 text-xs font-bold block leading-tight">
+            {item.symbol}
+          </Link>
+          <div className="text-[11px] text-slate-300 truncate leading-tight">{item.nameZh ?? item.name}</div>
+        </div>
+        <RatingBadge rating={s?.effectiveRating ?? null} />
+      </div>
+
+      {/* Price + returns row */}
+      <div className="grid grid-cols-4 gap-0.5">
+        <div>
+          <div className="text-[9px] text-slate-500">{t("portfolio.wl_realtime_price")}</div>
+          <div className="text-sm font-bold text-white tabular-nums leading-tight">
+            {displayPrice != null ? `¥${displayPrice.toLocaleString("ja-JP")}` : "—"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] text-slate-500">{t("portfolio.wl_1d_change")}</div>
+          <div className={`text-xs font-semibold tabular-nums ${returnColor(changePct)}`}>{fmtPct(changePct)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] text-slate-500">5D</div>
+          <div className={`text-xs tabular-nums ${returnColor(s?.return5d ?? null)}`}>{fmtPct(s?.return5d ?? null)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] text-slate-500">20D</div>
+          <div className={`text-xs tabular-nums ${returnColor(s?.return20d ?? null)}`}>{fmtPct(s?.return20d ?? null)}</div>
+        </div>
+      </div>
+
+      {/* Volume row */}
+      <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
+        <span>{t("portfolio.wl_vol")} <span className="text-slate-300">{fmtVol(s?.volume ?? null)}</span></span>
+        <span>{t("portfolio.wl_vol_ratio")} <span className="text-slate-300">{s?.volumeRatio != null ? s.volumeRatio.toFixed(2) : "—"}</span></span>
+        <span>{t("portfolio.wl_turnover")} <span className="text-slate-300">{s?.turnoverRate != null ? `${s.turnoverRate.toFixed(1)}%` : "—"}</span></span>
+      </div>
+
+      {/* Scores + update time */}
+      <div className="flex items-center justify-between text-[10px]">
+        <div className="flex gap-2 text-slate-500">
+          <span>AI <span className="text-white font-semibold">{s ? s.finalScore.toFixed(1) : "—"}</span></span>
+          <span>技 <span className="text-slate-300">{s?.technicalScore ?? "—"}</span></span>
+          <span>基 <span className="text-slate-300">{s?.fundamentalScore ?? "—"}</span></span>
+        </div>
+        {updatedTime && <span className="text-slate-600">{updatedTime}</span>}
+      </div>
+
+      {/* Footer actions */}
+      <div className="flex items-center justify-between pt-1.5 border-t border-slate-700/30 mt-auto">
+        <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors">
+          {t("portfolio.wl_detail_btn")} →
+        </Link>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="text-[10px] text-slate-600 hover:text-red-400 transition-colors disabled:opacity-50"
+        >
+          {t("portfolio.wl_delete_btn")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Watchlist suggestion badge ─────────────────────────────────────────────────
 
 const BUY_RATINGS = new Set(["STRONG_BUY", "BUY"]);
@@ -613,13 +740,36 @@ function wlSuggestion(rating: string | null): { labelKey: MessageKey; cls: strin
 // ── Watchlist Portfolio Panel ──────────────────────────────────────────────────
 
 function WatchlistPanel({
-  items, loading, t,
+  items, loading, t, onRefresh,
 }: {
   items: WatchlistItem[] | null;
   loading: boolean;
   t: (k: MessageKey) => string;
+  onRefresh: () => void;
 }) {
-  if (loading) {
+  const [displayItems, setDisplayItems] = useState<WatchlistItem[]>(items ?? []);
+  const [showScoreDetail, setShowScoreDetail] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (items != null) {
+      setDisplayItems(items);
+      if (!loading) setLastRefreshed(new Date());
+    }
+  }, [items, loading]);
+
+  // Auto-refresh every 60s during JST trading hours
+  useEffect(() => {
+    const id = setInterval(() => { if (isJSTTradingHours()) onRefresh(); }, 60_000);
+    return () => clearInterval(id);
+  }, [onRefresh]);
+
+  const handleDelete = useCallback((symbol: string) => {
+    setDisplayItems((prev) => prev.filter((i) => i.symbol !== symbol));
+  }, []);
+
+  // Initial loading skeleton
+  if (loading && displayItems.length === 0) {
     return (
       <div className="animate-pulse space-y-4">
         <div className="bg-slate-800/50 rounded-xl h-48" />
@@ -628,8 +778,8 @@ function WatchlistPanel({
     );
   }
 
-  // ── Empty state ──────────────────────────────────────────────────────────────
-  if (!items || items.length === 0) {
+  // Empty state
+  if (!loading && displayItems.length === 0 && items != null) {
     return (
       <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-14 text-center">
         <div className="text-4xl mb-4 text-slate-600">☆</div>
@@ -645,94 +795,71 @@ function WatchlistPanel({
     );
   }
 
-  // ── Simulate positions ───────────────────────────────────────────────────────
-  const eligible = items
+  // ── Simulated portfolio logic ────────────────────────────────────────────────
+  const eligible = displayItems
     .filter((w) => w.score && BUY_RATINGS.has(w.score.effectiveRating ?? ""))
     .slice(0, 10);
-  const simItems = eligible.length >= 2 ? eligible : items.slice(0, Math.min(10, items.length));
-  const alloc = INITIAL_CAPITAL_WL / simItems.length;
+  const simItems = eligible.length >= 2 ? eligible : displayItems.slice(0, Math.min(10, displayItems.length));
+  const alloc = simItems.length > 0 ? INITIAL_CAPITAL_WL / simItems.length : 0;
 
   const positions = simItems
     .map((w) => {
-      const price = w.score?.latestClose ?? null;
-      const shares = price && price > 0 ? Math.floor(alloc / price) : 0;
-      return { ...w, shares, marketValue: shares * (price ?? 0) };
+      const entryPrice = w.score?.latestClose ?? null;
+      const currentPrice = w.score?.realtimePrice ?? entryPrice;
+      const shares = entryPrice && entryPrice > 0 ? Math.floor(alloc / entryPrice) : 0;
+      const marketValue = shares * (currentPrice ?? 0);
+      const pnl = (currentPrice != null && entryPrice != null && shares > 0)
+        ? (currentPrice - entryPrice) * shares : null;
+      const retPct = (entryPrice && entryPrice > 0 && currentPrice != null)
+        ? ((currentPrice - entryPrice) / entryPrice) * 100 : null;
+      return { ...w, entryPrice, currentPrice, shares, marketValue, pnl, retPct };
     })
     .filter((p) => p.shares > 0);
 
   const totalMarketValue = positions.reduce((s, p) => s + p.marketValue, 0);
-  const cash = INITIAL_CAPITAL_WL - totalMarketValue;
-
-  const ratingLabel = (r: string | null) => {
-    const map: Record<string, string> = {
-      STRONG_BUY: "STRONG_BUY", BUY: "BUY", HOLD: "HOLD", WATCH: "WATCH", AVOID: "AVOID",
-    };
-    return r ? (map[r] ?? r) : "—";
-  };
+  const cash = INITIAL_CAPITAL_WL - positions.reduce((s, p) => s + (p.entryPrice ?? 0) * p.shares, 0);
+  const inTradingHours = isJSTTradingHours();
 
   return (
     <div className="space-y-4">
-      {/* ── A. AI评分排序 ─────────────────────────────────────────────────────── */}
+
+      {/* ── A. 自选股实时监控卡片 ────────────────────────────────────────────── */}
       <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
-        <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t("portfolio.wl_section_ranking")}</h2>
-          <span className="text-xs text-slate-500">{items.length} 支自选股</span>
+        <div className="px-5 py-4 border-b border-slate-700/40">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-base font-semibold text-white">{t("portfolio.wl_realtime_title")}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{t("portfolio.wl_realtime_desc")}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {inTradingHours && (
+                <span className="text-[10px] text-emerald-500 bg-emerald-900/30 px-2 py-0.5 rounded-full border border-emerald-800/40">
+                  {t("portfolio.wl_auto_refreshing")}
+                </span>
+              )}
+              {lastRefreshed && (
+                <span className="text-[10px] text-slate-600">
+                  {lastRefreshed.toLocaleTimeString("zh-CN", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+              )}
+              <button
+                onClick={onRefresh}
+                disabled={loading}
+                className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 px-2 py-1 rounded bg-blue-900/20 hover:bg-blue-900/40 transition-colors"
+              >
+                ↻
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700/40 text-xs text-slate-400">
-                <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
-                <th className="text-left py-2.5 px-3">{t("common.name")}</th>
-                <th className="text-right py-2.5 px-3">AI评分</th>
-                <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
-                <th className="text-right py-2.5 px-3">技术</th>
-                <th className="text-right py-2.5 px-3">基本面</th>
-                <th className="text-right py-2.5 px-3">5D</th>
-                <th className="text-right py-2.5 px-3">20D</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((w) => (
-                <tr key={w.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
-                  <td className="py-2.5 px-4">
-                    <Link href={`/stocks/${encodeURIComponent(w.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium">
-                      {w.symbol}
-                    </Link>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[120px] truncate">
-                    {w.nameZh ?? w.name}
-                  </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200 font-medium">
-                    {w.score ? w.score.finalScore.toFixed(1) : "—"}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {w.score?.effectiveRating ? (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wlSuggestion(w.score.effectiveRating).cls}`}>
-                        {ratingLabel(w.score.effectiveRating)}
-                      </span>
-                    ) : <span className="text-slate-500 text-xs">—</span>}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-xs text-slate-300 tabular-nums">
-                    {w.score?.technicalScore?.toFixed(0) ?? "—"}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-xs text-slate-300 tabular-nums">
-                    {w.score?.fundamentalScore?.toFixed(0) ?? "—"}
-                  </td>
-                  <td className={`py-2.5 px-3 text-right tabular-nums text-xs ${returnColor(w.score?.return5d ?? null)}`}>
-                    {w.score?.return5d != null ? `${w.score.return5d > 0 ? "+" : ""}${w.score.return5d.toFixed(1)}%` : "—"}
-                  </td>
-                  <td className={`py-2.5 px-3 text-right tabular-nums text-xs ${returnColor(w.score?.return20d ?? null)}`}>
-                    {w.score?.return20d != null ? `${w.score.return20d > 0 ? "+" : ""}${w.score.return20d.toFixed(1)}%` : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {displayItems.map((item) => (
+            <WatchlistCard key={item.symbol} item={item} t={t} onDelete={handleDelete} />
+          ))}
         </div>
       </div>
 
-      {/* ── B. 模拟建仓 ───────────────────────────────────────────────────────── */}
+      {/* ── B. 实时模拟组合 ──────────────────────────────────────────────────── */}
       <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
         <div className="px-5 py-4 border-b border-slate-700/40">
           <h2 className="text-base font-semibold text-white">{t("portfolio.wl_section_simulate")}</h2>
@@ -752,11 +879,12 @@ function WatchlistPanel({
                   <tr className="border-b border-slate-700/40 text-xs text-slate-400">
                     <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
                     <th className="text-left py-2.5 px-3">{t("common.name")}</th>
-                    <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
-                    <th className="text-right py-2.5 px-3">现价</th>
-                    <th className="text-right py-2.5 px-3">仓位</th>
-                    <th className="text-right py-2.5 px-3">股数</th>
-                    <th className="text-right py-2.5 px-3">市值</th>
+                    <th className="text-right py-2.5 px-3">{t("portfolio.wl_sim_entry")}</th>
+                    <th className="text-right py-2.5 px-3">{t("portfolio.wl_sim_current")}</th>
+                    <th className="text-right py-2.5 px-3">{t("portfolio.snap_shares")}</th>
+                    <th className="text-right py-2.5 px-3">{t("portfolio.snap_market_value")}</th>
+                    <th className="text-right py-2.5 px-3">{t("portfolio.snap_pnl")}</th>
+                    <th className="text-right py-2.5 px-3">{t("portfolio.snap_return_pct")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -770,22 +898,23 @@ function WatchlistPanel({
                       <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[120px] truncate">
                         {p.nameZh ?? p.name}
                       </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wlSuggestion(p.score?.effectiveRating ?? null).cls}`}>
-                          {ratingLabel(p.score?.effectiveRating ?? null)}
-                        </span>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-400">
+                        {p.entryPrice != null ? `¥${p.entryPrice.toLocaleString("ja-JP")}` : "—"}
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200">
-                        {p.score?.latestClose != null ? `¥${p.score.latestClose.toLocaleString("ja-JP")}` : "—"}
-                      </td>
-                      <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-400">
-                        {fmtNum(Math.round(alloc))}
+                        {p.currentPrice != null ? `¥${p.currentPrice.toLocaleString("ja-JP")}` : "—"}
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-300">
                         {p.shares.toLocaleString("ja-JP")}
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200 font-medium">
                         {fmtNum(Math.round(p.marketValue))}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right tabular-nums text-xs font-medium ${returnColor(p.pnl)}`}>
+                        {p.pnl != null ? `${p.pnl >= 0 ? "+" : ""}${fmtNum(Math.round(p.pnl))}` : "—"}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right tabular-nums text-xs font-semibold ${returnColor(p.retPct)}`}>
+                        {p.retPct != null ? `${p.retPct >= 0 ? "+" : ""}${p.retPct.toFixed(2)}%` : "—"}
                       </td>
                     </tr>
                   ))}
@@ -795,20 +924,82 @@ function WatchlistPanel({
             <div className="px-5 py-3 border-t border-slate-700/40 flex flex-wrap gap-6 text-xs text-slate-500">
               <span>已建仓：<span className="text-slate-200 font-medium">{fmtNum(Math.round(totalMarketValue))}</span></span>
               <span>现金：<span className="text-slate-400">{fmtNum(Math.round(cash))}</span></span>
-              <span>持仓股数：<span className="text-slate-300">{positions.length}</span></span>
+              <span>持仓：<span className="text-slate-300">{positions.length}</span></span>
               <span className="ml-auto italic">{t("portfolio.simulate_disclaimer")}</span>
             </div>
           </>
         )}
       </div>
 
-      {/* ── C. 调仓建议 ───────────────────────────────────────────────────────── */}
+      {/* ── C. AI评分明细（折叠）──────────────────────────────────────────────── */}
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+        <button
+          className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-800/30 transition-colors rounded-xl"
+          onClick={() => setShowScoreDetail((v) => !v)}
+        >
+          <h2 className="text-base font-semibold text-white">{t("portfolio.wl_score_detail_title")}</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">{displayItems.length} {t("portfolio.wl_count_unit")}</span>
+            <span className="text-slate-500 text-sm">{showScoreDetail ? "▲" : "▼"}</span>
+          </div>
+        </button>
+        {showScoreDetail && (
+          <div className="border-t border-slate-700/40 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700/40 text-xs text-slate-400">
+                  <th className="text-left py-2.5 px-4">{t("common.symbol")}</th>
+                  <th className="text-left py-2.5 px-3">{t("common.name")}</th>
+                  <th className="text-right py-2.5 px-3">AI</th>
+                  <th className="text-center py-2.5 px-3">{t("backtest.col_rating")}</th>
+                  <th className="text-right py-2.5 px-3">技术</th>
+                  <th className="text-right py-2.5 px-3">基本</th>
+                  <th className="text-right py-2.5 px-3">5D</th>
+                  <th className="text-right py-2.5 px-3">20D</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayItems.map((w) => (
+                  <tr key={w.symbol} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+                    <td className="py-2.5 px-4">
+                      <Link href={`/stocks/${encodeURIComponent(w.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300 text-xs font-medium">
+                        {w.symbol}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-200 text-xs max-w-[120px] truncate">{w.nameZh ?? w.name}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums text-xs text-slate-200 font-medium">
+                      {w.score ? w.score.finalScore.toFixed(1) : "—"}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      {w.score?.effectiveRating ? (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${wlSuggestion(w.score.effectiveRating).cls}`}>
+                          {w.score.effectiveRating}
+                        </span>
+                      ) : <span className="text-slate-500 text-xs">—</span>}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-xs text-slate-300 tabular-nums">{w.score?.technicalScore?.toFixed(0) ?? "—"}</td>
+                    <td className="py-2.5 px-3 text-right text-xs text-slate-300 tabular-nums">{w.score?.fundamentalScore?.toFixed(0) ?? "—"}</td>
+                    <td className={`py-2.5 px-3 text-right tabular-nums text-xs ${returnColor(w.score?.return5d ?? null)}`}>
+                      {w.score?.return5d != null ? `${w.score.return5d > 0 ? "+" : ""}${w.score.return5d.toFixed(1)}%` : "—"}
+                    </td>
+                    <td className={`py-2.5 px-3 text-right tabular-nums text-xs ${returnColor(w.score?.return20d ?? null)}`}>
+                      {w.score?.return20d != null ? `${w.score.return20d > 0 ? "+" : ""}${w.score.return20d.toFixed(1)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── D. 调仓建议 ──────────────────────────────────────────────────────── */}
       <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
         <div className="px-5 py-4 border-b border-slate-700/40">
           <h2 className="text-base font-semibold text-white">{t("portfolio.wl_section_adjust")}</h2>
         </div>
         <div className="divide-y divide-slate-700/20">
-          {items.map((w) => {
+          {displayItems.map((w) => {
             const sugg = wlSuggestion(w.score?.effectiveRating ?? null);
             return (
               <div key={w.symbol} className="flex items-center justify-between px-5 py-3 hover:bg-slate-800/30 transition-colors">
@@ -1125,7 +1316,7 @@ export default function PortfolioPage() {
 
       {/* ── My Watchlist Portfolio ────────────────────────────────────────────── */}
       {activeTab === "watchlist" && (
-        <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} />
+        <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} onRefresh={fetchWatchlist} />
       )}
 
     </div>

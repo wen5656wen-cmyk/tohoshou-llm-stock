@@ -347,6 +347,21 @@ export type Messages = {
   "portfolio.wl_suggest_sell": string;
   "portfolio.wl_suggest_pending": string;
   "portfolio.wl_simulate_rule": string;
+  "portfolio.wl_realtime_title": string;
+  "portfolio.wl_realtime_desc": string;
+  "portfolio.wl_realtime_price": string;
+  "portfolio.wl_1d_change": string;
+  "portfolio.wl_vol": string;
+  "portfolio.wl_vol_ratio": string;
+  "portfolio.wl_turnover": string;
+  "portfolio.wl_detail_btn": string;
+  "portfolio.wl_delete_btn": string;
+  "portfolio.wl_auto_refreshing": string;
+  "portfolio.wl_refresh_label": string;
+  "portfolio.wl_score_detail_title": string;
+  "portfolio.wl_count_unit": string;
+  "portfolio.wl_sim_entry": string;
+  "portfolio.wl_sim_current": string;
 
   // ─── Notifications ─────────────────────────────────────────────────────────
   "notif.title": string;

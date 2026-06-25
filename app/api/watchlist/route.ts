@@ -37,7 +37,7 @@ export async function GET() {
     }),
     prisma.realtimeMarket.findMany({
       where: { symbol: { in: symbols } },
-      select: { symbol: true, volumeRatio: true, turnoverRate: true },
+      select: { symbol: true, price: true, changePct: true, volume: true, volumeRatio: true, turnoverRate: true, updatedAt: true },
     }),
   ]);
 
@@ -98,8 +98,12 @@ export async function GET() {
             gptRank,
             gptRating,
             effectiveRating,
+            realtimePrice: rt?.price ?? null,
+            changePct: rt?.changePct ?? null,
+            volume: rt?.volume ?? null,
             volumeRatio: rt?.volumeRatio ?? null,
             turnoverRate: rt?.turnoverRate ?? null,
+            realtimeUpdatedAt: rt?.updatedAt?.toISOString() ?? null,
             week52Pct,
             computedAt: base?.computedAt?.toISOString() ?? null,
           }
