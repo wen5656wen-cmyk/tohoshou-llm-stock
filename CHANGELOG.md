@@ -2,6 +2,32 @@
 
 ---
 
+## [12.7.0] - 2026-06-25 — AI信号胜率统计模块
+
+### 新增功能
+- **DB 新增表**：`AISignalDailyStat`（`tradeDate + actionType` 唯一约束）
+  - 字段：recommendationCount / validTodayCount / todayWinCount / todayWinRate / avgTodayReturnPct / valid7dCount / win7dCount / win7dRate / avg7dReturnPct / calculatedAt
+- **新增脚本**：`scripts/update-ai-signal-stats.ts`
+  - 参数：`--date=YYYY-MM-DD` / `--all` / `--dry-run`
+  - 当天胜率：`buyPrice` vs `DailyPrice.close`（当日价格），今天则用 `StockScore.latestClose`
+  - 7日胜率：复用 `DailyRecommendation.return7d`（null → 积累中，不计入失败）
+  - Timezone fix：DB 日期比较用 `T00:00:00.000Z` 避免 JST/UTC 偏移
+- **新增 npm 脚本**：`update:signal-stats` / `update:signal-stats:all` / `update:signal-stats:dry`
+- **新增 API**：`GET /api/ai-signal-stats` — 返回最近90天统计，按 tradeDate 分组 STRONG_BUY/BUY/ALL_BUY
+- **页面新增**：`AISignalStatsPanel` + `SignalCard` 嵌入「系统AI组合」Tab 顶部
+  - 3张卡：STRONG_BUY / BUY / 合计
+  - 当天胜率（颜色编码：≥60% 绿，≥50% 黄，<50% 红）
+  - 7日胜率（未满7日→「数据积累中」，不显示0%）
+  - 折叠式30日历史表
+- **i18n**：13个新键（zh-CN/ja-JP/en-US 全覆盖）
+
+### 数据（截至2026-06-25）
+- 2026-06-25：STRONG_BUY=1，BUY=19，合计=20，当天胜率暂0%（今日），7日积累中
+- 2026-06-24：BUY=6，合计=6，当天胜率33.3%，7日积累中
+- 2026-06-23：STRONG_BUY=1，BUY=6，合计=7，当天胜率0%，7日积累中
+
+---
+
 ## [12.6.2] - 2026-06-25 — Portfolio 重构：模拟账户 + 快照专属系统Tab
 
 ### 核心重构
