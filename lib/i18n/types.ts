@@ -779,6 +779,19 @@ export type Messages = {
   "portfolio.snap_no_positions": string;
   "portfolio.snap_section_title": string;
   "portfolio.snap_only_one": string;
+  // AI signal stats
+  "portfolio.signal_title": string;
+  "portfolio.signal_strong_buy": string;
+  "portfolio.signal_buy": string;
+  "portfolio.signal_all_buy": string;
+  "portfolio.signal_rec_count": string;
+  "portfolio.signal_today_win": string;
+  "portfolio.signal_7d_win": string;
+  "portfolio.signal_accumulating": string;
+  "portfolio.signal_avg_today": string;
+  "portfolio.signal_avg_7d": string;
+  "portfolio.signal_no_data": string;
+  "portfolio.signal_updated": string;
   // Sim portfolio
   "portfolio.sim_title": string;
   "portfolio.sim_initial_cash": string;

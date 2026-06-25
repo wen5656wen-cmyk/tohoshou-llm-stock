@@ -7,6 +7,7 @@ import type { MessageKey } from "@/lib/i18n";
 import type { SnapshotSummary } from "@/app/api/portfolio/snapshots/route";
 import type { SnapshotDetail } from "@/app/api/portfolio/snapshots/[date]/route";
 import type { SimPortfolioData, SimPositionItem } from "@/app/api/sim-portfolio/route";
+import type { AISignalDayStats, SignalStatEntry } from "@/app/api/ai-signal-stats/route";
 
 // ── Watchlist types ────────────────────────────────────────────────────────────
 
@@ -276,6 +277,208 @@ function SnapshotCard({
               </div>
             </div>
           ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AI Signal Stats Panel ─────────────────────────────────────────────────────
+
+function SignalCard({
+  label,
+  stat,
+  t,
+  accent,
+}: {
+  label: string;
+  stat: SignalStatEntry | null;
+  t: (k: MessageKey) => string;
+  accent: string;
+}) {
+  if (!stat) return null;
+
+  const fmtRate = (v: number | null) =>
+    v == null ? t("portfolio.signal_accumulating") : `${v.toFixed(1)}%`;
+
+  const fmtAvg = (v: number | null) => {
+    if (v == null) return "—";
+    const sign = v >= 0 ? "+" : "";
+    return `${sign}${v.toFixed(2)}%`;
+  };
+
+  return (
+    <div className={`bg-[#1a2035] rounded-xl border ${accent} p-4 flex flex-col gap-3`}>
+      <div className="text-xs font-bold text-slate-300 uppercase tracking-wide">{label}</div>
+
+      <div className="text-3xl font-bold text-white tabular-nums">
+        {stat.recommendationCount}
+        <span className="text-sm font-normal text-slate-400 ml-1">{t("portfolio.signal_rec_count")}</span>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400">{t("portfolio.signal_today_win")}</span>
+          <div className="text-right">
+            <span className={`text-sm font-bold tabular-nums ${
+              stat.todayWinRate == null ? "text-slate-500"
+              : stat.todayWinRate >= 60 ? "text-emerald-400"
+              : stat.todayWinRate >= 50 ? "text-yellow-400"
+              : "text-red-400"
+            }`}>
+              {fmtRate(stat.todayWinRate)}
+            </span>
+            {stat.validTodayCount > 0 && (
+              <div className="text-[10px] text-slate-500">{stat.todayWinCount}/{stat.validTodayCount}</div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400">{t("portfolio.signal_7d_win")}</span>
+          <div className="text-right">
+            <span className={`text-sm font-bold tabular-nums ${
+              stat.win7dRate == null ? "text-slate-500"
+              : stat.win7dRate >= 60 ? "text-emerald-400"
+              : stat.win7dRate >= 50 ? "text-yellow-400"
+              : "text-red-400"
+            }`}>
+              {stat.valid7dCount === 0 ? t("portfolio.signal_accumulating") : fmtRate(stat.win7dRate)}
+            </span>
+            {stat.valid7dCount > 0 && (
+              <div className="text-[10px] text-slate-500">{stat.win7dCount}/{stat.valid7dCount}</div>
+            )}
+          </div>
+        </div>
+
+        <div className="pt-1 border-t border-slate-700/40 flex justify-between text-[10px] text-slate-500">
+          <span>{t("portfolio.signal_avg_today")} <span className={returnColor(stat.avgTodayReturnPct)}>{fmtAvg(stat.avgTodayReturnPct)}</span></span>
+          <span>{t("portfolio.signal_avg_7d")} <span className={stat.valid7dCount === 0 ? "text-slate-500" : returnColor(stat.avg7dReturnPct)}>{stat.valid7dCount === 0 ? "—" : fmtAvg(stat.avg7dReturnPct)}</span></span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AISignalStatsPanel({ t }: { t: (k: MessageKey) => string }) {
+  const [stats, setStats] = useState<AISignalDayStats[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/ai-signal-stats")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: AISignalDayStats[]) => { setStats(d); setLoading(false); })
+      .catch(() => { setStats([]); setLoading(false); });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-5 animate-pulse">
+        <div className="h-4 bg-slate-700/50 rounded w-32 mb-4" />
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => <div key={i} className="h-36 bg-slate-800/50 rounded-xl" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const today = stats?.[0] ?? null;
+  const hasToday = today != null;
+
+  return (
+    <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+      <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-white">{t("portfolio.signal_title")}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{t("portfolio.signal_updated")}</p>
+        </div>
+        {hasToday && (
+          <span className="text-[10px] text-slate-500 tabular-nums">{today.tradeDate}</span>
+        )}
+      </div>
+
+      {!hasToday ? (
+        <div className="p-10 text-center text-slate-500 text-sm">{t("portfolio.signal_no_data")}</div>
+      ) : (
+        <div className="p-4 space-y-4">
+          {/* Today's cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <SignalCard
+              label={t("portfolio.signal_strong_buy")}
+              stat={today.STRONG_BUY}
+              t={t}
+              accent="border-emerald-800/50"
+            />
+            <SignalCard
+              label={t("portfolio.signal_buy")}
+              stat={today.BUY}
+              t={t}
+              accent="border-blue-800/50"
+            />
+            <SignalCard
+              label={t("portfolio.signal_all_buy")}
+              stat={today.ALL_BUY}
+              t={t}
+              accent="border-slate-700/40"
+            />
+          </div>
+
+          {/* History table (last 30 days) */}
+          {stats && stats.length > 1 && (
+            <details className="group">
+              <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-200 transition-colors py-1 list-none flex items-center gap-1">
+                <span className="group-open:hidden">▶</span>
+                <span className="hidden group-open:inline">▼</span>
+                {t("portfolio.signal_updated")}
+              </summary>
+              <div className="mt-2 overflow-x-auto rounded-lg border border-slate-700/40">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700/40 text-slate-400">
+                      <th className="text-left py-2 px-3">{t("table.date")}</th>
+                      <th className="text-center py-2 px-2" colSpan={2}>{t("portfolio.signal_strong_buy")}</th>
+                      <th className="text-center py-2 px-2" colSpan={2}>{t("portfolio.signal_buy")}</th>
+                      <th className="text-center py-2 px-2" colSpan={2}>{t("portfolio.signal_all_buy")}</th>
+                    </tr>
+                    <tr className="border-b border-slate-700/30 text-slate-500 text-[10px]">
+                      <th className="py-1 px-3" />
+                      <th className="py-1 px-2">n</th><th className="py-1 px-2">{t("portfolio.signal_today_win")}</th>
+                      <th className="py-1 px-2">n</th><th className="py-1 px-2">{t("portfolio.signal_today_win")}</th>
+                      <th className="py-1 px-2">n</th><th className="py-1 px-2">{t("portfolio.signal_today_win")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.map((day) => {
+                      const fmt = (s: SignalStatEntry | null) =>
+                        s == null ? ["—", "—"] : [
+                          String(s.recommendationCount),
+                          s.todayWinRate != null ? `${s.todayWinRate.toFixed(0)}%` : "—",
+                        ];
+                      const [sbn, sbr] = fmt(day.STRONG_BUY);
+                      const [bn, br] = fmt(day.BUY);
+                      const [an, ar] = fmt(day.ALL_BUY);
+                      const rateColor = (r: string) =>
+                        r === "—" ? "text-slate-500"
+                        : parseInt(r) >= 60 ? "text-emerald-400"
+                        : parseInt(r) >= 50 ? "text-yellow-400"
+                        : "text-red-400";
+                      return (
+                        <tr key={day.tradeDate} className="border-b border-slate-700/20 hover:bg-slate-800/20">
+                          <td className="py-1.5 px-3 font-mono text-slate-400">{day.tradeDate}</td>
+                          <td className="py-1.5 px-2 text-center text-slate-300">{sbn}</td>
+                          <td className={`py-1.5 px-2 text-center font-semibold ${rateColor(sbr)}`}>{sbr}</td>
+                          <td className="py-1.5 px-2 text-center text-slate-300">{bn}</td>
+                          <td className={`py-1.5 px-2 text-center font-semibold ${rateColor(br)}`}>{br}</td>
+                          <td className="py-1.5 px-2 text-center text-slate-300">{an}</td>
+                          <td className={`py-1.5 px-2 text-center font-semibold ${rateColor(ar)}`}>{ar}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
         </div>
       )}
     </div>
@@ -1135,7 +1338,12 @@ export default function PortfolioPage() {
         </p>
       </div>
 
-      {activeTab === "system" && <SnapshotsPanel t={t} />}
+      {activeTab === "system" && (
+        <div className="space-y-6">
+          <AISignalStatsPanel t={t} />
+          <SnapshotsPanel t={t} />
+        </div>
+      )}
 
       {activeTab === "watchlist" && (
         <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} onRefresh={fetchWatchlist} />

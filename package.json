@@ -43,7 +43,10 @@
     "sync:hard-block": "npx tsx scripts/sync-hard-block-status.ts",
     "sync:hard-block:dry": "npx tsx scripts/sync-hard-block-status.ts --dry-run",
     "create:snapshot": "npx tsx scripts/create-portfolio-snapshot.ts",
-    "create:snapshot:force": "npx tsx scripts/create-portfolio-snapshot.ts --force"
+    "create:snapshot:force": "npx tsx scripts/create-portfolio-snapshot.ts --force",
+    "update:signal-stats": "npx tsx scripts/update-ai-signal-stats.ts",
+    "update:signal-stats:all": "npx tsx scripts/update-ai-signal-stats.ts --all",
+    "update:signal-stats:dry": "npx tsx scripts/update-ai-signal-stats.ts --dry-run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

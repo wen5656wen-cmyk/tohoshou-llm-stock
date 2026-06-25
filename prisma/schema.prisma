@@ -624,6 +624,29 @@ model PortfolioSnapshotPosition {
   @@map("portfolio_snapshot_positions")
 }
 
+// V12.7.0: Daily AI signal quality stats by recommendation type
+model AISignalDailyStat {
+  id                  Int      @id @default(autoincrement())
+  tradeDate           DateTime @db.Date
+  actionType          String   // STRONG_BUY | BUY | ALL_BUY
+  recommendationCount Int
+  validTodayCount     Int      @default(0)
+  todayWinCount       Int      @default(0)
+  todayWinRate        Float?
+  avgTodayReturnPct   Float?
+  valid7dCount        Int      @default(0)
+  win7dCount          Int      @default(0)
+  win7dRate           Float?
+  avg7dReturnPct      Float?
+  calculatedAt        DateTime
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([tradeDate, actionType])
+  @@index([tradeDate(sort: Desc)])
+  @@map("ai_signal_daily_stats")
+}
+
 // V12.6.2: User-controlled simulation trading account
 model SimPortfolio {
   id          Int      @id @default(autoincrement())
