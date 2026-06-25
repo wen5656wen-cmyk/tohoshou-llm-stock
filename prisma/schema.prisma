@@ -37,6 +37,11 @@ model Stock {
   avgVolume     Float?
   beta          Float?
   lastSyncAt    DateTime?
+  // V12.3 Rule 4 Phase 2: Hard Block fields (populated by external data sync; default = active)
+  isDelisted    Boolean  @default(false)  // true = delisted from exchange
+  isSuspended   Boolean  @default(false)  // true = trading suspended
+  tradingStatus String?                   // ACTIVE | SUSPENDED | HALTED
+  listingStatus String?                   // LISTED | DELISTED
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 

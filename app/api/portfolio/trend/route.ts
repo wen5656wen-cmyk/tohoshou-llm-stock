@@ -13,7 +13,7 @@ export type TrendPoint = {
 export type TrendData = {
   cohortDate: string;
   points: TrendPoint[];
-  maxDrawdown: number | null;
+  maxDrawdown: number; // negative value e.g. -3.25 means 3.25% drawdown; 0 when insufficient data
 };
 
 // ── GET handler ────────────────────────────────────────────────────────────────
@@ -159,7 +159,8 @@ export async function GET() {
     });
 
     // 8. Compute maxDrawdown from daily values
-    let maxDrawdown: number | null = null;
+    // Returns negative value (e.g. -3.25 = 3.25% peak-to-trough drawdown), 0 if insufficient data.
+    let maxDrawdown = 0;
     if (dailyValues.length > 1) {
       let peak = dailyValues[0].value;
       let maxDD = 0;
@@ -168,7 +169,7 @@ export async function GET() {
         const dd = peak > 0 ? ((peak - value) / peak) * 100 : 0;
         if (dd > maxDD) maxDD = dd;
       }
-      maxDrawdown = Math.round(maxDD * 100) / 100;
+      maxDrawdown = -(Math.round(maxDD * 100) / 100);
     }
 
     const trendData: TrendData = {

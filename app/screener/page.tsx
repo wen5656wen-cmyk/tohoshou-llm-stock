@@ -45,6 +45,17 @@ type ApiResponse = { stats: Stats; scores: Score[] };
 
 const STYLE_KEYS = ["QUALITY_COMPOUNDER", "GROWTH_MOMENTUM", "CYCLICAL_EXPORTER", "VALUE_DEFENSIVE", "DOMESTIC_DEFENSIVE", "SPECULATIVE_MOMENTUM"] as const;
 
+function maTrendDisplay(trend: string | null): { label: string; cls: string } {
+  const map: Record<string, { label: string; cls: string }> = {
+    GOLDEN:  { label: "MA↑↑", cls: "text-emerald-600 font-bold" },
+    BULLISH: { label: "MA↑",  cls: "text-emerald-500" },
+    NEUTRAL: { label: "MA—",  cls: "text-slate-400" },
+    BEARISH: { label: "MA↓",  cls: "text-red-400" },
+    DEAD:    { label: "MA↓↓", cls: "text-red-600 font-bold" },
+  };
+  return map[trend ?? ""] ?? { label: "MA—", cls: "text-slate-300" };
+}
+
 function MktChip({ mkt }: { mkt: string | null }) {
   if (!mkt) return null;
   const label = mkt.includes("プライム") ? "P" : mkt.includes("スタンダード") ? "S" : mkt.includes("グロース") ? "G" : "?";
@@ -305,65 +316,79 @@ export default function ScreenerPage() {
         )}
       </div>
 
-      {/* Desktop Card Grid */}
-      <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 gap-3">
+      {/* Desktop Card Grid — compact style aligned with Watchlist */}
+      <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
         {filtered.slice(0, 200).map((s, idx) => {
           const gpt = gptMap.get(s.symbol);
           const displayScore = gpt?.finalScore ?? s.adaptiveScore;
           const hasGpt = !!gpt;
           const rec = getRec(s.recommendationV2);
-          const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-700";
+          const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-600";
+          const ma = maTrendDisplay(s.maTrend);
           return (
             <Link
               key={s.symbol}
               href={buildStockUrl(s.symbol, "screener", pathname)}
-              className={`block bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 group ${s.highRiskFlag ? "border-red-100" : ""}`}
+              className={`block bg-white border rounded-xl p-3 hover:border-blue-200 hover:shadow-md transition-all duration-200 group ${s.highRiskFlag ? "border-red-100" : "border-slate-200"}`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <span className="text-[9px] text-slate-300 tabular-nums font-mono w-5 shrink-0">#{idx + 1}</span>
-                    {s.highRiskFlag && <span className="text-[10px] text-red-400">⚠</span>}
-                  </div>
-                  <div className="text-[13px] font-bold text-slate-900 group-hover:text-blue-600 truncate leading-tight">
+              {/* Name + code row */}
+              <div className="mb-1.5">
+                <div className="flex items-baseline gap-1 min-w-0">
+                  <span className="text-[9px] text-slate-300 tabular-nums font-mono shrink-0">#{idx + 1}</span>
+                  {s.highRiskFlag && <span className="text-[10px] text-red-400 shrink-0">⚠</span>}
+                  <span className="text-[13px] font-bold text-slate-900 group-hover:text-blue-600 truncate leading-snug">
                     {getPrimaryName(s, lang)}
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono mb-1">{s.symbol}</div>
-                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                    <MktChip mkt={s.market} />
-                    {s.stockStyle && (
-                      <span className="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-400">
-                        {t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px]">
-                    <span className="font-medium text-slate-700">{fmtJpy(s.latestClose)}</span>
-                    <span className={`font-medium tabular-nums ${returnColorClass(s.return20d)}`}>{fmtPct(s.return20d)}</span>
-                    <span className={`tabular-nums text-[10px] ${rsiColor}`}>RSI {s.rsi14?.toFixed(1) ?? "—"}</span>
-                  </div>
+                  </span>
                 </div>
-                <div className="text-right shrink-0 ml-1">
-                  <div className={`text-xl font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
-                    {displayScore?.toFixed(0) ?? "—"}
-                  </div>
-                  {hasGpt ? (
-                    <div className="text-[9px] text-slate-400 tabular-nums">
-                      R{gpt.ruleScore.toFixed(0)} G{gpt.gptScore.toFixed(0)}
-                    </div>
-                  ) : (
-                    <div className="text-[9px] text-slate-400">{t("score.rule_only")}</div>
+                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span className="text-[10px] text-slate-400 font-mono">{s.symbol}</span>
+                  <MktChip mkt={s.market} />
+                  {s.stockStyle && (
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-400">
+                      {t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}
+                    </span>
                   )}
-                  <div className={`text-[10px] font-semibold px-1.5 py-0.5 rounded mt-1 whitespace-nowrap inline-block ${rec.bg} ${rec.text}`}>
-                    {getRecommendationLabel(s.recommendationV2, lang)}
-                  </div>
                 </div>
+              </div>
+
+              {/* Score + badge */}
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                <span className={`text-[13px] font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
+                  Score {displayScore?.toFixed(0) ?? "—"}
+                </span>
+                {hasGpt && (
+                  <span className="text-[9px] text-indigo-500 font-mono">
+                    R{gpt.ruleScore.toFixed(0)} G{gpt.gptScore.toFixed(0)}
+                  </span>
+                )}
+                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
+                  {getRecommendationLabel(s.recommendationV2, lang)}
+                </span>
+              </div>
+
+              {/* Price + 20d return */}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[13px] font-semibold text-slate-800 tabular-nums">{fmtJpy(s.latestClose)}</span>
+                <span className={`text-[11px] tabular-nums font-medium ${returnColorClass(s.return20d)}`}>{fmtPct(s.return20d)}</span>
+              </div>
+
+              {/* Indicators */}
+              <div className="flex items-center gap-1 text-[11px] font-mono flex-wrap">
+                <span className={rsiColor}>RSI {s.rsi14?.toFixed(1) ?? "—"}</span>
+                <span className="text-slate-200">·</span>
+                <span className={ma.cls}>{ma.label}</span>
+                {s.return5d != null && (
+                  <>
+                    <span className="text-slate-200">·</span>
+                    <span className={`tabular-nums ${returnColorClass(s.return5d)}`}>5D {fmtPct(s.return5d)}</span>
+                  </>
+                )}
               </div>
             </Link>
           );
         })}
         {filtered.length === 0 && (
-          <div className="col-span-4 py-12 text-center text-slate-400 text-sm">
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 py-12 text-center text-slate-400 text-sm">
             {searchLoading ? t("screener.searching") : t("screener.no_results")}
           </div>
         )}

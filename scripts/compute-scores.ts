@@ -21,6 +21,7 @@ import {
   computeConfidence,
   computeRiskOverride,
   applyAllGuards,
+  isHardBlockedStock,
   VERSION_SNAPSHOT,
   type RiskOverride,
 } from "../lib/safety-rules";
@@ -178,7 +179,12 @@ async function main() {
 
   // ── Pass 1: 逐只股票计算评分 ──────────────────────────────────────────────
   const stocks = await prisma.stock.findMany({
-    select: { id: true, symbol: true, name: true, nameZh: true, market: true, sector: true, industry: true, scaleCategory: true },
+    select: {
+      id: true, symbol: true, name: true, nameZh: true, market: true,
+      sector: true, industry: true, scaleCategory: true,
+      // V12.3 Rule 4 Phase 2: Hard Block fields
+      isDelisted: true, isSuspended: true, tradingStatus: true, listingStatus: true,
+    },
     orderBy: { symbol: "asc" },
   });
   console.log(`Pass 1: ${stocks.length} 只股票\n`);
@@ -289,11 +295,20 @@ async function main() {
           hasInstitutional: institutionalFlowData != null,
           hasSector:        stock.sector != null,
         });
-        const riskOverride = computeRiskOverride({
+        const softOverride = computeRiskOverride({
           highRiskFlag: score.highRiskFlag,
           rsi14: ind.rsi14,
           return20d: ind.return20d,
         });
+
+        // V12.3 Rule 4 Phase 2: Hard Block takes precedence over Soft Block
+        const hardBlocked = isHardBlockedStock({
+          isDelisted: stock.isDelisted,
+          isSuspended: stock.isSuspended,
+          tradingStatus: stock.tradingStatus ?? null,
+          listingStatus: stock.listingStatus ?? null,
+        });
+        const riskOverride: RiskOverride = hardBlocked ? "HARD_BLOCK" : softOverride;
 
         const sharedFields = {
           name: stock.name, nameZh: stock.nameZh ?? null,

@@ -1,37 +1,38 @@
 # TOHOSHOU AI — Roadmap
 
-**Version:** v8.9.5  
-**Updated:** 2026-06-23
+**Version:** v12.3.0
+**Updated:** 2026-06-25
 
 ---
 
-## Completed (This Session — v8.9.x)
+## Completed (v9.x – v12.x)
 
 | Version | Feature |
 |---------|---------|
-| v8.9 | `/admin/verify` 8-module production health center |
-| v8.9.1 | Standardized API response + rerank `timeHorizon` crash fix + `risks[]` array safety |
-| v8.9.2 | `/admin/verify` bilingual (zh/en) + Sidebar entry |
-| v8.9.3 | MobileDrawer — 系统校验 entry (root cause: Sidebar hidden on mobile < 768px) |
-| v8.9.4 | Watchlist 4-column compact cards (RSI·MA·52W·量比, Score 74 format, icon buttons) |
-| v8.9.5 | Deployment History: DeploymentLog DB table + `record-deployment.ts` script + `GET/POST /api/admin/deployments` + UI in verify page |
+| v9.0 | 完全移除推送系统（LINE + 企业微信）；清理所有孤立 chat/notification 代码 |
+| v10.x | Backtest Pipeline（7d/30d/90d 回测 + TOPIX 基准对比 + BacktestError 记录） |
+| v10.x | `/admin/verify` 生产校验中心（8 模块 + 部署历史 DeploymentLog） |
+| v11.0 | AI Portfolio Engine（DailyRecommendation Top10 自动建仓，SVG 收益曲线，TOPIX ETF 基准） |
+| v11.1 | 「我的自选组合」Tab 接入真实 WatchList 数据，调仓建议 |
+| v11.2 | 新闻同步僵尸 Job 修复：2h 超时守卫 + cron 假✅修正 |
+| v12.0 | TOHOSHOU AI Decision Engine v1.0 — 六大铁律安全框架 |
+| v12.1 | No Look-Ahead Bias 完整实施（tradeEffectiveDate 过滤）；Version Snapshot 写入 DailyRecommendation |
+| v12.2 | 新闻同步 Worker 化（`scripts/sync-news.ts`），pm2 restart 不再杀死同步 |
+| v12.3 | `maxDrawdown` 算法（返回负值 number，0 = 无数据）；Screener 卡片样式对齐 Watchlist；Hard Block Phase 2 基础链路；文档同步至 v12.3 |
 
 ---
 
-## P0 — Critical (Must Fix Next)
+## P0 — Critical
 
-*None in this repository.*
+*None.*
 
 ---
 
 ## P1 — High Priority
 
-| # | Issue | Target Version | Notes |
-|---|-------|----------------|-------|
-| P1-1 | `gptRank=null` for 193 stocks | v8.10 | Next scheduled rerank fixes; monitor via `/admin/verify` |
-| P1-2 | DailyRecommendation today=0 after 07:00 JST | v8.10 | Cron reliability; add health alert |
-| P1-3 | RealtimeMarket data has no staleness indicator | v8.10 | Add `updatedAt` check in watchlist API; show staleness warning |
-| P1-4 | `maTrendDisplay` in watchlist page doesn't handle `null` gracefully | v8.10 | Already handled but needs test with fresh data |
+| # | Feature | Target | Notes |
+|---|---------|--------|-------|
+| P1-1 | Hard Block Phase 2 数据接入 | v12.4 | 在 `sync-stock-meta.ts` 或新脚本中写入 `isDelisted/isSuspended/tradingStatus/listingStatus` 字段；数据源候选：J-Quants 上場区分 / Yahoo Finance `quoteType` |
 
 ---
 
@@ -39,11 +40,11 @@
 
 | # | Feature | Notes |
 |---|---------|-------|
-| P2-1 | Screener desktop card redesign (same as watchlist compact style) | Apply RSI·MA·52W row; remove old chip row |
-| P2-2 | Backtest win-rate chart (time-series) | Currently only table view |
-| P2-3 | Portfolio P&L calculation (using DailyPrice history) | Currently only current price |
-| P2-4 | `/admin/verify` auto-refresh every 5 min in background | WebSocket or polling interval |
-| P2-5 | `record-deployment.ts` — warn when `--files` value contains commas (ambiguous parsing) | UX improvement |
+| P2-1 | Screener 补充 `week52Pct` / `volumeRatio` 字段 | 与 Watchlist 数据层保持完全一致 |
+| P2-2 | `maxDrawdown` 滚动算法优化 | 当前为简单 peak-to-trough；可改为时间窗口限制（如最近 90 日） |
+| P2-3 | Backtest 趋势图积累数据（7D 回测满足后显示） | 已自动生成，无需干预 |
+| P2-4 | `/admin/verify` 自动刷新（5 min 轮询或 WebSocket） | 当前需手动刷新 |
+| P2-5 | en-US 股票名 fallback 补全 | `seed-all-chinese-names.ts` 类似脚本，从 Yahoo Finance 拉英文名 |
 
 ---
 
@@ -51,10 +52,10 @@
 
 | # | Feature | Notes |
 |---|---------|-------|
-| P3-1 | Mobile PWA optimization | Screener/watchlist mobile layout |
-| P3-2 | Dividend calendar page | From Dividend table |
-| P3-3 | Sector rotation heatmap | Aggregate by sector + return period |
-| P3-4 | Deployment History CI integration | GitHub Actions → auto POST to /api/admin/deployments |
+| P3-1 | Dividend 日历页面 | 从 Dividend 表生成，按月展示除权日 |
+| P3-2 | Sector Rotation 热力图 | 按行业聚合收益率，按周期颜色显示 |
+| P3-3 | 铁律六 Shadow Mode 激活 | TOHOSHOU_MODEL_VERSION 从 "disabled" 切换为实际模型 |
+| P3-4 | Deployment History CI 集成 | GitHub Actions → 自动 POST `/api/admin/deployments` |
 
 ---
 
@@ -62,11 +63,11 @@
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| 5-dimension scoring (v7.x) | ✅ Done | tech/fund/flow/news/global |
-| Adaptive stock-style scoring (v7.5) | ✅ Done | 6 styles |
-| GPT rerank overlay (v8.x) | ✅ Done | Top 500 daily |
-| Backtest pipeline (v8.x) | ✅ Done | 7d/30d/90d return tracking |
-| Production ops center (v8.9) | ✅ Done | /admin/verify + deployment history |
-| Deployment logging system (v8.9.5) | ✅ Done | DB + script + API + UI |
-| Realtime market integration | 🟡 Partial | RealtimeMarket table populated on-demand |
-| User auth system | ❌ Not planned | Internal tool only |
+| 5维评分系统 (v7.x) | ✅ Done | tech/fund/flow/news/global |
+| Adaptive 风格评分 (v7.5) | ✅ Done | 6 种股票风格权重 |
+| GPT Rerank 覆盖 (v8.x) | ✅ Done | Top 500 每日 GPT 排名 |
+| Backtest Pipeline (v10.x) | ✅ Done | 7d/30d/90d 真实交易日回测 |
+| AI Portfolio Engine (v11.x) | ✅ Done | DailyRecommendation Top10 自动建仓 |
+| TOHOSHOU AI Decision Engine (v12.0) | ✅ Done | 六大铁律安全框架 |
+| Hard Block Phase 2 数据接入 | 🟡 Partial | 字段已建，数据源待接入 |
+| User Auth System | ❌ Not planned | Internal tool only |

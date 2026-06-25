@@ -244,9 +244,29 @@ export function computeRiskOverride(params: {
   if (crashRisk) return "SOFT_BLOCK";
   if (highRiskFlag && rsiExtreme) return "SOFT_BLOCK";
 
-  // HARD_BLOCK: reserved for delisting / halt / sanction (requires external data, future work)
-
   return "NONE";
+}
+
+// ── Rule 4 Phase 2: Hard Block (delisting / suspension) ─────────────────────
+
+export interface HardBlockStockInput {
+  isDelisted: boolean;
+  isSuspended: boolean;
+  tradingStatus: string | null;
+  listingStatus: string | null;
+}
+
+/**
+ * Returns true if the stock should receive HARD_BLOCK due to delisting or suspension.
+ * Safe with all-null/false inputs — no normal stock is accidentally blocked.
+ * When DB fields are unpopulated (all defaults), always returns false.
+ */
+export function isHardBlockedStock(stock: HardBlockStockInput): boolean {
+  if (stock.isDelisted) return true;
+  if (stock.isSuspended) return true;
+  if (stock.tradingStatus != null && ["SUSPENDED", "HALTED"].includes(stock.tradingStatus)) return true;
+  if (stock.listingStatus === "DELISTED") return true;
+  return false;
 }
 
 // ── Combined guard application ────────────────────────────────────────────────

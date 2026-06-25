@@ -646,7 +646,8 @@ export default function PortfolioPage() {
     if (activeTab === "watchlist" && !watchlistLoaded) fetchWatchlist();
   }, [activeTab, watchlistLoaded, fetchWatchlist]);
 
-  const maxDrawdown = trend?.maxDrawdown ?? null;
+  // trend.maxDrawdown is always a number (negative = drawdown, 0 = no data / flat)
+  const maxDrawdown: number | null = trend ? trend.maxDrawdown : null;
   const windows: WindowKey[] = ["7D", "30D", "90D", "ALL"];
 
   const TABS: { key: TabKey; label: MessageKey }[] = [
@@ -765,8 +766,8 @@ export default function PortfolioPage() {
                 />
                 <KPICard
                   label={t("portfolio.max_drawdown")}
-                  value={maxDrawdown != null ? `-${maxDrawdown.toFixed(2)}%` : loadingTrend ? "…" : "—"}
-                  valueClass={maxDrawdown != null && maxDrawdown > 5 ? "text-red-400" : "text-slate-300"}
+                  value={maxDrawdown != null ? `${maxDrawdown.toFixed(2)}%` : loadingTrend ? "…" : "—"}
+                  valueClass={maxDrawdown != null && maxDrawdown < -5 ? "text-red-400" : "text-slate-300"}
                 />
               </div>
 
