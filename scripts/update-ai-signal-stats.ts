@@ -2,6 +2,13 @@
  * update-ai-signal-stats.ts
  * Compute daily AI signal win-rate statistics for STRONG_BUY / BUY / ALL_BUY.
  *
+ * Today win rate rule:
+ *   - todayClose = DailyPrice.close where date = tradeDate (NOT StockScore.latestClose)
+ *   - todayReturnPct = (todayClose - entryPrice) / entryPrice
+ *   - > 0 → win  |  < 0 → loss  |  = 0 → flat (counted in validTodayCount, not win/loss)
+ *   - If DailyPrice for tradeDate not yet synced: validTodayCount=0, todayWinRate=null
+ *     → API marks WAITING_DAILY_PRICE → UI shows "待收盘"
+ *
  * Usage:
  *   npx tsx scripts/update-ai-signal-stats.ts              # today JST
  *   npx tsx scripts/update-ai-signal-stats.ts --date=2026-06-25
@@ -17,7 +24,7 @@ dotenv.config();
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function todayJST(): string {
   return new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
@@ -43,7 +50,7 @@ interface PriceMap {
   [symbol: string]: number | null;
 }
 
-// ── Core compute for one date ────────────────────────────────────────────────
+// ── Core compute for one date ─────────────────────────────────────────────────
 
 async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
   const dateObj = new Date(`${dateStr}T00:00:00.000Z`);
@@ -69,30 +76,27 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
 
   const symbols = [...new Set(recs.map((r) => r.symbol))];
 
-  // 2. Get "today" prices for each symbol
-  //    - If dateStr == todayJST: use StockScore.latestClose
-  //    - Otherwise: use DailyPrice.close for that date
+  // 2. Check whether DailyPrice has been synced for this date.
+  //    Use only DailyPrice.close — never StockScore.latestClose.
+  const latestPriceRow = await prisma.dailyPrice.findFirst({
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+  const latestPriceDateStr = latestPriceRow?.date.toISOString().slice(0, 10) ?? null;
+  const pricesReady = latestPriceDateStr != null && latestPriceDateStr >= dateStr;
+
+  // 3. Load DailyPrice.close for each symbol on this exact date (if available)
   const priceMap: PriceMap = {};
-
-  const isToday = dateStr === todayJST();
-  if (isToday) {
-    const scores = await prisma.stockScore.findMany({
-      where: { symbol: { in: symbols } },
-      select: { symbol: true, latestClose: true },
-    });
-    for (const s of scores) priceMap[s.symbol] = s.latestClose ?? null;
-  } else {
+  if (pricesReady) {
     const prices = await prisma.dailyPrice.findMany({
-      where: {
-        symbol: { in: symbols },
-        date: dateObj,
-      },
-      select: { symbol: true, adjClose: true, close: true },
+      where: { symbol: { in: symbols }, date: dateObj },
+      select: { symbol: true, close: true },
     });
-    for (const p of prices) priceMap[p.symbol] = p.adjClose ?? p.close ?? null;
+    for (const p of prices) priceMap[p.symbol] = p.close ?? null;
   }
+  // If !pricesReady: priceMap is empty → validTodayCount=0, todayWinRate=null
 
-  // 3. Compute stats per action type
+  // 4. Compute stats per action type
   const now = new Date();
 
   for (const actionType of ["STRONG_BUY", "BUY", "ALL_BUY"] as ActionType[]) {
@@ -103,26 +107,32 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
 
     if (filtered.length === 0) continue;
 
-    // Today win rate
+    // Today win / loss / flat (only valid when pricesReady)
     const todayReturns: number[] = [];
     let validTodayCount = 0;
     let todayWinCount = 0;
+    let todayLossCount = 0;
+    let todayFlatCount = 0;
 
-    for (const rec of filtered) {
-      const currentPx = priceMap[rec.symbol] ?? null;
-      const entryPx = rec.buyPrice;
-      if (currentPx == null || entryPx == null || entryPx === 0) continue;
-      validTodayCount++;
-      const ret = ((currentPx - entryPx) / entryPx) * 100;
-      todayReturns.push(ret);
-      if (ret > 0) todayWinCount++;
+    if (pricesReady) {
+      for (const rec of filtered) {
+        const todayClose = priceMap[rec.symbol] ?? null;
+        const entryPx = rec.buyPrice;
+        if (todayClose == null || entryPx == null || entryPx === 0) continue;
+        validTodayCount++;
+        const ret = ((todayClose - entryPx) / entryPx) * 100;
+        todayReturns.push(ret);
+        if (ret > 0) todayWinCount++;
+        else if (ret < 0) todayLossCount++;
+        else todayFlatCount++;
+      }
     }
 
     const todayWinRate =
       validTodayCount > 0 ? (todayWinCount / validTodayCount) * 100 : null;
     const avgTodayReturnPct = avg(todayReturns);
 
-    // 7-day win rate (use pre-computed return7d)
+    // 7-day win rate (pre-computed return7d — independent of daily price sync)
     const returns7d: number[] = [];
     let valid7dCount = 0;
     let win7dCount = 0;
@@ -138,12 +148,18 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
       valid7dCount > 0 ? (win7dCount / valid7dCount) * 100 : null;
     const avg7dReturnPct = avg(returns7d);
 
+    const todayLabel = pricesReady
+      ? `win=${todayWinCount} loss=${todayLossCount} flat=${todayFlatCount} / ${validTodayCount} → ${todayWinRate?.toFixed(1) ?? "—"}%`
+      : `WAITING [latestPrice=${latestPriceDateStr ?? "none"}]`;
+
     const payload = {
       tradeDate: dateObj,
       actionType,
       recommendationCount: filtered.length,
       validTodayCount,
       todayWinCount,
+      todayLossCount,
+      todayFlatCount,
       todayWinRate,
       avgTodayReturnPct,
       valid7dCount,
@@ -154,7 +170,7 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
     };
 
     if (dryRun) {
-      console.log(`[DRY] ${dateStr} | ${actionType} | recs=${filtered.length} | todayWin=${todayWinCount}/${validTodayCount}=${todayWinRate?.toFixed(1) ?? "—"}% | 7d=${win7dCount}/${valid7dCount}=${win7dRate?.toFixed(1) ?? "积累中"}%`);
+      console.log(`[DRY] ${dateStr} | ${actionType} | recs=${filtered.length} | today=${todayLabel} | 7d=${win7dCount}/${valid7dCount}=${win7dRate?.toFixed(1) ?? "积累中"}%`);
     } else {
       await prisma.aISignalDailyStat.upsert({
         where: {
@@ -165,6 +181,8 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
           recommendationCount: payload.recommendationCount,
           validTodayCount: payload.validTodayCount,
           todayWinCount: payload.todayWinCount,
+          todayLossCount: payload.todayLossCount,
+          todayFlatCount: payload.todayFlatCount,
           todayWinRate: payload.todayWinRate,
           avgTodayReturnPct: payload.avgTodayReturnPct,
           valid7dCount: payload.valid7dCount,
@@ -174,12 +192,12 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
           calculatedAt: now,
         },
       });
-      console.log(`[${dateStr}] ${actionType}: recs=${filtered.length} today=${todayWinCount}/${validTodayCount}(${todayWinRate?.toFixed(1) ?? "—"}%) 7d=${win7dCount}/${valid7dCount}(${win7dRate?.toFixed(1) ?? "积累中"}%)`);
+      console.log(`[${dateStr}] ${actionType}: recs=${filtered.length} | ${todayLabel} | 7d=${win7dCount}/${valid7dCount}(${win7dRate?.toFixed(1) ?? "积累中"}%)`);
     }
   }
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+// ── Entry point ───────────────────────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
@@ -191,7 +209,6 @@ async function main() {
   if (dryRun) console.log("=== DRY RUN MODE ===");
 
   if (allDates) {
-    // Find all distinct dates in daily_recommendations with BUY/STRONG_BUY
     const rows = await prisma.dailyRecommendation.findMany({
       where: { recommendation: { in: ["STRONG_BUY", "BUY"] } },
       select: { date: true },

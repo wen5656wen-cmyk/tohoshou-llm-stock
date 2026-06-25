@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export type TodayStatus = "WAITING_DAILY_PRICE" | "OK";
+
 export type SignalStatEntry = {
   recommendationCount: number;
   validTodayCount: number;
   todayWinCount: number;
+  todayLossCount: number;
+  todayFlatCount: number;
   todayWinRate: number | null;
   avgTodayReturnPct: number | null;
+  todayStatus: TodayStatus;
   valid7dCount: number;
   win7dCount: number;
   win7dRate: number | null;
@@ -24,6 +29,8 @@ function toEntry(row: {
   recommendationCount: number;
   validTodayCount: number;
   todayWinCount: number;
+  todayLossCount: number;
+  todayFlatCount: number;
   todayWinRate: number | null;
   avgTodayReturnPct: number | null;
   valid7dCount: number;
@@ -31,12 +38,21 @@ function toEntry(row: {
   win7dRate: number | null;
   avg7dReturnPct: number | null;
 }): SignalStatEntry {
+  // WAITING_DAILY_PRICE: recommendations exist but no valid price comparisons → prices not yet synced
+  const todayStatus: TodayStatus =
+    row.recommendationCount > 0 && row.validTodayCount === 0 && row.todayWinRate === null
+      ? "WAITING_DAILY_PRICE"
+      : "OK";
+
   return {
     recommendationCount: row.recommendationCount,
     validTodayCount: row.validTodayCount,
     todayWinCount: row.todayWinCount,
+    todayLossCount: row.todayLossCount,
+    todayFlatCount: row.todayFlatCount,
     todayWinRate: row.todayWinRate,
     avgTodayReturnPct: row.avgTodayReturnPct,
+    todayStatus,
     valid7dCount: row.valid7dCount,
     win7dCount: row.win7dCount,
     win7dRate: row.win7dRate,
@@ -54,6 +70,8 @@ export async function GET() {
       recommendationCount: true,
       validTodayCount: true,
       todayWinCount: true,
+      todayLossCount: true,
+      todayFlatCount: true,
       todayWinRate: true,
       avgTodayReturnPct: true,
       valid7dCount: true,

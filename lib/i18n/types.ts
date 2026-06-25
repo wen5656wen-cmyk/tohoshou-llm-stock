@@ -800,6 +800,7 @@ export type Messages = {
   "portfolio.signal_no_data": string;
   "portfolio.signal_updated": string;
   "portfolio.signal_price_pending": string;
+  "portfolio.signal_awaiting_close": string;
   // Sim portfolio
   "portfolio.sim_title": string;
   "portfolio.sim_initial_cash": string;

@@ -797,6 +797,7 @@ const enUS: Messages = {
   "portfolio.signal_no_data": "No signals today",
   "portfolio.signal_updated": "Last 30 days",
   "portfolio.signal_price_pending": "Awaiting price update",
+  "portfolio.signal_awaiting_close": "Awaiting close",
   // Sim portfolio
   "portfolio.sim_title": "My Sim Account",
   "portfolio.sim_initial_cash": "Starting Cash",

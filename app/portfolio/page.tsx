@@ -302,12 +302,15 @@ function SignalCard({
     v == null ? t("portfolio.signal_accumulating") : `${v.toFixed(1)}%`;
 
   const todayWinDisplay =
-    stat.validTodayCount === 0
-      ? t("portfolio.signal_price_pending")
-      : fmtRate(stat.todayWinRate);
+    stat.todayStatus === "WAITING_DAILY_PRICE"
+      ? t("portfolio.signal_awaiting_close")
+      : stat.validTodayCount === 0
+        ? t("portfolio.signal_price_pending")
+        : fmtRate(stat.todayWinRate);
 
   const todayWinColor =
-    stat.validTodayCount === 0 ? "text-slate-500"
+    stat.todayStatus === "WAITING_DAILY_PRICE" ? "text-slate-500"
+    : stat.validTodayCount === 0 ? "text-slate-500"
     : stat.todayWinRate == null ? "text-slate-500"
     : stat.todayWinRate >= 60 ? "text-emerald-400"
     : stat.todayWinRate >= 50 ? "text-yellow-400"
@@ -456,16 +459,17 @@ function AISignalStatsPanel({ t }: { t: (k: MessageKey) => string }) {
                   </thead>
                   <tbody>
                     {stats.map((day) => {
-                      const fmt = (s: SignalStatEntry | null) =>
+                      const fmt = (s: SignalStatEntry | null): [string, string] =>
                         s == null ? ["—", "—"] : [
                           String(s.recommendationCount),
+                          s.todayStatus === "WAITING_DAILY_PRICE" ? "待収" :
                           s.todayWinRate != null ? `${s.todayWinRate.toFixed(0)}%` : "—",
                         ];
                       const [sbn, sbr] = fmt(day.STRONG_BUY);
                       const [bn, br] = fmt(day.BUY);
                       const [an, ar] = fmt(day.ALL_BUY);
                       const rateColor = (r: string) =>
-                        r === "—" ? "text-slate-500"
+                        r === "—" || r === "待収" ? "text-slate-500"
                         : parseInt(r) >= 60 ? "text-emerald-400"
                         : parseInt(r) >= 50 ? "text-yellow-400"
                         : "text-red-400";
