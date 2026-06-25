@@ -371,17 +371,19 @@ function SnapshotCard({
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<SnapshotDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState(false);
 
   const handleExpand = useCallback(() => {
-    if (!expanded && !detail) {
+    if (!expanded && !detail && !detailError) {
       setLoadingDetail(true);
+      setDetailError(false);
       fetch(`/api/portfolio/snapshots/${snap.snapshotDate}`)
-        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
         .then((d: SnapshotDetail) => { setDetail(d); setLoadingDetail(false); })
-        .catch(() => setLoadingDetail(false));
+        .catch(() => { setDetailError(true); setLoadingDetail(false); });
     }
     setExpanded((v) => !v);
-  }, [expanded, detail, snap.snapshotDate]);
+  }, [expanded, detail, detailError, snap.snapshotDate]);
 
   const pnlColor = snap.unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400";
   const pnlSign = snap.unrealizedPnl >= 0 ? "+" : "";
@@ -477,6 +479,18 @@ function SnapshotCard({
         <div className="border-t border-slate-700/40">
           {loadingDetail ? (
             <div className="p-6 text-center text-slate-500 text-sm animate-pulse">{t("portfolio.snap_loading")}</div>
+          ) : detailError ? (
+            <div className="p-6 text-center text-red-400 text-sm">
+              {t("portfolio.snap_detail_error")}
+              <button
+                className="ml-3 underline text-red-300 hover:text-red-200"
+                onClick={() => { setDetailError(false); setDetail(null); }}
+              >
+                ↩
+              </button>
+            </div>
+          ) : detail && detail.positions.length === 0 ? (
+            <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.snap_no_positions")}</div>
           ) : detail ? (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -552,9 +566,7 @@ function SnapshotCard({
                 <span className="ml-auto italic">{t("portfolio.simulate_disclaimer")}</span>
               </div>
             </div>
-          ) : (
-            <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.no_data")}</div>
-          )}
+          ) : null}
         </div>
       )}
     </div>
@@ -592,7 +604,10 @@ function SnapshotsPanel({ t }: { t: (k: MessageKey) => string }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-slate-500 px-1">{t("portfolio.tab_snapshots_desc")}</div>
+      <div className="flex items-center gap-3 px-1 mb-1">
+        <span className="text-sm font-semibold text-white">{t("portfolio.snap_section_title")}</span>
+        <span className="text-xs text-slate-500">{t("portfolio.tab_snapshots_desc")}</span>
+      </div>
       {snapshots.map((s) => (
         <SnapshotCard key={s.id} snap={s} t={t} />
       ))}

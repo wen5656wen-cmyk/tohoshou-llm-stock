@@ -775,6 +775,9 @@ export type Messages = {
   "portfolio.snap_alpha": string;
   "portfolio.snap_outperform": string;
   "portfolio.snap_underperform": string;
+  "portfolio.snap_detail_error": string;
+  "portfolio.snap_no_positions": string;
+  "portfolio.snap_section_title": string;
 };
 
 export type MessageKey = keyof Messages;

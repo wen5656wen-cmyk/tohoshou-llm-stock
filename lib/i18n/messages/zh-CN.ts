@@ -772,6 +772,9 @@ const zhCN: Messages = {
   "portfolio.snap_alpha": "Alpha",
   "portfolio.snap_outperform": "跑赢TOPIX",
   "portfolio.snap_underperform": "跑输TOPIX",
+  "portfolio.snap_detail_error": "明细加载失败，请重试",
+  "portfolio.snap_no_positions": "暂无持仓明细",
+  "portfolio.snap_section_title": "每日AI快照记录",
 };
 
 export default zhCN;

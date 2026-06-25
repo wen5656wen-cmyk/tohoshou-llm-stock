@@ -156,6 +156,7 @@ async function main() {
   };
 
   const positions: Position[] = [];
+  const skipped: { symbol: string; reason: string }[] = [];
 
   for (const rec of eligible) {
     // entryPrice: buyPrice (当日 latestClose snapshot) or ScorePrice fallback
@@ -166,14 +167,18 @@ async function main() {
     const entryPrice = buyPx ?? scorePx ?? fallbackPx;
 
     if (entryPrice == null || entryPrice <= 0) {
-      console.log(`  ⚠️  ${rec.symbol}: 価格なし → スキップ`);
+      const reason = `price=${entryPrice} (buyPx=${buyPx}, scorePx=${scorePx}, fallbackPx=${fallbackPx})`;
+      console.log(`  ⚠️  ${rec.symbol}: 価格なし → スキップ [${reason}]`);
+      skipped.push({ symbol: rec.symbol, reason: `no price: ${reason}` });
       continue;
     }
 
     const rawShares = Math.floor(budgetPerStock / entryPrice / LOT_SIZE) * LOT_SIZE;
 
     if (rawShares < LOT_SIZE) {
-      console.log(`  ⚠️  ${rec.symbol}: 株数 ${rawShares} < ${LOT_SIZE} → スキップ`);
+      const reason = `shares=${rawShares} < ${LOT_SIZE}lot (budget=¥${Math.round(budgetPerStock).toLocaleString("ja-JP")}, price=¥${entryPrice})`;
+      console.log(`  ⚠️  ${rec.symbol}: 株数不足 → スキップ [${reason}]`);
+      skipped.push({ symbol: rec.symbol, reason });
       continue;
     }
 
@@ -192,8 +197,16 @@ async function main() {
     });
   }
 
+  if (skipped.length > 0) {
+    console.log(`\nスキップ銘柄 (${skipped.length} 件):`);
+    for (const s of skipped) {
+      console.log(`  ${s.symbol}: ${s.reason}`);
+    }
+  }
+
   if (positions.length === 0) {
-    console.error("❌ 有効なポジションがありません（全銘柄の株数が100未満）");
+    console.error(`❌ 有効なポジションが0件です（候補${eligible.length}件 全スキップ）`);
+    console.error("  原因: 価格なし or 株数が100未満。rerank:top500 / compute-scores を先に実行してください。");
     await prisma.$disconnect();
     process.exit(1);
   }
@@ -203,11 +216,15 @@ async function main() {
   const cash = INITIAL_CAPITAL - investedAmount;
   const name = `${targetDate} AI組合`;
 
+  const totalCheck = investedAmount + cash;
+  const checkOk = Math.abs(totalCheck - INITIAL_CAPITAL) < 1;
+
   console.log(`\n建仓結果:`);
-  console.log(`  ポジション数: ${positions.length} 件`);
-  console.log(`  投資総額:    ¥${investedAmount.toLocaleString("ja-JP")}`);
-  console.log(`  残金:        ¥${cash.toLocaleString("ja-JP")}`);
-  console.log(`  名称:        ${name}\n`);
+  console.log(`  ポジション数:  ${positions.length} 件`);
+  console.log(`  投資総額:     ¥${Math.round(investedAmount).toLocaleString("ja-JP")}`);
+  console.log(`  残金:         ¥${Math.round(cash).toLocaleString("ja-JP")}`);
+  console.log(`  合計チェック:  ¥${Math.round(totalCheck).toLocaleString("ja-JP")} (expected ¥${INITIAL_CAPITAL.toLocaleString("ja-JP")}) ${checkOk ? "✅" : "❌"}`);
+  console.log(`  名称:         ${name}\n`);
 
   for (const p of positions) {
     console.log(`  #${p.gptRank} ${p.symbol} — ¥${p.entryPrice.toLocaleString("ja-JP")} × ${p.shares}株 = ¥${p.entryAmount.toLocaleString("ja-JP")}`);

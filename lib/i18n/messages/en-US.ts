@@ -772,6 +772,9 @@ const enUS: Messages = {
   "portfolio.snap_alpha": "Alpha",
   "portfolio.snap_outperform": "Beating TOPIX",
   "portfolio.snap_underperform": "Trailing TOPIX",
+  "portfolio.snap_detail_error": "Detail load failed, retry",
+  "portfolio.snap_no_positions": "No position data",
+  "portfolio.snap_section_title": "Daily AI Snapshots",
 };
 
 export default enUS;

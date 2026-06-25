@@ -772,6 +772,9 @@ const jaJP: Messages = {
   "portfolio.snap_alpha": "Alpha",
   "portfolio.snap_outperform": "TOPIX超過",
   "portfolio.snap_underperform": "TOPIX下回",
+  "portfolio.snap_detail_error": "読み込み失敗、再試行してください",
+  "portfolio.snap_no_positions": "保有明細なし",
+  "portfolio.snap_section_title": "AI日次スナップショット",
 };
 
 export default jaJP;
