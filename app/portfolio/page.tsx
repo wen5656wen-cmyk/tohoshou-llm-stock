@@ -667,7 +667,7 @@ function WatchlistCard({
     : null;
 
   return (
-    <div className="bg-slate-800/50 rounded-xl border border-slate-700/40 p-3 flex flex-col gap-1.5">
+    <div className="bg-slate-800/50 rounded-xl border border-slate-700/40 p-3 flex flex-col gap-2">
       {/* Header: symbol + name + rating */}
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1 mr-1">
@@ -679,25 +679,21 @@ function WatchlistCard({
         <RatingBadge rating={s?.effectiveRating ?? null} />
       </div>
 
-      {/* Price + returns row */}
-      <div className="grid grid-cols-4 gap-0.5">
-        <div>
-          <div className="text-[9px] text-slate-500">{t("portfolio.wl_realtime_price")}</div>
-          <div className="text-sm font-bold text-white tabular-nums leading-tight">
-            {displayPrice != null ? `¥${displayPrice.toLocaleString("ja-JP")}` : "—"}
-          </div>
+      {/* Price (full width) → returns row below — no overlap */}
+      <div className="flex flex-col gap-0.5">
+        <div className="text-[9px] text-slate-500 leading-none">{t("portfolio.wl_realtime_price")}</div>
+        <div className="text-[18px] leading-[1.1] font-bold text-white tabular-nums">
+          {displayPrice != null ? `¥${displayPrice.toLocaleString("ja-JP")}` : "—"}
         </div>
-        <div>
-          <div className="text-[9px] text-slate-500">{t("portfolio.wl_1d_change")}</div>
-          <div className={`text-xs font-semibold tabular-nums ${returnColor(changePct)}`}>{fmtPct(changePct)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] text-slate-500">5D</div>
-          <div className={`text-xs tabular-nums ${returnColor(s?.return5d ?? null)}`}>{fmtPct(s?.return5d ?? null)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] text-slate-500">20D</div>
-          <div className={`text-xs tabular-nums ${returnColor(s?.return20d ?? null)}`}>{fmtPct(s?.return20d ?? null)}</div>
+        <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-0 mt-0.5 text-[13px] tabular-nums">
+          <span className="text-[9px] text-slate-500">{t("portfolio.wl_1d_change")}</span>
+          <span className={`font-semibold ${returnColor(changePct)}`}>{fmtPct(changePct)}</span>
+          <span className="text-slate-600 text-[10px]">│</span>
+          <span className="text-[9px] text-slate-500">5D</span>
+          <span className={returnColor(s?.return5d ?? null)}>{fmtPct(s?.return5d ?? null)}</span>
+          <span className="text-slate-600 text-[10px]">│</span>
+          <span className="text-[9px] text-slate-500">20D</span>
+          <span className={returnColor(s?.return20d ?? null)}>{fmtPct(s?.return20d ?? null)}</span>
         </div>
       </div>
 
