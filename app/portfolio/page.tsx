@@ -298,74 +298,140 @@ function SignalCard({
 }) {
   if (!stat) return null;
 
-  const fmtRate = (v: number | null) =>
-    v == null ? t("portfolio.signal_accumulating") : `${v.toFixed(1)}%`;
-
-  const todayWinDisplay =
-    stat.todayStatus === "WAITING_DAILY_PRICE"
-      ? t("portfolio.signal_awaiting_close")
-      : stat.validTodayCount === 0
-        ? t("portfolio.signal_price_pending")
-        : fmtRate(stat.todayWinRate);
-
-  const todayWinColor =
-    stat.todayStatus === "WAITING_DAILY_PRICE" ? "text-slate-500"
-    : stat.validTodayCount === 0 ? "text-slate-500"
-    : stat.todayWinRate == null ? "text-slate-500"
-    : stat.todayWinRate >= 60 ? "text-emerald-400"
-    : stat.todayWinRate >= 50 ? "text-yellow-400"
-    : "text-red-400";
-
   const fmtAvg = (v: number | null) => {
     if (v == null) return "—";
-    const sign = v >= 0 ? "+" : "";
-    return `${sign}${v.toFixed(2)}%`;
+    return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+  };
+
+  const winRateColor = (r: number | null) =>
+    r == null ? "text-slate-500" : r >= 60 ? "text-emerald-400" : r >= 50 ? "text-yellow-400" : "text-red-400";
+
+  const isPending = stat.todayStatus === "PENDING";
+  const isAccumulating7d = stat.weekStatus === "ACCUMULATING";
+
+  // Distribution bar (renders a set of labeled count chips)
+  const DistBar = ({
+    big_up, small_up, flat, small_down, big_down,
+  }: { big_up: number; small_up: number; flat: number; small_down: number; big_down: number }) => {
+    const total = big_up + small_up + flat + small_down + big_down;
+    if (total === 0) return null;
+    const items = [
+      { label: t("portfolio.signal_big_up"), count: big_up, cls: "text-emerald-400" },
+      { label: t("portfolio.signal_small_up"), count: small_up, cls: "text-emerald-600" },
+      { label: t("portfolio.signal_flat_short"), count: flat, cls: "text-slate-400" },
+      { label: t("portfolio.signal_small_down"), count: small_down, cls: "text-red-500" },
+      { label: t("portfolio.signal_big_down"), count: big_down, cls: "text-red-400" },
+    ];
+    return (
+      <div className="flex gap-1 flex-wrap">
+        {items.map(({ label: lbl, count, cls }) => count > 0 && (
+          <span key={lbl} className={`text-[10px] tabular-nums ${cls}`}>
+            {lbl}<span className="text-slate-400">×{count}</span>
+          </span>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className={`bg-[#1a2035] rounded-xl border ${accent} p-4 flex flex-col gap-3`}>
-      <div className="text-xs font-bold text-slate-300 uppercase tracking-wide">{label}</div>
-
-      <div className="text-3xl font-bold text-white tabular-nums">
-        {stat.recommendationCount}
-        <span className="text-sm font-normal text-slate-400 ml-1">{t("portfolio.signal_rec_count")}</span>
+    <div className={`bg-[#1a2035] rounded-xl border ${accent} p-4 flex flex-col gap-2.5`}>
+      {/* Header: label + count */}
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs font-bold text-slate-300 uppercase tracking-wide">{label}</span>
+        <span className="text-2xl font-bold text-white tabular-nums">
+          {stat.recommendationCount}
+          <span className="text-xs font-normal text-slate-500 ml-1">{t("portfolio.signal_rec_count")}</span>
+        </span>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">{t("portfolio.signal_today_win")}</span>
-          <div className="text-right">
-            <span className={`text-sm font-bold tabular-nums ${todayWinColor}`}>
-              {todayWinDisplay}
-            </span>
-            {stat.validTodayCount > 0 && (
-              <div className="text-[10px] text-slate-500">{stat.todayWinCount}/{stat.validTodayCount}</div>
-            )}
-          </div>
+      {/* ── TODAY section ─────────────────────────────── */}
+      <div className="rounded-lg bg-slate-800/40 px-3 py-2 space-y-1.5">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+          {t("portfolio.signal_today_section")}
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">{t("portfolio.signal_7d_win")}</span>
-          <div className="text-right">
-            <span className={`text-sm font-bold tabular-nums ${
-              stat.win7dRate == null ? "text-slate-500"
-              : stat.win7dRate >= 60 ? "text-emerald-400"
-              : stat.win7dRate >= 50 ? "text-yellow-400"
-              : "text-red-400"
-            }`}>
-              {stat.valid7dCount === 0 ? t("portfolio.signal_accumulating") : fmtRate(stat.win7dRate)}
-            </span>
-            {stat.valid7dCount > 0 && (
-              <div className="text-[10px] text-slate-500">{stat.win7dCount}/{stat.valid7dCount}</div>
-            )}
-          </div>
-        </div>
-
-        <div className="pt-1 border-t border-slate-700/40 flex justify-between text-[10px] text-slate-500">
-          <span>{t("portfolio.signal_avg_today")} <span className={returnColor(stat.avgTodayReturnPct)}>{fmtAvg(stat.avgTodayReturnPct)}</span></span>
-          <span>{t("portfolio.signal_avg_7d")} <span className={stat.valid7dCount === 0 ? "text-slate-500" : returnColor(stat.avg7dReturnPct)}>{stat.valid7dCount === 0 ? "—" : fmtAvg(stat.avg7dReturnPct)}</span></span>
-        </div>
+        {isPending ? (
+          <div className="text-xs text-slate-500 italic">{t("portfolio.signal_awaiting_close")}</div>
+        ) : stat.validTodayCount === 0 ? (
+          <div className="text-xs text-slate-500 italic">{t("portfolio.signal_price_pending")}</div>
+        ) : (
+          <>
+            {/* W / L / F row */}
+            <div className="flex gap-3 text-xs">
+              <span className="text-emerald-400">{t("portfolio.signal_win_short")} <span className="font-bold tabular-nums">{stat.todayWinCount}</span></span>
+              <span className="text-red-400">{t("portfolio.signal_loss_short")} <span className="font-bold tabular-nums">{stat.todayLossCount}</span></span>
+              <span className="text-slate-400">{t("portfolio.signal_flat_short")} <span className="font-bold tabular-nums">{stat.todayFlatCount}</span></span>
+              <span className="text-slate-500 text-[10px] self-end">/{stat.validTodayCount}</span>
+            </div>
+            {/* Win rate */}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500">{t("portfolio.signal_today_win")}</span>
+              <span className={`text-sm font-bold tabular-nums ${winRateColor(stat.todayWinRate)}`}>
+                {stat.todayWinRate != null ? `${stat.todayWinRate.toFixed(1)}%` : "—"}
+              </span>
+            </div>
+            {/* Avg / best / worst */}
+            <div className="flex gap-2 text-[10px]">
+              <span className="text-slate-500">{t("portfolio.signal_avg_today")} <span className={returnColor(stat.avgTodayReturnPct)}>{fmtAvg(stat.avgTodayReturnPct)}</span></span>
+              <span className="text-slate-500">{t("portfolio.signal_best")} <span className="text-emerald-500">{fmtAvg(stat.bestTodayReturnPct)}</span></span>
+              <span className="text-slate-500">{t("portfolio.signal_worst")} <span className="text-red-500">{fmtAvg(stat.worstTodayReturnPct)}</span></span>
+            </div>
+            {/* Distribution */}
+            <DistBar
+              big_up={stat.bigUpTodayCount} small_up={stat.smallUpTodayCount}
+              flat={stat.todayFlatCount} small_down={stat.smallDownTodayCount} big_down={stat.bigDownTodayCount}
+            />
+          </>
+        )}
       </div>
+
+      {/* ── 7-DAY section ─────────────────────────────── */}
+      <div className="rounded-lg bg-slate-800/40 px-3 py-2 space-y-1.5">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+          {t("portfolio.signal_7d_section")}
+        </div>
+
+        {isAccumulating7d ? (
+          <div className="text-xs text-slate-500 italic">{t("portfolio.signal_accumulating")}</div>
+        ) : (
+          <>
+            <div className="flex gap-3 text-xs">
+              <span className="text-emerald-400">{t("portfolio.signal_win_short")} <span className="font-bold tabular-nums">{stat.win7dCount}</span></span>
+              <span className="text-red-400">{t("portfolio.signal_loss_short")} <span className="font-bold tabular-nums">{stat.loss7dCount}</span></span>
+              <span className="text-slate-400">{t("portfolio.signal_flat_short")} <span className="font-bold tabular-nums">{stat.flat7dCount}</span></span>
+              <span className="text-slate-500 text-[10px] self-end">/{stat.valid7dCount}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500">{t("portfolio.signal_7d_win")}</span>
+              <span className={`text-sm font-bold tabular-nums ${winRateColor(stat.win7dRate)}`}>
+                {stat.win7dRate != null ? `${stat.win7dRate.toFixed(1)}%` : "—"}
+              </span>
+            </div>
+            <div className="flex gap-2 text-[10px]">
+              <span className="text-slate-500">{t("portfolio.signal_avg_7d")} <span className={returnColor(stat.avg7dReturnPct)}>{fmtAvg(stat.avg7dReturnPct)}</span></span>
+              <span className="text-slate-500">{t("portfolio.signal_best")} <span className="text-emerald-500">{fmtAvg(stat.best7dReturnPct)}</span></span>
+              <span className="text-slate-500">{t("portfolio.signal_worst")} <span className="text-red-500">{fmtAvg(stat.worst7dReturnPct)}</span></span>
+            </div>
+            <DistBar
+              big_up={stat.bigUp7dCount} small_up={stat.smallUp7dCount}
+              flat={stat.flat7dCount} small_down={stat.smallDown7dCount} big_down={stat.bigDown7dCount}
+            />
+          </>
+        )}
+      </div>
+
+      {/* ── COHORT section ────────────────────────────── */}
+      {!isPending && stat.uniqueSymbolCount > 0 && (
+        <div className="flex items-center justify-between px-1 text-[10px] text-slate-500">
+          <span>{t("portfolio.signal_unique")}</span>
+          <span>
+            <span className={winRateColor(stat.uniqueWinRate)}>
+              {stat.uniqueWinRate != null ? `${stat.uniqueWinRate.toFixed(1)}%` : "—"}
+            </span>
+            <span className="ml-1">({stat.uniqueWinCount}/{stat.uniqueSymbolCount})</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -462,7 +528,7 @@ function AISignalStatsPanel({ t }: { t: (k: MessageKey) => string }) {
                       const fmt = (s: SignalStatEntry | null): [string, string] =>
                         s == null ? ["—", "—"] : [
                           String(s.recommendationCount),
-                          s.todayStatus === "WAITING_DAILY_PRICE" ? "待収" :
+                          s.todayStatus === "PENDING" ? "待収" :
                           s.todayWinRate != null ? `${s.todayWinRate.toFixed(0)}%` : "—",
                         ];
                       const [sbn, sbr] = fmt(day.STRONG_BUY);

@@ -801,6 +801,19 @@ export type Messages = {
   "portfolio.signal_updated": string;
   "portfolio.signal_price_pending": string;
   "portfolio.signal_awaiting_close": string;
+  // v13.0 extended signal stats
+  "portfolio.signal_win_short": string;
+  "portfolio.signal_loss_short": string;
+  "portfolio.signal_flat_short": string;
+  "portfolio.signal_best": string;
+  "portfolio.signal_worst": string;
+  "portfolio.signal_big_up": string;
+  "portfolio.signal_small_up": string;
+  "portfolio.signal_small_down": string;
+  "portfolio.signal_big_down": string;
+  "portfolio.signal_unique": string;
+  "portfolio.signal_today_section": string;
+  "portfolio.signal_7d_section": string;
   // Sim portfolio
   "portfolio.sim_title": string;
   "portfolio.sim_initial_cash": string;

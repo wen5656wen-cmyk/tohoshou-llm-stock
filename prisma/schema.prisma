@@ -630,16 +630,38 @@ model AISignalDailyStat {
   tradeDate           DateTime @db.Date
   actionType          String   // STRONG_BUY | BUY | ALL_BUY
   recommendationCount Int
+  // Today stats
   validTodayCount     Int      @default(0)
   todayWinCount       Int      @default(0)
   todayLossCount      Int      @default(0)
   todayFlatCount      Int      @default(0)
   todayWinRate        Float?
   avgTodayReturnPct   Float?
+  bestTodayReturnPct  Float?
+  worstTodayReturnPct Float?
+  // Today distribution buckets (today thresholds: ±3%)
+  bigUpTodayCount     Int      @default(0)   // ret >= +3%
+  smallUpTodayCount   Int      @default(0)   // 0 < ret < 3%
+  smallDownTodayCount Int      @default(0)   // -3% < ret < 0%
+  bigDownTodayCount   Int      @default(0)   // ret <= -3%
+  // 7-day stats
   valid7dCount        Int      @default(0)
   win7dCount          Int      @default(0)
+  loss7dCount         Int      @default(0)
+  flat7dCount         Int      @default(0)
   win7dRate           Float?
   avg7dReturnPct      Float?
+  best7dReturnPct     Float?
+  worst7dReturnPct    Float?
+  // 7-day distribution buckets (7d thresholds: ±5%)
+  bigUp7dCount        Int      @default(0)   // ret >= +5%
+  smallUp7dCount      Int      @default(0)   // 0 < ret < 5%
+  smallDown7dCount    Int      @default(0)   // -5% < ret < 0%
+  bigDown7dCount      Int      @default(0)   // ret <= -5%
+  // Cohort: unique symbol dedup (per-day = same as regular; cross-day cohort future)
+  uniqueSymbolCount   Int      @default(0)
+  uniqueWinCount      Int      @default(0)
+  uniqueWinRate       Float?
   calculatedAt        DateTime
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
