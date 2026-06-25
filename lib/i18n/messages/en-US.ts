@@ -730,6 +730,27 @@ const enUS: Messages = {
   "field.52w_pos": "52W Pos",
   "field.ma20_above": "MA20↑",
   "field.ma20_below": "MA20↓",
+
+  // V12.5: Portfolio Snapshots
+  "portfolio.tab_snapshots": "Daily Snapshots",
+  "portfolio.tab_snapshots_desc": "Each day the AI auto-builds an independent ¥100M portfolio from top picks. Historical snapshots track real-time performance independently — no overwriting.",
+  "portfolio.snap_title": "Daily AI Portfolio Snapshots",
+  "portfolio.snap_no_data": "No snapshots yet — auto-created after daily recommendations",
+  "portfolio.snap_total_assets": "Total Assets",
+  "portfolio.snap_pnl": "Cumulative P&L",
+  "portfolio.snap_return_pct": "Return",
+  "portfolio.snap_positions": "Positions",
+  "portfolio.snap_invested": "Invested",
+  "portfolio.snap_cash": "Cash",
+  "portfolio.snap_expand": "View Holdings",
+  "portfolio.snap_collapse": "Collapse",
+  "portfolio.snap_entry_price": "Entry Price",
+  "portfolio.snap_current_price": "Current",
+  "portfolio.snap_shares": "Shares",
+  "portfolio.snap_entry_amount": "Entry Amount",
+  "portfolio.snap_market_value": "Mkt Value",
+  "portfolio.snap_pos_pnl": "Unrealized P&L",
+  "portfolio.snap_loading": "Loading snapshots...",
 };
 
 export default enUS;

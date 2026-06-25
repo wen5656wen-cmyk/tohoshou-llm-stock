@@ -578,3 +578,46 @@ model DeploymentLog {
   @@index([deployedAt(sort: Desc)])
   @@map("deployment_logs")
 }
+
+// V12.5: Daily AI Portfolio Snapshots — each day builds an independent ¥100M cohort
+model PortfolioSnapshot {
+  id                       Int      @id @default(autoincrement())
+  snapshotDate             DateTime @db.Date @unique
+  name                     String
+  initialCapital           Float    @default(100000000)
+  cash                     Float    // remaining cash after investment (fixed at creation)
+  investedAmount           Float    // sum(entryPrice × shares) — fixed
+  positionCount            Int
+  sourceRecommendationDate DateTime? @db.Date
+  status                   String   @default("LIVE") // LIVE | ARCHIVED
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  positions PortfolioSnapshotPosition[]
+
+  @@index([snapshotDate(sort: Desc)])
+  @@index([status])
+  @@map("portfolio_snapshots")
+}
+
+model PortfolioSnapshotPosition {
+  id             Int               @id @default(autoincrement())
+  snapshotId     Int
+  snapshot       PortfolioSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  symbol         String
+  name           String
+  nameZh         String?
+  entryPrice     Float             // fixed at snapshot creation — never changes
+  shares         Float             // fixed, always multiple of 100
+  entryAmount    Float             // entryPrice × shares (fixed)
+  gptRank        Int?
+  aiScore        Float?
+  action         String?           // gptRating at snapshot time
+  recommendation String?           // recommendationV2 at snapshot time
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([snapshotId])
+  @@index([symbol])
+  @@map("portfolio_snapshot_positions")
+}

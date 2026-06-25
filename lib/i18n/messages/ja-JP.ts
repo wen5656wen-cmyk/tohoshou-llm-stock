@@ -730,6 +730,27 @@ const jaJP: Messages = {
   "field.52w_pos": "52W位置",
   "field.ma20_above": "MA20↑",
   "field.ma20_below": "MA20↓",
+
+  // V12.5: Portfolio Snapshots
+  "portfolio.tab_snapshots": "日次AIスナップ",
+  "portfolio.tab_snapshots_desc": "毎日のAI推奨から自動建仓し、独立した実験ポートフォリオの実績を記録します。過去のスナップショットは常にリアルタイムで損益を計算します。",
+  "portfolio.snap_title": "日次AI組合スナップショット",
+  "portfolio.snap_no_data": "スナップショットなし。毎日の推奨生成後に自動作成されます。",
+  "portfolio.snap_total_assets": "総資産",
+  "portfolio.snap_pnl": "損益",
+  "portfolio.snap_return_pct": "収益率",
+  "portfolio.snap_positions": "保有銘柄",
+  "portfolio.snap_invested": "投資済",
+  "portfolio.snap_cash": "現金",
+  "portfolio.snap_expand": "明細を開く",
+  "portfolio.snap_collapse": "閉じる",
+  "portfolio.snap_entry_price": "建玉価格",
+  "portfolio.snap_current_price": "現在価格",
+  "portfolio.snap_shares": "株数",
+  "portfolio.snap_entry_amount": "建玉金額",
+  "portfolio.snap_market_value": "評価額",
+  "portfolio.snap_pos_pnl": "含み損益",
+  "portfolio.snap_loading": "読み込み中...",
 };
 
 export default jaJP;

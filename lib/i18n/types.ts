@@ -733,6 +733,27 @@ export type Messages = {
   "field.52w_pos": string;
   "field.ma20_above": string;
   "field.ma20_below": string;
+
+  // ─── V12.5: Portfolio Snapshots ─────────────────────────────────────────────
+  "portfolio.tab_snapshots": string;
+  "portfolio.tab_snapshots_desc": string;
+  "portfolio.snap_title": string;
+  "portfolio.snap_no_data": string;
+  "portfolio.snap_total_assets": string;
+  "portfolio.snap_pnl": string;
+  "portfolio.snap_return_pct": string;
+  "portfolio.snap_positions": string;
+  "portfolio.snap_invested": string;
+  "portfolio.snap_cash": string;
+  "portfolio.snap_expand": string;
+  "portfolio.snap_collapse": string;
+  "portfolio.snap_entry_price": string;
+  "portfolio.snap_current_price": string;
+  "portfolio.snap_shares": string;
+  "portfolio.snap_entry_amount": string;
+  "portfolio.snap_market_value": string;
+  "portfolio.snap_pos_pnl": string;
+  "portfolio.snap_loading": string;
 };
 
 export type MessageKey = keyof Messages;

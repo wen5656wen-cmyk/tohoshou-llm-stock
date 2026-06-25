@@ -115,7 +115,9 @@ cron.schedule("30 7 * * *", () => {
   run("compute-scores.ts", "AI 評分計算");
   log("INFO", "▶ 評分後 rerank Top500 → DailyRecommendation snapshot");
   run("rerank-top500.ts", "GPT Rerank Top500");
-  log("INFO", "▶ rerank 後データ健全性チェック");
+  log("INFO", "▶ rerank 後 AI 組合スナップショット生成");
+  run("create-portfolio-snapshot.ts", "AI 組合スナップショット生成");
+  log("INFO", "▶ スナップショット後データ健全性チェック");
   run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 

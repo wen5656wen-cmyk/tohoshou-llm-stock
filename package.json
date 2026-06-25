@@ -41,7 +41,9 @@
     "update-backtest:force": "npx tsx scripts/update-backtest.ts --all",
     "sync-global-market": "npx tsx scripts/sync-global-market.ts",
     "sync:hard-block": "npx tsx scripts/sync-hard-block-status.ts",
-    "sync:hard-block:dry": "npx tsx scripts/sync-hard-block-status.ts --dry-run"
+    "sync:hard-block:dry": "npx tsx scripts/sync-hard-block-status.ts --dry-run",
+    "create:snapshot": "npx tsx scripts/create-portfolio-snapshot.ts",
+    "create:snapshot:force": "npx tsx scripts/create-portfolio-snapshot.ts --force"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

@@ -7,6 +7,8 @@ import type { MessageKey } from "@/lib/i18n";
 import type { PortfolioSummary } from "@/app/api/portfolio/summary/route";
 import type { TrendData } from "@/app/api/portfolio/trend/route";
 import type { HistoryData, HistoryCohort } from "@/app/api/portfolio/history/route";
+import type { SnapshotSummary } from "@/app/api/portfolio/snapshots/route";
+import type { SnapshotDetail } from "@/app/api/portfolio/snapshots/[date]/route";
 
 // ── Watchlist types ────────────────────────────────────────────────────────────
 
@@ -42,7 +44,7 @@ const CW = VW - M.left - M.right;
 const CH = VH - M.top - M.bottom;
 
 type WindowKey = "7D" | "30D" | "90D" | "ALL";
-type TabKey = "system" | "watchlist";
+type TabKey = "system" | "watchlist" | "snapshots";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -350,6 +352,214 @@ function HistoryTable({ cohorts, t }: { cohorts: HistoryCohort[]; t: (k: Message
   );
 }
 
+// ── Snapshot Panel ─────────────────────────────────────────────────────────────
+
+function SnapshotCard({
+  snap,
+  t,
+}: {
+  snap: SnapshotSummary;
+  t: (k: MessageKey) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState<SnapshotDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const handleExpand = useCallback(() => {
+    if (!expanded && !detail) {
+      setLoadingDetail(true);
+      fetch(`/api/portfolio/snapshots/${snap.snapshotDate}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        .then((d: SnapshotDetail) => { setDetail(d); setLoadingDetail(false); })
+        .catch(() => setLoadingDetail(false));
+    }
+    setExpanded((v) => !v);
+  }, [expanded, detail, snap.snapshotDate]);
+
+  const pnlColor = snap.unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400";
+  const pnlSign = snap.unrealizedPnl >= 0 ? "+" : "";
+
+  return (
+    <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 overflow-hidden">
+      {/* ── Card header ─────────────────────────────────────────────────────── */}
+      <div
+        className="px-5 py-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
+        onClick={handleExpand}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <div className="text-white font-semibold text-sm">{snap.snapshotDate} AI組合</div>
+            <div className="text-xs text-slate-500 mt-0.5">
+              {t("portfolio.snap_invested")}：¥{Math.round(snap.investedAmount).toLocaleString("ja-JP")}
+              　{t("portfolio.snap_cash")}：¥{Math.round(snap.cash).toLocaleString("ja-JP")}
+            </div>
+          </div>
+          <span className="text-slate-500 text-xs mt-0.5">{expanded ? "▲" : "▼"}</span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_total_assets")}</div>
+            <div className="text-sm font-semibold text-white tabular-nums">
+              ¥{Math.round(snap.totalAssets).toLocaleString("ja-JP")}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_pnl")}</div>
+            <div className={`text-sm font-semibold tabular-nums ${pnlColor}`}>
+              {pnlSign}¥{Math.round(snap.unrealizedPnl).toLocaleString("ja-JP")}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_return_pct")}</div>
+            <div className={`text-sm font-bold tabular-nums ${pnlColor}`}>
+              {pnlSign}{snap.returnPct.toFixed(2)}%
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_positions")}</div>
+            <div className="text-sm font-semibold text-white">
+              {snap.positionCount}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 text-right">
+          <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+            {expanded ? t("portfolio.snap_collapse") : t("portfolio.snap_expand")} →
+          </button>
+        </div>
+      </div>
+
+      {/* ── Expanded positions ───────────────────────────────────────────────── */}
+      {expanded && (
+        <div className="border-t border-slate-700/40">
+          {loadingDetail ? (
+            <div className="p-6 text-center text-slate-500 text-sm animate-pulse">{t("portfolio.snap_loading")}</div>
+          ) : detail ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-700/40 text-slate-400">
+                    <th className="text-left py-2 px-4">{t("common.symbol")}</th>
+                    <th className="text-left py-2 px-3">{t("common.name")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_entry_price")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_current_price")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_shares")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_entry_amount")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_market_value")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_pos_pnl")}</th>
+                    <th className="text-right py-2 px-3">{t("portfolio.snap_return_pct")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.positions.map((pos) => {
+                    const posColor =
+                      pos.returnPct == null
+                        ? "text-slate-400"
+                        : pos.returnPct > 0
+                        ? "text-emerald-400"
+                        : pos.returnPct < 0
+                        ? "text-red-400"
+                        : "text-slate-400";
+                    const pnlS = pos.unrealizedPnl != null && pos.unrealizedPnl >= 0 ? "+" : "";
+                    return (
+                      <tr key={pos.id} className="border-b border-slate-700/20 hover:bg-slate-800/30 transition-colors">
+                        <td className="py-2 px-4">
+                          <Link href={`/stocks/${encodeURIComponent(pos.symbol)}`} className="font-mono text-blue-400 hover:text-blue-300">
+                            {pos.symbol}
+                          </Link>
+                          {pos.gptRank != null && (
+                            <div className="text-[10px] text-slate-500">#{pos.gptRank}</div>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-slate-200 max-w-[120px] truncate">{pos.nameZh ?? pos.name}</td>
+                        <td className="py-2 px-3 text-right tabular-nums text-slate-300">
+                          ¥{pos.entryPrice.toLocaleString("ja-JP")}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-slate-200">
+                          {pos.currentPrice != null ? `¥${pos.currentPrice.toLocaleString("ja-JP")}` : "—"}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-slate-300">
+                          {pos.shares.toLocaleString("ja-JP")}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-slate-400">
+                          ¥{Math.round(pos.entryAmount).toLocaleString("ja-JP")}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-slate-200">
+                          {pos.marketValue != null ? `¥${Math.round(pos.marketValue).toLocaleString("ja-JP")}` : "—"}
+                        </td>
+                        <td className={`py-2 px-3 text-right tabular-nums font-medium ${posColor}`}>
+                          {pos.unrealizedPnl != null
+                            ? `${pnlS}¥${Math.round(pos.unrealizedPnl).toLocaleString("ja-JP")}`
+                            : "—"}
+                        </td>
+                        <td className={`py-2 px-3 text-right tabular-nums font-semibold ${posColor}`}>
+                          {pos.returnPct != null
+                            ? `${pos.returnPct >= 0 ? "+" : ""}${pos.returnPct.toFixed(2)}%`
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="px-5 py-3 border-t border-slate-700/40 flex flex-wrap gap-6 text-xs text-slate-500">
+                <span>{t("portfolio.snap_invested")}：<span className="text-slate-200 font-medium">¥{Math.round(detail.investedAmount).toLocaleString("ja-JP")}</span></span>
+                <span>{t("portfolio.snap_cash")}：<span className="text-slate-400">¥{Math.round(detail.cash).toLocaleString("ja-JP")}</span></span>
+                <span>{t("portfolio.snap_total_assets")}：<span className={detail.unrealizedPnl >= 0 ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>¥{Math.round(detail.totalAssets).toLocaleString("ja-JP")}</span></span>
+                <span className="ml-auto italic">{t("portfolio.simulate_disclaimer")}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.no_data")}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SnapshotsPanel({ t }: { t: (k: MessageKey) => string }) {
+  const [snapshots, setSnapshots] = useState<SnapshotSummary[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/portfolio/snapshots")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d: SnapshotSummary[]) => { setSnapshots(d); setLoading(false); })
+      .catch(() => { setSnapshots([]); setLoading(false); });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="animate-pulse space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-slate-800/50 rounded-xl h-32" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!snapshots || snapshots.length === 0) {
+    return (
+      <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-14 text-center">
+        <div className="text-4xl mb-4 text-slate-600">📊</div>
+        <div className="text-slate-400 text-sm">{t("portfolio.snap_no_data")}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="text-xs text-slate-500 px-1">{t("portfolio.tab_snapshots_desc")}</div>
+      {snapshots.map((s) => (
+        <SnapshotCard key={s.id} snap={s} t={t} />
+      ))}
+    </div>
+  );
+}
+
 // ── Watchlist suggestion badge ─────────────────────────────────────────────────
 
 const BUY_RATINGS = new Set(["STRONG_BUY", "BUY"]);
@@ -653,6 +863,7 @@ export default function PortfolioPage() {
   const TABS: { key: TabKey; label: MessageKey }[] = [
     { key: "system",    label: "portfolio.tab_system"    },
     { key: "watchlist", label: "portfolio.tab_watchlist" },
+    { key: "snapshots", label: "portfolio.tab_snapshots" },
   ];
 
   return (
@@ -686,7 +897,11 @@ export default function PortfolioPage() {
       {/* ── Tab description ─────────────────────────────────────────────────── */}
       <div className="px-1 py-3 mb-5">
         <p className="text-xs text-slate-500 leading-relaxed">
-          {activeTab === "system" ? t("portfolio.tab_system_desc") : t("portfolio.tab_watchlist_desc")}
+          {activeTab === "system"
+            ? t("portfolio.tab_system_desc")
+            : activeTab === "watchlist"
+            ? t("portfolio.tab_watchlist_desc")
+            : t("portfolio.tab_snapshots_desc")}
         </p>
       </div>
 
@@ -879,6 +1094,9 @@ export default function PortfolioPage() {
       {activeTab === "watchlist" && (
         <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} />
       )}
+
+      {/* ── Daily Snapshots ───────────────────────────────────────────────────── */}
+      {activeTab === "snapshots" && <SnapshotsPanel t={t} />}
     </div>
   );
 }

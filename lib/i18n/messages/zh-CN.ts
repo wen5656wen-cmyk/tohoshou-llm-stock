@@ -730,6 +730,27 @@ const zhCN: Messages = {
   "field.52w_pos": "52周位置",
   "field.ma20_above": "MA20↑",
   "field.ma20_below": "MA20↓",
+
+  // V12.5: Portfolio Snapshots
+  "portfolio.tab_snapshots": "每日AI快照",
+  "portfolio.tab_snapshots_desc": "每日根据 AI 推荐自动建仓，记录独立实验组合的真实收益。历史快照持续实时核算，不会被后续日期覆盖。",
+  "portfolio.snap_title": "每日AI组合快照",
+  "portfolio.snap_no_data": "暂无快照，将在每日推荐生成后自动创建",
+  "portfolio.snap_total_assets": "总资产",
+  "portfolio.snap_pnl": "累计收益",
+  "portfolio.snap_return_pct": "收益率",
+  "portfolio.snap_positions": "持仓",
+  "portfolio.snap_invested": "已建仓",
+  "portfolio.snap_cash": "现金",
+  "portfolio.snap_expand": "展开持仓",
+  "portfolio.snap_collapse": "收起",
+  "portfolio.snap_entry_price": "建仓价",
+  "portfolio.snap_current_price": "现价",
+  "portfolio.snap_shares": "股数",
+  "portfolio.snap_entry_amount": "建仓金额",
+  "portfolio.snap_market_value": "当前市值",
+  "portfolio.snap_pos_pnl": "浮动盈亏",
+  "portfolio.snap_loading": "加载快照中...",
 };
 
 export default zhCN;
