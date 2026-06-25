@@ -2,6 +2,31 @@
 
 ---
 
+## [12.5.1] - 2026-06-25 — 每日AI快照展示优化（基准指数与Alpha追踪）
+
+### 页面结构调整
+- 移除「每日AI快照」Tab，将 `SnapshotsPanel` 移入「系统AI组合」Tab 底部（历史表下方）
+- TABS 数组恢复为2项（system + watchlist），消除三Tab导航
+
+### 基准指数与Alpha
+- `PortfolioSnapshot` schema 新增字段：`benchmarkTopixEntry Float?`、`completedAt DateTime?`
+- `scripts/create-portfolio-snapshot.ts`：建仓时记录 TOPIX 当时价格（`GlobalMarket.topix` 最新值）
+- `GET /api/portfolio/snapshots`：返回 `holdingDays`（动态计算）、`benchmarkTopixCurrent`、`benchmarkTopixReturnPct`、`alphaVsTopix`、`isOutperformingTopix`、`completedAt`
+- `GET /api/portfolio/snapshots/[date]`：同上字段扩展
+
+### 快照卡片展示
+- `SnapshotCard` 新增第二行指标网格：持仓天数 / TOPIX收益 / Alpha / 跑赢|跑输TOPIX 徽章
+- 空状态移除 📊 emoji
+
+### 修正
+- `GET /api/portfolio/summary/route.ts`：`INITIAL_CAPITAL 10_000_000 → 100_000_000`，`ALLOC_PER_STOCK 1_000_000 → 10_000_000`
+- 系统AI组合Tab初始资金显示：从硬编码 `10,000,000` 改为 `summary.initialCapital.toLocaleString()`
+
+### i18n
+- 新增6个 `portfolio.snap_*` 键（zh-CN / ja-JP / en-US 全覆盖）：`snap_holding_days`、`snap_days_unit`、`snap_topix_return`、`snap_alpha`、`snap_outperform`、`snap_underperform`
+
+---
+
 ## [12.4.0] - 2026-06-25 — Hard Block Phase 2 データ接入完成
 
 ### Hard Block データソース同期スクリプト
