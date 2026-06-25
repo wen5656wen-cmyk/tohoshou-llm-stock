@@ -282,6 +282,13 @@ export type Messages = {
   "home.last_sync": string;
   "home.unit_stocks": string;
   "home.unit_records": string;
+  // Dashboard system overview
+  "home.system_overview_desc": string;
+  "home.data_overview": string;
+  "home.today_recs": string;
+  "home.data_health": string;
+  "home.sync_status": string;
+  "home.quick_links": string;
   // Dashboard section labels
   "home.no_score_hint": string;
   "home.watch_monitoring": string;

@@ -1,65 +1,99 @@
 import { prisma } from "@/lib/prisma";
-import { HomeDashboardClient } from "./HomeDashboardClient";
+import { SystemDashboard } from "./SystemDashboard";
 
 export const dynamic = "force-dynamic";
 
+function todayJSTDate(): Date {
+  const jst = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
+    .replace(/\//g, "-")
+    .replace(/(\d{4})-(\d{1,2})-(\d{1,2})/, (_, y, m, d) =>
+      `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
+    );
+  return new Date(`${jst}T00:00:00.000Z`);
+}
+
 async function getDashboardData() {
-  const [stockCount, priceCount, , latestPrice, rawScores, scoreCount] =
-    await Promise.all([
-      prisma.stock.count(),
-      prisma.dailyPrice.count(),
-      prisma.financial.count(),
-      prisma.dailyPrice.findFirst({ orderBy: { date: "desc" }, select: { date: true } }),
-      prisma.stockScore.findMany({
-        where: { priceCount: { gte: 20 }, adaptiveScore: { not: null } },
-        orderBy: { adaptiveScore: "desc" },
-        take: 200,
-        select: {
-          symbol: true, name: true, nameZh: true, market: true, sector: true,
-          latestClose: true, latestDate: true,
-          return5d: true, return20d: true, return60d: true,
-          rsi14: true, maTrend: true, macdSignalLabel: true,
-          technicalScore: true, fundamentalScore: true, moneyFlowScore: true, riskScore: true,
-          totalScore: true, adaptiveScore: true,
-          recommendation: true, recommendationV2: true,
-          starsLabel: true, summaryReason: true,
-          percentileRank: true, opportunityScore: true, stockStyle: true,
-        },
-      }),
-      prisma.stockScore.count({ where: { priceCount: { gte: 20 } } }),
-    ]);
+  const todayObj = todayJSTDate();
 
-  // Latest computedAt for staleness indicator
-  const latestScore = await prisma.stockScore.findFirst({
-    orderBy: { computedAt: "desc" },
-    select: { computedAt: true },
-  });
-  const computedAt = latestScore?.computedAt?.toISOString() ?? null;
+  const [
+    activeStockCount,
+    scoredCount,
+    todayRecGroups,
+    validPriceCount,
+    latestPrice,
+    latestScore,
+    latestNews,
+    latestJquants,
+  ] = await Promise.all([
+    // 1. Active stocks: LISTED + not delisted
+    prisma.stock.count({
+      where: { isDelisted: false, OR: [{ listingStatus: "LISTED" }, { listingStatus: null }] },
+    }),
 
-  // Merge finalScore from GPTScore
-  const gptRows = await prisma.gPTScore.findMany({
-    where: { symbol: { in: rawScores.map((s) => s.symbol) } },
-    select: { symbol: true, finalScore: true, ruleScore: true, gptScore: true },
-  });
-  const gptMap = new Map(gptRows.map((g) => [g.symbol, g]));
-  const scores = rawScores
-    .map((s) => ({
-      ...s,
-      finalScore: gptMap.get(s.symbol)?.finalScore ?? null,
-      ruleScore: gptMap.get(s.symbol)?.ruleScore ?? null,
-      gptScore: gptMap.get(s.symbol)?.gptScore ?? null,
-    }))
-    .sort((a, b) => (b.finalScore ?? b.adaptiveScore ?? 0) - (a.finalScore ?? a.adaptiveScore ?? 0));
+    // 2. Valid scored stocks: adaptiveScore not null
+    prisma.stockScore.count({
+      where: { adaptiveScore: { not: null } },
+    }),
 
-  const latestDateStr = latestPrice ? latestPrice.date.toISOString().split("T")[0] : "—";
-  const buyCount   = scores.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY").length;
-  const watchCount = scores.filter((s) => s.recommendationV2 === "WATCH").length;
-  const top3 = scores.slice(0, 3);
+    // 3. Today's BUY/STRONG_BUY from DailyRecommendation
+    prisma.dailyRecommendation.groupBy({
+      by: ["recommendation"],
+      where: { date: todayObj, recommendation: { in: ["STRONG_BUY", "BUY"] } },
+      _count: { recommendation: true },
+    }),
 
-  return { stockCount, priceCount, scoreCount, buyCount, watchCount, latestDateStr, computedAt, top3, scores };
+    // 4. Valid price records: close > 0, volume >= 0
+    prisma.dailyPrice.count({
+      where: { close: { gt: 0 }, volume: { gte: 0 } },
+    }),
+
+    // 5. Last trading date
+    prisma.dailyPrice.findFirst({
+      orderBy: { date: "desc" },
+      select: { date: true },
+    }),
+
+    // 6. Last score computation time
+    prisma.stockScore.findFirst({
+      orderBy: { computedAt: "desc" },
+      select: { computedAt: true },
+    }),
+
+    // 7. Last news sync
+    prisma.syncJob.findFirst({
+      where: { source: "news", status: "SUCCESS" },
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true, finishedAt: true, successCount: true, status: true },
+    }),
+
+    // 8. Last jquants price sync
+    prisma.syncJob.findFirst({
+      where: { source: "jquants", status: "SUCCESS" },
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true, finishedAt: true, successCount: true, status: true },
+    }),
+  ]);
+
+  const strongBuyCount =
+    todayRecGroups.find((r) => r.recommendation === "STRONG_BUY")?._count?.recommendation ?? 0;
+  const buyCount =
+    todayRecGroups.find((r) => r.recommendation === "BUY")?._count?.recommendation ?? 0;
+
+  return {
+    activeStockCount,
+    scoredCount,
+    strongBuyCount,
+    buyCount,
+    totalBuyCount: strongBuyCount + buyCount,
+    validPriceCount,
+    lastTradingDate: latestPrice?.date?.toISOString()?.slice(0, 10) ?? null,
+    lastComputedAt: latestScore?.computedAt?.toISOString() ?? null,
+    lastNewsSyncAt: latestNews?.startedAt?.toISOString() ?? null,
+    lastPriceSyncAt: latestJquants?.startedAt?.toISOString() ?? null,
+  };
 }
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
-  return <HomeDashboardClient {...data} />;
+  return <SystemDashboard {...data} />;
 }

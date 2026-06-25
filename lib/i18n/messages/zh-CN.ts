@@ -416,6 +416,13 @@ const zhCN: Messages = {
   "home.last_sync": "最后同步",
   "home.unit_stocks": "只",
   "home.unit_records": "条",
+  // Dashboard system overview
+  "home.system_overview_desc": "系统运行状态 · 数据健康 · 同步概览",
+  "home.data_overview": "数据概览",
+  "home.today_recs": "今日推荐",
+  "home.data_health": "数据健康",
+  "home.sync_status": "同步状态",
+  "home.quick_links": "快速导航",
   // Dashboard section labels
   "home.no_score_hint": "暂无评分数据，请运行",
   "home.watch_monitoring": "监控中",

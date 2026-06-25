@@ -416,6 +416,13 @@ const enUS: Messages = {
   "home.last_sync": "Last Sync",
   "home.unit_stocks": "",
   "home.unit_records": "",
+  // Dashboard system overview
+  "home.system_overview_desc": "System status · Data health · Sync overview",
+  "home.data_overview": "Data Overview",
+  "home.today_recs": "Today's Picks",
+  "home.data_health": "Data Health",
+  "home.sync_status": "Sync Status",
+  "home.quick_links": "Quick Links",
   // Dashboard section labels
   "home.no_score_hint": "No score data. Run:",
   "home.watch_monitoring": "Watching",

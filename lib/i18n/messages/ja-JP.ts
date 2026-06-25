@@ -416,6 +416,13 @@ const jaJP: Messages = {
   "home.last_sync": "最終更新",
   "home.unit_stocks": "銘柄",
   "home.unit_records": "件",
+  // Dashboard system overview
+  "home.system_overview_desc": "システム稼働状況・データ健全性・同期概要",
+  "home.data_overview": "データ概要",
+  "home.today_recs": "本日の推奨",
+  "home.data_health": "データ健全性",
+  "home.sync_status": "同期状況",
+  "home.quick_links": "クイックリンク",
   // Dashboard section labels
   "home.no_score_hint": "評価データなし。実行：",
   "home.watch_monitoring": "注目銘柄",
