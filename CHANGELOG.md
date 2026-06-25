@@ -2,6 +2,36 @@
 
 ---
 
+## [12.6.2] - 2026-06-25 — Portfolio 重构：模拟账户 + 快照专属系统Tab
+
+### 核心重构
+- **系统AI组合 Tab**：移除全部旧KPI卡/持仓表/趋势图/历史表，仅保留 `SnapshotsPanel`（快照历史列表）
+- 单条快照时显示「当前仅有 1 条历史快照，后续每日自动生成」提示
+
+### 新增：模拟账户系统
+- **DB 新增 3 个模型**：`SimPortfolio`（¥1,000,000初始资金）/ `SimPosition`（加权均价持仓）/ `SimTrade`（交易历史）
+- `GET /api/sim-portfolio`：获取账户概览（含实时市值、浮盈、历史30笔交易）
+- `DELETE /api/sim-portfolio`：重置账户（清空持仓+交易记录）
+- `POST /api/sim-portfolio/buy`：买入（1手=100股，整手数校验，现金不足返回422）
+- `POST /api/sim-portfolio/sell`：卖出（加权均价计算已实现盈亏，清仓删除持仓行）
+
+### 自选股 Tab 重构
+- `WatchlistCard` 新增「买入」按钮 → 打开 `BuyModal`
+- 移除旧的自动模拟仓位区（Section B/C/D：自选股仓位权重/AI明细/调仓建议）
+- 新增 `SimPortfolioPanel`（Section B）：账户概览6KPI + 持仓表（含「卖出」按钮）+ 最近30笔交易历史
+- 新增 `BuyModal`：数量快捷按钮100/200/300/500/1000，显示预计金额/剩余现金
+- 新增 `SellModal`：25%/50%/75%/全部快捷按钮，显示预计收益/盈亏
+
+### 删除死代码
+- 移除：`TrendChart`、`AssetCard`、`KPICard`、`Skeleton`、`HistoryTable`、`SuggestionBadge`
+- 移除：`wlSuggestion`、`BUY_RATINGS`、`INITIAL_CAPITAL_WL`、`WindowKey` 类型
+- 移除：`summary/trend/history` 全部旧状态与 `fetchAll` 回调
+
+### i18n
+- 新增36个键（zh-CN / ja-JP / en-US 全覆盖）：`portfolio.sim_*` / `portfolio.buy_*` / `portfolio.sell_*` / `portfolio.trade_*` / `portfolio.snap_only_one`
+
+---
+
 ## [12.5.1] - 2026-06-25 — 每日AI快照展示优化（基准指数与Alpha追踪）
 
 ### 页面结构调整
