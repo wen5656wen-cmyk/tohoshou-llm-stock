@@ -1,6 +1,6 @@
 # TOHOSHOU AI — Roadmap
 
-**Version:** v12.3.0
+**Version:** v12.4.0
 **Updated:** 2026-06-25
 
 ---
@@ -19,6 +19,7 @@
 | v12.1 | No Look-Ahead Bias 完整实施（tradeEffectiveDate 过滤）；Version Snapshot 写入 DailyRecommendation |
 | v12.2 | 新闻同步 Worker 化（`scripts/sync-news.ts`），pm2 restart 不再杀死同步 |
 | v12.3 | `maxDrawdown` 算法（返回负值 number，0 = 无数据）；Screener 卡片样式对齐 Watchlist；Hard Block Phase 2 基础链路；文档同步至 v12.3 |
+| v12.4 | Hard Block Phase 2 データ接入完了：`sync-hard-block-status.ts`（J-Quants 退市検出 + DailyPrice 停牌検出）；3只退市株 Hard Block 登録 |
 
 ---
 
@@ -30,9 +31,7 @@
 
 ## P1 — High Priority
 
-| # | Feature | Target | Notes |
-|---|---------|--------|-------|
-| P1-1 | Hard Block Phase 2 数据接入 | v12.4 | 在 `sync-stock-meta.ts` 或新脚本中写入 `isDelisted/isSuspended/tradingStatus/listingStatus` 字段；数据源候选：J-Quants 上場区分 / Yahoo Finance `quoteType` |
+*None.*
 
 ---
 
@@ -69,5 +68,5 @@
 | Backtest Pipeline (v10.x) | ✅ Done | 7d/30d/90d 真实交易日回测 |
 | AI Portfolio Engine (v11.x) | ✅ Done | DailyRecommendation Top10 自动建仓 |
 | TOHOSHOU AI Decision Engine (v12.0) | ✅ Done | 六大铁律安全框架 |
-| Hard Block Phase 2 数据接入 | 🟡 Partial | 字段已建，数据源待接入 |
+| Hard Block Phase 2 数据接入 | ✅ Done | `sync-hard-block-status.ts`；3只退市株 Hard Block 登録 |
 | User Auth System | ❌ Not planned | Internal tool only |

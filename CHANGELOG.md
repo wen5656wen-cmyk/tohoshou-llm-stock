@@ -2,6 +2,29 @@
 
 ---
 
+## [12.4.0] - 2026-06-25 — Hard Block Phase 2 データ接入完成
+
+### Hard Block データソース同期スクリプト
+- `scripts/sync-hard-block-status.ts`：新規作成（v12.4.0 P1 完了）
+  - J-Quants `/v2/equities/master` と DB の Stock テーブルをクロスリファレンス
+  - DB に存在するが J-Quants に存在しない銘柄 → `isDelisted=true, listingStatus='DELISTED', tradingStatus='SUSPENDED'`
+  - J-Quants 上場中 → `isDelisted=false, listingStatus='LISTED'`
+  - 直近 14 日間の DailyPrice で出来高ゼロが 3 日以上続く銘柄 → `isSuspended=true, tradingStatus='HALTED'`
+  - 単一 SQL で停止銘柄を一括検出（N+1 クエリ回避）
+  - `--dry-run` フラグ対応（DB 更新なし）
+- `package.json`：`sync:hard-block` / `sync:hard-block:dry` スクリプト追加
+
+### 初回実行結果（2026-06-25 生産サーバー）
+- ACTIVE: 3714 件 / DELISTED: 3 件（2686.T, 7922.T, 6403.T）/ HALTED: 0 件
+- 3 只退市株が Hard Block 対象として登録（次の `compute-scores` 実行で HARD_BLOCK 付与）
+- 実行時間: 3.0s
+
+### 문서アップデート
+- `docs/KNOWN_ISSUES.md`：P2-1 (Hard Block データ源未接入) を Recently Fixed へ移動
+- `docs/ROADMAP.md`：P1-1 を ✅ Done に更新
+
+---
+
 ## [12.3.0] - 2026-06-25 — maxDrawdown算法 + Hard Block Phase 2 + Screener卡片对齐 + 文档同步
 
 ### 任务一：maxDrawdown 算法

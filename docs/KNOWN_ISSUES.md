@@ -1,6 +1,6 @@
 # TOHOSHOU AI — Known Issues
 
-**Version:** v12.3.0
+**Version:** v12.4.0
 **Updated:** 2026-06-25
 
 ---
@@ -25,7 +25,6 @@
 
 | ID | Description | Root Cause | File |
 |----|-------------|------------|------|
-| P2-1 | Hard Block Phase 2 数据源未接入 | `isDelisted/isSuspended/tradingStatus/listingStatus` 字段已建，但没有同步逻辑写入 | `scripts/sync-stock-meta.ts` 或新脚本 |
 | P2-2 | en-US 股票显示名缺失 | `Stock.nameEn` 多数为 null，en-US 界面 fallback 到日文名 | `lib/company-name.ts` |
 | P2-3 | Screener 无 `week52Pct` / `volumeRatio` 字段 | 指标行只有 RSI·MA·5D，与 Watchlist 相比缺少 52W 位置 | `app/api/screener/route.ts` |
 | P2-4 | `week52Pct` 使用 Stock 表 `high52w/low52w`，J-Quants 同步滞后约一周 | J-Quants `high52w` 每周更新一次 | `app/api/watchlist/route.ts` |
@@ -38,7 +37,6 @@
 |----|-------------|
 | P3-1 | `maxDrawdown` 在组合数据不足 2 天时显示 `0%`，而非明确的"数据不足"提示 |
 | P3-2 | Backtest `update-backtest.ts` 需要首次 DailyRecommendation 日期起满 7 个交易日才能填充回测数据 |
-| P3-3 | 铁律四 Hard Block Phase 2 仅完成字段和规则链路，退市/停牌外部数据接入待后续版本 |
 | P3-4 | `/admin/verify` "Copy Acceptance Report" 中 BUILD 字段为 placeholder，未读取真实构建状态 |
 
 ---
@@ -47,6 +45,7 @@
 
 | Fixed | Version | Description |
 |-------|---------|-------------|
+| ✅ | v12.4.0 | Hard Block Phase 2 データ接入完了：`sync-hard-block-status.ts` により J-Quants 退市 + 停牌検出，3只退市株登録済 |
 | ✅ | v12.3.0 | `maxDrawdown` 由 null 改为 number（数据不足返回 0，正常返回负值如 -3.25） |
 | ✅ | v12.3.0 | Screener 桌面卡片对齐 Watchlist 紧凑风格（4列·Score+Badge·RSI·MA·5D 行） |
 | ✅ | v12.3.0 | Hard Block Phase 2 基础链路：`isHardBlockedStock()` + Stock schema 字段 + compute-scores 接入 |
@@ -64,5 +63,5 @@
 |------|--------|
 | `healthAllowRec` | true — 系统正常接受推荐 |
 | `BacktestResult TOP10` | 等待首批 DailyRecommendation 满 7 个交易日后自动填充 |
-| `Stock.isDelisted` 等 Hard Block 字段 | 已建表，默认 false/null；外部数据未接入，暂无股票被 Hard Block |
+| `Stock.isDelisted` 等 Hard Block 字段 | 已建表并接入数据：3714 ACTIVE / 3 DELISTED（2686.T, 7922.T, 6403.T）/ 0 HALTED |
 | `GlobalMarket` | 每日 05:30 JST cron 自动同步 |
