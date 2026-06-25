@@ -45,7 +45,7 @@ async function getOrCreatePortfolio() {
   let portfolio = await prisma.simPortfolio.findFirst({ select: { id: true } });
   if (!portfolio) {
     portfolio = await prisma.simPortfolio.create({
-      data: { initialCash: 1_000_000, currentCash: 1_000_000, realizedPnl: 0 },
+      data: { initialCash: 100_000_000, currentCash: 100_000_000, realizedPnl: 0 },
       select: { id: true },
     });
   }
@@ -136,7 +136,7 @@ export async function DELETE() {
     prisma.simPosition.deleteMany({ where: { portfolioId } }),
     prisma.simPortfolio.update({
       where: { id: portfolioId },
-      data: { currentCash: 1_000_000, realizedPnl: 0, initialCash: 1_000_000 },
+      data: { currentCash: 100_000_000, realizedPnl: 0, initialCash: 100_000_000 },
     }),
   ]);
   return NextResponse.json({ reset: true });

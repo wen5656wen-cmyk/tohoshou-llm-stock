@@ -627,8 +627,8 @@ model PortfolioSnapshotPosition {
 // V12.6.2: User-controlled simulation trading account
 model SimPortfolio {
   id          Int      @id @default(autoincrement())
-  initialCash Float    @default(1000000)  // ¥1,000,000 starting capital
-  currentCash Float    @default(1000000)
+  initialCash Float    @default(100000000)
+  currentCash Float    @default(100000000)
   realizedPnl Float    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

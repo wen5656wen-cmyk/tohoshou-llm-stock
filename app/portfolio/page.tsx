@@ -351,8 +351,21 @@ function BuyModal({
   const [shares, setShares] = useState(100);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [livePrice, setLivePrice] = useState(target.price);
 
-  const amount = target.price * shares;
+  // Refresh price once on mount so BuyModal always shows latest quote
+  useEffect(() => {
+    fetch("/api/watchlist")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((items: WatchlistItem[]) => {
+        const it = items.find((i) => i.symbol === target.symbol);
+        const p = it?.score?.realtimePrice ?? it?.score?.latestClose;
+        if (p != null) setLivePrice(p);
+      })
+      .catch(() => {});
+  }, [target.symbol]);
+
+  const amount = livePrice * shares;
   const cashAfter = cash - amount;
   const canAfford = cashAfter >= 0;
 
@@ -363,7 +376,7 @@ function BuyModal({
       const res = await fetch("/api/sim-portfolio/buy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: target.symbol, shares, price: target.price, name: target.name, nameZh: target.nameZh }),
+        body: JSON.stringify({ symbol: target.symbol, shares, price: livePrice, name: target.name, nameZh: target.nameZh }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -377,82 +390,91 @@ function BuyModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1a2035] rounded-2xl border border-slate-700/40 shadow-2xl w-[340px] max-w-[92vw] p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="text-base font-bold text-white">{t("portfolio.buy_modal_title")}</div>
-            <div className="text-xs text-slate-400 mt-0.5">{target.symbol} · {target.nameZh ?? target.name}</div>
-          </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none">✕</button>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{t("portfolio.wl_realtime_price")}</span>
-            <span className="text-white font-bold tabular-nums">¥{target.price.toLocaleString("ja-JP")}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{t("portfolio.sim_current_cash")}</span>
-            <span className="text-slate-200 tabular-nums">{fmtJpy(cash)}</span>
-          </div>
-
-          <div>
-            <div className="text-xs text-slate-400 mb-1.5">{t("portfolio.buy_qty")}</div>
-            <div className="flex gap-1.5 mb-2 flex-wrap">
-              {LOT_PRESETS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setShares(n)}
-                  className={`text-xs px-2 py-1 rounded-md font-medium transition-colors ${
-                    shares === n ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+    <>
+      {/* Overlay */}
+      <div className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      {/* Dialog — always centered in viewport regardless of scroll position */}
+      <div
+        className="fixed z-[9999] w-[340px] max-w-[92vw] bg-[#1a2035] rounded-2xl border border-slate-700/40 shadow-2xl overflow-y-auto"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)", maxHeight: "80vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="text-base font-bold text-white">{t("portfolio.buy_modal_title")}</div>
+              <div className="text-xs text-slate-400 mt-0.5">{target.symbol} · {target.nameZh ?? target.name}</div>
             </div>
-            <input
-              type="number"
-              value={shares}
-              min={100}
-              step={100}
-              onChange={(e) => {
-                const v = Math.max(100, Math.round(parseInt(e.target.value || "100", 10) / 100) * 100);
-                setShares(isNaN(v) ? 100 : v);
-              }}
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm tabular-nums focus:outline-none focus:border-blue-500"
-            />
-            <div className="text-[10px] text-slate-500 mt-1">1{t("portfolio.sim_shares")} = 100</div>
+            <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none">✕</button>
           </div>
 
-          <div className="bg-slate-800/60 rounded-lg p-3 space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-400">{t("portfolio.buy_amount_est")}</span>
-              <span className="tabular-nums text-white font-medium">{fmtJpy(amount)}</span>
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{t("portfolio.wl_realtime_price")}</span>
+              <span className="text-white font-bold tabular-nums">¥{livePrice.toLocaleString("ja-JP")}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">{t("portfolio.buy_cash_after")}</span>
-              <span className={`tabular-nums font-medium ${canAfford ? "text-slate-200" : "text-red-400"}`}>
-                {fmtJpy(cashAfter)}
-              </span>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{t("portfolio.sim_current_cash")}</span>
+              <span className="text-slate-200 tabular-nums">{fmtJpy(cash)}</span>
             </div>
+
+            <div>
+              <div className="text-xs text-slate-400 mb-1.5">{t("portfolio.buy_qty")}</div>
+              <div className="flex gap-1.5 mb-2 flex-wrap">
+                {LOT_PRESETS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setShares(n)}
+                    className={`text-xs px-2 py-1 rounded-md font-medium transition-colors ${
+                      shares === n ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                value={shares}
+                min={100}
+                step={100}
+                onChange={(e) => {
+                  const v = Math.max(100, Math.round(parseInt(e.target.value || "100", 10) / 100) * 100);
+                  setShares(isNaN(v) ? 100 : v);
+                }}
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm tabular-nums focus:outline-none focus:border-blue-500"
+              />
+              <div className="text-[10px] text-slate-500 mt-1">1{t("portfolio.sim_shares")} = 100</div>
+            </div>
+
+            <div className="bg-slate-800/60 rounded-lg p-3 space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">{t("portfolio.buy_amount_est")}</span>
+                <span className="tabular-nums text-white font-medium">{fmtJpy(amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">{t("portfolio.buy_cash_after")}</span>
+                <span className={`tabular-nums font-medium ${canAfford ? "text-slate-200" : "text-red-400"}`}>
+                  {fmtJpy(cashAfter)}
+                </span>
+              </div>
+            </div>
+
+            {error && <div className="text-xs text-red-400 text-center">{error}</div>}
+
+            <button
+              onClick={handleConfirm}
+              disabled={!canAfford || submitting}
+              className="w-full py-2.5 rounded-lg font-semibold text-sm transition-colors
+                bg-emerald-600 hover:bg-emerald-700 text-white
+                disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {!canAfford ? t("portfolio.buy_no_cash") : submitting ? "..." : t("portfolio.buy_confirm")}
+            </button>
           </div>
-
-          {error && <div className="text-xs text-red-400 text-center">{error}</div>}
-
-          <button
-            onClick={handleConfirm}
-            disabled={!canAfford || submitting}
-            className="w-full py-2.5 rounded-lg font-semibold text-sm transition-colors
-              bg-emerald-600 hover:bg-emerald-700 text-white
-              disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {!canAfford ? t("portfolio.buy_no_cash") : submitting ? "..." : t("portfolio.buy_confirm")}
-          </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -506,8 +528,14 @@ function SellModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1a2035] rounded-2xl border border-slate-700/40 shadow-2xl w-[340px] max-w-[92vw] p-6" onClick={(e) => e.stopPropagation()}>
+    <>
+      <div className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="fixed z-[9999] w-[340px] max-w-[92vw] bg-[#1a2035] rounded-2xl border border-slate-700/40 shadow-2xl overflow-y-auto"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)", maxHeight: "80vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+      <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="text-base font-bold text-white">{t("portfolio.sell_modal_title")}</div>
@@ -590,7 +618,8 @@ function SellModal({
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
