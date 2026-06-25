@@ -2,6 +2,42 @@
 
 ---
 
+## [12.3.0] - 2026-06-25 — maxDrawdown算法 + Hard Block Phase 2 + Screener卡片对齐 + 文档同步
+
+### 任务一：maxDrawdown 算法
+- `app/api/portfolio/trend/route.ts`：`maxDrawdown` 类型从 `number | null` 改为 `number`
+  - 返回负值（如 -3.25 = 3.25% 回撤），数据不足 2 条时返回 0
+- `app/portfolio/page.tsx`：Portfolio KPI 卡片接受 number，直接显示负值，0 时显示 "0%"
+  - 颜色阈值从 `> 5` 改为 `< -5`（适配负值语义）
+- Deployment id=20, commit `d17051c`
+
+### 任务二：文档版本同步
+- `docs/KNOWN_ISSUES.md`：从 v8.9.5 升级至 v12.3.0，删除过期条目，新增当前真实 P1/P2/P3
+- `docs/ROADMAP.md`：从 v8.9.5 升级至 v12.3.0，补充 v9.x～v12.3 已完成里程碑，更新 P1/P2/P3 路线图
+
+### 任务三：铁律四 Hard Block Phase 2
+- `lib/safety-rules.ts`：新增 `HardBlockStockInput` 接口 + `isHardBlockedStock()` 函数
+  - isDelisted=true / isSuspended=true / tradingStatus IN [SUSPENDED,HALTED] / listingStatus=DELISTED → HARD_BLOCK
+  - 所有字段为空/false 时返回 false，不误杀正常股票
+- `prisma/schema.prisma`：Stock 模型增加 `isDelisted Boolean @default(false)` / `isSuspended Boolean @default(false)` / `tradingStatus String?` / `listingStatus String?`
+- `scripts/compute-scores.ts`：Pass 1 中 `isHardBlockedStock()` 判断优先级高于 SOFT_BLOCK
+- 生产 `npx prisma db push` 已执行，字段已建表，默认全空，无股票被误 Block
+
+### 任务四：Screener 卡片样式对齐
+- `app/screener/page.tsx`：重写桌面卡片，对齐 Watchlist 紧凑风格
+  - 增加 `maTrendDisplay()` 辅助函数
+  - 新卡片布局：名称+代码行 / Score+Badge行 / 价格+20D行 / RSI·MA·5D 指标行
+  - 网格从 `grid-cols-3 lg:grid-cols-4 gap-3` 改为 `grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5`
+  - 分数不再大字展示（text-xl→text-[13px]），边框/圆角/间距与 Watchlist 一致
+
+### Verification
+- `npm run build` → PASS ✅
+- `npm run health:data` → CRITICAL=0 ✅
+- `GET /api/portfolio/trend` → `{"maxDrawdown":0,...}` number 类型 ✅
+- `npx prisma db push` on server → Done in 194ms ✅
+
+---
+
 ## [12.2.0] - 2026-06-25 — P1 新闻同步Worker化 + P0 No Look-Ahead过滤 + 版本字段写入
 
 ### v12.2.0 — P1: 新闻同步Worker化（pm2 restart不再杀死同步）
