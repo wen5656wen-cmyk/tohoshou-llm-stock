@@ -2,6 +2,20 @@
 
 ---
 
+## [12.8.1] - 2026-06-25 — SignalCard 待行情更新守卫 + 2026-06-25 数据补齐
+
+### 改动
+- **SignalCard 今日胜率显示修复**：当 `validTodayCount === 0` 时显示「待行情更新」而非「0.0%」，防止价格未同步时显示误导性 0%
+- **新增 i18n key**：`portfolio.signal_price_pending`（zh-CN=待行情更新 / ja-JP=価格更新待ち / en-US=Awaiting price update）
+
+### 数据补齐（2026-06-25）
+- 生产执行 `compute-scores` → `rerank:top500` → DailyRecommendation 补齐：**STRONG_BUY=1 / BUY=19 / 总计=20**
+- `update:signal-stats --date=2026-06-25`：AISignalDailyStat 已写入 STRONG_BUY/BUY/ALL_BUY 3条，validTodayCount=1/19/20，todayWinRate=0%（DailyPrice 尚未同步至今日，latestClose≈entryPrice）
+- PortfolioSnapshot 2026-06-25：已存在（id=1），10只持仓，investedAmount=90,588,300 + cash=9,411,700 = ¥100,000,000 ✅，全部100整数倍 ✅
+- 当前总资产：¥100,040,800（+0.04%），TOPIX对比：419.9→419.9（+0.00%），Alpha≈+0.04%
+
+---
+
 ## [12.8.0] - 2026-06-25 — Dashboard 重定位为「系统运行总览」
 
 ### 改动
