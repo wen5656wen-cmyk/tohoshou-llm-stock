@@ -623,3 +623,52 @@ model PortfolioSnapshotPosition {
   @@index([symbol])
   @@map("portfolio_snapshot_positions")
 }
+
+// V12.6.2: User-controlled simulation trading account
+model SimPortfolio {
+  id          Int      @id @default(autoincrement())
+  initialCash Float    @default(1000000)  // ¥1,000,000 starting capital
+  currentCash Float    @default(1000000)
+  realizedPnl Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  positions SimPosition[]
+  trades    SimTrade[]
+
+  @@map("sim_portfolios")
+}
+
+model SimPosition {
+  id          Int          @id @default(autoincrement())
+  portfolioId Int
+  portfolio   SimPortfolio @relation(fields: [portfolioId], references: [id])
+  symbol      String
+  name        String
+  nameZh      String?
+  avgCost     Float        // weighted average cost per share
+  shares      Int          // must be multiple of 100
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([portfolioId, symbol])
+  @@map("sim_positions")
+}
+
+model SimTrade {
+  id          Int          @id @default(autoincrement())
+  portfolioId Int
+  portfolio   SimPortfolio @relation(fields: [portfolioId], references: [id])
+  symbol      String
+  name        String
+  nameZh      String?
+  action      String       // BUY | SELL
+  shares      Int
+  price       Float        // execution price
+  amount      Float        // price × shares
+  realizedPnl Float?       // set on SELL: (price - avgCost) × shares
+  createdAt   DateTime     @default(now())
+
+  @@index([portfolioId, createdAt(sort: Desc)])
+  @@map("sim_trades")
+}
