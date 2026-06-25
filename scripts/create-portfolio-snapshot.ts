@@ -120,6 +120,17 @@ async function main() {
     }
   }
 
+  // TOPIX baseline price (record at creation time)
+  const topixRow = await prisma.globalMarket.findFirst({
+    where: { topix: { not: null } },
+    orderBy: { date: "desc" },
+    select: { topix: true },
+  });
+  const benchmarkTopixEntry = topixRow?.topix ?? null;
+  if (benchmarkTopixEntry != null) {
+    console.log(`TOPIX 基準値: ${benchmarkTopixEntry}`);
+  }
+
   // Stock names
   const stockRows = await prisma.stock.findMany({
     where: { symbol: { in: symbols } },
@@ -213,6 +224,7 @@ async function main() {
       positionCount: positions.length,
       sourceRecommendationDate: targetDateObj,
       status: "LIVE",
+      benchmarkTopixEntry,
       positions: {
         create: positions.map((p) => ({
           symbol: p.symbol,

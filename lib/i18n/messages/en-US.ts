@@ -751,6 +751,12 @@ const enUS: Messages = {
   "portfolio.snap_market_value": "Mkt Value",
   "portfolio.snap_pos_pnl": "Unrealized P&L",
   "portfolio.snap_loading": "Loading snapshots...",
+  "portfolio.snap_holding_days": "Days Held",
+  "portfolio.snap_days_unit": "d",
+  "portfolio.snap_topix_return": "TOPIX Return",
+  "portfolio.snap_alpha": "Alpha",
+  "portfolio.snap_outperform": "Beating TOPIX",
+  "portfolio.snap_underperform": "Trailing TOPIX",
 };
 
 export default enUS;

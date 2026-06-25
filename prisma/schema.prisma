@@ -589,7 +589,9 @@ model PortfolioSnapshot {
   investedAmount           Float    // sum(entryPrice × shares) — fixed
   positionCount            Int
   sourceRecommendationDate DateTime? @db.Date
-  status                   String   @default("LIVE") // LIVE | ARCHIVED
+  status                   String   @default("LIVE") // LIVE | COMPLETED | ARCHIVED
+  completedAt              DateTime?
+  benchmarkTopixEntry      Float?   // TOPIX price at snapshot creation time
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 

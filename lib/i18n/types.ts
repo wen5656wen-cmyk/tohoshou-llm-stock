@@ -754,6 +754,12 @@ export type Messages = {
   "portfolio.snap_market_value": string;
   "portfolio.snap_pos_pnl": string;
   "portfolio.snap_loading": string;
+  "portfolio.snap_holding_days": string;
+  "portfolio.snap_days_unit": string;
+  "portfolio.snap_topix_return": string;
+  "portfolio.snap_alpha": string;
+  "portfolio.snap_outperform": string;
+  "portfolio.snap_underperform": string;
 };
 
 export type MessageKey = keyof Messages;

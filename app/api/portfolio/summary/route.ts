@@ -116,8 +116,8 @@ export async function GET() {
         : null;
 
     // 6. Build positions
-    const INITIAL_CAPITAL = 10_000_000;
-    const ALLOC_PER_STOCK = 1_000_000;
+    const INITIAL_CAPITAL = 100_000_000;
+    const ALLOC_PER_STOCK = 10_000_000;
 
     const positions: PortfolioPosition[] = top10.map((rec) => {
       const entryPx = rec.entryPrice ?? rec.buyPrice ?? null;

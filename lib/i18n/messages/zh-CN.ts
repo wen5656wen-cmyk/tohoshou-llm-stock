@@ -751,6 +751,12 @@ const zhCN: Messages = {
   "portfolio.snap_market_value": "当前市值",
   "portfolio.snap_pos_pnl": "浮动盈亏",
   "portfolio.snap_loading": "加载快照中...",
+  "portfolio.snap_holding_days": "持仓天数",
+  "portfolio.snap_days_unit": "天",
+  "portfolio.snap_topix_return": "TOPIX收益",
+  "portfolio.snap_alpha": "Alpha",
+  "portfolio.snap_outperform": "跑赢TOPIX",
+  "portfolio.snap_underperform": "跑输TOPIX",
 };
 
 export default zhCN;

@@ -31,12 +31,20 @@ export type SnapshotDetail = {
   investedAmount: number;
   positionCount: number;
   status: string;
+  completedAt: string | null;
   // real-time
   currentMarketValue: number;
   totalAssets: number;
   unrealizedPnl: number;
   returnPct: number;
   updatedAt: string;
+  // holding & benchmark
+  holdingDays: number;
+  benchmarkTopixEntry: number | null;
+  benchmarkTopixCurrent: number | null;
+  benchmarkTopixReturnPct: number | null;
+  alphaVsTopix: number | null;
+  isOutperformingTopix: boolean | null;
   positions: SnapshotPosition[];
 };
 
@@ -70,12 +78,20 @@ export async function GET(
 
   const symbols = snap.positions.map((p) => p.symbol);
 
-  // Real-time prices from StockScore.latestClose
-  const scoreRows = await prisma.stockScore.findMany({
-    where: { symbol: { in: symbols } },
-    select: { symbol: true, latestClose: true },
-  });
+  // Real-time prices from StockScore.latestClose + latest TOPIX
+  const [scoreRows, topixRow] = await Promise.all([
+    prisma.stockScore.findMany({
+      where: { symbol: { in: symbols } },
+      select: { symbol: true, latestClose: true },
+    }),
+    prisma.globalMarket.findFirst({
+      where: { topix: { not: null } },
+      orderBy: { date: "desc" },
+      select: { topix: true },
+    }),
+  ]);
   const priceMap = new Map(scoreRows.map((r) => [r.symbol, r.latestClose]));
+  const benchmarkTopixCurrent = topixRow?.topix ?? null;
 
   let currentMarketValue = 0;
   const positions: SnapshotPosition[] = snap.positions.map((pos) => {
@@ -112,6 +128,15 @@ export async function GET(
   const totalAssets = snap.cash + currentMarketValue;
   const unrealizedPnl = totalAssets - snap.initialCapital;
   const returnPct = snap.initialCapital > 0 ? (unrealizedPnl / snap.initialCapital) * 100 : 0;
+  const holdingDays = Math.floor((Date.now() - snap.snapshotDate.getTime()) / 86_400_000);
+
+  const benchmarkTopixEntry = snap.benchmarkTopixEntry ?? null;
+  const benchmarkTopixReturnPct =
+    benchmarkTopixEntry != null && benchmarkTopixCurrent != null && benchmarkTopixEntry > 0
+      ? ((benchmarkTopixCurrent - benchmarkTopixEntry) / benchmarkTopixEntry) * 100
+      : null;
+  const alphaVsTopix = benchmarkTopixReturnPct != null ? returnPct - benchmarkTopixReturnPct : null;
+  const isOutperformingTopix = alphaVsTopix != null ? alphaVsTopix > 0 : null;
 
   const result: SnapshotDetail = {
     id: snap.id,
@@ -122,11 +147,18 @@ export async function GET(
     investedAmount: snap.investedAmount,
     positionCount: snap.positionCount,
     status: snap.status,
+    completedAt: snap.completedAt?.toISOString() ?? null,
     currentMarketValue,
     totalAssets,
     unrealizedPnl,
     returnPct,
     updatedAt: snap.updatedAt.toISOString(),
+    holdingDays,
+    benchmarkTopixEntry,
+    benchmarkTopixCurrent,
+    benchmarkTopixReturnPct,
+    alphaVsTopix,
+    isOutperformingTopix,
     positions,
   };
 

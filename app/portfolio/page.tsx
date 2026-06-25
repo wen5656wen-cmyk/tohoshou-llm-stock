@@ -44,7 +44,7 @@ const CW = VW - M.left - M.right;
 const CH = VH - M.top - M.bottom;
 
 type WindowKey = "7D" | "30D" | "90D" | "ALL";
-type TabKey = "system" | "watchlist" | "snapshots";
+type TabKey = "system" | "watchlist";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -397,7 +397,7 @@ function SnapshotCard({
           <span className="text-slate-500 text-xs mt-0.5">{expanded ? "▲" : "▼"}</span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
           <div>
             <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_total_assets")}</div>
             <div className="text-sm font-semibold text-white tabular-nums">
@@ -420,6 +420,40 @@ function SnapshotCard({
             <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_positions")}</div>
             <div className="text-sm font-semibold text-white">
               {snap.positionCount}
+            </div>
+          </div>
+        </div>
+
+        {/* Benchmark row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_holding_days")}</div>
+            <div className="text-sm font-semibold text-slate-300">
+              {snap.holdingDays}{t("portfolio.snap_days_unit")}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_topix_return")}</div>
+            <div className={`text-sm font-semibold tabular-nums ${returnColor(snap.benchmarkTopixReturnPct)}`}>
+              {fmtPct(snap.benchmarkTopixReturnPct)}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_alpha")}</div>
+            <div className={`text-sm font-bold tabular-nums ${returnColor(snap.alphaVsTopix)}`}>
+              {fmtPct(snap.alphaVsTopix)}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 mb-0.5">vs TOPIX</div>
+            <div className="text-sm font-semibold">
+              {snap.isOutperformingTopix == null ? (
+                <span className="text-slate-500">—</span>
+              ) : snap.isOutperformingTopix ? (
+                <span className="text-emerald-400 font-bold">{t("portfolio.snap_outperform")}</span>
+              ) : (
+                <span className="text-red-400 font-bold">{t("portfolio.snap_underperform")}</span>
+              )}
             </div>
           </div>
         </div>
@@ -544,7 +578,6 @@ function SnapshotsPanel({ t }: { t: (k: MessageKey) => string }) {
   if (!snapshots || snapshots.length === 0) {
     return (
       <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 p-14 text-center">
-        <div className="text-4xl mb-4 text-slate-600">📊</div>
         <div className="text-slate-400 text-sm">{t("portfolio.snap_no_data")}</div>
       </div>
     );
@@ -863,7 +896,6 @@ export default function PortfolioPage() {
   const TABS: { key: TabKey; label: MessageKey }[] = [
     { key: "system",    label: "portfolio.tab_system"    },
     { key: "watchlist", label: "portfolio.tab_watchlist" },
-    { key: "snapshots", label: "portfolio.tab_snapshots" },
   ];
 
   return (
@@ -899,9 +931,7 @@ export default function PortfolioPage() {
         <p className="text-xs text-slate-500 leading-relaxed">
           {activeTab === "system"
             ? t("portfolio.tab_system_desc")
-            : activeTab === "watchlist"
-            ? t("portfolio.tab_watchlist_desc")
-            : t("portfolio.tab_snapshots_desc")}
+            : t("portfolio.tab_watchlist_desc")}
         </p>
       </div>
 
@@ -939,7 +969,7 @@ export default function PortfolioPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-300">{t("portfolio.system_subtitle")}</p>
                   <div className="flex flex-wrap gap-4 mt-0.5 text-xs text-slate-500">
-                    <span>{t("portfolio.initial_capital_label")}：10,000,000</span>
+                    <span>{t("portfolio.initial_capital_label")}：{summary.initialCapital.toLocaleString("ja-JP")}</span>
                     <span>{t("portfolio.cohort_date_label")}：{summary.cohortDate}</span>
                   </div>
                 </div>
@@ -955,7 +985,7 @@ export default function PortfolioPage() {
                   <AssetCard
                     label={t("portfolio.current_assets")}
                     value={fmtNum(summary.currentValue)}
-                    sub={`${t("portfolio.initial_capital_label")}：10,000,000`}
+                    sub={`${t("portfolio.initial_capital_label")}：${summary.initialCapital.toLocaleString("ja-JP")}`}
                   />
                 </div>
                 <KPICard
@@ -1071,7 +1101,7 @@ export default function PortfolioPage() {
               </div>
 
               {/* ── History Table ─────────────────────────────────────────────── */}
-              <div className="bg-[#1a2035] rounded-xl border border-slate-700/40">
+              <div className="bg-[#1a2035] rounded-xl border border-slate-700/40 mb-6">
                 <div className="px-5 py-4 border-b border-slate-700/40">
                   <h2 className="text-base font-semibold text-white">{t("portfolio.history_title")}</h2>
                 </div>
@@ -1085,6 +1115,9 @@ export default function PortfolioPage() {
                   )}
                 </div>
               </div>
+
+              {/* ── AI Snapshots ──────────────────────────────────────────────── */}
+              <SnapshotsPanel t={t} />
             </>
           )}
         </>
@@ -1095,8 +1128,6 @@ export default function PortfolioPage() {
         <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} />
       )}
 
-      {/* ── Daily Snapshots ───────────────────────────────────────────────────── */}
-      {activeTab === "snapshots" && <SnapshotsPanel t={t} />}
     </div>
   );
 }

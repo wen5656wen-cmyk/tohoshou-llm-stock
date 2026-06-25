@@ -12,29 +12,46 @@ export type SnapshotSummary = {
   investedAmount: number;
   positionCount: number;
   status: string;
+  completedAt: string | null;
   // real-time computed
   currentMarketValue: number;
   totalAssets: number;
   unrealizedPnl: number;
   returnPct: number;
   updatedAt: string;
+  // holding & benchmark
+  holdingDays: number;
+  benchmarkTopixEntry: number | null;
+  benchmarkTopixCurrent: number | null;
+  benchmarkTopixReturnPct: number | null;
+  alphaVsTopix: number | null;
+  isOutperformingTopix: boolean | null;
 };
 
 // ── GET — list all snapshots with real-time metrics ────────────────────────────
 
 export async function GET() {
-  const snapshots = await prisma.portfolioSnapshot.findMany({
-    orderBy: { snapshotDate: "desc" },
-    include: {
-      positions: {
-        select: { symbol: true, shares: true, entryAmount: true },
+  const [snapshots, topixRow] = await Promise.all([
+    prisma.portfolioSnapshot.findMany({
+      orderBy: { snapshotDate: "desc" },
+      include: {
+        positions: {
+          select: { symbol: true, shares: true, entryAmount: true },
+        },
       },
-    },
-  });
+    }),
+    prisma.globalMarket.findFirst({
+      where: { topix: { not: null } },
+      orderBy: { date: "desc" },
+      select: { topix: true },
+    }),
+  ]);
 
   if (snapshots.length === 0) {
     return NextResponse.json([]);
   }
+
+  const benchmarkTopixCurrent = topixRow?.topix ?? null;
 
   // Collect all symbols across all snapshots for batch price fetch
   const allSymbols = [...new Set(snapshots.flatMap((s) => s.positions.map((p) => p.symbol)))];
@@ -45,6 +62,8 @@ export async function GET() {
   });
   const priceMap = new Map(scoreRows.map((r) => [r.symbol, r.latestClose ?? 0]));
 
+  const now = Date.now();
+
   const result: SnapshotSummary[] = snapshots.map((snap) => {
     let currentMarketValue = 0;
     for (const pos of snap.positions) {
@@ -54,6 +73,16 @@ export async function GET() {
     const totalAssets = snap.cash + currentMarketValue;
     const unrealizedPnl = totalAssets - snap.initialCapital;
     const returnPct = snap.initialCapital > 0 ? (unrealizedPnl / snap.initialCapital) * 100 : 0;
+    const holdingDays = Math.floor((now - snap.snapshotDate.getTime()) / 86_400_000);
+
+    const benchmarkTopixEntry = snap.benchmarkTopixEntry ?? null;
+    const benchmarkTopixReturnPct =
+      benchmarkTopixEntry != null && benchmarkTopixCurrent != null && benchmarkTopixEntry > 0
+        ? ((benchmarkTopixCurrent - benchmarkTopixEntry) / benchmarkTopixEntry) * 100
+        : null;
+    const alphaVsTopix =
+      benchmarkTopixReturnPct != null ? returnPct - benchmarkTopixReturnPct : null;
+    const isOutperformingTopix = alphaVsTopix != null ? alphaVsTopix > 0 : null;
 
     return {
       id: snap.id,
@@ -64,11 +93,18 @@ export async function GET() {
       investedAmount: snap.investedAmount,
       positionCount: snap.positionCount,
       status: snap.status,
+      completedAt: snap.completedAt?.toISOString() ?? null,
       currentMarketValue,
       totalAssets,
       unrealizedPnl,
       returnPct,
       updatedAt: snap.updatedAt.toISOString(),
+      holdingDays,
+      benchmarkTopixEntry,
+      benchmarkTopixCurrent,
+      benchmarkTopixReturnPct,
+      alphaVsTopix,
+      isOutperformingTopix,
     };
   });
 

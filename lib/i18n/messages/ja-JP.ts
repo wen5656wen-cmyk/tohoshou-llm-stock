@@ -751,6 +751,12 @@ const jaJP: Messages = {
   "portfolio.snap_market_value": "評価額",
   "portfolio.snap_pos_pnl": "含み損益",
   "portfolio.snap_loading": "読み込み中...",
+  "portfolio.snap_holding_days": "保有日数",
+  "portfolio.snap_days_unit": "日",
+  "portfolio.snap_topix_return": "TOPIX騰落",
+  "portfolio.snap_alpha": "Alpha",
+  "portfolio.snap_outperform": "TOPIX超過",
+  "portfolio.snap_underperform": "TOPIX下回",
 };
 
 export default jaJP;
