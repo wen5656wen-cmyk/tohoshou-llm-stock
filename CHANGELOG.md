@@ -2,6 +2,41 @@
 
 ---
 
+## [13.4.0] - 2026-06-26 — Step 2：feat_* 不可变特征快照字段
+
+### 变更
+
+**DailyRecommendation 新增 30 个 feat_* 不可变特征快照字段（nullable，additive-only）**
+- 股票基本面：`feat_sector`, `feat_industry`, `feat_marketCap`, `feat_per`, `feat_pbr`, `feat_roe`, `feat_dividendYield`
+- AI 评分维度：`feat_adaptiveScore`, `feat_technicalScore`, `feat_fundamentalScore`, `feat_moneyFlowScore`, `feat_newsSentimentScore`, `feat_globalTrendScore`, `feat_percentileRank`, `feat_marketRank`
+- 风格分类：`feat_stockStyle`, `feat_highRiskFlag`, `feat_rsi14`, `feat_maTrend`
+- 价格历史（技术指标）：`feat_ma20`, `feat_ma60`, `feat_return5d_pre`, `feat_return20d_pre`, `feat_return60d_pre`, `feat_volatility20d`（年化波动率%）
+- 宏观市场：`feat_vix`, `feat_usdjpy`, `feat_topixReturn5d`, `feat_topixReturn20d`, `feat_marketTemperature`
+
+**更新 `scripts/rerank-top500.ts`（Step 8 扩展）**
+- 新增 4 个 helper 函数：`addDays`, `computeMA`, `computeVolatility20d`, `computeTopixReturn`
+- Step 8 新增 3 个批量预取：DailyPrice 最近 100 日历天价格历史（ma20/ma60/volatility20d）、GlobalMarket 最近 50 日历天（vix/usdjpy/topixReturn5d/20d/marketTemperature）、StockScore 额外字段（technicalScore 等 8 个维度）
+- DailyRecommendation upsert：`featSnapshot` 仅写入 `create` 路径，`update` 路径不含任何 feat_* 字段（不可覆盖历史快照）
+
+### 不可变性规则（锁定）
+- feat_* 永远只在 DailyRecommendation 创建时写入一次
+- 永不覆盖已有值，永不 update 路径写入，永不使用未来数据回填过去快照
+- NULL = 当时数据缺失（语义清晰），永不用 0 或默认值掩盖
+
+### 已知限制
+- 2026-06-25 及之前的 DR 行 feat_* 全为 NULL（Step 2 部署前已创建，且回填会引入未来数据泄露，拒绝回填）
+- 2026-06-26 当日 DR 行 feat_* 全为 NULL（当日 rerank 在 Step 2 部署前运行）
+- 首个 feat_* 完整快照将在 2026-06-27 早 07:30 cron 运行后产生
+
+### 生产验证（2026-06-26）
+- schema：30 个 feat_* 列已通过手动 DDL 在生产 `daily_recommendations` 表添加 ✅
+- `npx prisma generate` 已在生产端重新生成客户端 ✅
+- 干运行（`--dry-run --limit=5`）：5 只股票 0.4s 无错误完成 ✅
+- Build：TypeScript 编译通过 ✅
+- 数据源：GlobalMarket topix=269 行 / StockScore 3714 条 / DailyPrice 3717 个 symbol ✅
+
+---
+
 ## [13.3.0] - 2026-06-26 — Step 1：BacktestPositionResult + 9 horizons + VersionSnapshot 上线
 
 ### 变更

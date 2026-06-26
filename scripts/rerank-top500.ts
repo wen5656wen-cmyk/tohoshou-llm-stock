@@ -95,6 +95,46 @@ type StockFundamentals = {
   eps: number | null;
 };
 
+// ── feat_* helpers (Step 2: Architecture v2.3) ───────────────────────────────
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d); r.setDate(r.getDate() + n); return r;
+}
+
+// Moving average of last N prices (prices sorted DESC, most-recent first)
+function computeMA(prices: number[], n: number): number | null {
+  if (prices.length < n) return null;
+  const slice = prices.slice(0, n);
+  return Math.round((slice.reduce((a, b) => a + b, 0) / n) * 100) / 100;
+}
+
+// Annualized volatility % from last 20 log-returns (prices sorted DESC)
+function computeVolatility20d(prices: number[]): number | null {
+  if (prices.length < 21) return null;
+  const slice = prices.slice(0, 21).reverse(); // oldest first
+  const returns: number[] = [];
+  for (let i = 1; i < slice.length; i++) {
+    if (slice[i - 1] <= 0) return null;
+    returns.push(Math.log(slice[i] / slice[i - 1]));
+  }
+  if (returns.length === 0) return null;
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length;
+  return Math.round(Math.sqrt(variance) * Math.sqrt(252) * 10000) / 100;
+}
+
+// TOPIX return over N trading days (rows sorted DESC by date, topix > 0)
+function computeTopixReturn(
+  rows: { date: Date; topix: number | null }[],
+  nDays: number,
+): number | null {
+  const valid = rows.filter((r) => r.topix != null && r.topix > 0);
+  if (valid.length <= nDays) return null;
+  const current = valid[0].topix!;
+  const past = valid[nDays].topix!;
+  return Math.round(((current - past) / past) * 10000) / 100;
+}
+
 // ── Input hash ────────────────────────────────────────────────────────────────
 function buildInputHash(s: {
   latestClose: number | null;
@@ -620,9 +660,18 @@ async function main() {
     );
 
     // latestClose already in top500 — build from existing data via StockScore
+    // Also fetch feat_* fields from StockScore (Step 2: immutable feature snapshot)
     const priceRows = await prisma.stockScore.findMany({
       where: { symbol: { in: symbols } },
-      select: { symbol: true, latestClose: true, recommendationV2: true, overallConfidence: true, riskOverride: true },
+      select: {
+        symbol: true, latestClose: true, recommendationV2: true,
+        overallConfidence: true, riskOverride: true,
+        // feat_* sources from StockScore
+        industry: true,
+        technicalScore: true, fundamentalScore: true, moneyFlowScore: true,
+        newsSentimentScore: true, globalTrendScore: true,
+        marketRank: true, stockStyle: true, highRiskFlag: true,
+      },
     });
     const priceMap = new Map<string, number | null>(
       priceRows.map((r) => [r.symbol, r.latestClose ?? null]),
@@ -630,14 +679,44 @@ async function main() {
     const recMap = new Map<string, string | null>(
       priceRows.map((r) => [r.symbol, r.recommendationV2 ?? null]),
     );
+    const ssMap = new Map(priceRows.map((r) => [r.symbol, r]));
+
+    // top500 lookup for StockScore fields already fetched in Step 1
+    const top500Map = new Map(top500.map((s) => [s.symbol, s]));
+
+    // feat_*: DailyPrice history for ma20 / ma60 / volatility20d
+    const priceHistRows = await prisma.dailyPrice.findMany({
+      where: { symbol: { in: symbols }, date: { lte: today, gte: addDays(today, -100) } },
+      orderBy: [{ symbol: "asc" }, { date: "desc" }],
+      select: { symbol: true, adjClose: true, close: true },
+    });
+    const priceHistMap = new Map<string, number[]>();
+    for (const r of priceHistRows) {
+      const arr = priceHistMap.get(r.symbol) ?? [];
+      arr.push(r.adjClose ?? r.close);
+      priceHistMap.set(r.symbol, arr);
+    }
+
+    // feat_*: GlobalMarket for vix / usdjpy / topixReturn5d / topixReturn20d / marketTemperature
+    const gmRows = await prisma.globalMarket.findMany({
+      where: { date: { lte: today, gte: addDays(today, -50) } },
+      orderBy: { date: "desc" },
+      select: { date: true, vix: true, usdjpy: true, topix: true, score: true },
+    });
+    const topixReturn5d  = computeTopixReturn(gmRows, 5);
+    const topixReturn20d = computeTopixReturn(gmRows, 20);
+    const latestGm = gmRows.find((r) => r.vix != null || r.usdjpy != null || r.score != null);
 
     let savedCount = 0;
     const failedSymbols: string[] = [];
     for (const entry of scored) {
       try {
-        // Fetch confidence/riskOverride snapshot from StockScore for this rec
-        const ss = priceRows.find((r) => r.symbol === entry.symbol);
+        const ss = ssMap.get(entry.symbol);
+        const sc = top500Map.get(entry.symbol);
+        const sf = stockFundMap.get(entry.symbol);
+        const ph = priceHistMap.get(entry.symbol);
 
+        // mutable fields — updated on every run
         const recPayload = {
           gptRank: entry.gptRank!,
           finalScore: entry.finalScore,
@@ -657,9 +736,45 @@ async function main() {
           riskOverride:      ss?.riskOverride ?? "NONE",
         };
 
+        // feat_* immutable snapshot — written to CREATE only, never to UPDATE
+        // Source of truth: rec-time values from Stock / StockScore / DailyPrice / GlobalMarket
+        const featSnapshot = {
+          feat_sector:             sc?.sector             ?? null,
+          feat_industry:           ss?.industry           ?? null,
+          feat_marketCap:          sf?.marketCap          ?? null,
+          feat_per:                sf?.per                ?? null,
+          feat_pbr:                sf?.pbr                ?? null,
+          feat_roe:                sf?.roe                ?? null,
+          feat_dividendYield:      sf?.dividend           ?? null,
+          feat_adaptiveScore:      entry.adaptiveScore,
+          feat_technicalScore:     ss?.technicalScore     ?? null,
+          feat_fundamentalScore:   ss?.fundamentalScore   ?? null,
+          feat_moneyFlowScore:     ss?.moneyFlowScore     ?? null,
+          feat_newsSentimentScore: ss?.newsSentimentScore ?? null,
+          feat_globalTrendScore:   ss?.globalTrendScore   ?? null,
+          feat_percentileRank:     entry.percentileRank   ?? null,
+          feat_marketRank:         ss?.marketRank         ?? null,
+          feat_stockStyle:         ss?.stockStyle         ?? null,
+          feat_highRiskFlag:       ss?.highRiskFlag       ?? null,
+          feat_rsi14:              sc?.rsi14              ?? null,
+          feat_maTrend:            sc?.maTrend            ?? null,
+          feat_ma20:               ph ? computeMA(ph, 20)          : null,
+          feat_ma60:               ph ? computeMA(ph, 60)          : null,
+          feat_return5d_pre:       sc?.return5d           ?? null,
+          feat_return20d_pre:      sc?.return20d          ?? null,
+          feat_return60d_pre:      sc?.return60d          ?? null,
+          feat_volatility20d:      ph ? computeVolatility20d(ph)   : null,
+          feat_vix:                latestGm?.vix          ?? null,
+          feat_usdjpy:             latestGm?.usdjpy       ?? null,
+          feat_topixReturn5d:      topixReturn5d,
+          feat_topixReturn20d:     topixReturn20d,
+          feat_marketTemperature:  latestGm?.score        ?? null,
+        };
+
         await prisma.dailyRecommendation.upsert({
           where: { date_symbol: { date: today, symbol: entry.symbol } },
-          create: { date: today, symbol: entry.symbol, ...recPayload },
+          // feat_* written only on first creation (immutable snapshot rule)
+          create: { date: today, symbol: entry.symbol, ...recPayload, ...featSnapshot },
           update: recPayload,
         });
         savedCount++;

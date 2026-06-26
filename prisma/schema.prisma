@@ -509,6 +509,38 @@ model DailyRecommendation {
   scoreVersion      String?
   schemaVersion     String?
   pipelineRunId     String?
+  // v13.4: Architecture v2.3 — feat_* immutable feature snapshot (Step 2)
+  // Written ONCE at creation time. NEVER updated. Never backfilled. See ARCHITECTURE.md §6.
+  feat_sector            String?   // Stock.sector
+  feat_industry          String?   // Stock.industry (via StockScore)
+  feat_marketCap         Float?    // Stock.marketCap (億円)
+  feat_per               Float?    // Stock.per
+  feat_pbr               Float?    // Stock.pbr
+  feat_roe               Float?    // Stock.roe (%)
+  feat_dividendYield     Float?    // Stock.dividend (%)
+  feat_adaptiveScore     Float?    // StockScore.adaptiveScore
+  feat_technicalScore    Int?      // StockScore.technicalScore (0-30)
+  feat_fundamentalScore  Int?      // StockScore.fundamentalScore (0-25)
+  feat_moneyFlowScore    Int?      // StockScore.moneyFlowScore (0-20)
+  feat_newsSentimentScore Int?     // StockScore.newsSentimentScore (0-15)
+  feat_globalTrendScore  Int?      // StockScore.globalTrendScore (0-10)
+  feat_percentileRank    Float?    // StockScore.percentileRank (1-100)
+  feat_marketRank        Int?      // StockScore.marketRank (1=best)
+  feat_stockStyle        String?   // StockScore.stockStyle
+  feat_highRiskFlag      Boolean?  // StockScore.highRiskFlag
+  feat_rsi14             Float?    // StockScore.rsi14
+  feat_maTrend           String?   // StockScore.maTrend
+  feat_ma20              Float?    // 20-day MA of adjClose from DailyPrice
+  feat_ma60              Float?    // 60-day MA of adjClose from DailyPrice
+  feat_return5d_pre      Float?    // StockScore.return5d at rec time
+  feat_return20d_pre     Float?    // StockScore.return20d at rec time
+  feat_return60d_pre     Float?    // StockScore.return60d at rec time
+  feat_volatility20d     Float?    // Annualized vol % (last 20 DailyPrice log-returns)
+  feat_vix               Float?    // GlobalMarket.vix at rec date
+  feat_usdjpy            Float?    // GlobalMarket.usdjpy at rec date
+  feat_topixReturn5d     Float?    // TOPIX 5-trading-day return %
+  feat_topixReturn20d    Float?    // TOPIX 20-trading-day return %
+  feat_marketTemperature Int?      // GlobalMarket.score (0-10)
 
   @@unique([date, symbol])
   @@index([date(sort: Desc)])
