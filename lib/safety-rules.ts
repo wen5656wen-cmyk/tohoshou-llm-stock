@@ -11,12 +11,19 @@
  */
 
 // ── Version constants (Rule 5: Version Freeze) ──────────────────────────────
+// To change model version: update RULE_ENGINE_VERSION and CURRENT_SCHEMA_VERSION.
+// Register the new version in ExperimentRegistry BEFORE the first cron run.
+// See ARCHITECTURE.md §4 for version propagation chain.
 
-export const RULE_ENGINE_VERSION         = "v1.0";
+export const RULE_ENGINE_VERSION         = "v7.7";
 export const GLOBAL_EVENT_ENGINE_VERSION = "v0.1";
-export const SCORING_SCHEMA_VERSION      = "v1.0";
+export const SCORING_SCHEMA_VERSION      = "adaptive-v3";
 export const TOHOSHOU_MODEL_VERSION      = "disabled"; // Rule 6: Shadow Mode
 export const LLM_MODEL_VERSION          = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+
+// schemaVersion tracks the feat_* feature schema (see ARCHITECTURE.md §4.2).
+// Increment MINOR when adding feat_* fields; MAJOR when removing or changing semantics.
+export const CURRENT_SCHEMA_VERSION     = "schema-v2.3";
 
 export const VERSION_SNAPSHOT = {
   ruleEngineVersion:        RULE_ENGINE_VERSION,
@@ -24,6 +31,7 @@ export const VERSION_SNAPSHOT = {
   scoringSchemaVersion:     SCORING_SCHEMA_VERSION,
   tohoshouModelVersion:     TOHOSHOU_MODEL_VERSION,
   llmModelVersion:          LLM_MODEL_VERSION,
+  schemaVersion:            CURRENT_SCHEMA_VERSION,
 } as const;
 
 // ── Impact Level (Rule 2: Normalization) ─────────────────────────────────────

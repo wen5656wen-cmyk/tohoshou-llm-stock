@@ -2,6 +2,42 @@
 
 ---
 
+## [13.2.0] - 2026-06-26 — Architecture v2.3 冻结（ARCHITECTURE.md + schemaVersion）
+
+### 变更
+
+**新建 `ARCHITECTURE.md`（Architecture Freeze Document）**
+- Part 1：所有表的 Source of Truth 注册表 + 可变性分类（Immutable/Mutable/Derived/Registry）
+- Part 2：允许的写入路径（DailyRecommendation/BacktestPositionResult/VersionSnapshot 严格路径）
+- Part 3：Migration Rules（Additive-Only 约束 + 禁止操作列表）
+- Part 4：Version Management（VersionSnapshot 设计 + schemaVersion 定义 + 传播链）
+- Part 5：Data Compatibility Rules（LearningReport 比较前的 schemaVersion 检查）
+- Part 6：Feature Dictionary（feat_* 30个字段，Append-Only 合约）
+- Part 7：Pipeline State Management（pipelineRunId 设计）
+- Part 8：Missing Data Policy（NULL 语义标准化）
+- Part 9：Time Zone Policy（JST Business Date / UTC Storage / PostgreSQL UTC+8 已知问题）
+- Part 10：禁止操作列表
+- Part 11：fill-entry-price 实现规格（Step 1 的组成部分）
+- Part 12：VersionSnapshot 初始化 SQL（legacy baseline + 当前生产版本）
+- Part 13：P2 未来扩展（预批准，不需要架构审查）
+
+**更新 `lib/safety-rules.ts`**
+- `RULE_ENGINE_VERSION` 更新为 `"v7.7"`（与生产实际版本同步）
+- `SCORING_SCHEMA_VERSION` 更新为 `"adaptive-v3"`
+- 新增 `CURRENT_SCHEMA_VERSION = "schema-v2.3"`（feat_* 特征模式版本）
+- `VERSION_SNAPSHOT` 新增 `schemaVersion` 字段
+- 新增注释：修改版本时必须先登记 ExperimentRegistry
+
+### Architecture Status
+
+```
+APPROVED — schema-v2.3
+Ready for Step 1 implementation
+No further architectural redesign before Step 8 complete
+```
+
+---
+
 ## [13.1.1] - 2026-06-26 — sync-all-prices fetch 无超时修复
 
 ### 问题
