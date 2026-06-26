@@ -28,10 +28,24 @@ type DataIntegrity = {
   components: Record<string, ComponentDetail | number>;
 };
 
+type FeatureCoverage = {
+  latestDate: string | null;
+  totalRows: number;
+  overallPct: number;
+  note: string | null;
+};
+
+type FeatureField = {
+  field: string;
+  nonNullCount: number;
+  coveragePct: number;
+};
+
 type DataReadiness = {
   availableHorizons: string[];
   sampleCounts: Record<string, number>;
   filledCounts: Record<string, number>;
+  featureCoverage: FeatureCoverage;
   expectedFillDates: { "30d": string | null; "90d": string | null };
 };
 
@@ -101,6 +115,19 @@ export default function LearningReportPage() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [featFields, setFeatFields] = useState<FeatureField[]>([]);
+
+  const loadFeatFields = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/mission-control");
+      if (res.ok) {
+        const data = await res.json();
+        setFeatFields(data.featureCoverage?.fields ?? []);
+      }
+    } catch {
+      // non-critical, silently ignore
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -126,9 +153,10 @@ export default function LearningReportPage() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60_000);
+    loadFeatFields();
+    const timer = setInterval(() => { load(); loadFeatFields(); }, 60_000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, loadFeatFields]);
 
   const style: React.CSSProperties = {
     background: "#0a0a0a",
@@ -362,7 +390,86 @@ export default function LearningReportPage() {
         </div>
       </div>
 
-      {/* Section 4: Regression Detection */}
+      {/* Section 4: Feature Coverage */}
+      {(() => {
+        const fc = dataReadiness.featureCoverage;
+        if (!fc) return null;
+        const TOTAL_FEAT = 30;
+        const coveredFields = featFields.filter(f => f.coveragePct > 0).length;
+        const isZero = fc.overallPct === 0 && fc.totalRows > 0;
+        return (
+          <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
+              特征覆盖率（feat_* · {TOTAL_FEAT} 字段）
+            </div>
+
+            {/* WARNING banner */}
+            {isZero && (
+              <div style={{
+                background: "#1a1200",
+                border: "1px solid #fbbf24",
+                borderRadius: 6,
+                padding: "8px 14px",
+                marginBottom: 12,
+                fontSize: 12,
+                color: "#fbbf24",
+              }}>
+                ⚠ WARNING — feat_* 覆盖率 0%：现有 {fc.totalRows} 行均创建于 Step 2 部署前（2026-06-26），下次 cron 运行后新 DR 行开始填充。
+                {fc.note && <span style={{ color: "#d97706", marginLeft: 6 }}>{fc.note}</span>}
+              </div>
+            )}
+
+            {/* Summary stats */}
+            <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 14 }}>
+              {[
+                ["总 DR 行数", fc.totalRows.toLocaleString()],
+                ["字段总数", TOTAL_FEAT],
+                ["已覆盖字段", featFields.length > 0 ? coveredFields : "—"],
+                ["整体覆盖率", `${fc.overallPct}%`],
+                ["最新日期", fc.latestDate ?? "—"],
+              ].map(([label, val]) => (
+                <div key={String(label)}>
+                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>{label}</div>
+                  <div style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: label === "整体覆盖率" && fc.overallPct === 0 ? "#fbbf24" : "#e2e8f0",
+                  }}>{val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Per-field breakdown */}
+            {featFields.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {featFields.map(f => {
+                  const covered = f.coveragePct > 0;
+                  return (
+                    <div key={f.field} style={{
+                      background: covered ? "#052e16" : "#1e1e1e",
+                      border: `1px solid ${covered ? "#4ade80" : "#334155"}`,
+                      borderRadius: 4,
+                      padding: "3px 8px",
+                      fontSize: 11,
+                      color: covered ? "#4ade80" : "#475569",
+                      fontFamily: "monospace",
+                    }}>
+                      {f.field.replace("feat_", "")}
+                      <span style={{ marginLeft: 4, color: covered ? "#86efac" : "#334155" }}>
+                        {f.coveragePct}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#475569" }}>加载字段明细中…</div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Section 5: Regression Detection */}
       <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
           回归检测
@@ -392,7 +499,7 @@ export default function LearningReportPage() {
         </div>
       </div>
 
-      {/* Section 5: Recommendations */}
+      {/* Section 6: Recommendations */}
       {recommendations.length > 0 && (
         <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
