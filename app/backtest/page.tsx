@@ -9,6 +9,18 @@ import type { CohortsData, CohortStat } from "@/app/api/backtest/cohorts/route";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type StratStatItem = {
+  strategyType: string;
+  winRate: number | null;
+  avgReturnPct: number | null;
+  avgAlphaPct: number | null;
+  sampleCount: number;
+  openRows: number;
+  takeProfit: number;
+  stopLoss: number;
+  timeExit: number;
+};
+
 type HorizonKey = "7d" | "30d" | "90d";
 type Granularity = "daily" | "weekly";
 
@@ -497,6 +509,14 @@ export default function BacktestPage() {
   const [cohortsData, setCohortsData] = useState<CohortsData | null>(null);
   // v2.3 data from mission-control
   const [v2Horizons,  setV2Horizons]  = useState<McHorizon[]>([]);
+  // v15.0 strategy backtest
+  const [strategyTab, setStrategyTab] = useState<"OVERALL" | "DAY" | "SWING" | "POSITION">("OVERALL");
+  const [stratData,   setStratData]   = useState<{
+    stats: { overall: StratStatItem | null; byStrategy: Record<string, StratStatItem | null> } | null;
+    exitBreakdown: Record<string, Record<string, number>>;
+    totalRows: number;
+    lastComputedAt: string | null;
+  } | null>(null);
 
   const loadSummary = useCallback(() => {
     setLoading(true);
@@ -533,6 +553,11 @@ export default function BacktestPage() {
     fetch("/api/admin/mission-control")
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d?.backtest?.horizons) setV2Horizons(d.backtest.horizons); })
+      .catch(() => {});
+    // v15.0 strategy backtest
+    fetch("/api/backtest/strategy")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setStratData(d); })
       .catch(() => {});
   }, []);
 
@@ -574,6 +599,118 @@ export default function BacktestPage() {
           <span className="flex items-center gap-1.5 text-emerald-500"><span className="font-semibold">✓</span>{t("backtest.disclaimer_date")}</span>
           <span className="flex items-center gap-1.5 text-slate-500"><span className="font-semibold">✗</span>{t("backtest.disclaimer_no_slippage")}</span>
           <span className="flex items-center gap-1.5 text-slate-500"><span className="font-semibold">✗</span>{t("backtest.disclaimer_no_future")}</span>
+        </div>
+      </div>
+
+      {/* ── v15.0 Three-Strategy Backtest ───────────────────────────────────────── */}
+      <div className="mb-6 bg-[#0f172a] border border-slate-700/40 rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-700/30 flex items-center justify-between">
+          <div>
+            <span className="text-slate-200 text-sm font-semibold">{t("strategy.backtest_title")}</span>
+            <span className="text-slate-500 text-xs ml-2">{t("strategy.backtest_subtitle")}</span>
+          </div>
+          <span className="text-slate-600 text-xs">
+            {stratData?.lastComputedAt ? `计算于 ${new Date(stratData.lastComputedAt).toLocaleDateString("zh-CN")}` : ""}
+          </span>
+        </div>
+
+        {/* Strategy Tabs */}
+        <div className="flex border-b border-slate-700/30">
+          {(["OVERALL", "DAY", "SWING", "POSITION"] as const).map((s) => {
+            const labels: Record<string, string> = { OVERALL: "综合", DAY: "日内 30%", SWING: "波段 40%", POSITION: "趋势 30%" };
+            return (
+              <button
+                key={s}
+                onClick={() => setStrategyTab(s)}
+                className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                  strategyTab === s
+                    ? "border-blue-500 text-blue-400"
+                    : "border-transparent text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {labels[s]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="p-5">
+          {!stratData || stratData.totalRows === 0 ? (
+            <div className="text-slate-500 text-sm py-4 text-center">
+              尚无策略回测数据 — 先运行 <code className="text-slate-400">npm run strategy-backtest</code>
+            </div>
+          ) : (() => {
+            const s = strategyTab === "OVERALL"
+              ? stratData.stats?.overall
+              : stratData.stats?.byStrategy[strategyTab];
+            if (!s) return <div className="text-slate-500 text-sm py-4 text-center">无数据</div>;
+            const winColor = s.winRate == null ? "text-slate-500" : s.winRate >= 55 ? "text-emerald-400" : s.winRate >= 45 ? "text-yellow-400" : "text-red-400";
+            const retColor = s.avgReturnPct == null ? "text-slate-500" : s.avgReturnPct > 0 ? "text-emerald-400" : "text-red-400";
+            const eb = stratData.exitBreakdown?.[strategyTab === "OVERALL" ? "SWING" : strategyTab] ?? {};
+            return (
+              <div className="space-y-4">
+                {/* KPI row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-slate-800/40 rounded-lg p-3">
+                    <div className="text-slate-500 text-xs mb-1">{t("strategy.win_rate")}</div>
+                    <div className={`text-2xl font-bold font-mono ${winColor}`}>
+                      {s.winRate != null ? `${s.winRate.toFixed(1)}%` : <span className="text-sm">{t("strategy.collecting")}</span>}
+                    </div>
+                    <div className="text-slate-600 text-[10px] mt-0.5">样本 {s.sampleCount}{s.sampleCount < 10 ? " (不足10)" : ""}</div>
+                  </div>
+                  <div className="bg-slate-800/40 rounded-lg p-3">
+                    <div className="text-slate-500 text-xs mb-1">{t("strategy.avg_return")}</div>
+                    <div className={`text-2xl font-bold font-mono ${retColor}`}>
+                      {s.avgReturnPct != null ? `${s.avgReturnPct > 0 ? "+" : ""}${s.avgReturnPct.toFixed(2)}%` : "—"}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/40 rounded-lg p-3">
+                    <div className="text-slate-500 text-xs mb-1">{t("strategy.avg_alpha")}</div>
+                    <div className={`text-2xl font-bold font-mono ${s.avgAlphaPct != null && s.avgAlphaPct > 0 ? "text-emerald-400" : "text-slate-400"}`}>
+                      {s.avgAlphaPct != null ? `${s.avgAlphaPct > 0 ? "+" : ""}${s.avgAlphaPct.toFixed(2)}%` : "—"}
+                    </div>
+                    <div className="text-slate-600 text-[10px] mt-0.5">vs TOPIX</div>
+                  </div>
+                  <div className="bg-slate-800/40 rounded-lg p-3">
+                    <div className="text-slate-500 text-xs mb-1">持仓中</div>
+                    <div className="text-2xl font-bold font-mono text-slate-300">{s.openRows}</div>
+                    <div className="text-slate-600 text-[10px] mt-0.5">OPEN positions</div>
+                  </div>
+                </div>
+
+                {/* Exit reason breakdown */}
+                {strategyTab !== "OVERALL" && (
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className="text-slate-500">出场方式：</span>
+                    <span className="text-emerald-400">✓ 止盈 {s.takeProfit}</span>
+                    <span className="text-red-400">✗ 止损 {s.stopLoss}</span>
+                    <span className="text-slate-400">⏱ 时间 {s.timeExit}</span>
+                    {Object.entries(eb).filter(([k]) => !["TAKE_PROFIT","STOP_LOSS","TIME_EXIT","OPEN","INSUFFICIENT_DATA"].includes(k)).map(([k, v]) => (
+                      <span key={k} className="text-slate-500">{k} {v}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Strategy params for non-overall tabs */}
+                {strategyTab !== "OVERALL" && (() => {
+                  const params: Record<string, { target: string; stop: string; days: string; alloc: string }> = {
+                    DAY:      { target: "+3%",  stop: "-2%", days: "1日",  alloc: "30%" },
+                    SWING:    { target: "+8%",  stop: "-4%", days: "10日", alloc: "40%" },
+                    POSITION: { target: "+20%", stop: "-8%", days: "60日", alloc: "30%" },
+                  };
+                  const p = params[strategyTab];
+                  return (
+                    <div className="flex flex-wrap gap-4 text-xs text-slate-500 border-t border-slate-700/30 pt-3">
+                      <span>目标收益 <strong className="text-emerald-400">{p.target}</strong></span>
+                      <span>止损 <strong className="text-red-400">{p.stop}</strong></span>
+                      <span>最长持仓 <strong className="text-slate-300">{p.days}</strong></span>
+                      <span>建议配比 <strong className="text-blue-400">{p.alloc}</strong></span>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

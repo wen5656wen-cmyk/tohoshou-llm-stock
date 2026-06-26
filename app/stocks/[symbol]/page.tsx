@@ -74,6 +74,22 @@ type AiDecisionData = {
   news: NewsItem[];
 };
 
+type StrategyData = {
+  classification: {
+    strategyType: string;
+    confidence: number;
+    targetReturnPct: number;
+    stopLossPct: number;
+    maxHoldingDays: number;
+  } | null;
+  backtestStats: {
+    winRate: number | null;
+    avgReturnPct: number | null;
+    sampleCount: number;
+  } | null;
+  sampleCount: number;
+} | null;
+
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
 const REC_CHIP: Record<string, { bg: string; text: string; border: string }> = {
@@ -177,6 +193,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState(false);
   const [watchLoading, setWatchLoading] = useState(false);
+  const [strategyData, setStrategyData] = useState<StrategyData>(null);
   const [chartVisible, setChartVisible] = useState(false);
   const [financialsVisible, setFinancialsVisible] = useState(false);
   const [chartData, setChartData] = useState<PricePoint[]>([]);
@@ -200,6 +217,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       setData(d as AiDecisionData);
       setLoading(false);
     }).catch((e) => { setError(e.message); setLoading(false); });
+    // Strategy classification (non-blocking)
+    fetch(`/api/stocks/${encodeURIComponent(s)}/strategy`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setStrategyData(d); })
+      .catch(() => null);
   }, [decoded]);
 
   // Lazy load chart + financials when expanded
@@ -518,6 +540,58 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           </div>
         )}
       </SectionCard>
+
+      {/* ── Strategy Recommendation (v15.0) ──────────────────────────────── */}
+      {strategyData?.classification && (() => {
+        const c = strategyData.classification;
+        const stype = c.strategyType as "DAY" | "SWING" | "POSITION";
+        const stratColor = stype === "DAY" ? "#f59e0b" : stype === "SWING" ? "#3b82f6" : "#10b981";
+        const stratBg    = stype === "DAY" ? "bg-amber-50"   : stype === "SWING" ? "bg-blue-50"   : "bg-emerald-50";
+        const stratText  = stype === "DAY" ? "text-amber-700" : stype === "SWING" ? "text-blue-700" : "text-emerald-700";
+        const stratBorder = stype === "DAY" ? "border-amber-200" : stype === "SWING" ? "border-blue-200" : "border-emerald-200";
+        const bs = strategyData.backtestStats;
+        return (
+          <div className={`rounded-2xl border ${stratBorder} ${stratBg} p-4 flex flex-col sm:flex-row sm:items-center gap-3`}>
+            <div className="flex items-center gap-3 flex-1">
+              <span className={`text-sm font-bold px-3 py-1 rounded-full border ${stratBorder} bg-white ${stratText} shrink-0`}
+                style={{ borderColor: stratColor }}>
+                {t(`strategy.${stype}` as Parameters<typeof t>[0])}
+              </span>
+              <div className="min-w-0">
+                <div className={`text-xs font-medium ${stratText}`}>{t("strategy.detail_title")}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{t(`strategy.${stype}.desc` as Parameters<typeof t>[0])}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs shrink-0">
+              <div className="text-center">
+                <div className="text-slate-400">{t("strategy.confidence")}</div>
+                <div className={`font-bold ${stratText}`}>{c.confidence}%</div>
+              </div>
+              <div className="text-center">
+                <div className="text-slate-400">{t("strategy.target_return")}</div>
+                <div className="font-bold text-emerald-600">+{c.targetReturnPct}%</div>
+              </div>
+              <div className="text-center">
+                <div className="text-slate-400">{t("strategy.stop_loss")}</div>
+                <div className="font-bold text-red-600">{c.stopLossPct}%</div>
+              </div>
+              <div className="text-center">
+                <div className="text-slate-400">{t("strategy.max_days")}</div>
+                <div className="font-bold text-slate-700">{c.maxHoldingDays}{t("strategy.days_unit")}</div>
+              </div>
+              {bs && bs.sampleCount >= 10 && (
+                <div className="text-center">
+                  <div className="text-slate-400">{t("strategy.win_rate")}</div>
+                  <div className={`font-bold ${bs.winRate != null && bs.winRate >= 55 ? "text-emerald-600" : "text-amber-600"}`}>
+                    {bs.winRate != null ? `${bs.winRate.toFixed(1)}%` : "—"}
+                  </div>
+                  <div className="text-slate-400 text-[10px]">n={bs.sampleCount}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Section 2: Trading Plan ───────────────────────────────────────── */}
       <SectionCard title={t("tp.title")}>

@@ -542,10 +542,18 @@ model DailyRecommendation {
   feat_topixReturn20d    Float?    // TOPIX 20-trading-day return %
   feat_marketTemperature Int?      // GlobalMarket.score (0-10)
 
+  // v15.0: Three-strategy classification (written at rec time, updated on each run)
+  strategyType         String?   // DAY | SWING | POSITION (null = legacy before v15.0)
+  strategyConfidence   Float?    // 0-100
+  targetReturnPct      Float?    // 3.0 | 8.0 | 20.0
+  stopLossPct          Float?    // -2.0 | -4.0 | -8.0
+  maxHoldingDays       Int?      // 1 | 10 | 60
+
   @@unique([date, symbol])
   @@index([date(sort: Desc)])
   @@index([symbol])
   @@index([gptRank])
+  @@index([strategyType])
   @@map("daily_recommendations")
 }
 
@@ -682,6 +690,36 @@ model BacktestPositionResult {
   @@index([recDate, horizon])
   @@index([winFlag])
   @@map("backtest_position_results")
+}
+
+// v15.0: Strategy-based backtest results (DAY/SWING/POSITION simulation with stop-loss/take-profit)
+model StrategyBacktestResult {
+  id            Int      @id @default(autoincrement())
+  recDate       DateTime @db.Date                // recommendation cohort date
+  symbol        String
+  strategyType  String                           // DAY | SWING | POSITION
+
+  entryDate     DateTime? @db.Date
+  entryPrice    Float?
+  exitDate      DateTime? @db.Date
+  exitPrice     Float?
+  exitReason    String?   // TAKE_PROFIT | STOP_LOSS | TIME_EXIT | OPEN | INSUFFICIENT_DATA
+  holdingDays   Int?
+  returnPct     Float?
+  alphaPct      Float?                           // returnPct - benchmarkReturn
+  isWin         Boolean?
+  benchmarkReturn Float?                         // TOPIX accumulated return for same period
+
+  computedAt    DateTime @default(now())
+
+  @@unique([recDate, symbol, strategyType])
+  @@index([recDate(sort: Desc)])
+  @@index([symbol])
+  @@index([strategyType])
+  @@index([exitReason])
+  @@index([isWin])
+  @@index([recDate, strategyType])
+  @@map("strategy_backtest_results")
 }
 
 // Production Deployment History (v8.9.5)

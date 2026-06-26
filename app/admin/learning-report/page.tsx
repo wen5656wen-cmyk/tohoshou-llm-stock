@@ -116,6 +116,11 @@ export default function LearningReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [featFields, setFeatFields] = useState<FeatureField[]>([]);
+  const [stratStats, setStratStats] = useState<{
+    overall: { winRate: number | null; avgReturnPct: number | null; avgAlphaPct: number | null; sampleCount: number; openRows: number } | null;
+    byStrategy: Record<string, { winRate: number | null; avgReturnPct: number | null; avgAlphaPct: number | null; sampleCount: number; openRows: number } | null>;
+    totalRows: number;
+  } | null>(null);
 
   const loadFeatFields = useCallback(async () => {
     try {
@@ -154,6 +159,10 @@ export default function LearningReportPage() {
   useEffect(() => {
     load();
     loadFeatFields();
+    fetch("/api/strategy/performance")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setStratStats(d); })
+      .catch(() => null);
     const timer = setInterval(() => { load(); loadFeatFields(); }, 60_000);
     return () => clearInterval(timer);
   }, [load, loadFeatFields]);
@@ -520,8 +529,66 @@ export default function LearningReportPage() {
         </div>
       )}
 
+      {/* Section 7: Strategy Performance (v15.0) */}
+      <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          三策略性能报告（v15.0）
+        </div>
+        {!stratStats || stratStats.totalRows === 0 ? (
+          <div style={{ fontSize: 12, color: "#334155" }}>
+            尚无策略回测数据 — 运行{" "}
+            <span style={{ fontFamily: "monospace", color: "#64748b" }}>npm run strategy-backtest</span>
+            {" "}填充
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 12 }}>
+              {([
+                { key: "overall", label: "综合", color: "#94a3b8" },
+                { key: "DAY",     label: "日内 (30%)", color: "#f59e0b" },
+                { key: "SWING",   label: "波段 (40%)", color: "#3b82f6" },
+                { key: "POSITION",label: "趋势 (30%)", color: "#10b981" },
+              ]).map(({ key, label, color }) => {
+                const s = key === "overall" ? stratStats.overall : stratStats.byStrategy[key];
+                if (!s) return (
+                  <div key={key} style={{ background: "#0a0a0a", borderRadius: 6, padding: "10px 12px", border: `1px solid ${color}22` }}>
+                    <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 11, color: "#334155" }}>数据积累中</div>
+                  </div>
+                );
+                const winColor = s.winRate == null ? "#475569" : s.winRate >= 55 ? "#4ade80" : s.winRate >= 45 ? "#fbbf24" : "#f87171";
+                const retColor = s.avgReturnPct == null ? "#475569" : s.avgReturnPct > 0 ? "#4ade80" : "#f87171";
+                return (
+                  <div key={key} style={{ background: "#0a0a0a", borderRadius: 6, padding: "10px 12px", border: `1px solid ${color}33` }}>
+                    <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 6 }}>{label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: winColor }}>
+                      {s.winRate != null ? `${s.winRate.toFixed(1)}%` : "—"}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>胜率 · 样本 {s.sampleCount}</div>
+                    <div style={{ fontSize: 11, color: retColor }}>
+                      {s.avgReturnPct != null ? `${s.avgReturnPct > 0 ? "+" : ""}${s.avgReturnPct.toFixed(2)}%` : "—"} 均收益
+                    </div>
+                    {s.avgAlphaPct != null && (
+                      <div style={{ fontSize: 10, color: s.avgAlphaPct > 0 ? "#4ade80" : "#94a3b8", marginTop: 2 }}>
+                        Alpha {s.avgAlphaPct > 0 ? "+" : ""}{s.avgAlphaPct.toFixed(2)}%
+                      </div>
+                    )}
+                    {s.openRows > 0 && (
+                      <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>持仓中 {s.openRows}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "#334155" }}>
+              共 {stratStats.totalRows} 条策略回测记录 · 止盈+止损+时间止出场模拟
+            </div>
+          </>
+        )}
+      </div>
+
       <div style={{ fontSize: 11, color: "#334155", marginTop: 8 }}>
-        数据来源：BacktestPositionResult（不可变）· VersionSnapshot · pipeline-runs.jsonl ·
+        数据来源：BacktestPositionResult（不可变）· StrategyBacktestResult · VersionSnapshot · pipeline-runs.jsonl ·
         reports/ 目录快照 · 不读 StockScore（可变表）
       </div>
     </div>

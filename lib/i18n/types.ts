@@ -912,6 +912,38 @@ export type Messages = {
   "detail.collapse": string;
   "stock.data_as_of": string;
   "stock.no_score": string;
+
+  // ─── v15.0: Three-Strategy System ─────────────────────────────────────────
+  "strategy.section_title": string;
+  "strategy.DAY": string;
+  "strategy.SWING": string;
+  "strategy.POSITION": string;
+  "strategy.DAY.short": string;
+  "strategy.SWING.short": string;
+  "strategy.POSITION.short": string;
+  "strategy.DAY.desc": string;
+  "strategy.SWING.desc": string;
+  "strategy.POSITION.desc": string;
+  "strategy.confidence": string;
+  "strategy.target_return": string;
+  "strategy.stop_loss": string;
+  "strategy.max_days": string;
+  "strategy.win_rate": string;
+  "strategy.avg_return": string;
+  "strategy.avg_alpha": string;
+  "strategy.sample_count": string;
+  "strategy.collecting": string;
+  "strategy.open_count": string;
+  "strategy.tab_overall": string;
+  "strategy.allocation": string;
+  "strategy.days_unit": string;
+  "strategy.exit_take_profit": string;
+  "strategy.exit_stop_loss": string;
+  "strategy.exit_time": string;
+  "strategy.exit_open": string;
+  "strategy.backtest_title": string;
+  "strategy.backtest_subtitle": string;
+  "strategy.detail_title": string;
 };
 
 export type MessageKey = keyof Messages;

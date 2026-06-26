@@ -22,6 +22,7 @@ import OpenAI from "openai";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { VERSION_SNAPSHOT } from "../lib/safety-rules";
+import { classifyStrategy } from "../lib/strategy/strategy-classifier";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -320,7 +321,7 @@ async function main() {
       return5d: true, return20d: true, return60d: true,
       rsi14: true, maTrend: true, macdSignalLabel: true,
       latestClose: true, priceCount: true, computedAt: true,
-      recommendationV2: true,
+      recommendationV2: true, tradingAction: true,
     },
   });
 
@@ -725,6 +726,22 @@ async function main() {
         const ph = priceHistMap.get(entry.symbol);
 
         // mutable fields — updated on every run
+        // v15.0: classify strategy from StockScore fields
+        const sc2 = top500Map.get(entry.symbol);
+        const stratResult = classifyStrategy({
+          tradingAction:    sc2?.tradingAction    ?? null,
+          technicalScore:   ss?.technicalScore    ?? null,
+          fundamentalScore: ss?.fundamentalScore  ?? null,
+          moneyFlowScore:   ss?.moneyFlowScore    ?? null,
+          adaptiveScore:    entry.adaptiveScore,
+          rsi14:            sc2?.rsi14            ?? null,
+          maTrend:          sc2?.maTrend          ?? null,
+          stockStyle:       ss?.stockStyle        ?? null,
+          highRiskFlag:     ss?.highRiskFlag       ?? null,
+          overallConfidence: ss?.overallConfidence ?? null,
+          recommendation:   recMap.get(entry.symbol) ?? null,
+        });
+
         const recPayload = {
           gptRank: entry.gptRank!,
           finalScore: entry.finalScore,
@@ -747,6 +764,12 @@ async function main() {
           // Confidence & risk override snapshot
           overallConfidence: ss?.overallConfidence ?? null,
           riskOverride:      ss?.riskOverride ?? "NONE",
+          // v15.0: strategy classification
+          strategyType:       stratResult.strategyType,
+          strategyConfidence: stratResult.confidence,
+          targetReturnPct:    stratResult.targetReturnPct,
+          stopLossPct:        stratResult.stopLossPct,
+          maxHoldingDays:     stratResult.maxHoldingDays,
         };
 
         // feat_* immutable snapshot — written to CREATE only, never to UPDATE

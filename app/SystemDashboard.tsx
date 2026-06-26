@@ -35,6 +35,21 @@ type FreshnessSource = {
   status: "FRESH" | "STALE" | "CRITICAL";
 };
 
+type StrategyStatItem = {
+  strategyType: string;
+  winRate: number | null;
+  avgReturnPct: number | null;
+  avgAlphaPct: number | null;
+  sampleCount: number;
+  openRows: number;
+};
+
+type StrategyPerf = {
+  overall: StrategyStatItem | null;
+  byStrategy: { DAY: StrategyStatItem | null; SWING: StrategyStatItem | null; POSITION: StrategyStatItem | null };
+  totalRows: number;
+};
+
 type MissionData = {
   pipeline: {
     stages: Array<{ stage: string; displayName: string; status: string; lastRunAt: string | null }>;
@@ -162,6 +177,7 @@ export function SystemDashboard({
   const [mc, setMc] = useState<MissionData | null>(null);
   const [mcError, setMcError] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [stratPerf, setStratPerf] = useState<StrategyPerf | null>(null);
 
   const loadMc = useCallback(async () => {
     try {
@@ -183,6 +199,13 @@ export function SystemDashboard({
     const t = setInterval(loadMc, 60_000);
     return () => clearInterval(t);
   }, [loadMc]);
+
+  useEffect(() => {
+    fetch("/api/strategy/performance")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: StrategyPerf | null) => { if (d) setStratPerf(d); })
+      .catch(() => null);
+  }, []);
 
   const style: React.CSSProperties = {
     background: "#0a0a0a",
@@ -476,6 +499,59 @@ export function SystemDashboard({
           ))}
         </div>
       </Section>
+
+      {/* ── Three-Strategy Win Rate (v15.0) ──────────────────────────────────── */}
+      <div style={{ marginTop: 16 }}>
+        <Section title="三策略胜率（v15.0）">
+          {stratPerf && stratPerf.totalRows > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              {([
+                { key: "overall" as const,   label: "综合",    alloc: "",    color: "#94a3b8" },
+                { key: "DAY"     as const,   label: "日内",    alloc: "30%", color: "#f59e0b" },
+                { key: "SWING"   as const,   label: "波段",    alloc: "40%", color: "#3b82f6" },
+                { key: "POSITION"as const,   label: "趋势",    alloc: "30%", color: "#10b981" },
+              ]).map(({ key, label, alloc, color }) => {
+                const s = key === "overall" ? stratPerf.overall : stratPerf.byStrategy[key];
+                if (!s) return (
+                  <div key={key} style={{ background: "#0a0a0a", borderRadius: 8, padding: "10px 14px", border: `1px solid ${color}22` }}>
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>{label}{alloc && <span style={{ color: "#475569", marginLeft: 6 }}>{alloc}</span>}</div>
+                    <div style={{ fontSize: 11, color: "#334155" }}>数据积累中</div>
+                  </div>
+                );
+                const winColor = s.winRate == null ? "#475569" : s.winRate >= 55 ? "#4ade80" : s.winRate >= 45 ? "#fbbf24" : "#f87171";
+                const retColor = s.avgReturnPct == null ? "#475569" : s.avgReturnPct > 0 ? "#4ade80" : "#f87171";
+                return (
+                  <div key={key} style={{ background: "#0a0a0a", borderRadius: 8, padding: "10px 14px", border: `1px solid ${color}33` }}>
+                    <div style={{ fontSize: 11, color, marginBottom: 6, fontWeight: 700 }}>
+                      {label}{alloc && <span style={{ color: "#475569", fontWeight: 400, marginLeft: 6 }}>{alloc}</span>}
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: winColor }}>
+                      {s.winRate != null ? `${s.winRate.toFixed(1)}%` : "—"}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#475569", marginTop: 2, marginBottom: 6 }}>胜率</div>
+                    <div style={{ fontSize: 12, color: retColor }}>
+                      {s.avgReturnPct != null ? `${s.avgReturnPct > 0 ? "+" : ""}${s.avgReturnPct.toFixed(2)}%` : "—"} 均收
+                    </div>
+                    <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
+                      样本 {s.sampleCount}
+                      {s.openRows > 0 && <span style={{ marginLeft: 6, color: "#334155" }}>持仓 {s.openRows}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ color: "#334155", fontSize: 12 }}>
+              尚无策略回测数据 — 运行 <span style={{ color: "#64748b", fontFamily: "monospace" }}>npm run strategy-backtest</span> 填充
+            </div>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <Link href="/backtest" style={{ fontSize: 11, color: "#475569", textDecoration: "none" }}>
+              → 三策略回测完整报告
+            </Link>
+          </div>
+        </Section>
+      </div>
 
       {/* ── Data Maturity Countdown ──────────────────────────────────────────── */}
       <div style={{ marginTop: 16 }}>
