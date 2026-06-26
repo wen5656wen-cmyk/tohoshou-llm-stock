@@ -48,7 +48,9 @@
     "update:signal-stats:all": "npx tsx scripts/update-ai-signal-stats.ts --all",
     "update:signal-stats:dry": "npx tsx scripts/update-ai-signal-stats.ts --dry-run",
     "learning:report": "npx tsx scripts/generate-learning-report.ts",
-    "learning:report:dry": "npx tsx scripts/generate-learning-report.ts --dry-run"
+    "learning:report:dry": "npx tsx scripts/generate-learning-report.ts --dry-run",
+    "backfill:dr-version": "npx tsx scripts/backfill-dr-version.ts",
+    "backfill:dr-version:dry": "npx tsx scripts/backfill-dr-version.ts --dry-run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

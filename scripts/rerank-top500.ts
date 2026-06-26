@@ -649,6 +649,14 @@ async function main() {
     const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
     const today = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
 
+    // Resolve active VersionSnapshot for DR traceability
+    const vsRow = await prisma.versionSnapshot.findFirst({
+      where: { endDate: null },
+      orderBy: { startDate: "desc" },
+      select: { id: true, modelVersion: true, scoreVersion: true, schemaVersion: true },
+    });
+    const activeVsId = vsRow?.id ?? null;
+
     // Fetch summaryZh from freshly upserted GPTScore
     const symbols = scored.map((s) => s.symbol);
     const gptRows = await prisma.gPTScore.findMany({
@@ -731,6 +739,11 @@ async function main() {
           globalEventEngineVersion: VERSION_SNAPSHOT.globalEventEngineVersion,
           llmModelVersion:          VERSION_SNAPSHOT.llmModelVersion,
           scoringSchemaVersion:     VERSION_SNAPSHOT.scoringSchemaVersion,
+          // v13.7: VersionSnapshot traceability — links DR to immutable version record
+          versionSnapshotId: activeVsId,
+          modelVersion:      vsRow?.modelVersion  ?? VERSION_SNAPSHOT.ruleEngineVersion,
+          scoreVersion:      vsRow?.scoreVersion  ?? VERSION_SNAPSHOT.scoringSchemaVersion,
+          schemaVersion:     vsRow?.schemaVersion ?? VERSION_SNAPSHOT.schemaVersion,
           // Confidence & risk override snapshot
           overallConfidence: ss?.overallConfidence ?? null,
           riskOverride:      ss?.riskOverride ?? "NONE",

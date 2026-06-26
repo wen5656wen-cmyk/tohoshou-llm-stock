@@ -2,6 +2,37 @@
 
 ---
 
+## [13.7.0] - 2026-06-26 — Step 5：Version & Experiment Platform
+
+### 变更
+
+**Version Center（`/admin/versions`）**
+
+4 tab 操作面板：Versions / Timeline / Compare / Integrity
+
+- **Versions tab**：完整 VersionSnapshot 列表，字段含 schemaVersion/modelVersion/scoreVersion/llmModelVer/startDate/endDate/role（current/baseline/legacy）/DR Linked/BP Linked/学习报告标志
+- **Timeline tab**：Version + Deployment + Experiment 三类事件按日期倒序合并显示
+- **Compare tab**：双版本对比；跨 schemaVersion 时 comparisonAllowed=false；相同时输出9 horizon delta表（ΔWinRate/ΔReturn/ΔAlpha）+ regressionStatus
+- **Integrity tab**：DR/BP versionSnapshotId 覆盖率；每版本 breakdown；状态 OK/WARNING/CRITICAL
+
+**Experiment Dashboard（`/admin/experiments`）**：只读，5 状态卡片+过滤器+操作规程
+
+**新建 API 路由（全部只读）**：`GET /api/admin/versions`、`/compare`、`/api/admin/experiments`、`/api/admin/version-timeline`
+
+**修复：`scripts/rerank-top500.ts` versionSnapshotId 缺失（P1 bug）**：Step 8 补写 versionSnapshotId/modelVersion/scoreVersion/schemaVersion 到 recPayload（create+update 均写）
+
+**`scripts/backfill-dr-version.ts`**：一次性回填工具，已在生产执行 2774 行
+
+### 完整性验证（2026-06-26）
+
+```
+DailyRecommendation:      2774 / 2774 linked → 100% ✅
+BacktestPositionResult:  14625 / 14625 linked → 100% ✅
+Overall Integrity Status: OK
+```
+
+---
+
 ## [13.6.0] - 2026-06-26 — Step 4：Learning Engine — 确定性回测学习报告
 
 ### 变更
