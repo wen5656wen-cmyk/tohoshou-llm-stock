@@ -2,6 +2,54 @@
 
 ---
 
+## [14.2.0] - 2026-06-26 — Dry-Run Pipeline 验证器 + Mission Control Dry-Run 支持
+
+### 变更目的
+
+提前验证 Pipeline Status / Feature Coverage 显示逻辑，无需等待首次真实 cron 运行。
+
+### 新增 `scripts/dry-run-pipeline.ts`
+
+- 为全部 10 个主 pipeline stage 写入 `runType="dry-run"` 的日志条目
+- 安全阶段真实执行：`update-ai-signal-stats --dry-run`、`generate-learning-report --dry-run`、`data-health-guard`（只读）
+- 写入量大/有 DB 修改风险的阶段写 synthetic SUCCESS 条目（保护 DailyRecommendation / StockScore / BacktestPositionResult）
+- `pipelineRunId = dry-run-YYYYMMDD-NNNNNN`
+- `npm run pipeline:dry-run` 命令
+
+### `scripts/cron-scheduler.ts`
+
+- `writePipelineLog()` 新增可选字段 `runType?: "production" | "dry-run"` 和 `pipelineRunId?`
+
+### `app/api/admin/mission-control/route.ts`
+
+- `PipelineRunEntry` 新增 `runType?` / `pipelineRunId?` 字段
+- 接受 `?includeDryRun=true` 查询参数（默认隐藏 dry-run 条目）
+- `pipelineScore` 健康分只计 production 运行（dry-run 不膨胀分数）
+- 响应新增 `productionRuns` / `dryRunCount` / `includeDryRun` 字段
+
+### `app/admin/mission-control/page.tsx`
+
+- 新增 `showDryRun` 切换开关（仅在 `dryRunCount>0` 时显示）
+- Dry-run 条目在 Pipeline Status 表中显示 `[DRY]` badge
+- 切换时重新 fetch `?includeDryRun=true`，显示说明提示
+- 修复 Refresh 按钮的 `onClick` 类型错误（传 `showDryRun` 参数）
+
+### 干运行验证结果（2026-06-26 生产）
+
+```
+totalRuns=11  productionRuns=1  dryRunCount=10
+所有 10 个主 stage → isDry=True, status=SUCCESS
+Health Score: 45/100 (pipelineStatus=0/25 — dry-run 未计入)
+generate-learning-report dry-run: integrityScore=87/100 PASS (pipeline 8/10 stages ok)
+  1d fillRate=65.78% (确认旧报告 186.89% bug 为历史文件问题，新跑正确)
+data-health-guard: CRITICAL=0, WARNING=1 (7条真实极端市场行情, 验证为真实)
+Feature Coverage SQL: 30字段全返回, 0% 正确显示 (pre-Step2 行)
+```
+
+### Deployment #43，commit e54d601 ✅
+
+---
+
 ## [14.1.0] - 2026-06-26 — P1-B PM2清理 + P2-006 featureCoverage 区块
 
 ### P1-B 修复：删除废弃 PM2 进程
