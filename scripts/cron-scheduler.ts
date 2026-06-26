@@ -26,6 +26,7 @@ import { execSync } from "child_process";
 
 const LOG_DIR = join(process.cwd(), "logs");
 const LOG_FILE = join(LOG_DIR, "cron-scheduler.log");
+const PIPELINE_LOG = join(LOG_DIR, "pipeline-runs.jsonl");
 try { mkdirSync(LOG_DIR, { recursive: true }); } catch {}
 
 function log(level: "INFO" | "ERROR" | "WARN", msg: string) {
@@ -35,8 +36,36 @@ function log(level: "INFO" | "ERROR" | "WARN", msg: string) {
   console.log(line);
 }
 
+type PipelineStatus = "SUCCESS" | "FAILED";
+
+function writePipelineLog(entry: {
+  stage: string;
+  startedAt: Date;
+  finishedAt: Date;
+  durationMs: number;
+  status: PipelineStatus;
+  exitCode: number;
+  errorMessage: string | null;
+}) {
+  try {
+    appendFileSync(PIPELINE_LOG, JSON.stringify({
+      stage:        entry.stage,
+      startedAt:    entry.startedAt.toISOString(),
+      finishedAt:   entry.finishedAt.toISOString(),
+      durationMs:   entry.durationMs,
+      status:       entry.status,
+      exitCode:     entry.exitCode,
+      errorMessage: entry.errorMessage,
+    }) + "\n", "utf-8");
+  } catch {}
+}
+
 function run(script: string, label: string, timeoutMs: number = 10 * 60 * 1000) {
   log("INFO", `▶ 开始 ${label}`);
+  const startedAt = new Date();
+  const stage = script.replace(/\.ts$/, "");
+  let exitCode = 0;
+  let errorMessage: string | null = null;
   try {
     execSync(`npx tsx ${join(process.cwd(), "scripts", script)}`, {
       stdio: "inherit",
@@ -45,8 +74,17 @@ function run(script: string, label: string, timeoutMs: number = 10 * 60 * 1000) 
     });
     log("INFO", `✅ 完成 ${label}`);
   } catch (err) {
-    log("ERROR", `❌ 失败 ${label}：${err instanceof Error ? err.message : err}`);
+    exitCode = 1;
+    errorMessage = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+    log("ERROR", `❌ 失败 ${label}：${errorMessage}`);
   }
+  const finishedAt = new Date();
+  writePipelineLog({
+    stage, startedAt, finishedAt,
+    durationMs: finishedAt.getTime() - startedAt.getTime(),
+    status: exitCode === 0 ? "SUCCESS" : "FAILED",
+    exitCode, errorMessage,
+  });
 }
 
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -83,6 +121,9 @@ cron.schedule("0 6 * * *", () => {
 // This means pm2 restart of tohoshou-web cannot kill the sync — it runs in its own process.
 function runNewsSync(label: string) {
   log("INFO", `⏰ ${label} 触发：ニュース取得 (worker mode)`);
+  const startedAt = new Date();
+  let exitCode = 0;
+  let errorMessage: string | null = null;
   try {
     execSync(
       `npx tsx ${join(process.cwd(), "scripts", "sync-news.ts")}`,
@@ -94,8 +135,17 @@ function runNewsSync(label: string) {
     );
     log("INFO", `✅ 完成 ${label} ニュース取得`);
   } catch (err) {
-    log("ERROR", `❌ 失败 ${label} ニュース取得：${err instanceof Error ? err.message : err}`);
+    exitCode = 1;
+    errorMessage = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+    log("ERROR", `❌ 失败 ${label} ニュース取得：${errorMessage}`);
   }
+  const finishedAt = new Date();
+  writePipelineLog({
+    stage: "sync-news", startedAt, finishedAt,
+    durationMs: finishedAt.getTime() - startedAt.getTime(),
+    status: exitCode === 0 ? "SUCCESS" : "FAILED",
+    exitCode, errorMessage,
+  });
 }
 
 cron.schedule("0 7  * * *", () => runNewsSync("07:00"), { timezone: "Asia/Tokyo" });

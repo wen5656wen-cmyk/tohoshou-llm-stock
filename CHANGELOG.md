@@ -2,6 +2,49 @@
 
 ---
 
+## [13.5.0] - 2026-06-26 — Step 3：Mission Control 运营可视化仪表盘
+
+### 变更
+
+**新增 `GET /api/admin/mission-control` API（6 个 Widget）**
+- **Pipeline Status**：8 个 stage 的最新运行状态/耗时/时间（从 `logs/pipeline-runs.jsonl` 读取，同步 appendFileSync 写入，无 DB schema 变更）
+- **Data Freshness**：DailyPrice/StockScore/DailyRecommendation/GlobalMarket/News/Backtest 6 个数据源的最新日期及时效状态（FRESH/STALE/CRITICAL）
+- **Feature Coverage**：最新 DR 日期的 feat_* 30 个字段逐一统计覆盖率及 top missing fields
+- **Version Status**：schemaVersion/modelVersion/scoreVersion/versionSnapshotId/pipelineRunId + activeExperiment（单一来源）
+- **Backtest Summary**：BacktestPositionResult 聚合 1d/3d/7d/30d/90d win rate/avgReturn/alpha/sampleCount（无新计算，纯查询）
+- **Health Score（0-100）**：4 分量各 0-25：dataFreshness（6 源×4pt）+ pipelineStatus（8 stage×3pt）+ featureCoverage（覆盖率%×25）+ healthGuard（CRITICAL 数量）；GREEN≥75 / YELLOW≥50 / RED<50
+
+**新增 `app/admin/mission-control/page.tsx`（Mission Control 仪表盘）**
+- 顶部健康评分总览 + 4 分量 mini card
+- 左：Pipeline Status 表格 / 右：Data Freshness 表格
+- 左：Feature Coverage 明细（含 0% 警告 banner 和逐字段覆盖率）/ 右：Version Status + Health Guard 状态
+- 底部：Backtest Summary 5 个 horizon 横排表格
+- 60 秒自动刷新；深色主题；无第三方依赖
+
+**更新 `scripts/cron-scheduler.ts`（流水线日志写入）**
+- 新增 `writePipelineLog()` 函数：同步 `appendFileSync` 写入 `logs/pipeline-runs.jsonl`（JSONL 格式）
+- `run()` 函数：新增 startedAt/finishedAt/durationMs/status/exitCode/errorMessage 记录（每次 stage 完成后写入，无 async 改造）
+- `runNewsSync()` 函数：同样加入流水线日志，stage = "sync-news"
+
+### 架构决策
+- Pipeline 日志选用 JSONL 文件而非 DB 表：`execSync` 同步阻塞期间 Prisma 异步 Promise 无法执行；`appendFileSync` 100% 可靠，且生产服务器 API 可直接 `fs.readFileSync` 读取
+- JSONL 每行约 200B，8 stage/天 × 365 天 = 约 600KB/年，无需轮转
+
+### 生产验证（2026-06-26）
+- API `https://aitohoshou.com/api/admin/mission-control` 返回正确 JSON ✅
+- Health Score: 45/100 RED（pipeline=0 因首次部署无历史日志，feat=0 因 Step 2 限制）
+- Data Freshness: 所有 6 源 FRESH（25/25）✅
+- Backtest 1d win_rate=43.8%, 3d win_rate=42.4% 正常显示 ✅
+- Version: schema-v2.3 / v7.7 / adaptive-v3 正确 ✅
+- 首条 pipeline log：将在今日 18:00 JST news sync 后写入
+
+### 已知限制
+- Pipeline Score = 0/25 直到 cron 首次运行（预计今日 18:00 JST）
+- Feature Coverage Score = 0/25 直到明日 07:30 JST cron 运行后（Step 2 已知限制）
+- 7d/30d/90d backtest win rate 待市场数据积累（90d 需 ~90 个交易日）
+
+---
+
 ## [13.4.0] - 2026-06-26 — Step 2：feat_* 不可变特征快照字段
 
 ### 变更
