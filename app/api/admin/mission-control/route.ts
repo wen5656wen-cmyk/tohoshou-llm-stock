@@ -15,6 +15,8 @@ type PipelineRunEntry = {
   status: "SUCCESS" | "FAILED";
   exitCode: number;
   errorMessage: string | null;
+  runType?: "production" | "dry-run";
+  pipelineRunId?: string;
 };
 
 type StageStatus = "SUCCESS" | "FAILED" | "NEVER_RUN";
@@ -85,8 +87,10 @@ function fmtDuration(ms: number): string {
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeDryRun = searchParams.get("includeDryRun") === "true";
     const today = todayJst();
 
     // ── Parallel DB queries ─────────────────────────────────────────────────
@@ -264,16 +268,24 @@ export async function GET() {
 
     // ── Pipeline log ────────────────────────────────────────────────────────
     const allRuns = readPipelineRuns();
-    const latestPerStage = getLatestPerStage(allRuns);
+    const dryRunCount = allRuns.filter(r => r.runType === "dry-run").length;
+    const productionRuns = allRuns.filter(r => !r.runType || r.runType === "production");
+
+    // Health score only counts production runs; display respects includeDryRun param
+    const runsForDisplay = includeDryRun ? allRuns : productionRuns;
+    const latestPerStage = getLatestPerStage(runsForDisplay);
+    const latestProdPerStage = getLatestPerStage(productionRuns);
 
     const pipelineStages = PIPELINE_STAGES.map(({ stage, displayName, schedule }) => {
       const latest = latestPerStage.get(stage) ?? null;
+      const latestProd = latestProdPerStage.get(stage) ?? null;
       const status: StageStatus = latest ? latest.status : "NEVER_RUN";
       return {
         stage,
         displayName,
         schedule,
         status,
+        isDryRun: latest ? (latest.runType === "dry-run") : false,
         duration: latest ? fmtDuration(latest.durationMs) : null,
         durationMs: latest?.durationMs ?? null,
         lastRunAt: latest?.finishedAt ?? null,
@@ -282,6 +294,9 @@ export async function GET() {
               .toISOString().slice(0, 16).replace("T", " ") + " JST"
           : null,
         errorMessage: latest?.errorMessage ?? null,
+        // production-only fields for health scoring
+        prodStatus: latestProd ? latestProd.status : "NEVER_RUN" as StageStatus,
+        prodLastRunAt: latestProd?.finishedAt ?? null,
       };
     });
 
@@ -351,16 +366,15 @@ export async function GET() {
       return Math.round(pts / max * 25);
     })();
 
-    // Pipeline: 0–25 pts (8 stages, latest within 36h = success, failed = 0)
+    // Pipeline: 0–25 pts — counts ONLY production runs (dry-run excluded from health score)
     const pipelineScore = (() => {
       let pts = 0;
       const now = Date.now();
       for (const s of pipelineStages) {
-        if (s.status === "SUCCESS" && s.lastRunAt) {
-          const ageH = (now - new Date(s.lastRunAt).getTime()) / 3_600_000;
+        if (s.prodStatus === "SUCCESS" && s.prodLastRunAt) {
+          const ageH = (now - new Date(s.prodLastRunAt).getTime()) / 3_600_000;
           pts += ageH <= 36 ? 3 : 1;
         }
-        // NEVER_RUN or FAILED → 0
       }
       const max = 8 * 3;
       return Math.round(pts / max * 25);
@@ -386,6 +400,9 @@ export async function GET() {
       pipeline: {
         stages: pipelineStages,
         totalRuns: allRuns.length,
+        productionRuns: productionRuns.length,
+        dryRunCount,
+        includeDryRun,
       },
       freshness: {
         sources: freshnessData,

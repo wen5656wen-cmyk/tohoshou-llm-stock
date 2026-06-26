@@ -13,11 +13,14 @@ interface PipelineStage {
   displayName: string;
   schedule: string;
   status: StageStatus;
+  isDryRun: boolean;
   duration: string | null;
   durationMs: number | null;
   lastRunAt: string | null;
   lastRunJst: string | null;
   errorMessage: string | null;
+  prodStatus: StageStatus;
+  prodLastRunAt: string | null;
 }
 
 interface FreshnessSource {
@@ -46,6 +49,9 @@ interface MissionControlData {
   pipeline: {
     stages: PipelineStage[];
     totalRuns: number;
+    productionRuns: number;
+    dryRunCount: number;
+    includeDryRun: boolean;
   };
   freshness: {
     sources: FreshnessSource[];
@@ -161,10 +167,14 @@ export default function MissionControlPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [showDryRun, setShowDryRun] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (dryRun = false) => {
     try {
-      const res = await fetch("/api/admin/mission-control");
+      const url = dryRun
+        ? "/api/admin/mission-control?includeDryRun=true"
+        : "/api/admin/mission-control";
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
       setLastRefresh(new Date());
@@ -177,10 +187,10 @@ export default function MissionControlPage() {
   }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 60_000);
+    load(showDryRun);
+    const id = setInterval(() => load(showDryRun), 60_000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [load, showDryRun]);
 
   if (loading) return <div style={{ color: "#888", padding: 24, fontFamily: "monospace" }}>Loading mission control…</div>;
   if (error)   return <div style={{ color: "#ef4444", padding: 24, fontFamily: "monospace" }}>Error: {error}</div>;
@@ -210,7 +220,7 @@ export default function MissionControlPage() {
         <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 11, color: "#555" }}>
           <div>TOHOSHOU AI Mission Control</div>
           <div>Last refresh: {lastRefresh?.toLocaleTimeString("ja-JP")} · auto every 60s</div>
-          <button onClick={load} style={{ marginTop: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: 3 }}>
+          <button onClick={() => load(showDryRun)} style={{ marginTop: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: 3 }}>
             ↺ Refresh
           </button>
         </div>
@@ -238,7 +248,33 @@ export default function MissionControlPage() {
 
         {/* Pipeline Status */}
         <div>
-          <div style={sectionTitle}>Pipeline Status <span style={{ color: "#444", fontWeight: 400 }}>({pipeline.totalRuns} total runs logged)</span></div>
+          <div style={{ ...sectionTitle, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>
+              Pipeline Status
+              <span style={{ color: "#444", fontWeight: 400 }}>
+                {" "}({pipeline.productionRuns} prod · {pipeline.dryRunCount} dry-run)
+              </span>
+            </span>
+            {pipeline.dryRunCount > 0 && (
+              <button
+                onClick={() => setShowDryRun(v => !v)}
+                style={{
+                  fontSize: 10,
+                  padding: "2px 8px",
+                  cursor: "pointer",
+                  background: showDryRun ? "#1a3a1a" : "#1a1a1a",
+                  color: showDryRun ? "#22c55e" : "#666",
+                  border: `1px solid ${showDryRun ? "#22c55e" : "#444"}`,
+                  borderRadius: 3,
+                  fontFamily: "monospace",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {showDryRun ? "✓ Dry-Run ON" : "Show Dry-Run"}
+              </button>
+            )}
+          </div>
           <table style={tableStyle}>
             <thead>
               <tr>
@@ -251,8 +287,25 @@ export default function MissionControlPage() {
             </thead>
             <tbody>
               {pipeline.stages.map(s => (
-                <tr key={s.stage}>
-                  <td style={cell}>{s.displayName}</td>
+                <tr key={s.stage} style={{ opacity: s.isDryRun && showDryRun ? 0.8 : 1 }}>
+                  <td style={cell}>
+                    {s.displayName}
+                    {s.isDryRun && showDryRun && (
+                      <span style={{
+                        marginLeft: 6,
+                        fontSize: 9,
+                        padding: "1px 5px",
+                        background: "#0d2d0d",
+                        color: "#4ade80",
+                        border: "1px solid #166534",
+                        borderRadius: 3,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                      }}>
+                        DRY
+                      </span>
+                    )}
+                  </td>
                   <td style={{ ...cell, color: "#555" }}>{s.schedule}</td>
                   <td style={{ ...cell, color: stageColor[s.status] }}>{stageLabel[s.status]}</td>
                   <td style={{ ...cell, color: "#aaa" }}>{s.duration ?? "—"}</td>
@@ -268,6 +321,11 @@ export default function MissionControlPage() {
               ))}
             </tbody>
           </table>
+          {showDryRun && pipeline.dryRunCount > 0 && (
+            <div style={{ marginTop: 6, fontSize: 10, color: "#555", padding: "4px 6px", background: "#0d1a0d", border: "1px solid #166534", borderRadius: 3 }}>
+              ℹ Dry-run entries are shown for display verification only — they do NOT affect the Health Score.
+            </div>
+          )}
         </div>
 
         {/* Data Freshness */}

@@ -46,9 +46,11 @@ function writePipelineLog(entry: {
   status: PipelineStatus;
   exitCode: number;
   errorMessage: string | null;
+  runType?: "production" | "dry-run";
+  pipelineRunId?: string;
 }) {
   try {
-    appendFileSync(PIPELINE_LOG, JSON.stringify({
+    const obj: Record<string, unknown> = {
       stage:        entry.stage,
       startedAt:    entry.startedAt.toISOString(),
       finishedAt:   entry.finishedAt.toISOString(),
@@ -56,7 +58,10 @@ function writePipelineLog(entry: {
       status:       entry.status,
       exitCode:     entry.exitCode,
       errorMessage: entry.errorMessage,
-    }) + "\n", "utf-8");
+    };
+    if (entry.runType)      obj.runType      = entry.runType;
+    if (entry.pipelineRunId) obj.pipelineRunId = entry.pipelineRunId;
+    appendFileSync(PIPELINE_LOG, JSON.stringify(obj) + "\n", "utf-8");
   } catch {}
 }
 
