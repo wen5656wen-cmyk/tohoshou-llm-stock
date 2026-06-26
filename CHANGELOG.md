@@ -2,6 +2,36 @@
 
 ---
 
+## [13.1.1] - 2026-06-26 — sync-all-prices fetch 无超时修复
+
+### 问题
+
+`sync-all-prices.ts` 中 `fetchBars()` 调用 J-Quants API 时无任何 timeout 保护。当 J-Quants API 在某只股票处停止响应（连接挂起，不关闭也不报错），Node.js fetch 会无限等待，导致整个 cron 调度链卡死，后续所有任务（compute-scores / rerank / health-guard）永远不会运行。
+
+### 修复（`scripts/sync-all-prices.ts`）
+
+- 引入 `AbortController` + `setTimeout(30s)` 对每次 fetch 请求设置超时
+- 分页请求（pagination_key 分支）同样受保护
+- 常量 `FETCH_TIMEOUT_MS = 30_000`（明确注释说明用途）
+- 超时触发时 fetch 抛出 `AbortError`，被现有 catch 块捕获，计入 `err` 计数，不影响后续股票同步
+
+### 验收（2026-06-26 生产手动运行）
+
+- 模式：`--daily`（最近7天，3717只股票）
+- 结果：attempted=3717 / success=3717 / failed=0 / skipped=0
+- 耗时：5311.9s（含 API 响应时间，J-Quants 平均响应约 1.4s/只）
+- DailyPrice 总计：7,927,289 条
+- latest tradeDate：2026-06-25 ✅
+- 2026-06-25 行数：3,696 行（3717 只中 3696 只当日有交易数据，覆盖率 99.4%）
+- Stock.lastSyncAt 最新：2026-06-26 03:16 UTC（= 12:16 JST）✅
+- Stock.price 刷新数：3717 / 3717 全部更新 ✅
+- health:data CRITICAL：0 ✅
+- health:data WARNING：1（7只极端涨跌，均经 adjClose 验证为真实市场行情）✅
+- PM2 tohoshou-cron：online ✅
+- PM2 tohoshou-web：online ✅
+
+---
+
 ## [13.1.0] - 2026-06-26 — 每日自动流水线修复（Cron Pipeline Fix）
 
 ### 根因
