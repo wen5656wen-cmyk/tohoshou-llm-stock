@@ -91,6 +91,62 @@ function RatingBadge({ rating }: { rating: string | null }) {
   );
 }
 
+// ── Valuation helpers ──────────────────────────────────────────────────────────
+
+type ValuationStatus = "INTRADAY" | "CLOSED" | "STALE" | "FALLBACK";
+type PriceSource = "YAHOO_REALTIME" | "DAILY_PRICE" | "STOCK_SCORE" | "ENTRY_PRICE";
+
+function todayJSTStr(): string {
+  return new Date()
+    .toLocaleDateString("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+    .replace(/\//g, "-");
+}
+
+function ValuationBadge({
+  status,
+  t,
+}: {
+  status: ValuationStatus;
+  t: (k: MessageKey) => string;
+}) {
+  const map: Record<ValuationStatus, { key: MessageKey; cls: string }> = {
+    INTRADAY: { key: "portfolio.snap_vs_intraday", cls: "bg-amber-900/40 text-amber-400 border-amber-700/40" },
+    CLOSED:   { key: "portfolio.snap_vs_closed",   cls: "bg-blue-900/30 text-blue-400 border-blue-700/30" },
+    STALE:    { key: "portfolio.snap_vs_stale",     cls: "bg-slate-800 text-slate-400 border-slate-700/40" },
+    FALLBACK: { key: "portfolio.snap_vs_fallback",  cls: "bg-red-900/20 text-red-400 border-red-700/30" },
+  };
+  const { key, cls } = map[status] ?? map.STALE;
+  return (
+    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${cls}`}>
+      {t(key)}
+    </span>
+  );
+}
+
+function PriceSourceBadge({
+  source,
+  t,
+}: {
+  source: PriceSource;
+  t: (k: MessageKey) => string;
+}) {
+  const map: Record<PriceSource, { key: MessageKey; cls: string }> = {
+    YAHOO_REALTIME: { key: "portfolio.snap_ps_yahoo", cls: "text-amber-400" },
+    DAILY_PRICE:    { key: "portfolio.snap_ps_daily", cls: "text-blue-400" },
+    STOCK_SCORE:    { key: "portfolio.snap_ps_score", cls: "text-slate-500" },
+    ENTRY_PRICE:    { key: "portfolio.snap_ps_entry", cls: "text-red-400" },
+  };
+  const { key, cls } = map[source] ?? map.STOCK_SCORE;
+  return (
+    <span className={`text-[9px] font-medium ${cls}`}>[{t(key)}]</span>
+  );
+}
+
 // ── Snapshot Card ──────────────────────────────────────────────────────────────
 
 function SnapshotCard({
@@ -128,7 +184,10 @@ function SnapshotCard({
       >
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <div className="text-white font-semibold text-sm">{snap.snapshotDate} AI組合</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-white font-semibold text-sm">{snap.snapshotDate} {t("portfolio.snap_card_title_suffix")}</span>
+              <ValuationBadge status={snap.valuationStatus as ValuationStatus} t={t} />
+            </div>
             <div className="text-xs text-slate-500 mt-0.5">
               {t("portfolio.snap_invested")}：¥{Math.round(snap.investedAmount).toLocaleString("ja-JP")}
               　{t("portfolio.snap_cash")}：¥{Math.round(snap.cash).toLocaleString("ja-JP")}
@@ -151,7 +210,7 @@ function SnapshotCard({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_return_pct")}</div>
+            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_holding_return_pct")}</div>
             <div className={`text-sm font-bold tabular-nums ${pnlColor}`}>
               {pnlSign}{snap.returnPct.toFixed(2)}%
             </div>
@@ -170,13 +229,17 @@ function SnapshotCard({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_topix_return")}</div>
+            <div className="text-xs text-slate-400 mb-0.5 cursor-help" title="1306.T ETF（TOPIXインデックスの代理）">
+              {t("portfolio.snap_topix_return")}
+            </div>
             <div className={`text-sm font-semibold tabular-nums ${returnColor(snap.benchmarkTopixReturnPct)}`}>
               {fmtPct(snap.benchmarkTopixReturnPct)}
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-400 mb-0.5">{t("portfolio.snap_alpha")}</div>
+            <div className="text-xs text-slate-400 mb-0.5 cursor-help" title={t("portfolio.snap_alpha_desc")}>
+              {t("portfolio.snap_alpha")} ⓘ
+            </div>
             <div className={`text-sm font-bold tabular-nums ${returnColor(snap.alphaVsTopix)}`}>
               {fmtPct(snap.alphaVsTopix)}
             </div>
@@ -194,6 +257,13 @@ function SnapshotCard({
             </div>
           </div>
         </div>
+
+        {snap.valuationStatus === "INTRADAY" && snap.snapshotDate === todayJSTStr() && (
+          <div className="mt-2 text-[11px] text-amber-400 bg-amber-900/20 rounded px-2.5 py-1 border border-amber-700/30 flex items-center gap-1">
+            <span>⚠</span>
+            <span>{t("portfolio.snap_intraday_warning")}</span>
+          </div>
+        )}
 
         <div className="mt-2 text-right">
           <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
@@ -251,7 +321,10 @@ function SnapshotCard({
                         <td className="py-2 px-3 text-slate-200 max-w-[120px] truncate">{pos.nameZh ?? pos.name}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-slate-300">¥{pos.entryPrice.toLocaleString("ja-JP")}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-slate-200">
-                          {pos.currentPrice != null ? `¥${pos.currentPrice.toLocaleString("ja-JP")}` : "—"}
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{pos.currentPrice != null ? `¥${pos.currentPrice.toLocaleString("ja-JP")}` : "—"}</span>
+                            <PriceSourceBadge source={pos.priceSource as PriceSource} t={t} />
+                          </div>
                         </td>
                         <td className="py-2 px-3 text-right tabular-nums text-slate-300">{pos.shares.toLocaleString("ja-JP")}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-slate-400">¥{Math.round(pos.entryAmount).toLocaleString("ja-JP")}</td>

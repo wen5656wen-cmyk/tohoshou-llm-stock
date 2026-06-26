@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  resolveSnapshotPrices,
+  type ValuationStatus,
+  type PriceSource,
+} from "@/lib/snapshot-valuation";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -26,6 +31,10 @@ export type SnapshotSummary = {
   benchmarkTopixReturnPct: number | null;
   alphaVsTopix: number | null;
   isOutperformingTopix: boolean | null;
+  // valuation metadata
+  valuationStatus: ValuationStatus;
+  // dominant price source (most common among positions, for display)
+  dominantPriceSource: PriceSource;
 };
 
 // ── GET — list all snapshots with real-time metrics ────────────────────────────
@@ -36,7 +45,7 @@ export async function GET() {
       orderBy: { snapshotDate: "desc" },
       include: {
         positions: {
-          select: { symbol: true, shares: true, entryAmount: true },
+          select: { symbol: true, shares: true, entryAmount: true, entryPrice: true },
         },
       },
     }),
@@ -53,36 +62,65 @@ export async function GET() {
 
   const benchmarkTopixCurrent = topixRow?.topix ?? null;
 
-  // Collect all symbols across all snapshots for batch price fetch
-  const allSymbols = [...new Set(snapshots.flatMap((s) => s.positions.map((p) => p.symbol)))];
+  // Collect all unique symbols across all snapshots for one-shot price resolution
+  const allPositionInputs = snapshots.flatMap((s) =>
+    s.positions.map((p) => ({ symbol: p.symbol, entryPrice: p.entryPrice }))
+  );
+  const uniqueSymbolInputs = [
+    ...new Map(allPositionInputs.map((p) => [p.symbol, p])).values(),
+  ];
 
-  const scoreRows = await prisma.stockScore.findMany({
-    where: { symbol: { in: allSymbols } },
-    select: { symbol: true, latestClose: true },
-  });
-  const priceMap = new Map(scoreRows.map((r) => [r.symbol, r.latestClose ?? 0]));
+  const { prices: priceMap, valuationStatus: globalValuationStatus } =
+    await resolveSnapshotPrices(uniqueSymbolInputs);
 
   const now = Date.now();
 
   const result: SnapshotSummary[] = snapshots.map((snap) => {
     let currentMarketValue = 0;
+    const sourceCounts = new Map<PriceSource, number>();
+
     for (const pos of snap.positions) {
-      const px = priceMap.get(pos.symbol) ?? 0;
+      const resolved = priceMap.get(pos.symbol);
+      const px = resolved?.currentPrice ?? pos.entryPrice;
       currentMarketValue += px * pos.shares;
+
+      const src = resolved?.priceSource ?? "ENTRY_PRICE";
+      sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
     }
+
     const totalAssets = snap.cash + currentMarketValue;
     const unrealizedPnl = totalAssets - snap.initialCapital;
-    const returnPct = snap.initialCapital > 0 ? (unrealizedPnl / snap.initialCapital) * 100 : 0;
-    const holdingDays = Math.floor((now - snap.snapshotDate.getTime()) / 86_400_000);
+    const returnPct =
+      snap.initialCapital > 0 ? (unrealizedPnl / snap.initialCapital) * 100 : 0;
+    const holdingDays = Math.floor(
+      (now - snap.snapshotDate.getTime()) / 86_400_000
+    );
 
     const benchmarkTopixEntry = snap.benchmarkTopixEntry ?? null;
     const benchmarkTopixReturnPct =
-      benchmarkTopixEntry != null && benchmarkTopixCurrent != null && benchmarkTopixEntry > 0
+      benchmarkTopixEntry != null &&
+      benchmarkTopixCurrent != null &&
+      benchmarkTopixEntry > 0
         ? ((benchmarkTopixCurrent - benchmarkTopixEntry) / benchmarkTopixEntry) * 100
         : null;
     const alphaVsTopix =
       benchmarkTopixReturnPct != null ? returnPct - benchmarkTopixReturnPct : null;
     const isOutperformingTopix = alphaVsTopix != null ? alphaVsTopix > 0 : null;
+
+    // Per-snapshot valuation status based on its own positions' sources
+    const snapSources = [...sourceCounts.keys()];
+    const snapValuationStatus: ValuationStatus = snapSources.includes("YAHOO_REALTIME")
+      ? "INTRADAY"
+      : snapSources.includes("DAILY_PRICE")
+      ? "CLOSED"
+      : snapSources.includes("STOCK_SCORE")
+      ? "STALE"
+      : "FALLBACK";
+
+    // Dominant price source = the source with the most positions
+    const dominantPriceSource: PriceSource =
+      [...sourceCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
+      "ENTRY_PRICE";
 
     return {
       id: snap.id,
@@ -105,8 +143,13 @@ export async function GET() {
       benchmarkTopixReturnPct,
       alphaVsTopix,
       isOutperformingTopix,
+      valuationStatus: snapValuationStatus,
+      dominantPriceSource,
     };
   });
+
+  // Suppress unused warning — globalValuationStatus available for monitoring
+  void globalValuationStatus;
 
   return NextResponse.json(result);
 }
@@ -117,33 +160,37 @@ export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const force = searchParams.get("force") === "true";
 
-  const todayJST = new Date().toLocaleDateString("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).replace(/\//g, "-");
+  const todayJST = new Date()
+    .toLocaleDateString("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+    .replace(/\//g, "-");
 
   const targetDate = new Date(todayJST + "T00:00:00.000Z");
   const INITIAL_CAPITAL = 100_000_000;
   const LOT_SIZE = 100;
   const VALID_RATINGS = new Set(["BUY", "STRONG_BUY"]);
 
-  // Check existing
   const existing = await prisma.portfolioSnapshot.findUnique({
     where: { snapshotDate: targetDate },
     select: { id: true },
   });
 
   if (existing && !force) {
-    return NextResponse.json({ skipped: true, message: "today snapshot already exists", id: existing.id });
+    return NextResponse.json({
+      skipped: true,
+      message: "today snapshot already exists",
+      id: existing.id,
+    });
   }
 
   if (existing && force) {
     await prisma.portfolioSnapshot.delete({ where: { id: existing.id } });
   }
 
-  // Query today's DailyRecommendation
   const recs = await prisma.dailyRecommendation.findMany({
     where: { date: targetDate },
     orderBy: { gptRank: "asc" },
@@ -183,9 +230,16 @@ export async function POST(req: NextRequest) {
   const stockNameMap = new Map(stockRows.map((s) => [s.symbol, s]));
 
   type Pos = {
-    symbol: string; name: string; nameZh: string | null;
-    entryPrice: number; shares: number; entryAmount: number;
-    gptRank: number; aiScore: number | null; action: string | null; recommendation: string | null;
+    symbol: string;
+    name: string;
+    nameZh: string | null;
+    entryPrice: number;
+    shares: number;
+    entryAmount: number;
+    gptRank: number;
+    aiScore: number | null;
+    action: string | null;
+    recommendation: string | null;
   };
 
   const positions: Pos[] = [];
@@ -231,12 +285,15 @@ export async function POST(req: NextRequest) {
     include: { positions: { select: { id: true } } },
   });
 
-  return NextResponse.json({
-    created: true,
-    id: snapshot.id,
-    date: todayJST,
-    positionCount: snapshot.positions.length,
-    investedAmount,
-    cash,
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      created: true,
+      id: snapshot.id,
+      date: todayJST,
+      positionCount: snapshot.positions.length,
+      investedAmount,
+      cash,
+    },
+    { status: 201 }
+  );
 }

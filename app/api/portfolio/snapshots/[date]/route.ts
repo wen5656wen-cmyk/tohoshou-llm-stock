@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  resolveSnapshotPrices,
+  type ValuationStatus,
+  type PriceSource,
+} from "@/lib/snapshot-valuation";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -20,6 +25,7 @@ export type SnapshotPosition = {
   marketValue: number | null;
   unrealizedPnl: number | null;
   returnPct: number | null;
+  priceSource: PriceSource;
 };
 
 export type SnapshotDetail = {
@@ -45,6 +51,8 @@ export type SnapshotDetail = {
   benchmarkTopixReturnPct: number | null;
   alphaVsTopix: number | null;
   isOutperformingTopix: boolean | null;
+  // valuation metadata
+  valuationStatus: ValuationStatus;
   positions: SnapshotPosition[];
 };
 
@@ -56,7 +64,6 @@ export async function GET(
 ) {
   const { date } = await params;
 
-  // Accept YYYY-MM-DD format
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "invalid_date" }, { status: 400 });
   }
@@ -76,26 +83,29 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const symbols = snap.positions.map((p) => p.symbol);
+  const positionInputs = snap.positions.map((p) => ({
+    symbol: p.symbol,
+    entryPrice: p.entryPrice,
+  }));
 
-  // Real-time prices from StockScore.latestClose + latest TOPIX
-  const [scoreRows, topixRow] = await Promise.all([
-    prisma.stockScore.findMany({
-      where: { symbol: { in: symbols } },
-      select: { symbol: true, latestClose: true },
-    }),
+  // Real-time prices via resolveSnapshotPrices + latest TOPIX (parallel)
+  const [{ prices: priceMap, valuationStatus }, topixRow] = await Promise.all([
+    resolveSnapshotPrices(positionInputs),
     prisma.globalMarket.findFirst({
       where: { topix: { not: null } },
       orderBy: { date: "desc" },
       select: { topix: true },
     }),
   ]);
-  const priceMap = new Map(scoreRows.map((r) => [r.symbol, r.latestClose]));
+
   const benchmarkTopixCurrent = topixRow?.topix ?? null;
 
   let currentMarketValue = 0;
   const positions: SnapshotPosition[] = snap.positions.map((pos) => {
-    const currentPrice = priceMap.get(pos.symbol) ?? null;
+    const resolved = priceMap.get(pos.symbol);
+    const currentPrice = resolved?.currentPrice ?? null;
+    const priceSource: PriceSource = resolved?.priceSource ?? "ENTRY_PRICE";
+
     const marketValue = currentPrice != null ? currentPrice * pos.shares : null;
     const unrealizedPnl = marketValue != null ? marketValue - pos.entryAmount : null;
     const returnPct =
@@ -122,21 +132,29 @@ export async function GET(
       marketValue,
       unrealizedPnl,
       returnPct,
+      priceSource,
     };
   });
 
   const totalAssets = snap.cash + currentMarketValue;
   const unrealizedPnl = totalAssets - snap.initialCapital;
-  const returnPct = snap.initialCapital > 0 ? (unrealizedPnl / snap.initialCapital) * 100 : 0;
-  const holdingDays = Math.floor((Date.now() - snap.snapshotDate.getTime()) / 86_400_000);
+  const returnPct =
+    snap.initialCapital > 0 ? (unrealizedPnl / snap.initialCapital) * 100 : 0;
+  const holdingDays = Math.floor(
+    (Date.now() - snap.snapshotDate.getTime()) / 86_400_000
+  );
 
   const benchmarkTopixEntry = snap.benchmarkTopixEntry ?? null;
   const benchmarkTopixReturnPct =
-    benchmarkTopixEntry != null && benchmarkTopixCurrent != null && benchmarkTopixEntry > 0
+    benchmarkTopixEntry != null &&
+    benchmarkTopixCurrent != null &&
+    benchmarkTopixEntry > 0
       ? ((benchmarkTopixCurrent - benchmarkTopixEntry) / benchmarkTopixEntry) * 100
       : null;
-  const alphaVsTopix = benchmarkTopixReturnPct != null ? returnPct - benchmarkTopixReturnPct : null;
-  const isOutperformingTopix = alphaVsTopix != null ? alphaVsTopix > 0 : null;
+  const alphaVsTopix =
+    benchmarkTopixReturnPct != null ? returnPct - benchmarkTopixReturnPct : null;
+  const isOutperformingTopix =
+    alphaVsTopix != null ? alphaVsTopix > 0 : null;
 
   const result: SnapshotDetail = {
     id: snap.id,
@@ -159,6 +177,7 @@ export async function GET(
     benchmarkTopixReturnPct,
     alphaVsTopix,
     isOutperformingTopix,
+    valuationStatus,
     positions,
   };
 

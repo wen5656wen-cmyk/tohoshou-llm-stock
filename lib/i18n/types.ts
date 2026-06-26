@@ -786,6 +786,21 @@ export type Messages = {
   "portfolio.snap_no_positions": string;
   "portfolio.snap_section_title": string;
   "portfolio.snap_only_one": string;
+  "portfolio.snap_holding_return_pct": string;
+  "portfolio.snap_alpha_desc": string;
+  "portfolio.snap_card_title_suffix": string;
+  // Valuation status badges
+  "portfolio.snap_vs_intraday": string;
+  "portfolio.snap_vs_closed": string;
+  "portfolio.snap_vs_stale": string;
+  "portfolio.snap_vs_fallback": string;
+  // Per-position price source badges (short)
+  "portfolio.snap_ps_yahoo": string;
+  "portfolio.snap_ps_daily": string;
+  "portfolio.snap_ps_score": string;
+  "portfolio.snap_ps_entry": string;
+  // Intraday warning (today's snapshot only)
+  "portfolio.snap_intraday_warning": string;
   // AI signal stats
   "portfolio.signal_title": string;
   "portfolio.signal_strong_buy": string;
