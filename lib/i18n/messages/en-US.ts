@@ -973,6 +973,16 @@ const enUS: Messages = {
   "strategy.backtest_title": "Three-Strategy Backtest",
   "strategy.backtest_subtitle": "Take-profit / Stop-loss / Time-exit simulation",
   "strategy.detail_title": "Recommended Strategy",
+  "portfolio.strategy_overview": "Strategy Allocation",
+  "portfolio.strategy_alloc_target": "Target %",
+  "portfolio.strategy_alloc_actual": "Entry %",
+  "portfolio.strategy_pos_count": "Positions",
+  "portfolio.strategy_return": "Strategy Return",
+  "portfolio.strategy_legacy_label": "Legacy Snapshot (no strategy data)",
+  "portfolio.strategy_insufficient": "Insufficient candidates",
+  "portfolio.strategy_unallocated": "Unallocated Cash",
+  "portfolio.snap_strategy": "Strategy",
+  "portfolio.snap_alloc_weight": "Target Weight",
 };
 
 export default enUS;

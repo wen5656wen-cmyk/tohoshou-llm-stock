@@ -5,6 +5,7 @@ import {
   type ValuationStatus,
   type PriceSource,
 } from "@/lib/snapshot-valuation";
+import type { StrategyStats } from "@/app/api/portfolio/snapshots/route";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,13 @@ export type SnapshotPosition = {
   aiScore: number | null;
   action: string | null;
   recommendation: string | null;
+  // v17.1: strategy fields
+  strategyType: string | null;
+  allocationWeight: number | null;
+  strategyAllocationPct: number | null;
+  targetReturnPct: number | null;
+  stopLossPct: number | null;
+  maxHoldingDays: number | null;
   // real-time
   currentPrice: number | null;
   marketValue: number | null;
@@ -53,6 +61,10 @@ export type SnapshotDetail = {
   isOutperformingTopix: boolean | null;
   // valuation metadata
   valuationStatus: ValuationStatus;
+  // v17.1: strategy allocation
+  isLegacy: boolean;
+  strategyStats: StrategyStats[];
+  unallocatedCashPct: number;
   positions: SnapshotPosition[];
 };
 
@@ -75,6 +87,25 @@ export async function GET(
     include: {
       positions: {
         orderBy: [{ gptRank: "asc" }, { symbol: "asc" }],
+        select: {
+          id: true,
+          symbol: true,
+          name: true,
+          nameZh: true,
+          entryPrice: true,
+          shares: true,
+          entryAmount: true,
+          gptRank: true,
+          aiScore: true,
+          action: true,
+          recommendation: true,
+          strategyType: true,
+          allocationWeight: true,
+          strategyAllocationPct: true,
+          targetReturnPct: true,
+          stopLossPct: true,
+          maxHoldingDays: true,
+        },
       },
     },
   });
@@ -128,6 +159,12 @@ export async function GET(
       aiScore: pos.aiScore,
       action: pos.action,
       recommendation: pos.recommendation,
+      strategyType: pos.strategyType,
+      allocationWeight: pos.allocationWeight,
+      strategyAllocationPct: pos.strategyAllocationPct,
+      targetReturnPct: pos.targetReturnPct,
+      stopLossPct: pos.stopLossPct,
+      maxHoldingDays: pos.maxHoldingDays,
       currentPrice,
       marketValue,
       unrealizedPnl,
@@ -156,6 +193,54 @@ export async function GET(
   const isOutperformingTopix =
     alphaVsTopix != null ? alphaVsTopix > 0 : null;
 
+  // v17.1: strategy stats
+  const isLegacy = snap.positions.every((p) => !p.strategyType);
+
+  const strategyStats: StrategyStats[] = [];
+  if (!isLegacy) {
+    for (const st of ["DAY", "SWING", "POSITION"] as const) {
+      const stPositions = snap.positions.filter((p) => p.strategyType === st);
+      if (stPositions.length === 0) continue;
+      const totalStrategyEntry = stPositions.reduce((s, p) => s + p.entryAmount, 0);
+      const actualEntryPct = snap.investedAmount > 0 ? totalStrategyEntry / snap.investedAmount : 0;
+
+      let sumPnl = 0, pricedCount = 0, winCount = 0, openCount = 0;
+      for (const pos of stPositions) {
+        const resolved = priceMap.get(pos.symbol);
+        const px = resolved?.currentPrice ?? null;
+        if (px != null) {
+          const mv = px * pos.shares;
+          sumPnl += mv - pos.entryAmount;
+          pricedCount++;
+          if (mv > pos.entryAmount) winCount++;
+        } else {
+          openCount++;
+        }
+      }
+      const pricedPositions = stPositions.filter((p) => {
+        const r = priceMap.get(p.symbol);
+        return r?.currentPrice != null;
+      });
+      const currentReturnPct = pricedCount > 0
+        ? (sumPnl / pricedPositions.reduce((s, p) => s + p.entryAmount, 0)) * 100
+        : null;
+      const winRate = pricedCount > 0 ? (winCount / pricedCount) * 100 : null;
+      const targetAllocationPct = st === "DAY" ? 0.30 : st === "SWING" ? 0.40 : 0.30;
+
+      strategyStats.push({
+        strategyType: st,
+        targetAllocationPct,
+        positionCount: stPositions.length,
+        actualEntryPct,
+        currentReturnPct,
+        winRate,
+        openCount,
+      });
+    }
+  }
+
+  const unallocatedCashPct = snap.initialCapital > 0 ? snap.cash / snap.initialCapital : 0;
+
   const result: SnapshotDetail = {
     id: snap.id,
     snapshotDate: snap.snapshotDate.toISOString().slice(0, 10),
@@ -178,6 +263,9 @@ export async function GET(
     alphaVsTopix,
     isOutperformingTopix,
     valuationStatus,
+    isLegacy,
+    strategyStats,
+    unallocatedCashPct,
     positions,
   };
 

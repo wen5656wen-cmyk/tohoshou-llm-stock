@@ -9,6 +9,24 @@ import type { SnapshotDetail } from "@/app/api/portfolio/snapshots/[date]/route"
 import type { SimPortfolioData, SimPositionItem } from "@/app/api/sim-portfolio/route";
 import type { AISignalDayStats, SignalStatEntry } from "@/app/api/ai-signal-stats/route";
 
+// ── Strategy types ─────────────────────────────────────────────────────────────
+
+type StrategyStats = {
+  strategyType: "DAY" | "SWING" | "POSITION";
+  targetAllocationPct: number;
+  positionCount: number;
+  actualEntryPct: number;
+  currentReturnPct: number | null;
+  winRate: number | null;
+  openCount: number;
+};
+
+const STRATEGY_COLOR = {
+  DAY:      { bg: "bg-amber-900/30",   border: "border-amber-700/40",   text: "text-amber-400",   badge: "bg-amber-900/50 text-amber-300" },
+  SWING:    { bg: "bg-blue-900/30",    border: "border-blue-700/40",    text: "text-blue-400",    badge: "bg-blue-900/50 text-blue-300"   },
+  POSITION: { bg: "bg-emerald-900/30", border: "border-emerald-700/40", text: "text-emerald-400", badge: "bg-emerald-900/50 text-emerald-300" },
+};
+
 // ── Watchlist types ────────────────────────────────────────────────────────────
 
 type WlScore = {
@@ -144,6 +162,78 @@ function PriceSourceBadge({
   const { key, cls } = map[source] ?? map.STOCK_SCORE;
   return (
     <span className={`text-[9px] font-medium ${cls}`}>[{t(key)}]</span>
+  );
+}
+
+// ── Strategy Badge ─────────────────────────────────────────────────────────────
+
+function StrategyBadge({ type }: { type: string | null }) {
+  if (!type || type === "UNKNOWN") return <span className="text-[10px] text-slate-600">—</span>;
+  const cfg = STRATEGY_COLOR[type as keyof typeof STRATEGY_COLOR];
+  if (!cfg) return <span className="text-[10px] text-slate-500">{type}</span>;
+  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cfg.badge}`}>{type}</span>;
+}
+
+// ── Strategy Allocation Section ────────────────────────────────────────────────
+
+function StrategyAllocationSection({
+  stats,
+  isLegacy,
+  unallocatedCashPct,
+  t,
+}: {
+  stats: StrategyStats[];
+  isLegacy: boolean;
+  unallocatedCashPct: number;
+  t: (k: MessageKey) => string;
+}) {
+  if (isLegacy) {
+    return (
+      <div className="mx-5 my-3 px-4 py-3 bg-slate-800/40 rounded-lg border border-slate-700/30 text-xs text-slate-500 italic">
+        {t("portfolio.strategy_legacy_label")}
+      </div>
+    );
+  }
+  if (stats.length === 0) return null;
+
+  const LABEL: Record<string, string> = { DAY: "DAY 30%", SWING: "SWING 40%", POSITION: "POSITION 30%" };
+
+  return (
+    <div className="mx-5 my-3">
+      <div className="text-xs font-semibold text-slate-400 mb-2">{t("portfolio.strategy_overview")}</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {stats.map((s) => {
+          const cfg = STRATEGY_COLOR[s.strategyType];
+          const returnColor = s.currentReturnPct == null ? "text-slate-400"
+            : s.currentReturnPct > 0 ? "text-emerald-400" : "text-red-400";
+          return (
+            <div key={s.strategyType} className={`rounded-lg ${cfg.bg} border ${cfg.border} p-3`}>
+              <div className={`text-xs font-bold ${cfg.text} mb-2`}>{LABEL[s.strategyType]}</div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                <span className="text-slate-500">{t("portfolio.strategy_pos_count")}</span>
+                <span className="text-slate-200 text-right">{s.positionCount}</span>
+                <span className="text-slate-500">{t("portfolio.strategy_alloc_actual")}</span>
+                <span className="text-slate-200 text-right">{(s.actualEntryPct * 100).toFixed(1)}%</span>
+                <span className="text-slate-500">{t("portfolio.strategy_return")}</span>
+                <span className={`text-right font-semibold ${returnColor}`}>
+                  {s.currentReturnPct != null ? `${s.currentReturnPct >= 0 ? "+" : ""}${s.currentReturnPct.toFixed(2)}%` : "—"}
+                </span>
+                <span className="text-slate-500">{t("portfolio.signal_today_win")}</span>
+                <span className="text-right text-slate-200">
+                  {s.winRate != null ? `${s.winRate.toFixed(0)}%` : "—"}
+                  {s.openCount > 0 && <span className="text-slate-600 ml-1">({s.openCount}待)</span>}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {unallocatedCashPct > 0.01 && (
+        <div className="mt-2 text-[10px] text-slate-500">
+          {t("portfolio.strategy_unallocated")}：{(unallocatedCashPct * 100).toFixed(1)}%
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -289,11 +379,19 @@ function SnapshotCard({
           ) : detail && detail.positions.length === 0 ? (
             <div className="p-6 text-center text-slate-500 text-sm">{t("portfolio.snap_no_positions")}</div>
           ) : detail ? (
-            <div className="overflow-x-auto">
+            <div>
+              <StrategyAllocationSection
+                stats={detail.strategyStats ?? []}
+                isLegacy={detail.isLegacy ?? true}
+                unallocatedCashPct={detail.unallocatedCashPct ?? 0}
+                t={t}
+              />
+              <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-slate-700/40 text-slate-400">
                     <th className="text-left py-2 px-4">{t("common.symbol")}</th>
+                    <th className="text-left py-2 px-3">{t("portfolio.snap_strategy")}</th>
                     <th className="text-left py-2 px-3">{t("common.name")}</th>
                     <th className="text-right py-2 px-3">{t("portfolio.snap_entry_price")}</th>
                     <th className="text-right py-2 px-3">{t("portfolio.snap_current_price")}</th>
@@ -317,6 +415,12 @@ function SnapshotCard({
                             {pos.symbol}
                           </Link>
                           {pos.gptRank != null && <div className="text-[10px] text-slate-500">#{pos.gptRank}</div>}
+                        </td>
+                        <td className="py-2 px-3">
+                          <StrategyBadge type={pos.strategyType ?? null} />
+                          {pos.allocationWeight != null && (
+                            <div className="text-[9px] text-slate-600 mt-0.5">{(pos.allocationWeight * 100).toFixed(0)}%</div>
+                          )}
                         </td>
                         <td className="py-2 px-3 text-slate-200 max-w-[120px] truncate">{pos.nameZh ?? pos.name}</td>
                         <td className="py-2 px-3 text-right tabular-nums text-slate-300">¥{pos.entryPrice.toLocaleString("ja-JP")}</td>
@@ -347,6 +451,7 @@ function SnapshotCard({
                 <span>{t("portfolio.snap_cash")}：<span className="text-slate-400">¥{Math.round(detail.cash).toLocaleString("ja-JP")}</span></span>
                 <span>{t("portfolio.snap_total_assets")}：<span className={detail.unrealizedPnl >= 0 ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>¥{Math.round(detail.totalAssets).toLocaleString("ja-JP")}</span></span>
                 <span className="ml-auto italic">{t("portfolio.simulate_disclaimer")}</span>
+              </div>
               </div>
             </div>
           ) : null}

@@ -1,34 +1,34 @@
 #!/usr/bin/env npx tsx
 /**
- * V12.5: 每日 AI 组合快照生成脚本
+ * V12.5 / V17.1: 每日 AI 组合快照生成脚本（3:4:3 策略配比）
  *
- * 每天从 DailyRecommendation 中选取 BUY/STRONG_BUY Top10，
- * 按 ¥100,000,000 等权建仓（1手=100股整数倍），写入 PortfolioSnapshot。
+ * 每天从 DailyRecommendation 中选取 BUY/STRONG_BUY，
+ * 按 3:4:3（DAY 30% / SWING 40% / POSITION 30%）分配 ¥100,000,000，
+ * 每策略分桶各取 Top 3/4/3，写入 PortfolioSnapshot。
  *
  * 规则：
  *   - initialCapital = ¥100,000,000
- *   - 每只股票 budget = initialCapital / selectedCount
+ *   - 每只股票 budget = strategyBucketCapital / slotsFilled
  *   - shares = floor(budget / entryPrice / 100) * 100，< 100 则跳过
  *   - entryPrice = DailyRecommendation.buyPrice（当日 StockScore.latestClose 快照）
  *   - 同一天已有 snapshot → 跳过（除非 --force）
  *
  * 用法:
  *   npm run create:snapshot            # 今日快照
- *   npm run create:snapshot:force      # 强制重建今日快照
+ *   npm run create:snapshot:force      # 強制重建今日快照
  *   npm run create:snapshot -- --date=2026-06-24  # 指定日期（回填）
  */
 
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { buildStrategyAllocations, STRATEGY_SLOTS, STRATEGY_ALLOC, STRATEGY_TYPES } from "../lib/portfolio/snapshot-builder";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 const INITIAL_CAPITAL = 100_000_000;
-const MAX_POSITIONS = 10;
 const LOT_SIZE = 100;
-const VALID_RATINGS = new Set(["BUY", "STRONG_BUY"]);
 
 function todayJST(): string {
   return new Date().toLocaleDateString("ja-JP", {
@@ -45,7 +45,7 @@ async function main() {
   const targetDate = dateArg ?? todayJST();
   const targetDateObj = new Date(targetDate + "T00:00:00.000Z");
 
-  console.log(`=== AI 組合スナップショット生成 ===`);
+  console.log(`=== AI 組合スナップショット生成 (v17.1 3:4:3) ===`);
   console.log(`対象日: ${targetDate}${isForce ? " [FORCE]" : ""}\n`);
 
   // ── 1. 既存チェック ─────────────────────────────────────────────────────────
@@ -80,25 +80,34 @@ async function main() {
 
   console.log(`DailyRecommendation: ${recs.length} 件`);
 
-  // ── 3. BUY / STRONG_BUY フィルタ + Top10 ──────────────────────────────────
-  const eligible = recs
-    .filter(
-      (r) =>
-        (r.gptRating != null && VALID_RATINGS.has(r.gptRating)) ||
-        (r.recommendation != null && VALID_RATINGS.has(r.recommendation))
-    )
-    .slice(0, MAX_POSITIONS);
+  // ── 3. 3:4:3 配分計算 ──────────────────────────────────────────────────────
+  const { allocations, warnings: allocWarnings } = buildStrategyAllocations(recs, INITIAL_CAPITAL);
 
-  console.log(`BUY/STRONG_BUY 候補: ${eligible.length} 件`);
+  if (allocWarnings.length > 0) {
+    console.log(`\n⚠️ 配分警告 (${allocWarnings.length} 件):`);
+    for (const w of allocWarnings) console.log(`  ${w}`);
+  }
 
-  if (eligible.length === 0) {
-    console.error("❌ BUY/STRONG_BUY 銘柄が存在しません。スナップショット生成をスキップします。");
+  if (allocations.length === 0) {
+    console.error("❌ 3:4:3 配分後の有効な配分が0件です。BUY/STRONG_BUY 銘柄が存在しません。");
     await prisma.$disconnect();
     process.exit(1);
   }
 
+  // Strategy breakdown summary
+  console.log(`\n戦略別配分:`);
+  for (const st of STRATEGY_TYPES) {
+    const stAllocs = allocations.filter((a) => a.strategyType === st);
+    const slots = STRATEGY_SLOTS[st];
+    const allocPct = (STRATEGY_ALLOC[st] * 100).toFixed(0);
+    console.log(`  ${st}: ${stAllocs.length}/${slots} slots → 目標 ${allocPct}% → 各 ¥${Math.round(stAllocs[0]?.budgetAmount ?? 0).toLocaleString("ja-JP")}`);
+    for (const a of stAllocs) {
+      console.log(`    #${a.gptRank} ${a.symbol} (conf=${a.strategyConfidence.toFixed(0)}, tp=${a.targetReturnPct}%, sl=${a.stopLossPct}%)`);
+    }
+  }
+
   // ── 4. 現在価格取得（StockScore.latestClose → DailyPrice フォールバック） ──
-  const symbols = eligible.map((r) => r.symbol);
+  const symbols = allocations.map((a) => a.symbol);
 
   const scoreRows = await prisma.stockScore.findMany({
     where: { symbol: { in: symbols } },
@@ -128,7 +137,7 @@ async function main() {
   });
   const benchmarkTopixEntry = topixRow?.topix ?? null;
   if (benchmarkTopixEntry != null) {
-    console.log(`TOPIX 基準値: ${benchmarkTopixEntry}`);
+    console.log(`\nTOPIX 基準値: ${benchmarkTopixEntry}`);
   }
 
   // Stock names
@@ -138,9 +147,9 @@ async function main() {
   });
   const stockNameMap = new Map(stockRows.map((s) => [s.symbol, { name: s.name, nameZh: s.nameZh }]));
 
-  // ── 5. 等権配分 + 株数計算 ─────────────────────────────────────────────────
-  const selectedCount = eligible.length;
-  const budgetPerStock = INITIAL_CAPITAL / selectedCount;
+  // ── 5. 株数計算 ─────────────────────────────────────────────────────────────
+  // Fetch buyPrice from recs for each symbol
+  const recMap = new Map(recs.map((r) => [r.symbol, r]));
 
   type Position = {
     symbol: string;
@@ -153,47 +162,61 @@ async function main() {
     aiScore: number | null;
     action: string | null;
     recommendation: string | null;
+    strategyType: string;
+    allocationWeight: number;
+    strategyAllocationPct: number;
+    strategyConfidence: number;
+    targetReturnPct: number;
+    stopLossPct: number;
+    maxHoldingDays: number;
   };
 
   const positions: Position[] = [];
   const skipped: { symbol: string; reason: string }[] = [];
 
-  for (const rec of eligible) {
-    // entryPrice: buyPrice (当日 latestClose snapshot) or ScorePrice fallback
-    const buyPx = rec.buyPrice;
-    const scorePx = scoreMap.get(rec.symbol) ?? null;
-    const fallbackPx = fallbackMap.get(rec.symbol) ?? null;
+  for (const alloc of allocations) {
+    const rec = recMap.get(alloc.symbol);
+    const buyPx = rec?.buyPrice ?? null;
+    const scorePx = scoreMap.get(alloc.symbol) ?? null;
+    const fallbackPx = fallbackMap.get(alloc.symbol) ?? null;
 
     const entryPrice = buyPx ?? scorePx ?? fallbackPx;
 
     if (entryPrice == null || entryPrice <= 0) {
       const reason = `price=${entryPrice} (buyPx=${buyPx}, scorePx=${scorePx}, fallbackPx=${fallbackPx})`;
-      console.log(`  ⚠️  ${rec.symbol}: 価格なし → スキップ [${reason}]`);
-      skipped.push({ symbol: rec.symbol, reason: `no price: ${reason}` });
+      console.log(`  ⚠️  ${alloc.symbol}: 価格なし → スキップ [${reason}]`);
+      skipped.push({ symbol: alloc.symbol, reason: `no price: ${reason}` });
       continue;
     }
 
-    const rawShares = Math.floor(budgetPerStock / entryPrice / LOT_SIZE) * LOT_SIZE;
+    const rawShares = Math.floor(alloc.budgetAmount / entryPrice / LOT_SIZE) * LOT_SIZE;
 
     if (rawShares < LOT_SIZE) {
-      const reason = `shares=${rawShares} < ${LOT_SIZE}lot (budget=¥${Math.round(budgetPerStock).toLocaleString("ja-JP")}, price=¥${entryPrice})`;
-      console.log(`  ⚠️  ${rec.symbol}: 株数不足 → スキップ [${reason}]`);
-      skipped.push({ symbol: rec.symbol, reason });
+      const reason = `shares=${rawShares} < ${LOT_SIZE}lot (budget=¥${Math.round(alloc.budgetAmount).toLocaleString("ja-JP")}, price=¥${entryPrice})`;
+      console.log(`  ⚠️  ${alloc.symbol}: 株数不足 → スキップ [${reason}]`);
+      skipped.push({ symbol: alloc.symbol, reason });
       continue;
     }
 
-    const stockInfo = stockNameMap.get(rec.symbol);
+    const stockInfo = stockNameMap.get(alloc.symbol);
     positions.push({
-      symbol: rec.symbol,
-      name: stockInfo?.name ?? rec.symbol,
+      symbol: alloc.symbol,
+      name: stockInfo?.name ?? alloc.symbol,
       nameZh: stockInfo?.nameZh ?? null,
       entryPrice,
       shares: rawShares,
       entryAmount: entryPrice * rawShares,
-      gptRank: rec.gptRank,
-      aiScore: rec.finalScore ?? null,
-      action: rec.gptRating ?? null,
-      recommendation: rec.recommendation ?? null,
+      gptRank: alloc.gptRank,
+      aiScore: rec?.finalScore ?? null,
+      action: rec?.gptRating ?? null,
+      recommendation: rec?.recommendation ?? null,
+      strategyType: alloc.strategyType,
+      allocationWeight: alloc.allocationWeight,
+      strategyAllocationPct: alloc.strategyAllocationPct,
+      strategyConfidence: alloc.strategyConfidence,
+      targetReturnPct: alloc.targetReturnPct,
+      stopLossPct: alloc.stopLossPct,
+      maxHoldingDays: alloc.maxHoldingDays,
     });
   }
 
@@ -205,7 +228,7 @@ async function main() {
   }
 
   if (positions.length === 0) {
-    console.error(`❌ 有効なポジションが0件です（候補${eligible.length}件 全スキップ）`);
+    console.error(`❌ 有効なポジションが0件です（配分${allocations.length}件 全スキップ）`);
     console.error("  原因: 価格なし or 株数が100未満。rerank:top500 / compute-scores を先に実行してください。");
     await prisma.$disconnect();
     process.exit(1);
@@ -227,7 +250,16 @@ async function main() {
   console.log(`  名称:         ${name}\n`);
 
   for (const p of positions) {
-    console.log(`  #${p.gptRank} ${p.symbol} — ¥${p.entryPrice.toLocaleString("ja-JP")} × ${p.shares}株 = ¥${p.entryAmount.toLocaleString("ja-JP")}`);
+    console.log(`  [${p.strategyType}] #${p.gptRank} ${p.symbol} — ¥${p.entryPrice.toLocaleString("ja-JP")} × ${p.shares}株 = ¥${p.entryAmount.toLocaleString("ja-JP")} (alloc=${(p.allocationWeight * 100).toFixed(1)}%)`);
+  }
+
+  // Strategy breakdown
+  console.log(`\n戦略別サマリー:`);
+  for (const st of STRATEGY_TYPES) {
+    const stPos = positions.filter((p) => p.strategyType === st);
+    const stAmount = stPos.reduce((s, p) => s + p.entryAmount, 0);
+    const stPct = investedAmount > 0 ? (stAmount / INITIAL_CAPITAL * 100).toFixed(1) : "0.0";
+    console.log(`  ${st}: ${stPos.length}銘柄 ¥${Math.round(stAmount).toLocaleString("ja-JP")} (${stPct}% of ¥1億)`);
   }
 
   // ── 7. DB 書込 ──────────────────────────────────────────────────────────────
@@ -254,6 +286,13 @@ async function main() {
           aiScore: p.aiScore,
           action: p.action,
           recommendation: p.recommendation,
+          strategyType: p.strategyType,
+          allocationWeight: p.allocationWeight,
+          strategyAllocationPct: p.strategyAllocationPct,
+          strategyConfidence: p.strategyConfidence,
+          targetReturnPct: p.targetReturnPct,
+          stopLossPct: p.stopLossPct,
+          maxHoldingDays: p.maxHoldingDays,
         })),
       },
     },

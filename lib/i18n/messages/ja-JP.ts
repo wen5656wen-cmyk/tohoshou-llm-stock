@@ -973,6 +973,16 @@ const jaJP: Messages = {
   "strategy.backtest_title": "三戦略バックテスト",
   "strategy.backtest_subtitle": "利確/損切/時間切れシミュレーション",
   "strategy.detail_title": "推奨戦略",
+  "portfolio.strategy_overview": "戦略配分",
+  "portfolio.strategy_alloc_target": "目標比率",
+  "portfolio.strategy_alloc_actual": "実際入場比率",
+  "portfolio.strategy_pos_count": "ポジション数",
+  "portfolio.strategy_return": "戦略リターン",
+  "portfolio.strategy_legacy_label": "旧バージョン（戦略データなし）",
+  "portfolio.strategy_insufficient": "候補不足",
+  "portfolio.strategy_unallocated": "未配分キャッシュ",
+  "portfolio.snap_strategy": "戦略",
+  "portfolio.snap_alloc_weight": "目標ウェイト",
 };
 
 export default jaJP;

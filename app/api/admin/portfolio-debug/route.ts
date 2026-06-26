@@ -5,6 +5,7 @@ import {
   type PriceSource,
   type ValuationStatus,
 } from "@/lib/snapshot-valuation";
+import { STRATEGY_SLOTS, STRATEGY_ALLOC, STRATEGY_TYPES } from "@/lib/portfolio/snapshot-builder";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,17 @@ type PositionDebug = {
   shares: number;
   entryAmount: number;
   marketValue: number | null;
+  strategyType: string | null;
+  allocationWeight: number | null;
   warnings: string[];
+};
+
+type StrategyAllocationDebug = {
+  strategyType: string;
+  expectedPct: number;
+  actualPct: number;
+  positionCount: number;
+  insufficientCandidates: boolean;
 };
 
 type SnapshotDebug = {
@@ -36,6 +47,10 @@ type SnapshotDebug = {
   winRateWithPrice: number | null;
   benchmarkTopixEntry: number | null;
   benchmarkTopixCurrent: number | null;
+  isLegacy: boolean;
+  strategyAllocation: StrategyAllocationDebug[];
+  unallocatedCashPct: number;
+  strategyWarnings: string[];
   warnings: string[];
   positions: PositionDebug[];
 };
@@ -92,6 +107,7 @@ export async function GET(req: NextRequest) {
 
   const result: SnapshotDebug[] = snapshots.map((snap) => {
     const snapWarnings: string[] = [];
+    const strategyWarnings: string[] = [];
     const positions: PositionDebug[] = [];
 
     let currentMarketValue = 0;
@@ -148,6 +164,8 @@ export async function GET(req: NextRequest) {
         shares: pos.shares,
         entryAmount: pos.entryAmount,
         marketValue,
+        strategyType: pos.strategyType,
+        allocationWeight: pos.allocationWeight,
         warnings: posWarnings,
       });
     }
@@ -167,7 +185,7 @@ export async function GET(req: NextRequest) {
 
     // Snapshot-level warnings
     if (benchmarkTopixEntry == null) {
-      snapWarnings.push("topix_missing: benchmarkTopixEntry is null — alpha cannot be computed. (Fix: cron uses script which records TOPIX; API POST endpoint now also records it)");
+      snapWarnings.push("topix_missing: benchmarkTopixEntry is null — alpha cannot be computed.");
     }
     if (positionsFallback > 0) {
       snapWarnings.push(`price_fallback: ${positionsFallback} position(s) using entry price (0% return assumed)`);
@@ -189,6 +207,44 @@ export async function GET(req: NextRequest) {
       ? "STALE"
       : "FALLBACK";
 
+    // v17.1: strategy allocation debug
+    const isLegacy = snap.positions.every((p) => !p.strategyType);
+
+    if (isLegacy) {
+      strategyWarnings.push("LEGACY_SNAPSHOT: all positions have null strategyType");
+    }
+
+    const hasAnyNullStrategy = !isLegacy && snap.positions.some((p) => !p.strategyType);
+    if (hasAnyNullStrategy) {
+      strategyWarnings.push("MISSING_STRATEGY_TYPE: some positions have null strategyType");
+    }
+
+    const strategyAllocation: StrategyAllocationDebug[] = [];
+    for (const st of STRATEGY_TYPES) {
+      const stPositions = snap.positions.filter((p) => p.strategyType === st);
+      const stEntry = stPositions.reduce((s, p) => s + p.entryAmount, 0);
+      const actualPct = snap.initialCapital > 0 ? stEntry / snap.initialCapital : 0;
+      const expectedPct = STRATEGY_ALLOC[st];
+      const slots = STRATEGY_SLOTS[st];
+      const insufficientCandidates = !isLegacy && stPositions.length < slots;
+      if (insufficientCandidates) {
+        strategyWarnings.push(`STRATEGY_UNDER_ALLOCATED:${st} (${stPositions.length}/${slots} slots filled)`);
+      }
+      strategyAllocation.push({
+        strategyType: st,
+        expectedPct,
+        actualPct,
+        positionCount: stPositions.length,
+        insufficientCandidates,
+      });
+    }
+
+    if (benchmarkTopixEntry == null) {
+      strategyWarnings.push("BENCHMARK_MISSING: benchmarkTopixEntry is null");
+    }
+
+    const unallocatedCashPct = snap.initialCapital > 0 ? snap.cash / snap.initialCapital : 0;
+
     return {
       id: snap.id,
       snapshotDate: snap.snapshotDate.toISOString().slice(0, 10),
@@ -202,6 +258,10 @@ export async function GET(req: NextRequest) {
       winRateWithPrice,
       benchmarkTopixEntry,
       benchmarkTopixCurrent,
+      isLegacy,
+      strategyAllocation,
+      unallocatedCashPct,
+      strategyWarnings,
       warnings: snapWarnings,
       positions,
     };
@@ -214,7 +274,7 @@ export async function GET(req: NextRequest) {
     "portfolioReturnPct = (sum(currentPrice×shares) + cash - initialCapital) / initialCapital (positions without price contribute 0% PnL)",
     "winRateWithPrice: only counts positions with YAHOO_REALTIME or DAILY_PRICE source",
     "alpha = portfolioReturnPct - TOPIXReturnPct; requires benchmarkTopixEntry to be set at snapshot creation",
-    "3:4:3 strategy allocation NOT tracked in PortfolioSnapshotPosition — snapshot uses equal-weight top10",
+    "v17.1: 3:4:3 strategy allocation — DAY 30% / SWING 40% / POSITION 30%",
     `globalValuationStatus: ${globalStatus}`,
   ];
 

@@ -973,6 +973,16 @@ const zhCN: Messages = {
   "strategy.backtest_title": "三策略回测",
   "strategy.backtest_subtitle": "止盈/止损/时间止出场模拟",
   "strategy.detail_title": "推荐策略",
+  "portfolio.strategy_overview": "策略配置",
+  "portfolio.strategy_alloc_target": "目标占比",
+  "portfolio.strategy_alloc_actual": "实际入场占比",
+  "portfolio.strategy_pos_count": "持仓数",
+  "portfolio.strategy_return": "策略收益",
+  "portfolio.strategy_legacy_label": "旧版快照（无策略数据）",
+  "portfolio.strategy_insufficient": "候选不足",
+  "portfolio.strategy_unallocated": "未分配现金",
+  "portfolio.snap_strategy": "策略",
+  "portfolio.snap_alloc_weight": "目标权重",
 };
 
 export default zhCN;

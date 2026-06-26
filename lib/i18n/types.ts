@@ -944,6 +944,18 @@ export type Messages = {
   "pc.top_in_sector": string;
   "pc.vs_sector_avg": string;
 
+  // ─── v17.1: Portfolio Strategy Allocation ─────────────────────────────────
+  "portfolio.strategy_overview": string;
+  "portfolio.strategy_alloc_target": string;
+  "portfolio.strategy_alloc_actual": string;
+  "portfolio.strategy_pos_count": string;
+  "portfolio.strategy_return": string;
+  "portfolio.strategy_legacy_label": string;
+  "portfolio.strategy_insufficient": string;
+  "portfolio.strategy_unallocated": string;
+  "portfolio.snap_strategy": string;
+  "portfolio.snap_alloc_weight": string;
+
   // ─── v15.0: Three-Strategy System ─────────────────────────────────────────
   "strategy.section_title": string;
   "strategy.DAY": string;

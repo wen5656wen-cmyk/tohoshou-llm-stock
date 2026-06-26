@@ -5,8 +5,21 @@ import {
   type ValuationStatus,
   type PriceSource,
 } from "@/lib/snapshot-valuation";
+import {
+  buildStrategyAllocations,
+} from "@/lib/portfolio/snapshot-builder";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+export type StrategyStats = {
+  strategyType: "DAY" | "SWING" | "POSITION";
+  targetAllocationPct: number;
+  positionCount: number;
+  actualEntryPct: number;
+  currentReturnPct: number | null;
+  winRate: number | null;
+  openCount: number;
+};
 
 export type SnapshotSummary = {
   id: number;
@@ -35,6 +48,10 @@ export type SnapshotSummary = {
   valuationStatus: ValuationStatus;
   // dominant price source (most common among positions, for display)
   dominantPriceSource: PriceSource;
+  // v17.1: strategy allocation
+  isLegacy: boolean;
+  strategyStats: StrategyStats[];
+  unallocatedCashPct: number;
 };
 
 // ── GET — list all snapshots with real-time metrics ────────────────────────────
@@ -45,7 +62,15 @@ export async function GET() {
       orderBy: { snapshotDate: "desc" },
       include: {
         positions: {
-          select: { symbol: true, shares: true, entryAmount: true, entryPrice: true },
+          select: {
+            symbol: true,
+            shares: true,
+            entryAmount: true,
+            entryPrice: true,
+            strategyType: true,
+            allocationWeight: true,
+            strategyAllocationPct: true,
+          },
         },
       },
     }),
@@ -122,6 +147,54 @@ export async function GET() {
       [...sourceCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
       "ENTRY_PRICE";
 
+    // v17.1: strategy stats
+    const isLegacy = snap.positions.every((p) => !p.strategyType);
+
+    const strategyStats: StrategyStats[] = [];
+    if (!isLegacy) {
+      for (const st of ["DAY", "SWING", "POSITION"] as const) {
+        const stPositions = snap.positions.filter((p) => p.strategyType === st);
+        if (stPositions.length === 0) continue;
+        const totalStrategyEntry = stPositions.reduce((s, p) => s + p.entryAmount, 0);
+        const actualEntryPct = snap.investedAmount > 0 ? totalStrategyEntry / snap.investedAmount : 0;
+
+        let sumPnl = 0, pricedCount = 0, winCount = 0, openCount = 0;
+        for (const pos of stPositions) {
+          const resolved = priceMap.get(pos.symbol);
+          const px = resolved?.currentPrice ?? null;
+          if (px != null) {
+            const mv = px * pos.shares;
+            sumPnl += mv - pos.entryAmount;
+            pricedCount++;
+            if (mv > pos.entryAmount) winCount++;
+          } else {
+            openCount++;
+          }
+        }
+        const pricedPositions = stPositions.filter((p) => {
+          const r = priceMap.get(p.symbol);
+          return r?.currentPrice != null;
+        });
+        const currentReturnPct = pricedCount > 0
+          ? (sumPnl / pricedPositions.reduce((s, p) => s + p.entryAmount, 0)) * 100
+          : null;
+        const winRate = pricedCount > 0 ? (winCount / pricedCount) * 100 : null;
+        const targetAllocationPct = st === "DAY" ? 0.30 : st === "SWING" ? 0.40 : 0.30;
+
+        strategyStats.push({
+          strategyType: st,
+          targetAllocationPct,
+          positionCount: stPositions.length,
+          actualEntryPct,
+          currentReturnPct,
+          winRate,
+          openCount,
+        });
+      }
+    }
+
+    const unallocatedCashPct = snap.initialCapital > 0 ? snap.cash / snap.initialCapital : 0;
+
     return {
       id: snap.id,
       snapshotDate: snap.snapshotDate.toISOString().slice(0, 10),
@@ -145,6 +218,9 @@ export async function GET() {
       isOutperformingTopix,
       valuationStatus: snapValuationStatus,
       dominantPriceSource,
+      isLegacy,
+      strategyStats,
+      unallocatedCashPct,
     };
   });
 
@@ -172,7 +248,6 @@ export async function POST(req: NextRequest) {
   const targetDate = new Date(todayJST + "T00:00:00.000Z");
   const INITIAL_CAPITAL = 100_000_000;
   const LOT_SIZE = 100;
-  const VALID_RATINGS = new Set(["BUY", "STRONG_BUY"]);
 
   const existing = await prisma.portfolioSnapshot.findUnique({
     where: { snapshotDate: targetDate },
@@ -200,20 +275,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "no_daily_recommendation" }, { status: 422 });
   }
 
-  const eligible = recs
-    .filter(
-      (r) =>
-        (r.gptRating != null && VALID_RATINGS.has(r.gptRating)) ||
-        (r.recommendation != null && VALID_RATINGS.has(r.recommendation))
-    )
-    .slice(0, 10);
+  // 3:4:3 allocation
+  const { allocations, warnings: allocationWarnings } = buildStrategyAllocations(recs, INITIAL_CAPITAL);
 
-  if (eligible.length === 0) {
+  if (allocations.length === 0) {
     return NextResponse.json({ error: "no_buy_candidates" }, { status: 422 });
   }
 
-  const symbols = eligible.map((r) => r.symbol);
-  const budgetPerStock = INITIAL_CAPITAL / eligible.length;
+  const symbols = allocations.map((a) => a.symbol);
 
   const [scoreRows, stockRows, topixRow] = await Promise.all([
     prisma.stockScore.findMany({
@@ -234,6 +303,7 @@ export async function POST(req: NextRequest) {
   const scoreMap = new Map(scoreRows.map((s) => [s.symbol, s.latestClose]));
   const stockNameMap = new Map(stockRows.map((s) => [s.symbol, s]));
   const benchmarkTopixEntry = topixRow?.topix ?? null;
+  const recMap = new Map(recs.map((r) => [r.symbol, r]));
 
   type Pos = {
     symbol: string;
@@ -246,26 +316,41 @@ export async function POST(req: NextRequest) {
     aiScore: number | null;
     action: string | null;
     recommendation: string | null;
+    strategyType: string;
+    allocationWeight: number;
+    strategyAllocationPct: number;
+    strategyConfidence: number;
+    targetReturnPct: number;
+    stopLossPct: number;
+    maxHoldingDays: number;
   };
 
   const positions: Pos[] = [];
-  for (const rec of eligible) {
-    const entryPrice = rec.buyPrice ?? scoreMap.get(rec.symbol) ?? null;
+  for (const alloc of allocations) {
+    const rec = recMap.get(alloc.symbol);
+    const entryPrice = rec?.buyPrice ?? scoreMap.get(alloc.symbol) ?? null;
     if (!entryPrice || entryPrice <= 0) continue;
-    const shares = Math.floor(budgetPerStock / entryPrice / LOT_SIZE) * LOT_SIZE;
+    const shares = Math.floor(alloc.budgetAmount / entryPrice / LOT_SIZE) * LOT_SIZE;
     if (shares < LOT_SIZE) continue;
-    const info = stockNameMap.get(rec.symbol);
+    const info = stockNameMap.get(alloc.symbol);
     positions.push({
-      symbol: rec.symbol,
-      name: info?.name ?? rec.symbol,
+      symbol: alloc.symbol,
+      name: info?.name ?? alloc.symbol,
       nameZh: info?.nameZh ?? null,
       entryPrice,
       shares,
       entryAmount: entryPrice * shares,
-      gptRank: rec.gptRank,
-      aiScore: rec.finalScore ?? null,
-      action: rec.gptRating ?? null,
-      recommendation: rec.recommendation ?? null,
+      gptRank: alloc.gptRank,
+      aiScore: rec?.finalScore ?? null,
+      action: rec?.gptRating ?? null,
+      recommendation: rec?.recommendation ?? null,
+      strategyType: alloc.strategyType,
+      allocationWeight: alloc.allocationWeight,
+      strategyAllocationPct: alloc.strategyAllocationPct,
+      strategyConfidence: alloc.strategyConfidence,
+      targetReturnPct: alloc.targetReturnPct,
+      stopLossPct: alloc.stopLossPct,
+      maxHoldingDays: alloc.maxHoldingDays,
     });
   }
 
@@ -300,6 +385,7 @@ export async function POST(req: NextRequest) {
       positionCount: snapshot.positions.length,
       investedAmount,
       cash,
+      allocationWarnings,
     },
     { status: 201 }
   );
