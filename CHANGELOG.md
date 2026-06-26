@@ -2,6 +2,29 @@
 
 ---
 
+## [17.1.0] - 2026-06-26 — AI Portfolio Strategy Allocation (3:4:3)
+
+**Schema + 核心逻辑:**
+- `prisma/schema.prisma`: PortfolioSnapshotPosition 新增7字段（strategyType/allocationWeight/strategyAllocationPct/strategyConfidence/targetReturnPct/stopLossPct/maxHoldingDays + @@index([strategyType])）；db push成功（223ms）
+- `lib/portfolio/snapshot-builder.ts` (新文件): 共享的3:4:3分配逻辑 `buildStrategyAllocations()`，DAY≤3/SWING≤4/POSITION≤3槽位+30/40/30预算；优先使用DailyRecommendation.strategyType，fallback到classifyStrategy()
+
+**API层:**
+- `POST /api/portfolio/snapshots`: 重构为3:4:3分配，返回allocationWarnings
+- `GET /api/portfolio/snapshots`: 新增strategyStats[]、isLegacy、unallocatedCashPct
+- `GET /api/portfolio/snapshots/[date]`: position新增6个策略字段 + strategyStats
+- `GET /api/admin/portfolio-debug`: 新增strategyAllocation调试（4类警告：MISSING_STRATEGY_TYPE/LEGACY_SNAPSHOT/STRATEGY_UNDER_ALLOCATED/BENCHMARK_MISSING）
+
+**UI层:**
+- `app/portfolio/page.tsx`: StrategyBadge组件 + StrategyAllocationSection三格策略卡片（展开后显示）；position表新增strategy列；旧版快照显示legacy提示
+- 10个新i18n key × 3语言（zh-CN/ja-JP/en-US）
+
+**生产验证:**
+- 快照id=3创建成功，4个SWING持仓（今日DR无stored strategyType→fallback分类全走SWING，次日cron rerank后自愈）
+- debug API：isLegacy=false，SWING actualPct=37.3% vs target=40%
+- deployment #48
+
+---
+
 ## [17.0.0] - 2026-06-26 — AI Portfolio Accuracy Audit
 
 **3 bugs fixed + debug API:**
