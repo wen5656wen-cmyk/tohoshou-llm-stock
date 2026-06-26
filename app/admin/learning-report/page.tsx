@@ -20,10 +20,12 @@ type BacktestRow = {
   status: HorizonStatus;
 };
 
+type ComponentDetail = { score: number; [key: string]: unknown };
+
 type DataIntegrity = {
   score: number;
-  grade: "GREEN" | "YELLOW" | "RED";
-  components: Record<string, number>;
+  grade: string; // API returns "GREEN" | "YELLOW" | "WARNING" | "RED" | "CRITICAL"
+  components: Record<string, ComponentDetail | number>;
 };
 
 type DataReadiness = {
@@ -83,8 +85,8 @@ function statusLabel(s: HorizonStatus): string {
   return s === "READY" ? "就绪" : s === "PARTIAL" ? "部分" : s === "INSUFFICIENT" ? "不足" : "待机";
 }
 
-function gradeColor(g: "GREEN" | "YELLOW" | "RED"): string {
-  return g === "GREEN" ? "#4ade80" : g === "YELLOW" ? "#fbbf24" : "#f87171";
+function gradeColor(g: string): string {
+  return g === "GREEN" ? "#4ade80" : g === "YELLOW" || g === "WARNING" ? "#fbbf24" : "#f87171";
 }
 
 function regColor(s: RegressionDetection["status"]): string {
@@ -230,7 +232,7 @@ export default function LearningReportPage() {
             {dataIntegrity.score}<span style={{ fontSize: 16, color: "#64748b" }}>/100</span>
           </div>
           <div style={{
-            background: dataIntegrity.grade === "GREEN" ? "#052e16" : dataIntegrity.grade === "YELLOW" ? "#1a1200" : "#1a0000",
+            background: dataIntegrity.grade === "GREEN" ? "#052e16" : (dataIntegrity.grade === "YELLOW" || dataIntegrity.grade === "WARNING") ? "#1a1200" : "#1a0000",
             border: `1px solid ${gradeColor(dataIntegrity.grade)}`,
             borderRadius: 6,
             padding: "4px 12px",
@@ -242,7 +244,9 @@ export default function LearningReportPage() {
           </div>
           {Object.entries(dataIntegrity.components ?? {}).map(([k, v]) => (
             <div key={k} style={{ fontSize: 12, color: "#64748b" }}>
-              {k}: <span style={{ color: "#94a3b8" }}>{v}</span>
+              {k}: <span style={{ color: "#94a3b8" }}>
+                {typeof v === "number" ? v : (v as ComponentDetail)?.score ?? "—"}
+              </span>
             </div>
           ))}
         </div>

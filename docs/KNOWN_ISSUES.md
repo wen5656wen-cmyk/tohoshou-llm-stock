@@ -1,7 +1,7 @@
 # TOHOSHOU AI — Known Issues
 
-**Version:** v12.4.0
-**Updated:** 2026-06-25
+**Version:** v14.0.1  
+**Updated:** 2026-06-26
 
 ---
 
@@ -17,7 +17,9 @@
 
 | ID | Description | Root Cause | File | Workaround |
 |----|-------------|------------|------|------------|
-| P1-1 | `gptRank=null` 可能在 rerank 后残留 | `rerank-top500.ts` 未完整运行或 GPT 速率限制 | `scripts/rerank-top500.ts` | `npm run rerank:top500`；`/admin/verify` 监控 |
+| P1-001 | `gptRank=null` 可能在 rerank 后残留 | `rerank-top500.ts` 未完整运行或 GPT 速率限制 | `scripts/rerank-top500.ts` | `npm run rerank:top500`；`/admin/verify` 监控 |
+| P1-002 | pipeline-runs.jsonl 不存在 → Pipeline stages 全 NEVER_RUN → Health Score 45/100 | cron 尚未成功运行（schema-v2.3 启动于 2026-06-26，首次 cron 完成前正常） | `scripts/rerank-top500.ts` → `logs/pipeline-runs.jsonl` | 等待 2026-06-27 07:30 JST cron 完成后自愈 |
+| P1-003 | feat_* 覆盖率 0%（604 条 DailyRecommendation 均无 feat_* 数据） | 当前行在 Step 2 部署前创建，feat_* 只在 CREATE 时写入不回填 | `scripts/rerank-top500.ts` | 下次 cron 运行后新建行将含 feat_* |
 
 ---
 
@@ -25,9 +27,12 @@
 
 | ID | Description | Root Cause | File |
 |----|-------------|------------|------|
-| P2-2 | en-US 股票显示名缺失 | `Stock.nameEn` 多数为 null，en-US 界面 fallback 到日文名 | `lib/company-name.ts` |
-| P2-3 | Screener 无 `week52Pct` / `volumeRatio` 字段 | 指标行只有 RSI·MA·5D，与 Watchlist 相比缺少 52W 位置 | `app/api/screener/route.ts` |
-| P2-4 | `week52Pct` 使用 Stock 表 `high52w/low52w`，J-Quants 同步滞后约一周 | J-Quants `high52w` 每周更新一次 | `app/api/watchlist/route.ts` |
+| P2-001 | en-US 股票显示名缺失 | `Stock.nameEn` 多数为 null，en-US 界面 fallback 到日文名 | `lib/company-name.ts` |
+| P2-002 | Screener 无 `week52Pct` / `volumeRatio` 字段 | 指标行只有 RSI·MA·5D，与 Watchlist 相比缺少 52W 位置 | `app/api/screener/route.ts` |
+| P2-003 | `week52Pct` 使用 Stock 表 `high52w/low52w`，J-Quants 同步滞后约一周 | J-Quants `high52w` 每周更新一次 | `app/api/watchlist/route.ts` |
+| P2-004 | learning-report `missingDataSummary.1d.fillRate = 186.89%` | 2026-06-26 13:31 JST 手动生成的报告使用旧脚本（fix 部署前），旧公式 `filled/fillable`；新公式已部署 | `scripts/generate-learning-report.ts` | 下次 cron 生成新报告后自愈 |
+| P2-005 | 1d/3d winRate 初步数据 < 50%（1d=43.78%, 3d=42.39%） | 仅 4 个 cohort dates（2026-06-23~26），统计不显著；需 ≥20 个交易日 | `scripts/update-backtest.ts` | 属设计预期，非错误；等待数据积累 |
+| P2-011 | `tohoshou-ai-daily-pipeline` PM2 进程存在但已 stopped | 已被 tohoshou-cron 取代，risk：若意外启动将导致 double compute-scores + rerank race condition | `ecosystem.config.js` | 已 stopped，低风险；建议下次维护窗口清除 |
 
 ---
 
@@ -35,9 +40,10 @@
 
 | ID | Description |
 |----|-------------|
-| P3-1 | `maxDrawdown` 在组合数据不足 2 天时显示 `0%`，而非明确的"数据不足"提示 |
-| P3-2 | Backtest `update-backtest.ts` 需要首次 DailyRecommendation 日期起满 7 个交易日才能填充回测数据 |
-| P3-4 | `/admin/verify` "Copy Acceptance Report" 中 BUILD 字段为 placeholder，未读取真实构建状态 |
+| P3-001 | `maxDrawdown` 在组合数据不足 2 天时显示 `0%`，而非明确的"数据不足"提示 |
+| P3-002 | `/admin/verify` "Copy Acceptance Report" 中 BUILD 字段为 placeholder，未读取真实构建状态 |
+| P3-003 | learning-report `handleDraftSave` 调用链中 `doSubmit` 为 async，footer onClick 未 await（已知）— loading spinner 可能不显示 |
+| P3-004 | 1d/3d 回测 winRate < 50%（43.78%/42.39%）属统计不显著阶段，Learning Report 已写入说明 |
 
 ---
 
@@ -45,15 +51,15 @@
 
 | Fixed | Version | Description |
 |-------|---------|-------------|
-| ✅ | v12.4.0 | Hard Block Phase 2 データ接入完了：`sync-hard-block-status.ts` により J-Quants 退市 + 停牌検出，3只退市株登録済 |
-| ✅ | v12.3.0 | `maxDrawdown` 由 null 改为 number（数据不足返回 0，正常返回负值如 -3.25） |
-| ✅ | v12.3.0 | Screener 桌面卡片对齐 Watchlist 紧凑风格（4列·Score+Badge·RSI·MA·5D 行） |
-| ✅ | v12.3.0 | Hard Block Phase 2 基础链路：`isHardBlockedStock()` + Stock schema 字段 + compute-scores 接入 |
-| ✅ | v12.2.0 | 新闻同步 Worker 化（`scripts/sync-news.ts`），pm2 restart 不再杀死同步进程 |
-| ✅ | v12.1.0 | No Look-Ahead Bias 完整实施：`tradeEffectiveDate <= todayJST` 过滤 |
-| ✅ | v12.1.0 | DailyRecommendation 写入 VERSION_SNAPSHOT 版本字段（铁律五闭环） |
-| ✅ | v12.0.0 | 六大铁律安全框架（Confidence Guard / Risk Override / Version Freeze / Shadow Mode） |
-| ✅ | v11.2.0 | 僵尸 SyncJob 修复：2h 超时自动 FAILED + cron 假✅修正 |
+| ✅ | v14.0.1 | `/admin/learning-report` 运行时崩溃：`dataIntegrity.components` 渲染对象为 React child → 修复类型声明 + render 提取 `.score` |
+| ✅ | v14.0.1 | `gradeColor()` 接受 `"WARNING"` 返回 yellow（API 实际返回值） |
+| ✅ | v13.7.1 | deploy 协议：lib/ + scripts/ rsync 补入标准流程（修复 2026-06-26 cron P0 失败） |
+| ✅ | v13.7.1 | fillRate > 100% bug：改为 `filled/total*100`（正确分母） |
+| ✅ | v13.7.1 | Mission Control 缺少 2 个 pipeline stages（update-ai-signal-stats, generate-learning-report） |
+| ✅ | v14.0.0-IA | Sidebar 重组为 3 分组 12 条目；新增 learning-report / versions / experiments / mission-control 页面入口 |
+| ✅ | v12.4.0 | Hard Block Phase 2：`sync-hard-block-status.ts`（J-Quants 退市+停牌检测，3只退市株已登记） |
+| ✅ | v12.3.0 | `maxDrawdown` 由 null 改为 number |
+| ✅ | v12.0.0 | TOHOSHOU AI Decision Engine v1.0 — 六大铁律安全框架 |
 
 ---
 
@@ -62,6 +68,11 @@
 | Item | Status |
 |------|--------|
 | `healthAllowRec` | true — 系统正常接受推荐 |
-| `BacktestResult TOP10` | 等待首批 DailyRecommendation 满 7 个交易日后自动填充 |
-| `Stock.isDelisted` 等 Hard Block 字段 | 已建表并接入数据：3714 ACTIVE / 3 DELISTED（2686.T, 7922.T, 6403.T）/ 0 HALTED |
-| `GlobalMarket` | 每日 05:30 JST cron 自动同步 |
+| Architecture schema | `schema-v2.3`，启动日 2026-06-26 |
+| Pipeline | 全 NEVER_RUN（cron 首次完成前）；预计 2026-06-27 ~13:00 JST 后转为 SUCCESS |
+| feat_* 覆盖率 | 0%（604 条均无）；下次 cron 后新行将有数据 |
+| DailyPrice | FRESH（days=1，2026-06-25） |
+| BacktestResult | 1d=1069 filled / 3d=493 filled / 5d-90d=PENDING（设计预期） |
+| GlobalMarket | 每日 05:30 JST cron 自动同步 |
+| VersionSnapshot | 当前仅 1 个（20260626-v7.7），regressionDetection=INSUFFICIENT_DATA（需 ≥2） |
+| `tohoshou-ai-daily-pipeline` | stopped（已停用，保留待清除） |

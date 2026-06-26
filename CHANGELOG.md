@@ -2,6 +2,69 @@
 
 ---
 
+## [14.0.1] - 2026-06-26 — /admin/learning-report 运行时崩溃修复
+
+**P0 Bug Fix — React "Objects are not valid as a React child"**
+
+### Root Cause
+
+`dataIntegrity.components` API 响应结构为 `Record<string, {score, stagesChecked, ...}>`（对象），
+但 page.tsx 类型声明为 `Record<string, number>`，导致 `{v}` 渲染对象时 React 抛出运行时异常。
+页面在 loading 状态后立即 crash，客户端永久停留于「加载学习报告中…」旋转器。
+
+同时：`dataIntegrity.grade` 实际值为 `"WARNING"`，未在 `gradeColor()` 联合类型中处理。
+
+### 修复
+
+| 文件 | 变更 |
+|------|------|
+| `app/admin/learning-report/page.tsx` | 新增 `ComponentDetail` 类型；`components` 改为 `Record<string, ComponentDetail \| number>`；render 提取 `.score`；`grade` 类型改为 `string`；`gradeColor()` 接受 `"WARNING"` → yellow |
+
+### 验证
+
+- `npm run build` ✅ 0 errors
+- `npm run health:data` ✅ CRITICAL=0
+- 生产已部署，页面 HTTP 200
+
+---
+
+## [14.0.0-IA] - 2026-06-26 — UI 信息架构重组（v14.0.0-IA）
+
+**范围：纯 UI 重组 — 零新增 API / 零 DB 变更 / 零算法改动 / 零 cron 变更**
+
+### 修改文件
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `components/Sidebar.tsx` | 改 | 3 分组导航（核心/数据与学习/系统管理），12 条目，新增 research/learning-report/versions/experiments/mission-control 入口 |
+| `components/mobile/MobileBottomNav.tsx` | 改 | 同步核心分组（今日总览/AI选股/AI组合/回测验证/新闻资讯） |
+| `lib/i18n/messages/zh-CN.ts` | 改 | +10 nav key |
+| `lib/i18n/messages/en-US.ts` | 改 | +10 nav key |
+| `lib/i18n/messages/ja-JP.ts` | 改 | +10 nav key |
+| `lib/i18n/types.ts` | 改 | +10 nav type 声明 |
+| `app/SystemDashboard.tsx` | 改 | 完全重写为主驾驶舱：状态栏 5 pills + 3 列格 + 数据新鲜度 + 成熟度倒计时 + Pipeline 阶段总览 + Alerts；60s 自动刷新 `/api/admin/mission-control` |
+| `app/page.tsx` | 不改 | 保留服务端 Prisma 查询（今日推荐数量） |
+| `app/portfolio/page.tsx` | 改 | 策略快照 Tab 加「仅作研究参考」banner；自选股 Tab 加「模拟账户·非真实资金」amber 免责声明 |
+| `app/backtest/page.tsx` | 改 | 新增 v2.3 9-Horizon KPI 矩阵（从 /api/admin/mission-control 读数）；PENDING horizon 显示「待数据+天数倒计时」而非空白；旧 v1 内容保留并标注 |
+| `app/admin/learning-report/page.tsx` | 新建 | 学习报告阅读页：Integrity Score + 9 Horizon 填充率/胜率/收益/Alpha + 数据成熟度 + 回归检测；404 graceful（显示等待首次 cron 说明） |
+
+### Phase 验收
+
+| Phase | 内容 | Build | 状态 |
+|-------|------|-------|------|
+| P1 | 导航骨架（Sidebar + i18n + MobileBottomNav） | ✅ 0 errors | ✅ |
+| P2 | 学习报告新页面 | ✅ 0 errors | ✅ |
+| P3 | 首页驾驶舱 + Portfolio 免责声明 | ✅ 0 errors | ✅ |
+| P4 | 回测验证 v2.3 矩阵 | ✅ 0 errors | ✅ |
+
+### 生产验证
+
+- 5 个新页面 HTTP 200：`/`、`/admin/research`、`/admin/learning-report`、`/admin/versions`、`/admin/mission-control`
+- `npm run health:data`：CRITICAL=0 ✅
+- commit 88468a7，deployment #41，push to main ✅
+
+---
+
 ## [13.7.1] - 2026-06-26 — Stabilization Audit：Production Readiness
 
 ### 变更（仅修复，无新功能）

@@ -1,7 +1,7 @@
 # TOHOSHOU AI — API Route Map
 
-**Version:** v8.9.5  
-**Updated:** 2026-06-23
+**Version:** v14.0.1  
+**Updated:** 2026-06-26
 
 All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `export const dynamic = "force-dynamic"`.
 
@@ -62,7 +62,7 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/backtest/summary` | — | BacktestResult cohort summary |
+| GET | `/api/backtest/summary` | — | BacktestResult cohort summary (schema-v1.0 派生) |
 | GET | `/api/backtest/health` | — | Backtest data health check |
 | GET | `/api/backtest/trend` | — | Return trend by horizon |
 
@@ -72,23 +72,109 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/portfolio` | — | User portfolios |
+| GET | `/api/portfolio` | — | User portfolios + DailyRecommendation Top10 |
+| GET | `/api/portfolio/snapshots` | — | DailyPortfolioSnapshot 历史快照 |
 | POST | `/api/portfolio` | — | Create/update portfolio position |
 | DELETE | `/api/portfolio` | — | Remove position |
-| GET | `/api/watchlist` | — | (see above) |
 
 ---
 
-## Admin (v8.9+)
+## Admin
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/admin/verify` | ADMIN_TOKEN (optional) | Multi-module production health check |
+| GET | `/api/admin/verify` | ADMIN_TOKEN (optional) | Multi-module production health check (8 modules) |
 | GET | `/api/admin/verify?module=dailyrec` | — | DailyRecommendation snapshot |
 | GET | `/api/admin/verify?module=history&symbol=` | — | Per-symbol recommendation history |
 | GET | `/api/admin/verify?module=backtest` | — | Backtest picks + cohort results |
 | GET | `/api/admin/deployments` | ADMIN_TOKEN (optional) | List deployment history (newest first) |
 | POST | `/api/admin/deployments` | ADMIN_TOKEN (optional) | Record a new deployment |
+| GET | `/api/admin/mission-control` | — | Pipeline 10-stage 可见性 + Health Score + feat_* coverage + 5 backtest horizons |
+| GET | `/api/admin/learning-report` | — | reports/latest-learning.json 读取（404 if not generated） |
+| GET | `/api/admin/versions` | — | VersionSnapshot 列表 |
+| POST | `/api/admin/versions` | — | 创建 VersionSnapshot |
+| GET | `/api/admin/experiments` | — | ExperimentRun 列表 |
+| POST | `/api/admin/experiments` | — | 创建 ExperimentRun |
+| PATCH | `/api/admin/experiments/[id]` | — | 更新 ExperimentRun 状态 |
+| GET | `/api/admin/research/factor-exposure` | — | 因子暴露分析 (feat_* 字段分布) |
+| GET | `/api/admin/research/distribution` | — | 评分/收益分布统计 |
+| GET | `/api/admin/research/correlation` | — | 因子相关矩阵 |
+
+---
+
+### `/api/admin/mission-control` Response Shape
+
+```typescript
+{
+  healthScore: {
+    score: number;           // 0-100
+    components: {
+      dataFreshness: number; pipelineStatus: number;
+      featureCoverage: number; healthGuard: number;
+    };
+    grade: "GREEN" | "YELLOW" | "WARNING" | "RED";
+  };
+  pipeline: {
+    stages: Array<{
+      name: string; status: "SUCCESS" | "FAILED" | "NEVER_RUN" | "WARNING";
+      lastRunAt: string | null; duration: number | null;
+    }>;
+    lastFullRunAt: string | null;
+  };
+  featureCoverage: { latestDate: string; totalRows: number; overallPct: number };
+  version: { current: string; schemaVersion: string; modelVersion: string };
+  backtest: {
+    horizons: Array<{
+      horizon: string; sampleCount: number; filledCount: number;
+      winRate: number | null; avgReturn: number | null; status: string;
+    }>;
+  };
+  freshness: {
+    sources: Array<{ name: string; days: number; status: "FRESH" | "STALE" | "MISSING" }>;
+  };
+}
+```
+
+### `/api/admin/learning-report` Response Shape
+
+```typescript
+{
+  reportDate: string;          // "YYYY-MM-DD"
+  generatedAt: string;         // ISO UTC
+  reportVersion: string;       // "v1.0"
+  engineVersion: string;       // "learning-engine-v1.0"
+  dataIntegrity: {
+    score: number;             // 0-100
+    grade: string;             // "GREEN"|"YELLOW"|"WARNING"|"RED"|"CRITICAL"
+    components: Record<string, {
+      score: number;
+      [key: string]: unknown;  // stagesChecked, violations, fillRate, etc.
+    }>;
+  };
+  dataReadiness: {
+    tradingDays: number;
+    latestCohortDate: string;
+    availableHorizons: string[];
+    sampleCounts: Record<string, number>;
+    filledCounts: Record<string, number>;
+    featureCoverage: { latestDate: string; totalRows: number; overallPct: number; note: string };
+    expectedFillDates: { "30d": string | null; "90d": string | null };
+  };
+  backtestSummary: Array<{
+    horizon: string; sampleCount: number; filledCount: number; fillRate: number;
+    winRate: number | null; avgReturn: number | null; medianReturn: number | null;
+    alpha: number | null; bestReturn: number | null; worstReturn: number | null;
+    status: "READY" | "PARTIAL" | "INSUFFICIENT" | "PENDING";
+  }>;
+  versionComparison: VersionComparisonEntry[];
+  regressionDetection: {
+    status: "OK" | "WARNING" | "CRITICAL" | "INSUFFICIENT_DATA";
+    delta: number | null;
+    currentVersion: string; baselineVersion: string | null;
+  };
+  recommendations: string[];
+}
+```
 
 ### `/api/admin/verify` Response Shape
 
@@ -120,7 +206,7 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
   buildStatus: string; healthStatus: string; apiStatus: string;
   pageStatus: string; databaseStatus: string; pm2Status: string;
   productionReady: boolean; warnings: string[]; blockingIssues: string[];
-  operator?: string; deployedAt?: string;   // ISO string, defaults to now()
+  operator?: string; deployedAt?: string;
 }
 ```
 
@@ -128,6 +214,6 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
 
 ## Auth Notes
 
-- Most routes are open (no auth) — internal tooling only, no user auth system
-- `/api/admin/*` routes check `ADMIN_TOKEN` env var; if unset, open to all
-- Auth via `x-admin-token` header OR `?token=` query param
+- 大多数路由开放（无 auth）— 仅内部工具
+- `/api/admin/*` 路由检查 `ADMIN_TOKEN` 环境变量；若未设置，所有人可访问
+- Auth via `x-admin-token` header 或 `?token=` query param
