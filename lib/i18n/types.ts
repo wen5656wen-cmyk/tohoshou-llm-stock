@@ -913,6 +913,37 @@ export type Messages = {
   "stock.data_as_of": string;
   "stock.no_score": string;
 
+  // ─── v16.0: AI Stock Intelligence ─────────────────────────────────────────
+  "ai_risk.title": string;
+  "ai_risk.overall": string;
+  "ai_risk.technical": string;
+  "ai_risk.news": string;
+  "ai_risk.fundamental": string;
+  "ai_risk.volatility": string;
+  "ai_risk.tech.LOW": string;
+  "ai_risk.tech.MEDIUM": string;
+  "ai_risk.tech.HIGH": string;
+  "ai_risk.news.LOW": string;
+  "ai_risk.news.MEDIUM": string;
+  "ai_risk.news.HIGH": string;
+  "ai_risk.fund.LOW": string;
+  "ai_risk.fund.MEDIUM": string;
+  "ai_risk.fund.HIGH": string;
+  "ai_risk.vol.LOW": string;
+  "ai_risk.vol.MEDIUM": string;
+  "ai_risk.vol.HIGH": string;
+  "ai_hist.title": string;
+  "ai_hist.total_recs": string;
+  "ai_hist.wins": string;
+  "ai_hist.losses": string;
+  "ai_hist.by_strategy": string;
+  "ai_hist.collecting": string;
+  "pc.sector_avg": string;
+  "pc.your_rank": string;
+  "pc.rel_strength": string;
+  "pc.top_in_sector": string;
+  "pc.vs_sector_avg": string;
+
   // ─── v15.0: Three-Strategy System ─────────────────────────────────────────
   "strategy.section_title": string;
   "strategy.DAY": string;
