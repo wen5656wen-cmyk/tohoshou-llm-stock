@@ -119,7 +119,9 @@ cron.schedule("30 7 * * *", () => {
   run("create-portfolio-snapshot.ts", "AI 組合スナップショット生成");
   log("INFO", "▶ スナップショット後 AI シグナル統計更新");
   run("update-ai-signal-stats.ts", "AI シグナル統計更新");
-  log("INFO", "▶ シグナル統計後データ健全性チェック");
+  log("INFO", "▶ シグナル統計後バックテスト更新 (v2.3: 9 horizons → BacktestPositionResult)");
+  run("update-backtest.ts", "バックテスト更新", 20 * 60 * 1000);   // 20min max
+  log("INFO", "▶ バックテスト後データ健全性チェック");
   run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 

@@ -501,6 +501,14 @@ model DailyRecommendation {
   globalEventEngineVersion String?
   llmModelVersion          String?
   scoringSchemaVersion     String?
+  // v13.3: Architecture v2.3 — version tracking
+  // NOTE: return7d/return30d/return90d/exitDate*/price* below are DEPRECATED.
+  // BacktestPositionResult is the source of truth for per-symbol backtest data.
+  versionSnapshotId String?
+  modelVersion      String?
+  scoreVersion      String?
+  schemaVersion     String?
+  pipelineRunId     String?
 
   @@unique([date, symbol])
   @@index([date(sort: Desc)])
@@ -554,6 +562,94 @@ model BacktestError {
   @@index([symbol])
   @@index([reason])
   @@map("backtest_errors")
+}
+
+// v13.3: Architecture v2.3 — version snapshot registry
+model VersionSnapshot {
+  id               String    @id                   // "YYYYMMDD-vX.Y", e.g., "20260626-v7.7"
+  modelVersion     String                           // RULE_ENGINE_VERSION
+  scoreVersion     String                           // SCORING_SCHEMA_VERSION
+  schemaVersion    String                           // CURRENT_SCHEMA_VERSION (feat_* schema)
+  ruleEngineVer    String
+  scoringSchemaVer String
+  llmModelVer      String
+  startDate        DateTime  @db.Date
+  endDate          DateTime? @db.Date               // null = currently active
+  isBaseline       Boolean   @default(false)
+  changeLog        String?   @db.Text
+  experimentId     String?
+  createdAt        DateTime  @default(now())
+
+  @@index([startDate(sort: Desc)])
+  @@index([modelVersion])
+  @@map("version_snapshots")
+}
+
+// v13.3: Architecture v2.3 — experiment registry
+model ExperimentRegistry {
+  id                String    @id
+  versionSnapshotId String?
+  startDate         DateTime  @db.Date
+  endDate           DateTime? @db.Date
+  hypothesis        String    @db.Text
+  changes           String    @db.Text              // JSON
+  targetMetric      String
+  targetThreshold   Float?
+  status            String                          // PLANNED | RUNNING | COMPLETED | ABANDONED
+  resultSummary     String?   @db.Text
+  winRateDelta7d    Float?
+  winRateDelta30d   Float?
+  alphaDelta30d     Float?
+  decision          String?                         // ADOPTED | REJECTED | PENDING
+  decisionReason    String?   @db.Text
+  decisionDate      DateTime? @db.Date
+  nextExperimentId  String?
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+
+  @@index([startDate(sort: Desc)])
+  @@index([status])
+  @@map("experiment_registries")
+}
+
+// v13.3: Architecture v2.3 — per-symbol per-horizon backtest source of truth
+// DailyRecommendation.return7d/30d/90d/exitDate*/price* are DEPRECATED; read from here instead.
+model BacktestPositionResult {
+  id              Int      @id @default(autoincrement())
+  recDate         DateTime @db.Date                // recommendation cohort date
+  symbol          String
+  horizon         String                           // "1d"|"3d"|"5d"|"7d"|"10d"|"20d"|"30d"|"60d"|"90d"
+
+  entryDate       DateTime? @db.Date
+  entryPrice      Float?
+  exitDate        DateTime? @db.Date
+  exitPrice       Float?
+  returnPct       Float?
+  winFlag         Boolean?
+
+  benchmarkReturn Float?                           // TOPIX accumulated return for same period
+  alphaVsTopix    Float?                           // returnPct - benchmarkReturn
+
+  priceSource     String?                          // "ADJUSTED" | "RAW"
+  errorReason     String?                          // "NO_ENTRY_PRICE" | "NO_EXIT_PRICE" | null
+
+  modelVersion      String?
+  scoreVersion      String?
+  schemaVersion     String?
+  versionSnapshotId String?
+  pipelineRunId     String?
+
+  computedAt      DateTime @default(now())
+
+  @@unique([recDate, symbol, horizon])
+  @@index([recDate(sort: Desc)])
+  @@index([symbol])
+  @@index([horizon])
+  @@index([modelVersion])
+  @@index([versionSnapshotId])
+  @@index([recDate, horizon])
+  @@index([winFlag])
+  @@map("backtest_position_results")
 }
 
 // Production Deployment History (v8.9.5)

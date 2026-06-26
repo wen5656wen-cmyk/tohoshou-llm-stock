@@ -2,6 +2,36 @@
 
 ---
 
+## [13.3.0] - 2026-06-26 — Step 1：BacktestPositionResult + 9 horizons + VersionSnapshot 上线
+
+### 变更
+
+**新增 3 个数据库 model（additive-only，生产已 DDL 部署）**
+- `BacktestPositionResult`（`backtest_position_results`）：per-symbol per-horizon 回测事实表，替代 DailyRecommendation return 字段成为事实来源；9 horizons × 7 索引
+- `VersionSnapshot`（`version_snapshots`）：版本快照注册表；初始化 legacy-baseline + 20260626-v7.7
+- `ExperimentRegistry`（`experiment_registries`）：实验注册表
+
+**DailyRecommendation 新增 5 个版本字段（nullable，不破坏现有数据）**
+- `versionSnapshotId`, `modelVersion`, `scoreVersion`, `schemaVersion`, `pipelineRunId`
+
+**重写 `scripts/update-backtest.ts` v2.3.0**
+- **Phase A**：entry fill（WHERE entryPrice IS NULL 守卫，永不覆盖）→ 只写 entryDate/entryPrice/entryPriceType
+- **Phase B**：9 horizons（1d/3d/5d/7d/10d/20d/30d/60d/90d）→ BacktestPositionResult upsert（批量 50 并发）；TOPIX + Nikkei 双基准；alphaVsTopix 字段
+- **Phase C**：in-memory 聚合 → BacktestResult（6 portfolioSize × 9 horizons）
+- **停止写入** DailyRecommendation.return7d/30d/90d/exitDate*/price*/filledAt/priceSource（字段保留但废弃）
+- 导入 RULE_ENGINE_VERSION/CURRENT_SCHEMA_VERSION/SCORING_SCHEMA_VERSION 填充 modelVersion/schemaVersion/scoreVersion
+
+**更新 `scripts/cron-scheduler.ts`**
+- 07:30 链新增 `update-backtest.ts`（20 分钟 timeout），位置在 `update-ai-signal-stats` 之后、`data-health-guard` 之前
+
+### 生产验证（2026-06-26）
+- 6 cohort dates 处理，14,625 BacktestPositionResult 行 upsert，24 BacktestResult 行
+- 1d win_rate=43.8%，3d win_rate=42.4%；TOPIX 基准和 excessVsTopix 正确计算
+- health:data CRITICAL=0，Portfolio BacktestResult(TOP10)=4 ✅
+- VersionSnapshot: legacy-baseline(schema-v1.0) + 20260626-v7.7(schema-v2.3) 已初始化
+
+---
+
 ## [13.2.0] - 2026-06-26 — Architecture v2.3 冻结（ARCHITECTURE.md + schemaVersion）
 
 ### 变更
