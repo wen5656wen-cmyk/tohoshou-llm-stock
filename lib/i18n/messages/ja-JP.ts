@@ -375,7 +375,7 @@ const jaJP: Messages = {
   "ind.stock_col": "銘柄",
   "ind.price_col": "株価",
 
-  // New simplified nav
+  // Navigation — v14.0.0-IA three-group structure
   "nav.aiScreener": "AI銘柄選定",
   "nav.aiValueChain": "AI投資テーマ",
   "nav.myInvestments": "マイ投資",
@@ -383,6 +383,19 @@ const jaJP: Messages = {
   "nav.systemStatus": "システム状態",
   "nav.systemVerify": "システム検証",
   "nav.admin": "管理者",
+  // group labels
+  "nav.core": "コア",
+  "nav.dataAndLearning": "データ・学習",
+  "nav.systemMgmt": "システム管理",
+  // new items
+  "nav.cockpit": "今日の概況",
+  "nav.missionControl": "ミッション管理",
+  "nav.research": "研究・分析",
+  "nav.learningReport": "学習レポート",
+  "nav.versionCenter": "バージョン管理",
+  "nav.experiments": "実験管理",
+  "nav.syncStatus": "同期状態",
+  "nav.dataVerify": "データ検証",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

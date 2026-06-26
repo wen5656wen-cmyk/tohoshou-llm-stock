@@ -2,6 +2,52 @@
 
 ---
 
+## [13.7.1] - 2026-06-26 — Stabilization Audit：Production Readiness
+
+### 变更（仅修复，无新功能）
+
+**P0 修复：deploy 协议补 lib/ + scripts/ rsync**（CLAUDE.md）
+- 根因：v12.4.0 新增 `isHardBlockedStock` 到 safety-rules.ts，但 lib/ 未随标准 deploy rsync 到生产服务器
+- 后果：2026-06-26 07:30 JST cron `compute-scores` 全量失败（3700+ 股逐个 TypeError），StockScore 当日无更新
+- 修复：CLAUDE.md deploy 序列增加步骤 3b：`rsync lib/ scripts/` 紧跟 `.next/` rsync
+- 附加规则：部署时 NEVER restart `tohoshou-cron`（07:30–14:00 JST 窗口内 rerank 仍在运行）
+
+**P1 修复：fillRate > 100% bug**（scripts/generate-learning-report.ts）
+- 原因：`fillRate = filled / fillable * 100`，当 `filled > fillable` 时超过 100%
+- 现象：1d horizon fillRate = 186.89%（DailyPrice 比日历阈值填充更早）
+- 修复：改为 `fillRate = filled / total * 100`（正确分母为总样本量）
+
+**P2 修复：Mission Control 缺少 2 个 pipeline stages**（app/api/admin/mission-control/route.ts + generate-learning-report.ts）
+- `update-ai-signal-stats` 和 `generate-learning-report` 在 cron 中存在但不在 PIPELINE_STAGES 中
+- 两个文件均同步更新 PIPELINE_STAGES 列表（从 8 增至 10 stages）
+
+**新建 TECH_DEBT.md**（11 个 P2 开放条目）
+- P2-001 ~ P2-011：Research API 内存、computeMA null 安全、pipeline JSONL 创建、监控阈值等
+
+### 生产稳定性核查结果（2026-06-26）
+
+**数据完整性链（7 层）：**
+
+| 层 | 记录数 | 缺失 | 完整率 |
+|----|--------|------|--------|
+| Stock | 3717 | 0 | 100% |
+| StockScore | ~3717 | 0 | ~100% |
+| DailyRecommendation | 2774 | 0 versionSnapshotId | 100% |
+| BacktestPositionResult | 14625 | 0 versionSnapshotId | 100% |
+| BacktestResult (derived) | — | — | N/A |
+| LearningReport | 67/100 (WARNING) | pipelineScore=0 | 自愈 |
+| Research Dashboard | 0 joined rows | 30 feat_* NULL | 明日自愈 |
+
+**Look-ahead Bias：** ✅ 0 violations（14625 BP rows 验证通过）
+
+**API 状态（7 个 admin endpoints）：** 全部 HTTP 200，响应时间 0.15s–1.16s
+
+**Cron 状态：** online，但 pipeline-runs.jsonl 尚未创建（待 2026-06-27 07:30 首次完整运行）
+
+**Production Readiness Score：** 72/100 → READY WITH WARNINGS
+
+---
+
 ## [13.8.0] - 2026-06-26 — Step 6：Research Phase — Analytical Research Platform
 
 ### 变更

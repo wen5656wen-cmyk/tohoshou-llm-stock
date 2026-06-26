@@ -9,11 +9,11 @@ export default function MobileBottomNav() {
   const { t } = useI18n();
 
   const NAV_ITEMS = [
-    { href: "/",          label: t("nav.dashboard"),     icon: "◈" },
-    { href: "/screener",  label: t("nav.aiScreener"),    icon: "✦" },
-    { href: "/ai-theme",  label: t("nav.aiValueChain"),  icon: "⚡" },
-    { href: "/portfolio", label: t("nav.myInvestments"), icon: "◇" },
-    { href: "/news",      label: t("nav.news"),          icon: "◎" },
+    { href: "/",          label: t("nav.cockpit"),    icon: "◈" },
+    { href: "/screener",  label: t("nav.aiScreener"), icon: "✦" },
+    { href: "/portfolio", label: t("nav.aiPortfolio"), icon: "◇" },
+    { href: "/backtest",  label: t("nav.backtest"),   icon: "▣" },
+    { href: "/news",      label: t("nav.news"),       icon: "◎" },
   ];
 
   return (

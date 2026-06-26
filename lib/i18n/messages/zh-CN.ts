@@ -375,7 +375,7 @@ const zhCN: Messages = {
   "ind.stock_col": "股票",
   "ind.price_col": "价格",
 
-  // New simplified nav
+  // Navigation — v14.0.0-IA three-group structure
   "nav.aiScreener": "AI选股",
   "nav.aiValueChain": "AI产业链",
   "nav.myInvestments": "我的投资",
@@ -383,6 +383,19 @@ const zhCN: Messages = {
   "nav.systemStatus": "系统状态",
   "nav.systemVerify": "系统校验",
   "nav.admin": "管理员",
+  // group labels
+  "nav.core": "核心",
+  "nav.dataAndLearning": "数据与学习",
+  "nav.systemMgmt": "系统管理",
+  // new items
+  "nav.cockpit": "今日总览",
+  "nav.missionControl": "Mission Control",
+  "nav.research": "研究分析",
+  "nav.learningReport": "学习报告",
+  "nav.versionCenter": "版本中心",
+  "nav.experiments": "实验管理",
+  "nav.syncStatus": "同步状态",
+  "nav.dataVerify": "数据校验",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

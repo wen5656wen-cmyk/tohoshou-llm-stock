@@ -1490,13 +1490,33 @@ export default function PortfolioPage() {
 
       {activeTab === "system" && (
         <div className="space-y-6">
+          {/* Research-reference disclaimer */}
+          <div className="flex items-start gap-3 bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 text-xs text-slate-400 leading-relaxed">
+            <span className="text-slate-500 text-base leading-none mt-0.5 shrink-0">◈</span>
+            <span>
+              <strong className="text-slate-300">策略快照 · 仅作研究参考</strong>
+              <br />
+              每日 07:30 JST AI 选出 BUY/STRONG_BUY Top10，等权买入虚拟 ¥1亿资金，记录持仓表现。建仓价为推荐当日收盘价快照，非真实可执行价格。数据用于验证模型表现，不构成投资建议。
+            </span>
+          </div>
           <AISignalStatsPanel t={t} />
           <SnapshotsPanel t={t} />
         </div>
       )}
 
       {activeTab === "watchlist" && (
-        <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} onRefresh={fetchWatchlist} />
+        <div className="space-y-0">
+          {/* Simulation account disclaimer */}
+          <div className="flex items-start gap-3 bg-amber-950/30 border border-amber-700/40 rounded-lg px-4 py-3 text-xs text-amber-300/80 leading-relaxed mb-4">
+            <span className="text-amber-500 text-base leading-none mt-0.5 shrink-0">⚠</span>
+            <span>
+              <strong className="text-amber-200">模拟账户 · 非真实资金</strong>
+              <br />
+              初始资金 ¥100,000,000 为模拟虚拟资金。买卖操作仅作 AI 选股策略研究，不涉及真实交易，亦不构成任何投资建议。实际市场收益可能与模拟结果存在重大差异。
+            </span>
+          </div>
+          <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} onRefresh={fetchWatchlist} />
+        </div>
       )}
 
     </div>

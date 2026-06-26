@@ -375,7 +375,7 @@ const enUS: Messages = {
   "ind.stock_col": "Stock",
   "ind.price_col": "Price",
 
-  // New simplified nav
+  // Navigation — v14.0.0-IA three-group structure
   "nav.aiScreener": "AI Screener",
   "nav.aiValueChain": "AI Value Chain",
   "nav.myInvestments": "My Investments",
@@ -383,6 +383,19 @@ const enUS: Messages = {
   "nav.systemStatus": "System Status",
   "nav.systemVerify": "System Verify",
   "nav.admin": "Admin",
+  // group labels
+  "nav.core": "Core",
+  "nav.dataAndLearning": "Data & Learning",
+  "nav.systemMgmt": "System",
+  // new items
+  "nav.cockpit": "Today Overview",
+  "nav.missionControl": "Mission Control",
+  "nav.research": "Research",
+  "nav.learningReport": "Learning Report",
+  "nav.versionCenter": "Versions",
+  "nav.experiments": "Experiments",
+  "nav.syncStatus": "Sync Status",
+  "nav.dataVerify": "Data Verify",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

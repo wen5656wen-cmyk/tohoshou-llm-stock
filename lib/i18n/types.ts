@@ -32,6 +32,18 @@ export type Messages = {
   "nav.systemStatus": string;
   "nav.systemVerify": string;
   "nav.admin": string;
+  // v14.0.0-IA
+  "nav.core": string;
+  "nav.dataAndLearning": string;
+  "nav.systemMgmt": string;
+  "nav.cockpit": string;
+  "nav.missionControl": string;
+  "nav.research": string;
+  "nav.learningReport": string;
+  "nav.versionCenter": string;
+  "nav.experiments": string;
+  "nav.syncStatus": string;
+  "nav.dataVerify": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

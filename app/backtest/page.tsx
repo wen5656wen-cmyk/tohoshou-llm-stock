@@ -453,6 +453,36 @@ function LatestRecCard({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// ── v2.3 types (schema-v2.3, BacktestPositionResult) ─────────────────────────
+
+type McHorizon = {
+  horizon: string;
+  sampleCount: number;
+  filledCount: number;
+  winRate: number | null;
+  avgReturn: number | null;
+  alpha: number | null;
+};
+
+// Calendar days threshold per horizon (same as generate-learning-report.ts)
+const HORIZON_CAL_DAYS_V2: Record<string, number> = {
+  "1d": 4, "3d": 6, "5d": 9, "7d": 12, "10d": 17,
+  "20d": 32, "30d": 46, "60d": 92, "90d": 132,
+};
+const V2_SCHEMA_START = "2026-06-26";
+const ALL_9_HORIZONS = ["1d", "3d", "5d", "7d", "10d", "20d", "30d", "60d", "90d"];
+
+function v2MaturityDate(h: string): string {
+  const d = new Date(V2_SCHEMA_START + "T00:00:00.000Z");
+  d.setUTCDate(d.getUTCDate() + (HORIZON_CAL_DAYS_V2[h] ?? 0));
+  return d.toISOString().slice(0, 10);
+}
+
+function v2DaysUntil(h: string): number {
+  const target = new Date(v2MaturityDate(h) + "T00:00:00.000Z").getTime();
+  return Math.max(0, Math.ceil((target - Date.now()) / 86_400_000));
+}
+
 export default function BacktestPage() {
   const { t } = useI18n();
   const [data,        setData]        = useState<Summary | null>(null);
@@ -465,6 +495,8 @@ export default function BacktestPage() {
   const [granularity, setGranularity] = useState<Granularity>("daily");
   const [healthData,  setHealthData]  = useState<BacktestHealthData | null>(null);
   const [cohortsData, setCohortsData] = useState<CohortsData | null>(null);
+  // v2.3 data from mission-control
+  const [v2Horizons,  setV2Horizons]  = useState<McHorizon[]>([]);
 
   const loadSummary = useCallback(() => {
     setLoading(true);
@@ -496,6 +528,11 @@ export default function BacktestPage() {
     fetch("/api/backtest/cohorts")
       .then((r) => r.ok ? r.json() : null)
       .then((d) => setCohortsData(d ?? null))
+      .catch(() => {});
+    // v2.3 data from mission-control (BacktestPositionResult, schema-v2.3)
+    fetch("/api/admin/mission-control")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.backtest?.horizons) setV2Horizons(d.backtest.horizons); })
       .catch(() => {});
   }, []);
 
@@ -538,6 +575,85 @@ export default function BacktestPage() {
           <span className="flex items-center gap-1.5 text-slate-500"><span className="font-semibold">✗</span>{t("backtest.disclaimer_no_slippage")}</span>
           <span className="flex items-center gap-1.5 text-slate-500"><span className="font-semibold">✗</span>{t("backtest.disclaimer_no_future")}</span>
         </div>
+      </div>
+
+      {/* ── v2.3 Horizon KPI Matrix ─────────────────────────────────────────────── */}
+      <div className="mb-6 bg-[#0f172a] border border-slate-700/40 rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-700/30 flex items-center justify-between">
+          <div>
+            <span className="text-slate-200 text-sm font-semibold">回测矩阵</span>
+            <span className="text-slate-500 text-xs ml-2">v2.3 · BacktestPositionResult · schema-v2.3 · 起点 {V2_SCHEMA_START}</span>
+          </div>
+          <span className="text-slate-600 text-xs">{v2Horizons.length > 0 ? `${v2Horizons.reduce((s, h) => s + h.sampleCount, 0).toLocaleString()} 样本` : "加载中…"}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-700/30">
+                <th className="text-left px-4 py-2.5 text-slate-500 font-medium">Horizon</th>
+                <th className="text-right px-4 py-2.5 text-slate-500 font-medium">状态</th>
+                <th className="text-right px-4 py-2.5 text-slate-500 font-medium">样本 / 已填</th>
+                <th className="text-right px-4 py-2.5 text-slate-500 font-medium">胜率</th>
+                <th className="text-right px-4 py-2.5 text-slate-500 font-medium">平均收益</th>
+                <th className="text-right px-4 py-2.5 text-slate-500 font-medium">Alpha vs TOPIX</th>
+                <th className="text-right px-4 py-2.5 text-slate-500 font-medium">成熟日期</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ALL_9_HORIZONS.map(h => {
+                const row = v2Horizons.find(r => r.horizon === h);
+                const daysLeft = v2DaysUntil(h);
+                const mDate    = v2MaturityDate(h);
+                const filled   = row?.filledCount ?? 0;
+                const sample   = row?.sampleCount ?? 0;
+                const pending  = filled === 0;
+                const status   = filled >= 30 ? "READY" : filled >= 5 ? "PARTIAL" : filled > 0 ? "INSUFFICIENT" : "PENDING";
+                const statusCls = status === "READY" ? "text-emerald-400" : status === "PARTIAL" ? "text-yellow-400" : "text-slate-500";
+                const statusLabel = status === "READY" ? "就绪" : status === "PARTIAL" ? "部分" : status === "INSUFFICIENT" ? "不足" : "待机";
+
+                return (
+                  <tr key={h} className={`border-b border-slate-800/50 ${pending ? "opacity-50" : ""}`}>
+                    <td className="px-4 py-2.5 font-semibold text-slate-200">{h}</td>
+                    <td className={`px-4 py-2.5 text-right font-semibold ${statusCls}`}>{statusLabel}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-400">
+                      {sample > 0 ? `${sample.toLocaleString()} / ${filled.toLocaleString()}` : "—"}
+                    </td>
+                    <td className={`px-4 py-2.5 text-right font-medium ${
+                      pending ? "text-slate-600" : (row?.winRate ?? 0) >= 50 ? "text-emerald-400" : "text-red-400"
+                    }`}>
+                      {pending
+                        ? <span className="text-slate-600">待数据 — {daysLeft > 0 ? `${daysLeft}天后` : "即将就绪"}</span>
+                        : `${row?.winRate?.toFixed(1) ?? "—"}%`}
+                    </td>
+                    <td className={`px-4 py-2.5 text-right font-medium ${
+                      pending ? "text-slate-600" : (row?.avgReturn ?? 0) > 0 ? "text-emerald-400" : "text-red-400"
+                    }`}>
+                      {pending ? "—"
+                        : row?.avgReturn != null ? `${row.avgReturn > 0 ? "+" : ""}${row.avgReturn.toFixed(2)}%` : "—"}
+                    </td>
+                    <td className={`px-4 py-2.5 text-right font-medium ${
+                      pending ? "text-slate-600" : (row?.alpha ?? 0) > 0 ? "text-emerald-400" : "text-red-400"
+                    }`}>
+                      {pending ? "—"
+                        : row?.alpha != null ? `${row.alpha > 0 ? "+" : ""}${row.alpha.toFixed(2)}%` : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-slate-500">{mDate}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-5 py-2.5 border-t border-slate-700/30 text-[10px] text-slate-600">
+          「待数据」= 持仓建仓于 {V2_SCHEMA_START}，等待 DailyPrice 收盘数据填充。胜率/收益仅在 filledCount ≥ 5 时有统计意义。完整 9 Horizon 报告见 <a href="/admin/learning-report" className="text-slate-400 underline">学习报告</a>。
+        </div>
+      </div>
+
+      {/* ── Legacy v1 ──────────────────────────────────────────────────────────── */}
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex-1 h-px bg-slate-800" />
+        <span className="text-[10px] text-slate-600 uppercase tracking-widest">历史回测 v1（BacktestResult · schema-v1.0）</span>
+        <div className="flex-1 h-px bg-slate-800" />
       </div>
 
       {/* ── P4: Summary Cards ─────────────────────────────────────────────────── */}

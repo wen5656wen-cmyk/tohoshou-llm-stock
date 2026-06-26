@@ -5,23 +5,41 @@ import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
 
+type NavItem = { href: string; label: string; icon: string };
+type NavGroup = { labelKey: string; items: NavItem[] };
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
 
-  const mainItems = [
-    { href: "/",          label: t("nav.dashboard"),     icon: "◈" },
-    { href: "/screener",  label: t("nav.aiScreener"),    icon: "✦" },
-    { href: "/ai-theme",  label: t("nav.aiValueChain"),  icon: "⚡" },
-    { href: "/sectors",   label: t("nav.sectors"),       icon: "▤" },
-    { href: "/portfolio", label: t("nav.aiPortfolio"), icon: "◇" },
-    { href: "/news",      label: t("nav.news"),          icon: "◎" },
-    { href: "/backtest",  label: t("nav.backtest"),      icon: "📊" },
-  ];
-
-  const adminItems = [
-    { href: "/sync",          label: t("nav.systemStatus"), icon: "⟳" },
-    { href: "/admin/verify",  label: t("nav.systemVerify"), icon: "✅" },
+  const groups: NavGroup[] = [
+    {
+      labelKey: "nav.core",
+      items: [
+        { href: "/",                   label: t("nav.cockpit"),       icon: "◈" },
+        { href: "/screener",           label: t("nav.aiScreener"),    icon: "✦" },
+        { href: "/portfolio",          label: t("nav.aiPortfolio"),   icon: "◇" },
+        { href: "/backtest",           label: t("nav.backtest"),      icon: "▣" },
+        { href: "/admin/research",     label: t("nav.research"),      icon: "◉" },
+      ],
+    },
+    {
+      labelKey: "nav.dataAndLearning",
+      items: [
+        { href: "/admin/learning-report", label: t("nav.learningReport"), icon: "◐" },
+        { href: "/admin/versions",        label: t("nav.versionCenter"),  icon: "◫" },
+        { href: "/admin/experiments",     label: t("nav.experiments"),    icon: "⬡" },
+        { href: "/news",                  label: t("nav.news"),           icon: "◎" },
+      ],
+    },
+    {
+      labelKey: "nav.systemMgmt",
+      items: [
+        { href: "/admin/mission-control", label: t("nav.missionControl"), icon: "⟁" },
+        { href: "/admin/verify",          label: t("nav.dataVerify"),     icon: "✅" },
+        { href: "/sync",                  label: t("nav.syncStatus"),     icon: "⟳" },
+      ],
+    },
   ];
 
   const isActive = (href: string) =>
@@ -39,48 +57,32 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {mainItems.map(({ href, label, icon }) => (
-          <Link
-            key={href}
-            href={href}
-            prefetch={true}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all active:opacity-70 active:scale-[0.98] ${
-              isActive(href)
-                ? "bg-blue-600/20 text-blue-300 font-medium"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-            }`}
-          >
-            <span className="text-base w-5 text-center">{icon}</span>
-            {label}
-          </Link>
-        ))}
-
-        {/* Admin separator */}
-        <div className="pt-3 pb-1">
-          <div className="flex items-center gap-2 px-3">
-            <div className="flex-1 h-px bg-slate-700/60" />
-            <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">
-              {t("nav.admin")}
-            </span>
-            <div className="flex-1 h-px bg-slate-700/60" />
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+        {groups.map((group) => (
+          <div key={group.labelKey}>
+            <div className="px-3 pb-1">
+              <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
+                {t(group.labelKey as Parameters<typeof t>[0])}
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              {group.items.map(({ href, label, icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  prefetch={true}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all active:opacity-70 active:scale-[0.98] ${
+                    isActive(href)
+                      ? "bg-blue-600/20 text-blue-300 font-medium"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
+                  }`}
+                >
+                  <span className="text-base w-5 text-center">{icon}</span>
+                  {label}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-
-        {adminItems.map(({ href, label, icon }) => (
-          <Link
-            key={href}
-            href={href}
-            prefetch={true}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all active:opacity-70 active:scale-[0.98] ${
-              isActive(href)
-                ? "bg-blue-600/20 text-blue-300 font-medium"
-                : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/30"
-            }`}
-          >
-            <span className="text-base w-5 text-center">{icon}</span>
-            {label}
-          </Link>
         ))}
       </nav>
 
