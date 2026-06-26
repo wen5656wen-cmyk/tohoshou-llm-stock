@@ -2,6 +2,37 @@
 
 ---
 
+## [13.8.0] - 2026-06-26 — Step 6：Research Phase — Analytical Research Platform
+
+### 变更
+
+**Research Dashboard（`/admin/research`）** — 只读，5 tab 研究平台
+
+- **Overview tab（Module 5）**：Data Confidence / feat_* Coverage / Joined Rows / Trading Days 4 指标卡；Top Positive/Negative Factors、Most Predictive/Stable/Weakest Features、系统观察列表
+- **Factors tab（Module 1）**：25 数值特征（tertile TOP 20%/MIDDLE 60%/BOTTOM 20% 的 WinRate/AvgReturn/Alpha/MedianReturn）+ 4 分类特征（每个类别值的统计）+ feat_highRiskFlag 布尔分析；Direction 判定（positive/negative/neutral/unknown）
+- **Correlation tab（Module 2）**：Feature→Return/Alpha/WinRate Pearson r 表；高相关对检测（|r|≥0.70 标为冗余）
+- **Quality tab（Module 3）**：30 特征覆盖率 / Min/Max/Mean/Stddev/Median；Overall Coverage；Unexpected NULL 列表
+- **Readiness tab（Module 4）**：Walk-Forward Readiness 表（9 horizon × 填充率 / 状态 / 预计就绪日）；trading days / available horizons / recDate 范围
+
+**新建 API 路由（只读）**：`GET /api/admin/research?horizon={1d|3d|5d|7d|10d|20d|30d|60d|90d}`
+- Module 1：JS 内存计算 tertile + categorical 统计（避免 300 SQL 调用）
+- Module 2：Pearson 相关矩阵（feature-outcome + feature-feature）
+- Module 3：单条 SQL 聚合（COUNT/MIN/MAX/AVG/STDDEV/PERCENTILE_CONT）
+- Module 4：从 BacktestPositionResult DISTINCT recDate 数量推算就绪状态
+- Module 5：汇总排名生成（top/bottom/stable/weak/predictive）
+
+**当前数据状态（2026-06-26）**：feat_* 覆盖率 0%（预计 2026-06-27 07:30 JST cron 首次写入）；BP 已填充：1d=1069、3d=493（4 个 trading days）；设计支持空数据优雅降级
+
+### 技术细节
+
+- `computeTertiles(rows, key)`: bottom 20% / middle 60% / top 20%；MIN_SAMPLES=10
+- `pearsonCorr(xs, ys)`: 要求 ≥5 样本，无效返回 null
+- `$queryRawUnsafe` 中 feat_* 列名须双引号（PostgreSQL camelCase 列名规则）
+- JoinedRow 类型交叉 Record<string, ...> 保留索引签名，map 后须 as JoinedRow[]
+- 60s 自动刷新；Horizon 选择器；hasData=false 时横幅警告 + 预计就绪日
+
+---
+
 ## [13.7.0] - 2026-06-26 — Step 5：Version & Experiment Platform
 
 ### 变更
