@@ -46,7 +46,7 @@ const HORIZON_CAL_DAYS: Record<Horizon, number> = {
 const PIPELINE_STAGES = [
   "fetch-global-market", "sync-all-prices", "sync-news",
   "compute-scores", "rerank-top500", "create-portfolio-snapshot",
-  "update-backtest", "data-health-guard",
+  "update-ai-signal-stats", "update-backtest", "generate-learning-report", "data-health-guard",
 ] as const;
 
 // Regression thresholds (percentage-point drop in 7d win rate)
@@ -210,7 +210,7 @@ async function buildDataIntegrity(reportDateObj: Date) {
     const total    = Number(row.total);
     const filled   = Number(row.filled);
     const fillable = Number(row.fillable);
-    const fillRate = fillable > 0 ? r2(filled / fillable * 100) ?? 0 : 0;
+    const fillRate = total > 0 ? r2(filled / total * 100) ?? 0 : 0;
     missingByHorizon[row.horizon] = { total, filled, fillable, fillRate };
     totalFillable += fillable;
     totalFilled   += Math.min(filled, fillable);

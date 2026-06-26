@@ -85,12 +85,19 @@ npm run health:data
 # 3. rsync .next/ to production (does NOT overwrite .env)
 sshpass -p 'Wen565656' rsync -avz --exclude node_modules .next/ root@8.209.247.68:/opt/tohoshou/.next/
 
+# 3b. ALWAYS rsync lib/ and scripts/ — cron runs these directly via tsx, NOT via .next/
+#     Skipping this step causes runtime TypeError when lib/ exports are missing on production
+#     (Root cause of v13.7.1 P0: isHardBlockedStock not found in cron 07:30 JST run)
+sshpass -p 'Wen565656' rsync -avz lib/ root@8.209.247.68:/opt/tohoshou/lib/
+sshpass -p 'Wen565656' rsync -avz scripts/ root@8.209.247.68:/opt/tohoshou/scripts/
+
 # 4. If schema changed: push schema + regenerate on server
 sshpass -p 'Wen565656' scp prisma/schema.prisma root@8.209.247.68:/opt/tohoshou/prisma/
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
   "cd /opt/tohoshou && npx prisma db push --accept-data-loss && npx prisma generate"
 
-# 5. Restart
+# 5. Restart ONLY tohoshou-web — NEVER restart tohoshou-cron during 07:30–14:00 JST
+#    (restarting cron during the pipeline kills rerank-top500 mid-run, preventing pipeline-runs.jsonl write)
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-web --update-env"
 
 # 6. Record deployment (MANDATORY — see Rule 7 in docs/CLAUDE_DEVELOPMENT_RULES.md)

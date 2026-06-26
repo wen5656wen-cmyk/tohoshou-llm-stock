@@ -26,8 +26,10 @@ const PIPELINE_STAGES: { stage: string; displayName: string; schedule: string }[
   { stage: "compute-scores",            displayName: "Compute Scores",         schedule: "07:30 JST" },
   { stage: "rerank-top500",             displayName: "Rerank Top500",          schedule: "07:30 JST" },
   { stage: "create-portfolio-snapshot", displayName: "Portfolio Snapshot",     schedule: "07:30 JST" },
-  { stage: "update-backtest",           displayName: "Update Backtest",        schedule: "07:30 JST" },
-  { stage: "data-health-guard",         displayName: "Health Check",           schedule: "07:30 JST" },
+  { stage: "update-ai-signal-stats",   displayName: "AI Signal Stats",        schedule: "07:30 JST" },
+  { stage: "update-backtest",          displayName: "Update Backtest",        schedule: "07:30 JST" },
+  { stage: "generate-learning-report", displayName: "Learning Report",        schedule: "07:30 JST" },
+  { stage: "data-health-guard",        displayName: "Health Check",           schedule: "07:30 JST" },
 ];
 
 const FEAT_FIELDS = [
