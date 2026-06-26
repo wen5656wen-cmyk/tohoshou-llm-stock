@@ -2,6 +2,45 @@
 
 ---
 
+## [14.3.0] - 2026-06-26 — AI 个股详情页升级 Phase 1
+
+### 变更目的
+
+将 `/stocks/[symbol]` 从标签页布局重构为每日交易决策页，单屏滚动展示7个核心模块。
+
+### 新增 `app/api/stocks/[symbol]/ai-decision/route.ts`
+
+- 聚合 Stock + StockScore + GPTScore + DailyRecommendation + Indicators + News 五大数据源
+- 单次请求返回个股详情页所需全部数据，减少瀑布式请求
+- 新增量比计算（latestVolume / avgVolume20d，基于最近20日DailyPrice）
+- `riskLevel` 由 `actionRiskLevel ?? (highRiskFlag ? "HIGH" : "MEDIUM")` 推导（非存储字段）
+
+### 重构 `app/stocks/[symbol]/page.tsx`
+
+移除原有 AI / Chart / Technical / News / Financials 5-tab 布局，改为单列滚动：
+
+1. **Hero**：股票名称、价格、5D收益、AI评级徽章（STRONG_BUY等）、自适应分数圆圈、风险级别、市场排名
+2. **AI 决策总结**（Section 1）：操作建议胶囊、一句话结论、Top-5核心理由、Top-5主要风险（融合 actionReasons + GPT strengths）
+3. **交易计划**（Section 2）：买入区间、止损、目标价1/2、仓位%、盈亏比（自动计算）
+4. **评分构成**（Section 3）：5维度评分条（技术/基本面/资金/情绪/全球）+ 风格标签 + 信心值 + 新闻情绪摘要
+5. **技术状态**（Section 4）：MA趋势徽章、MA5/MA20/MA60网格（含偏离%）、RSI仪表盘+信号、52周位置条、量比
+6. **最新动态**（Section 5）：最新5条新闻（始终加载，非懒加载），情绪标签
+7. **同行比较**（Section 6）：Phase 2 占位符
+8. **价格图表**（可折叠，默认折叠，延迟加载）
+9. **财务数据**（可折叠，默认折叠，延迟加载）
+
+### i18n
+
+新增32个 key 到 zh-CN / ja-JP / en-US 及 types.ts：`ad.*`、`tp.*`、`sb.*`、`ts.*`、`ne.*`、`pc.*`、`detail.*`
+
+### 验证
+
+- build PASS，health CRITICAL=0
+- HTTP 200：7203.T / 6758.T / 9984.T
+- `/api/stocks/7203.T/ai-decision` 返回正确：stock.name="トヨタ自動車"，score/indicators 非空，tradingAction=AVOID，adaptiveScore=37
+
+---
+
 ## [14.2.0] - 2026-06-26 — Dry-Run Pipeline 验证器 + Mission Control Dry-Run 支持
 
 ### 变更目的
