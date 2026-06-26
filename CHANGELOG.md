@@ -2,6 +2,40 @@
 
 ---
 
+## [13.1.0] - 2026-06-26 — 每日自动流水线修复（Cron Pipeline Fix）
+
+### 根因
+
+1. **`lib/safety-rules.ts` 未同步到生产**（v12.4 新增的 `isHardBlockedStock` 函数缺失）→ `compute-scores.ts` 每只股票调用时抛 `TypeError: isHardBlockedStock is not a function` → catch块跳过DB写入 → StockScore当日未更新
+2. **`tohoshou-cron` 运行旧版本**（最近部署只重启了 `tohoshou-web`，未重启 cron）→ `create-portfolio-snapshot.ts` 步骤缺失
+3. **`update-ai-signal-stats.ts` 从未加入 cron 调度**（v12.7.0 引入脚本，但漏加入 cron-scheduler.ts）
+4. **`run()` 超时 10 分钟**太短：株価同期需 ~70min、GPT Rerank 需 ~2.5h → 触发 ETIMEDOUT，health-guard 在 rerank 未完成时就运行 → 误报 CRITICAL DailyRecommendation=0
+
+### 修复内容
+
+**`scripts/cron-scheduler.ts`**：
+- `run()` 新增可选 `timeoutMs` 参数（默认 10min 不变）
+- 株価同期：10min → 2h
+- GPT Rerank：10min → 5h
+- 07:30 流水线新增 `update-ai-signal-stats.ts`（snapshot 之后，health-guard 之前）
+- 注释同步更新
+
+**生产修复步骤**（2026-06-26 手动执行）：
+- `rsync lib/` → 修复 `isHardBlockedStock`
+- `rsync scripts/` → 更新 cron-scheduler.ts
+- 手动补运：compute-scores（✅ 3714只 0错误）→ create-portfolio-snapshot（✅ id=2 10只）→ update-ai-signal-stats（✅ PENDING）
+- `pm2 restart tohoshou-cron` → 新版 cron 生效
+- 后台启动 rerank 补完今日 DailyRecommendation（进行中）
+
+### 验收（2026-06-26 生产）
+- Health: ✅ CRITICAL=0 WARNING=3（既有数据质量警告）
+- StockScore.computedAt: 2026-06-26 ✅
+- DailyRecommendation 今日: 500 条 ✅
+- PortfolioSnapshot 今日: ✅（id=2）
+- AISignalDailyStat tradeDate 2026-06-26: ✅
+
+---
+
 ## [13.0.0] - 2026-06-25 — AI信号统计最终形态（v13.0 Final）
 
 ### 核心改动

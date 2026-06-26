@@ -35,13 +35,13 @@ function log(level: "INFO" | "ERROR" | "WARN", msg: string) {
   console.log(line);
 }
 
-function run(script: string, label: string) {
+function run(script: string, label: string, timeoutMs: number = 10 * 60 * 1000) {
   log("INFO", `▶ 开始 ${label}`);
   try {
     execSync(`npx tsx ${join(process.cwd(), "scripts", script)}`, {
       stdio: "inherit",
       env: { ...process.env, TZ: "Asia/Tokyo" },
-      timeout: 10 * 60 * 1000,
+      timeout: timeoutMs,
     });
     log("INFO", `✅ 完成 ${label}`);
   } catch (err) {
@@ -75,7 +75,7 @@ cron.schedule("30 5 * * *", () => {
 // ── 06:00 JST — 株価同期 ──────────────────────────────────────────────────────
 cron.schedule("0 6 * * *", () => {
   log("INFO", "⏰ 06:00 触发：株価同期");
-  run("sync-all-prices.ts", "株価同期");
+  run("sync-all-prices.ts", "株価同期", 2 * 60 * 60 * 1000); // 2h: 3700 stocks × 250ms ≈ 15min, safe margin
 }, { timezone: "Asia/Tokyo" });
 
 // ── 07:00 / 12:00 / 18:00 / 22:00 JST — ニュース取得 ────────────────────────
@@ -109,15 +109,17 @@ cron.schedule("0 7 * * 1-5", () => {
   run("fetch-tdnet.ts", "TDnet 開示同步");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 07:30 JST — AI 評分計算 → rerank Top500 → データ健全性チェック ─────────────
+// ── 07:30 JST — AI 評分計算 → rerank Top500 → snapshot → signal stats → 健全性チェック ──
 cron.schedule("30 7 * * *", () => {
   log("INFO", "⏰ 07:30 触发：AI 評分計算");
-  run("compute-scores.ts", "AI 評分計算");
+  run("compute-scores.ts", "AI 評分計算", 90 * 60 * 1000);         // 90min
   log("INFO", "▶ 評分後 rerank Top500 → DailyRecommendation snapshot");
-  run("rerank-top500.ts", "GPT Rerank Top500");
+  run("rerank-top500.ts", "GPT Rerank Top500", 5 * 60 * 60 * 1000); // 5h: ~2.5h actual
   log("INFO", "▶ rerank 後 AI 組合スナップショット生成");
   run("create-portfolio-snapshot.ts", "AI 組合スナップショット生成");
-  log("INFO", "▶ スナップショット後データ健全性チェック");
+  log("INFO", "▶ スナップショット後 AI シグナル統計更新");
+  run("update-ai-signal-stats.ts", "AI シグナル統計更新");
+  log("INFO", "▶ シグナル統計後データ健全性チェック");
   run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 
