@@ -40,9 +40,18 @@ type Bar = {
   Vo: number; AdjC: number;
 };
 
+const FETCH_TIMEOUT_MS = 30_000; // 30s per request — prevents indefinite hangs on J-Quants stalls
+
 async function fetchBars(code5: string, from: string, to: string): Promise<Bar[]> {
   const url = `${BASE}/equities/bars/daily?code=${code5}&dateFrom=${from}&dateTo=${to}`;
-  const res = await fetch(url, { headers: { "x-api-key": API_KEY } });
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { "x-api-key": API_KEY }, signal: ac.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`${res.status} ${body.slice(0, 100)}`);
@@ -51,9 +60,17 @@ async function fetchBars(code5: string, from: string, to: string): Promise<Bar[]
   let bars = data.data || [];
   let pk = data.pagination_key;
   while (pk) {
-    const nx = await fetch(`${url}&pagination_key=${encodeURIComponent(pk)}`, {
-      headers: { "x-api-key": API_KEY },
-    });
+    const ac2 = new AbortController();
+    const t2 = setTimeout(() => ac2.abort(), FETCH_TIMEOUT_MS);
+    let nx: Response;
+    try {
+      nx = await fetch(`${url}&pagination_key=${encodeURIComponent(pk)}`, {
+        headers: { "x-api-key": API_KEY },
+        signal: ac2.signal,
+      });
+    } finally {
+      clearTimeout(t2);
+    }
     const nd = await nx.json() as { data: Bar[]; pagination_key?: string };
     bars = bars.concat(nd.data || []);
     pk = nd.pagination_key;
