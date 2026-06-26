@@ -2,6 +2,58 @@
 
 ---
 
+## [15.0.0] - 2026-06-26 — 三策略胜率与回测体系
+
+### 变更目的
+
+统一 DAY（日内）/ SWING（波段）/ POSITION（趋势）三策略体系，实现基于止盈/止损/时间止出场的回测模拟，并将策略分类贯穿仪表盘、回测页、个股详情、学习报告全链路。
+
+### 数据库变更（prisma/schema.prisma）
+
+- `DailyRecommendation` 新增5字段：`strategyType / strategyConfidence / targetReturnPct / stopLossPct / maxHoldingDays`（nullable，老数据为null）
+- 新模型 `StrategyBacktestResult`：per-symbol×per-strategyType 回测结果，exitReason 四态（TAKE_PROFIT/STOP_LOSS/TIME_EXIT/OPEN/INSUFFICIENT_DATA）
+
+### 新增 `lib/strategy/strategy-classifier.ts`
+
+- 纯函数 `classifyStrategy(input: ClassifyInput): StrategyParams`
+- DAY：`tradingAction=BUY_NOW` + technicalScore≥22 + BULLISH maTrend + RSI 50-78
+- POSITION：`fundamentalScore≥19` + POSITION_STYLES + adaptiveScore≥65 + 无BEARISH趋势 + 非高风险
+- SWING：默认兜底
+
+### 新增 `lib/strategy/strategy-performance.ts`
+
+- `aggregateStrategyStats(rows)` 聚合胜率/均收益/Alpha，MIN_SAMPLE=10 保护防止误导性数值
+
+### 新增 `scripts/compute-strategy-backtest.ts`
+
+- `npm run strategy-backtest` / `npm run strategy-backtest:dry`
+- 读取 DailyRecommendation entryDate/entryPrice，模拟止盈/止损/时间止出场
+- 写入 StrategyBacktestResult（upsert，可重复运行）
+
+### 新增 API
+
+- `GET /api/strategy/performance`：全量聚合 + byStrategy
+- `GET /api/backtest/strategy`：回测页专用（含 exitBreakdown）
+- `GET /api/stocks/[symbol]/strategy`：个股策略分类 + 历史胜率
+
+### UI 更新
+
+- **SystemDashboard**：新增「三策略胜率（v15.0）」4列卡片（综合/日内/波段/趋势）
+- **回测页**：三策略回测区块（Tabs：OVERALL/DAY/SWING/POSITION），含KPI/出场方式明细/策略参数，位于v2.3矩阵前
+- **个股详情页**：Strategy推荐条（显示策略类型/置信度/目标收益/止损/历史胜率）位于AI决策与交易计划间
+- **学习报告**：新增 Section 7 策略性能报告（4列卡片）
+
+### scripts/rerank-top500.ts
+
+- Step 8 新增策略分类写入 DailyRecommendation（recPayload 中 strategyType/strategyConfidence/targetReturnPct/stopLossPct/maxHoldingDays）
+- top500 查询新增 `tradingAction: true` 字段
+
+### i18n
+
+- 30 个新 key（zh-CN/ja-JP/en-US）：strategy.*命名空间
+
+---
+
 ## [14.3.0] - 2026-06-26 — AI 个股详情页升级 Phase 1
 
 ### 变更目的
