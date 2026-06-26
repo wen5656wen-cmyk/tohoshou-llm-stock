@@ -2,6 +2,22 @@
 
 ---
 
+## [17.0.0] - 2026-06-26 — AI Portfolio Accuracy Audit
+
+**3 bugs fixed + debug API:**
+- `lib/snapshot-valuation.ts`: DailyPrice查询从"今日"改为"最近5天最新"（J-Quants同步T-1数据，今日查询恒空→STALE→修复为CLOSED）；统一使用adjClose??close
+- `scripts/update-ai-signal-stats.ts`: 改用adjClose??close（原来只用close，对分红股收益计算有偏差）
+- `app/api/portfolio/snapshots POST`: 补充记录benchmarkTopixEntry（修复API创建快照alpha始终null问题；cron脚本已有此逻辑）
+- 新API `GET /api/admin/portfolio-debug`: 每个快照的持仓级别调试信息，含价格来源标签、警告标志、含价格胜率、Alpha
+
+**审计结论:**
+- 收益计算公式正确（(currentPrice-entryPrice)/entryPrice×100）
+- OPEN未结算持仓正确排除（null检查）
+- JPY/RMB无混用问题
+- 3:4:3策略分配为设计缺口（PortfolioSnapshotPosition无strategyType字段，快照按等权Top10创建），已文档化
+
+---
+
 ## [16.0.0] - 2026-06-26 — AI Stock Intelligence（AI 个股决策中心）
 
 10节完整决策页：Hero → AI决策中心 → 交易计划 → 评分+风险(2-col) → 技术(K线展开) → 新闻 → 基本面(折叠) → 历史表现+同行比较(2-col)；新统一端点 `/api/stocks/[symbol]/intelligence`；Skeleton加载；服务端4维度风险推导；按策略胜率历史；行业排名排行榜；29个新i18n key
