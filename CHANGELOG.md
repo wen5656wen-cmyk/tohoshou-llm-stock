@@ -2,6 +2,29 @@
 
 ---
 
+## [14.1.0] - 2026-06-26 — P1-B PM2清理 + P2-006 featureCoverage 区块
+
+### P1-B 修复：删除废弃 PM2 进程
+
+- 生产服务器执行 `pm2 delete tohoshou-ai-daily-pipeline`，进程原为 stopped 状态，双写风险消除
+- `pm2 save` 持久化，PM2 进程表现仅保留 `tohoshou-cron`（online）和 `tohoshou-web`（online）
+
+### P2-006 修复：/admin/learning-report 新增 feat_* 覆盖率区块
+
+| 文件 | 变更 |
+|------|------|
+| `app/admin/learning-report/page.tsx` | 新增 `FeatureCoverage`/`FeatureField` 类型；`DataReadiness` 增加 `featureCoverage` 字段；新增 `featFields` state + `loadFeatFields()` 从 `/api/admin/mission-control` 拉取 per-field 数据；新增 Section 4「特征覆盖率（feat_* · 30 字段）」—— 总行数/字段数/覆盖率/最新日期摘要 + 30字段芯片格 + 0%时 WARNING banner；原 Section 4/5 重编为 5/6 |
+
+### 验收
+
+- `npm run build` ✅ 0 errors
+- `npm run health:data` ✅ CRITICAL=0
+- 生产页面 `/admin/learning-report` HTTP 200 ✅
+- `featureCoverage` 区块展示 WARNING banner（覆盖率 0%，设计预期）✅
+- Deployment #42，commit f735f24 ✅
+
+---
+
 ## [14.0.1] - 2026-06-26 — /admin/learning-report 运行时崩溃修复
 
 **P0 Bug Fix — React "Objects are not valid as a React child"**
