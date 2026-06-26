@@ -171,7 +171,9 @@ cron.schedule("30 7 * * *", () => {
   run("update-ai-signal-stats.ts", "AI シグナル統計更新");
   log("INFO", "▶ シグナル統計後バックテスト更新 (v2.3: 9 horizons → BacktestPositionResult)");
   run("update-backtest.ts", "バックテスト更新", 20 * 60 * 1000);   // 20min max
-  log("INFO", "▶ バックテスト後データ健全性チェック");
+  log("INFO", "▶ バックテスト後 Learning Engine レポート生成");
+  run("generate-learning-report.ts", "Learning Engine レポート生成");
+  log("INFO", "▶ Learning レポート後データ健全性チェック");
   run("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 

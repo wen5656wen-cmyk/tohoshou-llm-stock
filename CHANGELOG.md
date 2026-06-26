@@ -2,6 +2,68 @@
 
 ---
 
+## [13.6.0] - 2026-06-26 — Step 4：Learning Engine — 确定性回测学习报告
+
+### 变更
+
+**新建 `scripts/generate-learning-report.ts`（Learning Engine v1.0）**
+
+7 个独立报告章节，全部确定性（相同 DB 状态 → 相同输出），无随机性，无隐藏状态：
+
+1. **Data Integrity（0-100 分）**：4 分量 × 25 pts
+   - Pipeline Validation：读取 `logs/pipeline-runs.jsonl`，8 stage 状态 × 48h 窗口
+   - Look-ahead Validation：SQL 校验 `entryDate ≥ recDate`、`exitDate ≥ entryDate`、`exitDate ≤ reportDate`（0 violations → 25/25）
+   - Missing Data：fillable 仓位的 fill rate（不足数据 → 不扣分，非 failure）
+   - Data Freshness：DailyPrice/GlobalMarket/BacktestPositionResult 时效性
+
+2. **Data Readiness**：`tradingDays`（DISTINCT recDate）、`availableHorizons`（有 returnPct 的 horizon）、`sampleCounts`/`filledCounts`、feat_* 覆盖率、30d/90d 预期填充日期
+
+3. **Backtest Summary（9 horizons）**：winRate/avgReturn/medianReturn（PostgreSQL PERCENTILE_CONT）/alpha/bestReturn/worstReturn；状态 READY/PARTIAL/INSUFFICIENT/PENDING
+
+4. **Version Comparison**：按 `versionSnapshotId` 分组，`schemaVersion` 不同时标记 `NOT_COMPARABLE`，相同时计算 delta（7d winRate/avgReturn/alpha）
+
+5. **Regression Detection**：PRIMARY metric = 7d win rate；current vs baseline；WARNING = -5pp / CRITICAL = -15pp；schemaVersion 不同 → INSUFFICIENT_DATA
+
+6. **Experiment Summary**：读 ExperimentRegistry，按 status 分组（RUNNING/COMPLETED/PENDING/REJECTED/ADOPTED）
+
+7. **Recommendations（规则引擎）**：系统自动生成观测文字；永不推荐修改权重/prompt/模型；禁止自动优化
+
+**数据源约束（严格）**：仅读 BacktestPositionResult/BacktestResult/VersionSnapshot/ExperimentRegistry/DailyRecommendation(feat_* coverage only)；禁止读 StockScore（可变）
+
+**新建 `GET /api/admin/learning-report`**：
+- `?mode=latest`（默认）→ `reports/latest-learning.json`
+- `?mode=summary` → `reports/learning-summary.json`
+- `?date=YYYY-MM-DD` → `reports/learning-report-YYYYMMDD.json`
+
+**更新 `scripts/cron-scheduler.ts`**：
+- 07:30 链新增 `generate-learning-report.ts`，位置在 `update-backtest` 之后、`data-health-guard` 之前
+
+**新增 npm scripts**：
+- `npm run learning:report` — 生成当日报告
+- `npm run learning:report:dry` — 干运行（输出 JSON，不写文件）
+
+### 确定性保证
+- 全部浮点数：`Math.round(x * 10000) / 10000`（4位精度）
+- 全部数组：固定 ORDER BY 排序
+- 无 Date.now()（用 reportDate 参数）
+- 相同 DB 状态 → 相同输出 → 可任意回溯重建
+
+### 生产验证（2026-06-26）
+- 干运行无错误 ✅
+- 首份报告已生成：`reports/learning-report-2026-06-26.json`
+- integrityScore: 67/100 (WARNING)（pipeline=0 因无日志，lookAhead=25/25，missingData=25/25）
+- 1d win_rate=43.78% / 3d win_rate=42.39% ✅
+- 30d expected fill: 2026-08-09 / 90d expected fill: 2026-11-03 ✅
+- Look-ahead violations: 0 ✅
+- API `GET /api/admin/learning-report?mode=summary` 正常响应 ✅
+
+### 已知限制
+- 仅 1 个 versionSnapshot → regressionStatus=INSUFFICIENT_DATA（需 ≥2 同 schemaVersion 版本）
+- pipeline score=0 直到首次 cron 运行（预计今日 18:00 JST）
+- feature coverage=0 直到明日 07:30 JST
+
+---
+
 ## [13.5.0] - 2026-06-26 — Step 3：Mission Control 运营可视化仪表盘
 
 ### 变更
