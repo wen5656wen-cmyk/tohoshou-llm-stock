@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
   const symbols = eligible.map((r) => r.symbol);
   const budgetPerStock = INITIAL_CAPITAL / eligible.length;
 
-  const [scoreRows, stockRows] = await Promise.all([
+  const [scoreRows, stockRows, topixRow] = await Promise.all([
     prisma.stockScore.findMany({
       where: { symbol: { in: symbols } },
       select: { symbol: true, latestClose: true },
@@ -224,10 +224,16 @@ export async function POST(req: NextRequest) {
       where: { symbol: { in: symbols } },
       select: { symbol: true, name: true, nameZh: true },
     }),
+    prisma.globalMarket.findFirst({
+      where: { topix: { not: null } },
+      orderBy: { date: "desc" },
+      select: { topix: true },
+    }),
   ]);
 
   const scoreMap = new Map(scoreRows.map((s) => [s.symbol, s.latestClose]));
   const stockNameMap = new Map(stockRows.map((s) => [s.symbol, s]));
+  const benchmarkTopixEntry = topixRow?.topix ?? null;
 
   type Pos = {
     symbol: string;
@@ -280,6 +286,7 @@ export async function POST(req: NextRequest) {
       positionCount: positions.length,
       sourceRecommendationDate: targetDate,
       status: "LIVE",
+      benchmarkTopixEntry,
       positions: { create: positions },
     },
     include: { positions: { select: { id: true } } },

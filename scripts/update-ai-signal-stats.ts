@@ -89,9 +89,9 @@ async function computeForDate(dateStr: string, dryRun: boolean): Promise<void> {
   if (pricesReady) {
     const prices = await prisma.dailyPrice.findMany({
       where: { symbol: { in: symbols }, date: dateObj },
-      select: { symbol: true, close: true },
+      select: { symbol: true, close: true, adjClose: true },
     });
-    for (const p of prices) priceMap[p.symbol] = p.close ?? null;
+    for (const p of prices) priceMap[p.symbol] = p.adjClose ?? p.close ?? null;
   }
 
   const now = new Date();

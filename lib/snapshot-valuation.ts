@@ -149,9 +149,10 @@ export async function resolveSnapshotPrices(
     ? await fetchYahooPrices(symbols)
     : new Map<string, number>();
 
-  // Step 2: DB — StockScore + today's DailyPrice (parallel)
-  const todayStr = todayJSTString();
-  const todayDate = new Date(todayStr + "T00:00:00.000Z");
+  // Step 2: DB — StockScore + latest available DailyPrice within 5 trading days (parallel)
+  // J-Quants syncs T-1 data at 06:00 JST, so "today" has no DailyPrice until next morning.
+  // Query the last 5 calendar days to get the most recent closing price available.
+  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 3600 * 1000);
 
   const [scoreRows, dailyRows] = await Promise.all([
     prisma.stockScore.findMany({
@@ -159,7 +160,8 @@ export async function resolveSnapshotPrices(
       select: { symbol: true, latestClose: true },
     }),
     prisma.dailyPrice.findMany({
-      where: { symbol: { in: symbols }, date: todayDate },
+      where: { symbol: { in: symbols }, date: { gte: fiveDaysAgo } },
+      orderBy: { date: "desc" },
       select: { symbol: true, close: true, adjClose: true },
     }),
   ]);
@@ -169,11 +171,13 @@ export async function resolveSnapshotPrices(
       .filter((r) => r.latestClose != null && r.latestClose > 0)
       .map((r) => [r.symbol, r.latestClose as number])
   );
-  const dailyMap = new Map<string, number>(
-    dailyRows
-      .filter((r) => (r.adjClose ?? r.close) != null && (r.adjClose ?? r.close)! > 0)
-      .map((r) => [r.symbol, (r.adjClose ?? r.close) as number])
-  );
+  // Take the most recent row per symbol (already ordered date desc)
+  const dailyMap = new Map<string, number>();
+  for (const row of dailyRows) {
+    if (dailyMap.has(row.symbol)) continue;
+    const px = row.adjClose ?? row.close;
+    if (px != null && px > 0) dailyMap.set(row.symbol, px);
+  }
 
   // Step 3: Resolve each unique symbol, then build position map
   const symbolPrices = new Map<string, PositionPrice>();
