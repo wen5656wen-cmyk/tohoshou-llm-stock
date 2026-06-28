@@ -135,7 +135,7 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
 let syncPricesPromise: Promise<void> | null = null;
 
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-log("INFO", "TOHOSHOU AI 調度器启动（v17.2.0 — async spawn 修复）");
+log("INFO", "TOHOSHOU AI 調度器启动（v17.3.0 — 並行価格同期 + 自動後続流水線）");
 log("INFO", `AI Key：${(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY) ? "✅ 已配置" : "⚠️  未配置"}`);
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
@@ -209,30 +209,31 @@ cron.schedule("0 7 * * 1-5", async () => {
   await runAsync("fetch-tdnet.ts", "TDnet 開示同步");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 07:30 JST — AI 評分計算 → rerank Top500 → snapshot → signal stats → 健全性チェック ──
+// ── 07:30 JST — watchdog：sync-all-prices（Phase1+Phase2）の完了を確認 ──────
+//
+// v17.3.0 以降、sync-all-prices.ts は価格同期（Phase1）の後に
+// compute-scores → rerank → portfolio → learning → health を自動実行（Phase2）。
+// 07:30 slot はその完了を監視するだけ。
+//
+// fallback：cron が 06:00〜07:30 の間に再起動された場合、
+//           syncPricesPromise が null になるので手動で流水線を実行する。
+//
 cron.schedule("30 7 * * *", async () => {
-  log("INFO", "⏰ 07:30 触发：AI 評分流水线");
-
-  // 等待 06:00 启动的价格同步完成（若已完成则立即继续）
   if (syncPricesPromise) {
-    log("INFO", "⏳ 等待 sync-all-prices 子进程完成...");
+    log("INFO", "⏰ 07:30 watchdog：sync-all-prices 全工程（価格+評分）完了待機中...");
     await syncPricesPromise;
-    log("INFO", "✅ sync-all-prices 已完成，启动 AI 評分流水线");
+    log("INFO", "✅ 07:30 確認：全日流水線完了（価格同期 → 評分 → 健全性まで）");
+  } else {
+    // cron が 06:00 以降に再起動された場合の緊急 fallback
+    log("WARN", "⚠️ 07:30 fallback：syncPricesPromise 未設置（cron 再起動？）→ 降級流水線起動");
+    await runAsync("compute-scores.ts",           "AI 評分計算 [fallback]",               90 * 60 * 1000);
+    await runAsync("rerank-top500.ts",            "GPT Rerank Top500 [fallback]",          5 * 60 * 60 * 1000);
+    await runAsync("create-portfolio-snapshot.ts","AI 組合スナップショット生成 [fallback]");
+    await runAsync("update-ai-signal-stats.ts",   "AI シグナル統計更新 [fallback]");
+    await runAsync("update-backtest.ts",          "バックテスト更新 [fallback]",           20 * 60 * 1000);
+    await runAsync("generate-learning-report.ts", "Learning Engine レポート生成 [fallback]");
+    await runAsync("data-health-guard.ts",        "データ健全性チェック [fallback]");
   }
-
-  await runAsync("compute-scores.ts", "AI 評分計算", 90 * 60 * 1000);
-  log("INFO", "▶ 評分後 rerank Top500 → DailyRecommendation snapshot");
-  await runAsync("rerank-top500.ts", "GPT Rerank Top500", 5 * 60 * 60 * 1000);
-  log("INFO", "▶ rerank 後 AI 組合スナップショット生成");
-  await runAsync("create-portfolio-snapshot.ts", "AI 組合スナップショット生成");
-  log("INFO", "▶ スナップショット後 AI シグナル統計更新");
-  await runAsync("update-ai-signal-stats.ts", "AI シグナル統計更新");
-  log("INFO", "▶ シグナル統計後バックテスト更新 (v2.3: 9 horizons → BacktestPositionResult)");
-  await runAsync("update-backtest.ts", "バックテスト更新", 20 * 60 * 1000);
-  log("INFO", "▶ バックテスト後 Learning Engine レポート生成");
-  await runAsync("generate-learning-report.ts", "Learning Engine レポート生成");
-  log("INFO", "▶ Learning レポート後データ健全性チェック");
-  await runAsync("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
@@ -255,5 +256,5 @@ cron.schedule("30 22 * * *", async () => {
 
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
-log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(spawn) / 07:00·12·18·22 ニュース");
+log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(並行spawn+流水線) / 07:00·12·18·22 ニュース");
 log("INFO", "           07:30 AI評分+rerank+健全性 / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");

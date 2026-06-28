@@ -10,6 +10,8 @@
     "cron": "npx tsx scripts/cron-scheduler.ts",
     "sync-meta": "npx tsx scripts/sync-stock-meta.ts",
     "sync-prices-recent": "npx tsx scripts/sync-all-prices.ts",
+    "sync-prices-daily": "npx tsx scripts/sync-all-prices.ts --daily",
+    "sync-prices-retry": "npx tsx scripts/sync-all-prices.ts --retry-failed",
     "compute-scores": "npx tsx scripts/compute-scores.ts",
     "seed-zh-names": "npx tsx scripts/seed-chinese-names.ts",
     "seed-all-zh": "npx tsx scripts/seed-all-chinese-names.ts",
