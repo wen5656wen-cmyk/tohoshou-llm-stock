@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { THEME_META, THEME_ORDER } from "@/app/api/ai-theme/route";
+import { THEME_META, THEME_ORDER } from "@/lib/ai-theme-meta";
 
 export const dynamic = "force-dynamic";
 
