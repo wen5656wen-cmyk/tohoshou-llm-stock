@@ -4,7 +4,7 @@
  *
  * 东京时间（Asia/Tokyo）：
  *   05:30  グローバル市場データ取得
- *   06:00  株価同期
+ *   06:00  株価同期（子进程，不阻塞事件循环）
  *   07:00 / 12:00 / 18:00 / 22:00  新聞取得
  *   07:00  TDnet 開示同期（工作日）
  *   07:30  AI 評分計算 + データ健全性チェック
@@ -16,13 +16,18 @@
  *
  * 启动：npm run cron
  * 生产：pm2 start ecosystem.config.js --only tohoshou-cron
+ *
+ * P1-Cron 修复（v17.2.0）：
+ *   sync-all-prices 改用 spawn() 在子进程执行，不再阻塞主进程事件循环。
+ *   07:30 pipeline 先 await syncPricesPromise，确保价格同步完成后再计算评分。
+ *   所有 cron callback 改为 async + await runAsync()，事件循环永远不被占用。
  */
 
 import "dotenv/config";
 import cron from "node-cron";
 import { appendFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { execSync } from "child_process";
+import { spawn } from "child_process";
 
 const LOG_DIR = join(process.cwd(), "logs");
 const LOG_FILE = join(LOG_DIR, "cron-scheduler.log");
@@ -59,148 +64,196 @@ function writePipelineLog(entry: {
       exitCode:     entry.exitCode,
       errorMessage: entry.errorMessage,
     };
-    if (entry.runType)      obj.runType      = entry.runType;
+    if (entry.runType)       obj.runType       = entry.runType;
     if (entry.pipelineRunId) obj.pipelineRunId = entry.pipelineRunId;
     appendFileSync(PIPELINE_LOG, JSON.stringify(obj) + "\n", "utf-8");
   } catch {}
 }
 
-function run(script: string, label: string, timeoutMs: number = 10 * 60 * 1000) {
-  log("INFO", `▶ 开始 ${label}`);
-  const startedAt = new Date();
-  const stage = script.replace(/\.ts$/, "");
-  let exitCode = 0;
-  let errorMessage: string | null = null;
-  try {
-    execSync(`npx tsx ${join(process.cwd(), "scripts", script)}`, {
-      stdio: "inherit",
-      env: { ...process.env, TZ: "Asia/Tokyo" },
-      timeout: timeoutMs,
+/**
+ * 以子进程运行脚本，不阻塞事件循环。
+ * 返回 Promise，resolve 时脚本已退出（成功或失败均 resolve，不 reject）。
+ */
+function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Promise<void> {
+  return new Promise<void>((resolve) => {
+    log("INFO", `▶ 开始 ${label}`);
+    const startedAt = new Date();
+    const stage = script.replace(/\.ts$/, "");
+
+    const child = spawn(
+      "npx",
+      ["tsx", join(process.cwd(), "scripts", script)],
+      { stdio: "inherit", env: { ...process.env, TZ: "Asia/Tokyo" } },
+    );
+
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      log("ERROR", `⏱ 超时 ${label}（${Math.round(timeoutMs / 60000)}min）`);
+    }, timeoutMs);
+
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      const errorMessage = err.message;
+      log("ERROR", `❌ spawn 错误 ${label}：${errorMessage}`);
+      const finishedAt = new Date();
+      writePipelineLog({
+        stage, startedAt, finishedAt,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        status: "FAILED", exitCode: 1, errorMessage,
+      });
+      resolve();
     });
-    log("INFO", `✅ 完成 ${label}`);
-  } catch (err) {
-    exitCode = 1;
-    errorMessage = (err instanceof Error ? err.message : String(err)).slice(0, 500);
-    log("ERROR", `❌ 失败 ${label}：${errorMessage}`);
-  }
-  const finishedAt = new Date();
-  writePipelineLog({
-    stage, startedAt, finishedAt,
-    durationMs: finishedAt.getTime() - startedAt.getTime(),
-    status: exitCode === 0 ? "SUCCESS" : "FAILED",
-    exitCode, errorMessage,
+
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      const exitCode = code ?? 1;
+      const success = exitCode === 0 && !timedOut;
+      const errorMessage = timedOut
+        ? `Timeout after ${timeoutMs}ms`
+        : exitCode !== 0 ? `Exit code ${exitCode}` : null;
+
+      if (success) {
+        log("INFO", `✅ 完成 ${label}`);
+      } else {
+        log("ERROR", `❌ 失败 ${label}：${errorMessage}`);
+      }
+      const finishedAt = new Date();
+      writePipelineLog({
+        stage, startedAt, finishedAt,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        status: success ? "SUCCESS" : "FAILED",
+        exitCode, errorMessage,
+      });
+      resolve();
+    });
   });
 }
 
+// 跨 cron slot 的价格同步 Promise（06:00 写入，07:30 await）
+let syncPricesPromise: Promise<void> | null = null;
+
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-log("INFO", "TOHOSHOU AI 調度器启动");
+log("INFO", "TOHOSHOU AI 調度器启动（v17.2.0 — async spawn 修复）");
 log("INFO", `AI Key：${(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY) ? "✅ 已配置" : "⚠️  未配置"}`);
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
+// ── 00:00 JST — 日次リセット ─────────────────────────────────────────────────
+// 每天重置 syncPricesPromise，确保 07:30 等待的是当日的同步任务。
+cron.schedule("0 0 * * *", () => {
+  syncPricesPromise = null;
+  log("INFO", "🔄 00:00 日次リセット：syncPricesPromise cleared");
+}, { timezone: "Asia/Tokyo" });
+
 // ── 毎週金曜 16:30 JST — J-Quants 機構資金流向 週次同期 ─────────────────────
-cron.schedule("30 16 * * 5", () => {
+cron.schedule("30 16 * * 5", async () => {
   log("INFO", "⏰ 金曜 16:30 触发：J-Quants 機構資金流向同期");
-  run("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向");
+  await runAsync("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 月曜 07:15 JST — 週初バックアップ取得 ───────────────────────────────────
-cron.schedule("15 7 * * 1", () => {
+cron.schedule("15 7 * * 1", async () => {
   log("INFO", "⏰ 月曜 07:15 触发：J-Quants 機構資金流向（週初バックアップ）");
-  run("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向（バックアップ）");
+  await runAsync("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向（バックアップ）");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 05:30 JST — グローバル市場データ取得 ────────────────────────────────────
-cron.schedule("30 5 * * *", () => {
+cron.schedule("30 5 * * *", async () => {
   log("INFO", "⏰ 05:30 触发：グローバル市場取得");
-  run("fetch-global-market.ts", "グローバル市場取得");
+  await runAsync("fetch-global-market.ts", "グローバル市場取得");
 }, { timezone: "Asia/Tokyo" });
 
-// ── 06:00 JST — 株価同期 ──────────────────────────────────────────────────────
+// ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
+//
+// 关键修复（P1-Cron）：
+//   旧实现用 execSync，会独占 Node.js 事件循环约 1.5h，导致 07:00/07:30 cron slot
+//   无法触发（node-cron 内部 setInterval 被阻塞，打印 "missed execution"）。
+//   新实现用 spawn()：子进程独立运行，主进程事件循环始终保持响应。
+//   Promise 存入 syncPricesPromise，07:30 slot await 它后再启动评分流水线。
+//
 cron.schedule("0 6 * * *", () => {
-  log("INFO", "⏰ 06:00 触发：株価同期");
-  run("sync-all-prices.ts", "株価同期", 2 * 60 * 60 * 1000); // 2h: 3700 stocks × 250ms ≈ 15min, safe margin
+  log("INFO", "⏰ 06:00 触发：株価同期（子进程，不阻塞事件循环）");
+  syncPricesPromise = runAsync(
+    "sync-all-prices.ts",
+    "株価同期",
+    2 * 60 * 60 * 1000, // 2h — 3700 stocks × 250ms ≈ 15min, 含充裕余量
+  );
+  // 不 await — 立即返回，事件循环保持空闲
 }, { timezone: "Asia/Tokyo" });
 
 // ── 07:00 / 12:00 / 18:00 / 22:00 JST — ニュース取得 ────────────────────────
-// P1 fix: call scripts/sync-news.ts directly as a child process instead of HTTP POST.
-// This means pm2 restart of tohoshou-web cannot kill the sync — it runs in its own process.
-function runNewsSync(label: string) {
-  log("INFO", `⏰ ${label} 触发：ニュース取得 (worker mode)`);
-  const startedAt = new Date();
-  let exitCode = 0;
-  let errorMessage: string | null = null;
-  try {
-    execSync(
-      `npx tsx ${join(process.cwd(), "scripts", "sync-news.ts")}`,
-      {
-        stdio: "inherit",
-        env: { ...process.env, TZ: "Asia/Tokyo" },
-        timeout: 30 * 60 * 1000, // 30 min — 200 stocks × 800ms ≈ 2.7 min, generous margin
-      }
-    );
-    log("INFO", `✅ 完成 ${label} ニュース取得`);
-  } catch (err) {
-    exitCode = 1;
-    errorMessage = (err instanceof Error ? err.message : String(err)).slice(0, 500);
-    log("ERROR", `❌ 失败 ${label} ニュース取得：${errorMessage}`);
-  }
-  const finishedAt = new Date();
-  writePipelineLog({
-    stage: "sync-news", startedAt, finishedAt,
-    durationMs: finishedAt.getTime() - startedAt.getTime(),
-    status: exitCode === 0 ? "SUCCESS" : "FAILED",
-    exitCode, errorMessage,
-  });
-}
+cron.schedule("0 7  * * *", async () => {
+  log("INFO", "⏰ 07:00 触发：ニュース取得");
+  await runAsync("sync-news.ts", "ニュース取得", 30 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
 
-cron.schedule("0 7  * * *", () => runNewsSync("07:00"), { timezone: "Asia/Tokyo" });
-cron.schedule("0 12 * * *", () => runNewsSync("12:00"), { timezone: "Asia/Tokyo" });
-cron.schedule("0 18 * * *", () => runNewsSync("18:00"), { timezone: "Asia/Tokyo" });
-cron.schedule("0 22 * * *", () => runNewsSync("22:00"), { timezone: "Asia/Tokyo" });
+cron.schedule("0 12 * * *", async () => {
+  log("INFO", "⏰ 12:00 触发：ニュース取得");
+  await runAsync("sync-news.ts", "ニュース取得", 30 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+cron.schedule("0 18 * * *", async () => {
+  log("INFO", "⏰ 18:00 触发：ニュース取得");
+  await runAsync("sync-news.ts", "ニュース取得", 30 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+cron.schedule("0 22 * * *", async () => {
+  log("INFO", "⏰ 22:00 触发：ニュース取得");
+  await runAsync("sync-news.ts", "ニュース取得", 30 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
 
 // ── 07:00 JST — TDnet 当日开示数据同步（工作日）────────────────────────────
-cron.schedule("0 7 * * 1-5", () => {
+cron.schedule("0 7 * * 1-5", async () => {
   log("INFO", "⏰ 07:00 触发：TDnet 真実開示同期");
-  run("fetch-tdnet.ts", "TDnet 開示同步");
+  await runAsync("fetch-tdnet.ts", "TDnet 開示同步");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 07:30 JST — AI 評分計算 → rerank Top500 → snapshot → signal stats → 健全性チェック ──
-cron.schedule("30 7 * * *", () => {
-  log("INFO", "⏰ 07:30 触发：AI 評分計算");
-  run("compute-scores.ts", "AI 評分計算", 90 * 60 * 1000);         // 90min
+cron.schedule("30 7 * * *", async () => {
+  log("INFO", "⏰ 07:30 触发：AI 評分流水线");
+
+  // 等待 06:00 启动的价格同步完成（若已完成则立即继续）
+  if (syncPricesPromise) {
+    log("INFO", "⏳ 等待 sync-all-prices 子进程完成...");
+    await syncPricesPromise;
+    log("INFO", "✅ sync-all-prices 已完成，启动 AI 評分流水线");
+  }
+
+  await runAsync("compute-scores.ts", "AI 評分計算", 90 * 60 * 1000);
   log("INFO", "▶ 評分後 rerank Top500 → DailyRecommendation snapshot");
-  run("rerank-top500.ts", "GPT Rerank Top500", 5 * 60 * 60 * 1000); // 5h: ~2.5h actual
+  await runAsync("rerank-top500.ts", "GPT Rerank Top500", 5 * 60 * 60 * 1000);
   log("INFO", "▶ rerank 後 AI 組合スナップショット生成");
-  run("create-portfolio-snapshot.ts", "AI 組合スナップショット生成");
+  await runAsync("create-portfolio-snapshot.ts", "AI 組合スナップショット生成");
   log("INFO", "▶ スナップショット後 AI シグナル統計更新");
-  run("update-ai-signal-stats.ts", "AI シグナル統計更新");
+  await runAsync("update-ai-signal-stats.ts", "AI シグナル統計更新");
   log("INFO", "▶ シグナル統計後バックテスト更新 (v2.3: 9 horizons → BacktestPositionResult)");
-  run("update-backtest.ts", "バックテスト更新", 20 * 60 * 1000);   // 20min max
+  await runAsync("update-backtest.ts", "バックテスト更新", 20 * 60 * 1000);
   log("INFO", "▶ バックテスト後 Learning Engine レポート生成");
-  run("generate-learning-report.ts", "Learning Engine レポート生成");
+  await runAsync("generate-learning-report.ts", "Learning Engine レポート生成");
   log("INFO", "▶ Learning レポート後データ健全性チェック");
-  run("data-health-guard.ts", "データ健全性チェック");
+  await runAsync("data-health-guard.ts", "データ健全性チェック");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
-cron.schedule("30 18 * * 1-5", () => {
+cron.schedule("30 18 * * 1-5", async () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");
-  run("fetch-short-selling-ratio.ts", "JPX 空売り比率取得");
+  await runAsync("fetch-short-selling-ratio.ts", "JPX 空売り比率取得");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 22:00 JST — 日終メタ同期 ─────────────────────────────────────────────────
-cron.schedule("0 22 * * *", () => {
+cron.schedule("0 22 * * *", async () => {
   log("INFO", "⏰ 22:00 触发：日終メタ同期");
-  run("sync-stock-meta.ts", "日終メタ同期");
+  await runAsync("sync-stock-meta.ts", "日終メタ同期");
 }, { timezone: "Asia/Tokyo" });
 
 // ── 22:30 JST — 配当历史同步 ─────────────────────────────────────────────────
-cron.schedule("30 22 * * *", () => {
+cron.schedule("30 22 * * *", async () => {
   log("INFO", "⏰ 22:30 触发：配当历史同步");
-  run("fetch-dividend-history.ts", "配当历史同步");
+  await runAsync("fetch-dividend-history.ts", "配当历史同步");
 }, { timezone: "Asia/Tokyo" });
 
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
-log("INFO", "           05:30 市場 / 06:00 価格 / 07:00·12·18·22 ニュース");
+log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(spawn) / 07:00·12·18·22 ニュース");
 log("INFO", "           07:30 AI評分+rerank+健全性 / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
