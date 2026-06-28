@@ -2,6 +2,31 @@
 
 ---
 
+## [17.7.1] - 2026-06-28 — T1: Module Responsibility Baseline 完整版（11节）
+
+### 改动
+
+**更新**
+- `docs/Module-Responsibility.md` — 升级为11节完整规范：
+  1. 文档目的（Why / 适用范围 / 设计原则）
+  2. 12模块唯一职责（含典型示例 PASS/FAIL）
+  3. 模块关系图（用户主流程 / 支撑链 / 运维链 / 版本链 / 数据流向规则）
+  4. 开发前必答四问
+  5. PR 检查模板（含 PASS/FAIL 示例）
+  6. 禁止事项（6条，新增「禁止复制已有页面」）
+  7. 页面生命周期（使用时机 / 频率 / 典型行为）
+  8. 版本验收模板（12项 PASS/FAIL → productionReady 判定）
+  9. 历史违规案例（v17.6.0 全部9处违规完整解析）
+  10. 后续扩展规则（新模块申请流程 / 4个待建模块预定义 / 扩展原则）
+  11. 变更记录
+
+### 验收
+- `npm run build` ✅ PASS
+- docs/Module-Responsibility.md 完整版已建立 ✅
+- 部署记录 #56 ✅
+
+---
+
 ## [17.7.0] - 2026-06-28 — T1: Module Responsibility Baseline 正式建立
 
 ### 改动
