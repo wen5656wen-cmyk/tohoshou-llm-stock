@@ -2,6 +2,23 @@
 
 ---
 
+## [17.7.0] - 2026-06-28 — T1: Module Responsibility Baseline 正式建立
+
+### 改动
+
+**新增**
+- `docs/Module-Responsibility.md` — 项目信息架构规范文档：12模块唯一职责定义、允许/禁止列表、开发前四问、PR检查格式、版本验收模板、历史违规记录
+
+**更新**
+- `CLAUDE.md` — Session Start 必读文件列表新增 `docs/Module-Responsibility.md`
+
+### 验收
+- `npm run build` ✅ PASS
+- Module Responsibility Baseline 正式建立 ✅
+- 部署记录 #55 ✅
+
+---
+
 ## [17.6.0] - 2026-06-28 — P1: 模块职责归位（Dashboard/AI组合/数据校验/同步状态）
 
 ### 改动

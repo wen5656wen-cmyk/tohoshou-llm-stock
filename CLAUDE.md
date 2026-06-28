@@ -18,6 +18,7 @@ CHANGELOG.md
 memory/project_llm_stock.md   (at /Users/wenzhiyong/.claude/projects/-Users-wenzhiyong-llm-stock/memory/project_llm_stock.md)
 package.json
 prisma/schema.prisma
+docs/Module-Responsibility.md  ← 新增，每次开发前必读
 ```
 
 Then output exactly:
