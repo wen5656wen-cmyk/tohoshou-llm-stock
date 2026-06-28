@@ -2,6 +2,53 @@
 
 ---
 
+## [17.3.0] - 2026-06-28 — P1: 並行価格同期 + 自動後続流水線（93min → ~23min）
+
+### 问题
+
+`sync-all-prices.ts` 主循环完全串行，3,717只 × 平均1.5s = **93分钟**。
+v17.2.0 的 spawn 解决了事件循环阻塞，但 07:30 仍需等待 1.5h 的完成信号。
+
+### 修改
+
+**`scripts/sync-all-prices.ts`（完全重写）**
+
+Phase 1 — 并行价格同步:
+- `SYNC_CONCURRENCY` (env, default=5) 并发批处理
+- `SYNC_BATCH_DELAY_MS` (env, default=200ms) 批次间节流
+- Per-stock retry: `MAX_RETRIES=2`（共3次），500ms→1000ms 退避
+- 进度日志: `[N/3717] 50%  ✓ok ✗err ○skip  elapsed:12m  ETA:~11m`（~5% 间隔）
+- 失败文件: `logs/sync-prices-failed-YYYYMMDD.json`
+- `--retry-failed`: 仅重跑前日失败银柄（价格only）
+- `--prices-only`: 跳过下游流水线
+- `--limit=N`: 前 N 只（测试用）
+
+Phase 2 — 自动后续流水线（非 `--prices-only` / `--retry-failed`）:
+- `compute-scores` → `rerank-top500`（compute失败时跳过）→ `portfolio-snapshot` → `ai-signal-stats` → `update-backtest` → `learning-report` → `data-health-guard`
+- 任一阶段失败不阻断后续（部分失败容忍）
+
+**`scripts/cron-scheduler.ts`**
+- `07:30 slot` 降级为 watchdog：等待 syncPricesPromise（含 Phase1+2） → 确认日志
+- fallback：syncPricesPromise 为 null（cron 重启）→ 降级流水线直接执行
+
+**`package.json`**
+- 新增 `sync-prices-daily`（增量 7天 + 流水线）
+- 新增 `sync-prices-retry`（失败重跑）
+
+### 实测数据（生产服务器）
+
+| 样本 | 结果 | 耗时 |
+|------|------|------|
+| `--limit=10` | ✓10 ✗0 ○0 | 4s |
+| `--limit=100` | ✓100 ✗0 ○0 | 37s |
+| 全量推计 (3,717只) | — | **~23分钟** |
+
+旧串行: 93分 → 新并发: ~23分（**4× 提速**，达成 ≤30分钟目标）
+
+commit: `24b3bb1`，deployment #50
+
+---
+
 ## [17.2.0] - 2026-06-28 — P1-Cron Fix: sync-all-prices spawn（事件循环解阻塞）
 
 ### 问题根因
