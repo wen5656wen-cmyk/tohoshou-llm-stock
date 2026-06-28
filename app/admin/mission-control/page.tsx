@@ -103,9 +103,9 @@ const stageColor: Record<StageStatus, string> = {
   NEVER_RUN: "#6b7280",
 };
 const stageLabel: Record<StageStatus, string> = {
-  SUCCESS:   "✅ SUCCESS",
-  FAILED:    "❌ FAILED",
-  NEVER_RUN: "— no data",
+  SUCCESS:   "✅ 成功",
+  FAILED:    "❌ 失败",
+  NEVER_RUN: "— 尚未执行",
 };
 
 const freshnessColor: Record<FreshnessStatus, string> = {
@@ -120,9 +120,9 @@ const gradeColor: Record<Grade, string> = {
   RED:    "#ef4444",
 };
 const gradeLabel: Record<Grade, string> = {
-  GREEN:  "SYSTEM HEALTHY",
-  YELLOW: "ATTENTION NEEDED",
-  RED:    "ACTION REQUIRED",
+  GREEN:  "系统正常",
+  YELLOW: "需要注意",
+  RED:    "需要处理",
 };
 
 const cell: React.CSSProperties = {
@@ -192,7 +192,7 @@ export default function MissionControlPage() {
     return () => clearInterval(id);
   }, [load, showDryRun]);
 
-  if (loading) return <div style={{ color: "#888", padding: 24, fontFamily: "monospace" }}>Loading mission control…</div>;
+  if (loading) return <div style={{ color: "#888", padding: 24, fontFamily: "monospace" }}>加载中…</div>;
   if (error)   return <div style={{ color: "#ef4444", padding: 24, fontFamily: "monospace" }}>Error: {error}</div>;
   if (!data)   return null;
 
@@ -218,10 +218,10 @@ export default function MissionControlPage() {
           </span>
         </div>
         <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 11, color: "#555" }}>
-          <div>TOHOSHOU AI Mission Control</div>
-          <div>Last refresh: {lastRefresh?.toLocaleTimeString("ja-JP")} · auto every 60s</div>
+          <div>TOHOSHOU AI 控制中心</div>
+          <div>最后刷新：{lastRefresh?.toLocaleTimeString("zh-CN")} · 每60秒自动刷新</div>
           <button onClick={() => load(showDryRun)} style={{ marginTop: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: 3 }}>
-            ↺ Refresh
+            ↺ 刷新
           </button>
         </div>
       </div>
@@ -229,10 +229,10 @@ export default function MissionControlPage() {
       {/* ── Score breakdown ── */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, fontSize: 12 }}>
         {[
-          ["Data Freshness",   healthScore.components.dataFreshness,   25],
-          ["Pipeline Status",  healthScore.components.pipelineStatus,  25],
-          ["Feature Coverage", healthScore.components.featureCoverage, 25],
-          ["Health Guard",     healthScore.components.healthGuard,     25],
+          ["数据新鲜度",   healthScore.components.dataFreshness,   25],
+          ["流水线状态",  healthScore.components.pipelineStatus,  25],
+          ["功能覆盖率", healthScore.components.featureCoverage, 25],
+          ["数据校验",     healthScore.components.healthGuard,     25],
         ].map(([label, score, max]) => (
           <div key={String(label)} style={{ flex: 1, background: "#111", border: "1px solid #222", borderRadius: 4, padding: "8px 10px" }}>
             <div style={{ color: "#666", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
@@ -250,9 +250,9 @@ export default function MissionControlPage() {
         <div>
           <div style={{ ...sectionTitle, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>
-              Pipeline Status
+              流水线状态
               <span style={{ color: "#444", fontWeight: 400 }}>
-                {" "}({pipeline.productionRuns} prod · {pipeline.dryRunCount} dry-run)
+                {" "}({pipeline.productionRuns} 生产 · {pipeline.dryRunCount} 试运行)
               </span>
             </span>
             {pipeline.dryRunCount > 0 && (
@@ -271,18 +271,18 @@ export default function MissionControlPage() {
                   letterSpacing: "0.05em",
                 }}
               >
-                {showDryRun ? "✓ Dry-Run ON" : "Show Dry-Run"}
+                {showDryRun ? "✓ 试运行已开" : "显示试运行"}
               </button>
             )}
           </div>
           <table style={tableStyle}>
             <thead>
               <tr>
-                <th style={th}>Stage</th>
-                <th style={th}>Schedule</th>
-                <th style={th}>Status</th>
-                <th style={th}>Duration</th>
-                <th style={th}>Last Run (JST)</th>
+                <th style={th}>步骤</th>
+                <th style={th}>定时</th>
+                <th style={th}>状态</th>
+                <th style={th}>时长</th>
+                <th style={th}>最后运行 (JST)</th>
               </tr>
             </thead>
             <tbody>
@@ -323,20 +323,20 @@ export default function MissionControlPage() {
           </table>
           {showDryRun && pipeline.dryRunCount > 0 && (
             <div style={{ marginTop: 6, fontSize: 10, color: "#555", padding: "4px 6px", background: "#0d1a0d", border: "1px solid #166534", borderRadius: 3 }}>
-              ℹ Dry-run entries are shown for display verification only — they do NOT affect the Health Score.
+              ℹ 试运行条目仅用于显示验证，不影响健康度评分。
             </div>
           )}
         </div>
 
         {/* Data Freshness */}
         <div>
-          <div style={sectionTitle}>Data Freshness</div>
+          <div style={sectionTitle}>数据新鲜度</div>
           <table style={tableStyle}>
             <thead>
               <tr>
-                <th style={th}>Source</th>
-                <th style={th}>Latest Date</th>
-                <th style={th}>Age</th>
+                <th style={th}>来源</th>
+                <th style={th}>最新日期</th>
+                <th style={th}>时效</th>
               </tr>
             </thead>
             <tbody>
@@ -344,17 +344,17 @@ export default function MissionControlPage() {
                 <tr key={s.name}>
                   <td style={cell}>{s.name}</td>
                   <td style={{ ...cell, color: s.latestDate ? "#e5e5e5" : "#555" }}>
-                    {s.latestDate ?? "no data"}
+                    {s.latestDate ?? "无数据"}
                   </td>
                   <td style={{ ...cell, color: freshnessColor[s.status] }}>
-                    {s.days === null ? "—" : s.days === 0 ? "today" : `${s.days}d ago`}
+                    {s.days === null ? "—" : s.days === 0 ? "今日" : `${s.days}天前`}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div style={{ marginTop: 8, fontSize: 11, color: "#555" }}>
-            Latest DR: {freshness.latestRecCount} rows
+            最新推荐：{freshness.latestRecCount} 条
           </div>
         </div>
       </div>
@@ -365,35 +365,35 @@ export default function MissionControlPage() {
         {/* Feature Coverage */}
         <div>
           <div style={sectionTitle}>
-            Feature Coverage (feat_* — Step 2 Health)
+            功能特征覆盖率 (feat_*)
           </div>
           <div style={{ background: "#111", border: "1px solid #222", borderRadius: 4, padding: "10px 12px" }}>
             <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
               <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>Total Rows</div>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>总行数</div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{featureCoverage.totalRows.toLocaleString()}</div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>Coverage</div>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>覆盖率</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: featureCoverage.overallCoveragePct >= 80 ? "#22c55e" : featureCoverage.overallCoveragePct >= 30 ? "#f59e0b" : "#ef4444" }}>
                   {featureCoverage.overallCoveragePct}%
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>Date</div>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>日期</div>
                 <div style={{ fontSize: 13, color: "#888" }}>{featureCoverage.latestDate ?? "—"}</div>
               </div>
             </div>
 
             {featureCoverage.overallCoveragePct === 0 && featureCoverage.totalRows > 0 && (
               <div style={{ padding: "6px 8px", background: "#1a0a00", border: "1px solid #5a3a00", borderRadius: 3, fontSize: 11, color: "#f59e0b", marginBottom: 8 }}>
-                ⚠ feat_* = 0% — rows were created before Step 2 deployment. First populated batch: next cron run.
+                ⚠ feat_* = 0% — 当前行在 feat_* 部署前创建，首批数据将于下次 cron 运行后生成。
               </div>
             )}
 
             {featureCoverage.topMissing.length > 0 && featureCoverage.overallCoveragePct > 0 && (
               <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>Top Missing Fields</div>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>缺失字段</div>
                 {featureCoverage.topMissing.map(f => (
                   <div key={f} style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>{f}</div>
                 ))}
@@ -403,7 +403,7 @@ export default function MissionControlPage() {
             {/* Coverage bar per field */}
             {featureCoverage.overallCoveragePct > 0 && featureCoverage.fields.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 6 }}>Field Coverage</div>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 6 }}>字段覆盖</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
                   {featureCoverage.fields.map(f => (
                     <div key={f.field} style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}>
@@ -422,7 +422,7 @@ export default function MissionControlPage() {
 
         {/* Version Status */}
         <div>
-          <div style={sectionTitle}>Version Status</div>
+          <div style={sectionTitle}>版本状态</div>
           <div style={{ background: "#111", border: "1px solid #222", borderRadius: 4, padding: "10px 12px" }}>
             {[
               ["schemaVersion",     version.schemaVersion],
@@ -437,14 +437,14 @@ export default function MissionControlPage() {
               </div>
             ))}
             <div style={{ marginTop: 4 }}>
-              <span style={{ color: "#555", fontSize: 12 }}>Experiment</span>
+              <span style={{ color: "#555", fontSize: 12 }}>实验</span>
               <div style={{ color: version.activeExperiment ? "#f59e0b" : "#444", fontSize: 11, marginTop: 2 }}>
-                {version.activeExperiment ?? "none active"}
+                {version.activeExperiment ?? "无进行中"}
               </div>
             </div>
 
             <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #1a1a1a" }}>
-              <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>Health Guard</div>
+              <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>数据校验</div>
               <div style={{ fontSize: 12 }}>
                 <span style={{
                   color: healthScore.detail.healthGuardStatus === "PASS" ? "#22c55e"
@@ -468,18 +468,18 @@ export default function MissionControlPage() {
       {/* ── Backtest Summary ── */}
       <div>
         <div style={sectionTitle}>
-          Backtest Summary (BacktestPositionResult v2.3)
-          {backtest.lastComputedAt && <span style={{ color: "#444", fontWeight: 400 }}> · last computed {backtest.lastComputedAt}</span>}
+          回测摘要
+          {backtest.lastComputedAt && <span style={{ color: "#444", fontWeight: 400 }}> · 最后计算 {backtest.lastComputedAt}</span>}
         </div>
         <table style={tableStyle}>
           <thead>
             <tr>
-              <th style={th}>Horizon</th>
-              <th style={th}>Samples</th>
-              <th style={th}>Filled</th>
-              <th style={th}>Win Rate</th>
-              <th style={th}>Avg Return</th>
-              <th style={th}>Alpha vs TOPIX</th>
+              <th style={th}>周期</th>
+              <th style={th}>样本数</th>
+              <th style={th}>已填充</th>
+              <th style={th}>胜率</th>
+              <th style={th}>平均收益</th>
+              <th style={th}>超额收益</th>
             </tr>
           </thead>
           <tbody>
@@ -502,7 +502,7 @@ export default function MissionControlPage() {
             {backtest.horizons.every(h => h.sampleCount === 0) && (
               <tr>
                 <td colSpan={6} style={{ ...cell, color: "#555", textAlign: "center" }}>
-                  No backtest data yet — runs automatically after market close
+                  暂无回测数据 — 将在收盘后自动生成
                 </td>
               </tr>
             )}
@@ -511,7 +511,7 @@ export default function MissionControlPage() {
       </div>
 
       <div style={{ marginTop: 16, fontSize: 10, color: "#333", textAlign: "right" }}>
-        Computed at {data.computedAt}
+        计算于 {data.computedAt}
       </div>
     </div>
   );

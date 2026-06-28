@@ -277,7 +277,7 @@ export default function LearningReportPage() {
             fontSize: 12,
             fontWeight: 700,
           }}>
-            {dataIntegrity.grade}
+            {{ GREEN: "良好", YELLOW: "注意", WARNING: "注意", RED: "异常", CRITICAL: "严重异常" }[dataIntegrity.grade] ?? dataIntegrity.grade}
           </div>
           {Object.entries(dataIntegrity.components ?? {}).map(([k, v]) => (
             <div key={k} style={{ fontSize: 12, color: "#64748b" }}>
@@ -298,7 +298,7 @@ export default function LearningReportPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
-                <th style={th}>Horizon</th>
+                <th style={th}>周期</th>
                 <th style={{ ...th, textAlign: "right" }}>状态</th>
                 <th style={{ ...th, textAlign: "right" }}>样本</th>
                 <th style={{ ...th, textAlign: "right" }}>已填</th>
@@ -493,11 +493,11 @@ export default function LearningReportPage() {
             fontSize: 12,
             fontWeight: 700,
           }}>
-            {regressionDetection.status}
+            {{ OK: "正常", WARNING: "注意", CRITICAL: "严重", INSUFFICIENT_DATA: "数据不足" }[regressionDetection.status] ?? regressionDetection.status}
           </span>
           {regressionDetection.delta !== null && (
             <span style={{ fontSize: 13, color: "#94a3b8" }}>
-              7d WinRate delta: {regressionDetection.delta > 0 ? "+" : ""}{regressionDetection.delta?.toFixed(1)}pp
+              7日胜率变化：{regressionDetection.delta > 0 ? "+" : ""}{regressionDetection.delta?.toFixed(1)}pp
             </span>
           )}
           {regressionDetection.status === "INSUFFICIENT_DATA" && (

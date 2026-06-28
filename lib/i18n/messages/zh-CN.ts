@@ -26,8 +26,8 @@ const zhCN: Messages = {
   "nav.select": "筛选",
 
   // Ratings
-  "rating.STRONG_BUY": "强烈买入",
-  "rating.BUY": "买入",
+  "rating.STRONG_BUY": "强烈推荐",
+  "rating.BUY": "推荐",
   "rating.HOLD": "持有",
   "rating.WATCH": "观察",
   "rating.AVOID": "回避",
@@ -180,9 +180,9 @@ const zhCN: Messages = {
   "health.blocked": "AI推荐已暂停",
   "health.critical": "严重异常",
   "health.warning": "警告",
-  "health.pass": "通过",
+  "health.pass": "正常",
   "health.last_checked": "最后检查",
-  "health.never_run": "从未运行",
+  "health.never_run": "尚未执行",
   "health.requires_review": "需人工复查",
 
   // Indicators
@@ -813,8 +813,8 @@ const zhCN: Messages = {
   "portfolio.snap_intraday_warning": "盘中估值，非最终收益",
   // AI signal stats
   "portfolio.signal_title": "AI信号胜率",
-  "portfolio.signal_strong_buy": "强烈买入",
-  "portfolio.signal_buy": "买入",
+  "portfolio.signal_strong_buy": "强烈推荐",
+  "portfolio.signal_buy": "推荐",
   "portfolio.signal_all_buy": "合计",
   "portfolio.signal_rec_count": "推荐数",
   "portfolio.signal_today_win": "当天胜率",

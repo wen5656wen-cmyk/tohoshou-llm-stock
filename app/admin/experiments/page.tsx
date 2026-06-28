@@ -42,11 +42,11 @@ const S = {
 };
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
-  RUNNING:   { color: S.green,  label: "RUNNING"   },
-  PLANNED:   { color: S.blue,   label: "PLANNED"   },
-  COMPLETED: { color: S.teal,   label: "COMPLETED" },
-  ADOPTED:   { color: S.purple, label: "ADOPTED"   },
-  ABANDONED: { color: S.muted,  label: "ABANDONED" },
+  RUNNING:   { color: S.green,  label: "进行中"   },
+  PLANNED:   { color: S.blue,   label: "计划中"   },
+  COMPLETED: { color: S.teal,   label: "已完成" },
+  ADOPTED:   { color: S.purple, label: "已采纳"   },
+  ABANDONED: { color: S.muted,  label: "已废弃" },
 };
 
 const DECISION_CONFIG: Record<string, { color: string }> = {
@@ -64,10 +64,16 @@ function statusBadge(status: string) {
   );
 }
 
+const DECISION_LABEL: Record<string, string> = {
+  ADOPTED: "已采纳",
+  REJECTED: "已拒绝",
+  PENDING: "待定",
+};
+
 function decisionBadge(decision: string | null) {
   if (!decision) return <span style={{ color: S.muted }}>—</span>;
   const cfg = DECISION_CONFIG[decision] ?? { color: S.muted };
-  return <span style={{ color: cfg.color, fontWeight: 700 }}>{decision}</span>;
+  return <span style={{ color: cfg.color, fontWeight: 700 }}>{DECISION_LABEL[decision] ?? decision}</span>;
 }
 
 function deltaCell(v: number | null, suffix = "pp") {
@@ -116,24 +122,24 @@ export default function ExperimentsPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Experiment Dashboard</h1>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>实验管理</h1>
           <div style={{ color: S.muted, fontSize: 11, marginTop: 2 }}>
-            Read-only · {total} experiments · refreshed {now}
+            只读 · {total} 个实验 · 刷新于 {now}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <a href="/admin/versions" style={{ color: S.blue, fontSize: 11, textDecoration: "none" }}>
-            Version Center →
+            版本中心 →
           </a>
           <a href="/admin/mission-control" style={{ color: S.blue, fontSize: 11, textDecoration: "none" }}>
-            ← Mission Control
+            ← 控制中心
           </a>
         </div>
       </div>
 
       {error && (
         <div style={{ background: "#1a0000", border: `1px solid ${S.red}`, padding: 8, marginBottom: 12, color: S.red, fontSize: 12 }}>
-          Error: {error}
+          错误：{error}
         </div>
       )}
 
@@ -163,7 +169,7 @@ export default function ExperimentsPage() {
             onClick={() => setActiveStatus(null)}
             style={{ background: "transparent", border: `1px solid ${S.border}`, color: S.muted, padding: "10px 16px", cursor: "pointer", ...mono, borderRadius: 4 }}
           >
-            Show All
+            显示全部
           </button>
         )}
       </div>
@@ -172,11 +178,11 @@ export default function ExperimentsPage() {
       {experiments.length === 0 && (
         <div style={{ background: S.surface, border: `1px solid ${S.border}`, padding: 32, textAlign: "center", color: S.muted }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🧪</div>
-          <div style={{ fontSize: 14 }}>No experiments registered yet.</div>
+          <div style={{ fontSize: 14 }}>暂无实验记录。</div>
           <div style={{ fontSize: 11, marginTop: 8 }}>
-            To register an experiment, insert a row into <code>experiment_registries</code> via Prisma Studio or the CLI.
+            要注册实验，请通过 Prisma Studio 或 CLI 向 <code>experiment_registries</code> 插入一行。
             <br />
-            Always register experiments <strong>before</strong> the first cron run under the new version.
+            始终在新版本下首次 cron 运行<strong>之前</strong>注册实验。
           </div>
         </div>
       )}
@@ -186,7 +192,7 @@ export default function ExperimentsPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
           <thead>
             <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-              {["Status","ID","VersionSnapshot","Start","End","Hypothesis","Target Metric","Decision","7d ΔWinRate","30d ΔWinRate","Δ Alpha","Decision Date","Notes"].map((h) => (
+              {["状态","ID","版本快照","开始","结束","假设","目标指标","决定","7日Δ胜率","30日Δ胜率","Δ超额","决定日期","备注"].map((h) => (
                 <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -198,7 +204,7 @@ export default function ExperimentsPage() {
                 <td style={{ ...cell, color: S.blue, whiteSpace: "nowrap" }}>{ex.id}</td>
                 <td style={{ ...cell, color: S.muted, whiteSpace: "nowrap" }}>{ex.versionSnapshotId ?? "—"}</td>
                 <td style={{ ...cell, whiteSpace: "nowrap" }}>{ex.startDate}</td>
-                <td style={{ ...cell, color: S.muted, whiteSpace: "nowrap" }}>{ex.endDate ?? "ongoing"}</td>
+                <td style={{ ...cell, color: S.muted, whiteSpace: "nowrap" }}>{ex.endDate ?? "进行中"}</td>
                 <td style={{ ...cell, maxWidth: 240, fontSize: 11, color: S.text, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {ex.hypothesis}
                 </td>
@@ -222,23 +228,22 @@ export default function ExperimentsPage() {
 
       {/* Usage note */}
       <div style={{ marginTop: 24, background: S.surface, border: `1px solid ${S.border}`, padding: 12, fontSize: 11, color: S.muted }}>
-        <strong style={{ color: S.text }}>How to register an experiment:</strong>
+        <strong style={{ color: S.text }}>如何注册实验：</strong>
         <br />
-        1. Before changing any model logic, run: <code style={{ background: "#222", padding: "0 4px" }}>npx prisma studio</code>
+        1. 修改模型逻辑前，先运行：<code style={{ background: "#222", padding: "0 4px" }}>npx prisma studio</code>
         <br />
-        2. Insert a row in <code>experiment_registries</code> with status=PLANNED and your hypothesis.
+        2. 在 <code>experiment_registries</code> 中插入一行，status=PLANNED 并填写假设。
         <br />
-        3. Link it to the current VersionSnapshot via <code>versionSnapshotId</code>.
+        3. 通过 <code>versionSnapshotId</code> 关联到当前 VersionSnapshot。
         <br />
-        4. After the experiment ends, update status + decision + result metrics.
+        4. 实验结束后，更新 status + decision + 结果指标。
         <br />
         <br />
-        <strong style={{ color: S.text }}>Read-only dashboard</strong> — no editing from UI by design.
-        All experiment mutations happen via Prisma Studio or database CLI.
+        <strong style={{ color: S.text }}>只读面板</strong> — UI 不支持编辑，所有实验变更通过 Prisma Studio 或数据库 CLI 操作。
       </div>
 
       <div style={{ marginTop: 16, fontSize: 10, color: S.muted, borderTop: `1px solid ${S.border}`, paddingTop: 8 }}>
-        Experiment Dashboard · auto-refreshes every 60s · read-only
+        实验管理 · 每60秒自动刷新 · 只读
       </div>
     </div>
   );

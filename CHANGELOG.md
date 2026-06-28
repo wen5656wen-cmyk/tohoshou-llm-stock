@@ -2,6 +2,31 @@
 
 ---
 
+## [17.4.0] - 2026-06-28 — P1: 全站汉化与投资人语言优化
+
+### 改动
+
+后台所有管理页面的英文/开发术语全部替换为投资人友好的中文：
+
+- **`lib/i18n/messages/zh-CN.ts`** — `STRONG_BUY→强烈推荐`、`BUY→推荐`、`health.pass→正常`、`health.never_run→尚未执行`
+- **`components/AISafetyPanel.tsx`** — STATUS_CFG 状态标签汉化（已启用/已禁用/部分启用）
+- **`components/LanguageSwitcher.tsx`** — "English" → "英文"
+- **`app/SystemDashboard.tsx`** — 所有 Pill 标签、Pipeline/Mission Control/STRONG_BUY/BUY 等英文术语全部汉化
+- **`app/admin/mission-control/page.tsx`** — "Mission Control" → "控制中心"；Pipeline→"流水线"；Stage→"步骤"；所有状态/列头/空态/刷新信息全部汉化
+- **`app/admin/versions/page.tsx`** — "Version Center"→"版本中心"；Role badge/Tab标签/表格列头/Integrity说明全部汉化；"← Mission Control"→"← 控制中心"
+- **`app/admin/experiments/page.tsx`** — STATUS/DECISION 标签、表格列头、说明文字全部汉化；"Experiment Dashboard"→"实验管理"
+- **`app/admin/learning-report/page.tsx`** — Grade 枚举映射（GREEN→良好/YELLOW→注意/RED→异常）；Regression status 映射（OK→正常/WARNING→注意/CRITICAL→严重/INSUFFICIENT_DATA→数据不足）；"Horizon"→"周期"；"7d WinRate delta"→"7日胜率变化"
+
+### 验收标准
+
+- `npm run build` ✅ PASS
+- `criticalCount: 0` ✅（生产健康检查）
+- 所有管理页面不再出现英文开发术语
+- 股票代码/技术缩写（RSI、MACD、AI、J-Quants）保持英文不变
+- 无功能性改动
+
+---
+
 ## [17.3.0] - 2026-06-28 — P1: 並行価格同期 + 自動後続流水線（93min → ~23min）
 
 ### 问题

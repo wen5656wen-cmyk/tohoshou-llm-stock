@@ -6,7 +6,7 @@ import type { Lang } from "@/lib/i18n";
 const OPTIONS: { value: Lang; short: string; full: string }[] = [
   { value: "zh-CN", short: "中", full: "中文" },
   { value: "ja-JP", short: "日", full: "日本語" },
-  { value: "en-US", short: "EN", full: "English" },
+  { value: "en-US", short: "EN", full: "英文" },
 ];
 
 export default function LanguageSwitcher({ compact = false }: { compact?: boolean }) {

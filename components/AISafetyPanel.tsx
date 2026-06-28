@@ -53,9 +53,9 @@ const RULES: RuleRow[] = [
 ];
 
 const STATUS_CFG = {
-  enabled:  { dot: "bg-green-400",  label: "Enabled",  cls: "text-green-700" },
-  disabled: { dot: "bg-slate-300",  label: "Disabled", cls: "text-slate-500" },
-  partial:  { dot: "bg-yellow-400", label: "Partial",  cls: "text-yellow-700" },
+  enabled:  { dot: "bg-green-400",  label: "已启用",  cls: "text-green-700" },
+  disabled: { dot: "bg-slate-300",  label: "已禁用", cls: "text-slate-500" },
+  partial:  { dot: "bg-yellow-400", label: "部分启用",  cls: "text-yellow-700" },
 };
 
 export function AISafetyPanel() {

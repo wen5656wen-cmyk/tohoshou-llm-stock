@@ -229,13 +229,13 @@ export function SystemDashboard({
   }
   const neverRunStages = pipeline?.stages.filter(s => s.status === "NEVER_RUN") ?? [];
   if (neverRunStages.length > 0) {
-    alerts.push({ level: "warn", msg: `Pipeline ${neverRunStages.length} 个 Stage 尚未运行（等待 07:30 JST cron）` });
+    alerts.push({ level: "warn", msg: `流水线 ${neverRunStages.length} 个步骤尚未运行（等待 07:30 JST cron）` });
   }
   if (coverage && coverage.overallCoveragePct === 0 && coverage.totalRows > 0) {
     alerts.push({ level: "warn", msg: `feat_* 覆盖 0%，首批数据预计 2026-06-27 07:30 JST 后产生` });
   }
   if (health && health.score < 50) {
-    alerts.push({ level: "warn", msg: `Health Score 偏低（${health.score}/100）— 查看 Mission Control` });
+    alerts.push({ level: "warn", msg: `系统健康度偏低（${health.score}/100）— 查看控制中心` });
   }
 
   const DISPLAY_HORIZONS = ["1d", "3d", "7d", "30d", "90d"];
@@ -247,20 +247,20 @@ export function SystemDashboard({
         <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{t("nav.cockpit")}</div>
         <div style={{ fontSize: 11, color: "#334155" }}>
           {lastRefresh ? `${lastRefresh.toLocaleTimeString("zh-CN")} 更新` : "加载中…"}
-          {mcError && <span style={{ color: "#f87171", marginLeft: 8 }}>⚠ 无法连接 Mission Control</span>}
+          {mcError && <span style={{ color: "#f87171", marginLeft: 8 }}>⚠ 无法连接控制中心</span>}
         </div>
       </div>
 
       {/* ── Status bar ───────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
         <Pill
-          label="Health Score"
-          value={health ? `${health.score}/100 ${health.grade}` : "—"}
+          label="系统健康度"
+          value={health ? `${health.score}/100 ${{ GREEN: "良好", YELLOW: "注意", RED: "异常" }[health.grade] ?? health.grade}` : "—"}
           color={health ? gradeColor(health.grade) : "#475569"}
           href="/admin/mission-control"
         />
         <Pill
-          label="Pipeline"
+          label="数据流水线"
           value={
             !pipeline ? "—"
             : neverRunStages.length === 0 ? "全部运行 ✓"
@@ -270,13 +270,13 @@ export function SystemDashboard({
           href="/admin/mission-control"
         />
         <Pill
-          label="VersionSnapshot"
+          label="系统版本"
           value={version?.versionSnapshotId ?? "—"}
           color="#94a3b8"
           href="/admin/versions"
         />
         <Pill
-          label="feat_* Coverage"
+          label="功能覆盖率"
           value={coverage ? `${coverage.overallCoveragePct}%` : "—"}
           color={!coverage ? "#475569" : coverage.overallCoveragePct >= 80 ? "#4ade80" : coverage.overallCoveragePct > 0 ? "#fbbf24" : "#f87171"}
           href="/admin/research"
@@ -285,9 +285,9 @@ export function SystemDashboard({
           label="数据校验"
           value={
             !health ? "—"
-            : health.detail.healthGuardStatus === "PASS" ? "PASS ✓"
-            : health.detail.healthGuardStatus === "NEVER_RUN" ? "未运行"
-            : `CRITICAL ×${health.detail.healthGuardCritical}`
+            : health.detail.healthGuardStatus === "PASS" ? "正常 ✓"
+            : health.detail.healthGuardStatus === "NEVER_RUN" ? "尚未执行"
+            : `严重 ×${health.detail.healthGuardCritical}`
           }
           color={
             !health ? "#475569"
@@ -324,11 +324,11 @@ export function SystemDashboard({
         <Section title="今日 AI 推荐">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
             <div style={{ background: "#0a0a0a", borderRadius: 6, padding: "10px 14px", border: "1px solid #052e16" }}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>STRONG_BUY</div>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>强烈推荐</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: "#4ade80" }}>{strongBuyCount}</div>
             </div>
             <div style={{ background: "#0a0a0a", borderRadius: 6, padding: "10px 14px", border: "1px solid #1e3a5f" }}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>BUY</div>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>推荐</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: "#60a5fa" }}>{buyCount}</div>
             </div>
           </div>
@@ -369,13 +369,13 @@ export function SystemDashboard({
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: "#64748b" }}>/ 100</div>
-                  <div style={{ fontSize: 12, color: gradeColor(health.grade), fontWeight: 700 }}>{health.grade}</div>
+                  <div style={{ fontSize: 12, color: gradeColor(health.grade), fontWeight: 700 }}>{{ GREEN: "良好", YELLOW: "注意", RED: "异常" }[health.grade] ?? health.grade}</div>
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[
                   { label: "数据新鲜度", pts: health.components.dataFreshness, max: 25 },
-                  { label: "Pipeline 运行", pts: health.components.pipelineStatus, max: 25 },
+                  { label: "流水线运行", pts: health.components.pipelineStatus, max: 25 },
                   { label: "feat_* 覆盖", pts: health.components.featureCoverage, max: 25 },
                   { label: "数据校验", pts: health.components.healthGuard, max: 25 },
                 ].map(({ label, pts, max }) => (
@@ -407,7 +407,7 @@ export function SystemDashboard({
                   fontSize: 12,
                   textDecoration: "none",
                 }}>
-                  → Mission Control 详情
+                  → 控制中心详情
                 </Link>
               </div>
             </>
@@ -423,7 +423,7 @@ export function SystemDashboard({
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", color: "#475569", fontSize: 10, paddingBottom: 8 }}>Horizon</th>
+                    <th style={{ textAlign: "left", color: "#475569", fontSize: 10, paddingBottom: 8 }}>周期</th>
                     <th style={{ textAlign: "right", color: "#475569", fontSize: 10, paddingBottom: 8 }}>胜率</th>
                     <th style={{ textAlign: "right", color: "#475569", fontSize: 10, paddingBottom: 8 }}>收益</th>
                     <th style={{ textAlign: "right", color: "#475569", fontSize: 10, paddingBottom: 8 }}>N</th>
@@ -587,7 +587,7 @@ export function SystemDashboard({
       {/* ── Pipeline Stage Overview ──────────────────────────────────────────── */}
       {pipeline && (
         <div style={{ marginTop: 16 }}>
-          <Section title="Pipeline 阶段状态">
+          <Section title="流水线阶段状态">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {pipeline.stages.map(s => (
                 <div key={s.stage} style={{
@@ -607,7 +607,7 @@ export function SystemDashboard({
             </div>
             <div style={{ marginTop: 10 }}>
               <Link href="/admin/mission-control" style={{ fontSize: 11, color: "#475569", textDecoration: "none" }}>
-                → 查看完整 Pipeline 日志
+                → 查看完整流水线日志
               </Link>
             </div>
           </Section>
@@ -615,7 +615,7 @@ export function SystemDashboard({
       )}
 
       <div style={{ marginTop: 12, fontSize: 11, color: "#1e293b" }}>
-        每 60 秒自动刷新 · Mission Control 数据来源 ·
+        每 60 秒自动刷新 · 控制中心数据来源 ·
         {mc ? ` 计算于 ${new Date(mc.computedAt).toLocaleString("zh-CN")}` : ""}
       </div>
     </div>

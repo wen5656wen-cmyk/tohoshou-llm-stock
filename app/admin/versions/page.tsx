@@ -87,9 +87,9 @@ const S = {
 
 function roleBadge(role: VersionRole) {
   const cfg: Record<VersionRole, { bg: string; label: string }> = {
-    current:  { bg: S.green,  label: "CURRENT"  },
-    baseline: { bg: S.blue,   label: "BASELINE" },
-    legacy:   { bg: S.muted,  label: "LEGACY"   },
+    current:  { bg: S.green,  label: "当前"  },
+    baseline: { bg: S.blue,   label: "基准" },
+    legacy:   { bg: S.muted,  label: "历史"   },
   };
   const c = cfg[role] ?? cfg.legacy;
   return (
@@ -101,8 +101,8 @@ function roleBadge(role: VersionRole) {
 
 function integrityStatus(pct: number, missing: number) {
   if (missing === 0) return <span style={{ color: S.green }}>✅ {pct}%</span>;
-  if (pct >= 50)    return <span style={{ color: S.yellow }}>⚠ {pct}% ({missing} missing)</span>;
-  return <span style={{ color: S.red }}>❌ {pct}% ({missing} missing)</span>;
+  if (pct >= 50)    return <span style={{ color: S.yellow }}>⚠ {pct}% ({missing} 条缺失)</span>;
+  return <span style={{ color: S.red }}>❌ {pct}% ({missing} 条缺失)</span>;
 }
 
 function regColor(status: string | null) {
@@ -193,19 +193,19 @@ export default function VersionsPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Version Center</h1>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>版本中心</h1>
           <div style={{ color: S.muted, fontSize: 11, marginTop: 2 }}>
-            {versions.length} snapshots · refreshed {now}
+            {versions.length} 个快照 · 刷新于 {now}
           </div>
         </div>
         <a href="/admin/mission-control" style={{ color: S.blue, fontSize: 11, textDecoration: "none" }}>
-          ← Mission Control
+          ← 控制中心
         </a>
       </div>
 
       {error && (
         <div style={{ background: "#1a0000", border: `1px solid ${S.red}`, padding: 8, marginBottom: 12, color: S.red, fontSize: 12 }}>
-          Error: {error}
+          错误：{error}
         </div>
       )}
 
@@ -217,18 +217,20 @@ export default function VersionsPage() {
           padding: "8px 12px", marginBottom: 12, fontSize: 12,
         }}>
           <strong style={{ color: integrity.status === "CRITICAL" ? S.red : S.yellow }}>
-            {integrity.status === "CRITICAL" ? "❌ INTEGRITY CRITICAL" : "⚠ INTEGRITY WARNING"}
+            {integrity.status === "CRITICAL" ? "❌ 完整性严重异常" : "⚠ 完整性警告"}
           </strong>
           {" · "}
-          DR: {integrity.drMissingCount} unlinked ({integrity.drCoveragePct}% linked)
+          DR：{integrity.drMissingCount} 条未关联（已关联 {integrity.drCoveragePct}%）
           {" · "}
-          BP: {integrity.bpMissingCount} unlinked ({integrity.bpCoveragePct}% linked)
+          BP：{integrity.bpMissingCount} 条未关联（已关联 {integrity.bpCoveragePct}%）
         </div>
       )}
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-        {(["versions", "timeline", "compare", "integrity"] as const).map((t) => (
+        {(["versions", "timeline", "compare", "integrity"] as const).map((t) => {
+          const tabLabel: Record<string, string> = { versions: "快照", timeline: "时间线", compare: "对比", integrity: "完整性" };
+          return (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -239,9 +241,10 @@ export default function VersionsPage() {
               padding: "4px 12px", cursor: "pointer", ...mono, borderRadius: 3,
             }}
           >
-            {t.toUpperCase()}
+            {tabLabel[t] ?? t.toUpperCase()}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── VERSIONS TAB ─────────────────────────────────────────────────── */}
@@ -249,7 +252,7 @@ export default function VersionsPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
           <thead>
             <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-              {["Role","ID","schemaVersion","modelVersion","scoreVersion","llmModel","startDate","endDate","DR Linked","BP Linked","Report","changeLog"].map((h) => (
+              {["状态","ID","schemaVersion","modelVersion","scoreVersion","llmModel","开始日期","结束日期","DR 关联","BP 关联","报告","变更日志"].map((h) => (
                 <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600 }}>{h}</th>
               ))}
             </tr>
@@ -264,7 +267,7 @@ export default function VersionsPage() {
                 <td style={cell}>{v.scoreVersion}</td>
                 <td style={cell}>{v.llmModelVer}</td>
                 <td style={cell}>{v.startDate}</td>
-                <td style={{ ...cell, color: v.endDate ? S.muted : S.green }}>{v.endDate ?? "active"}</td>
+                <td style={{ ...cell, color: v.endDate ? S.muted : S.green }}>{v.endDate ?? "进行中"}</td>
                 <td style={cell}>
                   {v.drLinked > 0
                     ? <span style={{ color: S.green }}>{v.drLinked.toLocaleString()}</span>
@@ -294,7 +297,7 @@ export default function VersionsPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
           <thead>
             <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-              {["Date","Type","ID / Hash","Details","TradingDays","Samples","Report","Regression"].map((h) => (
+              {["日期","类型","ID / 哈希","详情","交易日数","样本数","报告","回归"].map((h) => (
                 <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600 }}>{h}</th>
               ))}
             </tr>
@@ -344,13 +347,13 @@ export default function VersionsPage() {
         <div>
           {/* Selector */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: S.muted }}>Version A:</label>
+            <label style={{ fontSize: 11, color: S.muted }}>版本 A：</label>
             <select
               value={compareA}
               onChange={(e) => setCompareA(e.target.value)}
               style={{ background: S.surface, color: S.text, border: `1px solid ${S.border}`, padding: "4px 8px", ...mono }}
             >
-              <option value="">— select —</option>
+              <option value="">— 选择 —</option>
               {versions.map((v) => (
                 <option key={v.id} value={v.id}>{v.id} [{v.role}]</option>
               ))}
@@ -361,7 +364,7 @@ export default function VersionsPage() {
               onChange={(e) => setCompareB(e.target.value)}
               style={{ background: S.surface, color: S.text, border: `1px solid ${S.border}`, padding: "4px 8px", ...mono }}
             >
-              <option value="">— select —</option>
+              <option value="">— 选择 —</option>
               {versions.map((v) => (
                 <option key={v.id} value={v.id}>{v.id} [{v.role}]</option>
               ))}
@@ -374,7 +377,7 @@ export default function VersionsPage() {
                 padding: "4px 14px", cursor: "pointer", ...mono, borderRadius: 3,
               }}
             >
-              {comparing ? "Loading…" : "Compare"}
+              {comparing ? "加载中…" : "对比"}
             </button>
           </div>
 
@@ -384,7 +387,7 @@ export default function VersionsPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {([["A", compareResult.versionA], ["B", compareResult.versionB]] as const).map(([label, v]) => (
                   <div key={label} style={{ background: S.surface, border: `1px solid ${S.border}`, padding: 10 }}>
-                    <div style={{ color: S.muted, fontSize: 11, marginBottom: 4 }}>Version {label}</div>
+                    <div style={{ color: S.muted, fontSize: 11, marginBottom: 4 }}>版本 {label}</div>
                     <div style={{ color: S.blue, fontWeight: 700 }}>{v.id}</div>
                     <div>schemaVersion: {v.schemaVersion}</div>
                     <div>modelVersion: {v.modelVersion}</div>
@@ -400,17 +403,17 @@ export default function VersionsPage() {
                 padding: "8px 12px", marginBottom: 12, fontSize: 12,
               }}>
                 {compareResult.comparisonAllowed
-                  ? <span style={{ color: S.green }}>✅ Comparison allowed — same schemaVersion</span>
-                  : <span style={{ color: S.red }}>❌ Comparison not allowed — {compareResult.reason}</span>}
+                  ? <span style={{ color: S.green }}>✅ 可比较 — schemaVersion 相同</span>
+                  : <span style={{ color: S.red }}>❌ 不可比较 — {compareResult.reason}</span>}
               </div>
 
               {/* Meta stats */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
                 {[
-                  ["Trading Days A", compareResult.tradingDaysA],
-                  ["Trading Days B", compareResult.tradingDaysB],
-                  ["Feat Coverage A", compareResult.featureCoverageA != null ? `${compareResult.featureCoverageA}%` : "—"],
-                  ["Feat Coverage B", compareResult.featureCoverageB != null ? `${compareResult.featureCoverageB}%` : "—"],
+                  ["交易日数 A", compareResult.tradingDaysA],
+                  ["交易日数 B", compareResult.tradingDaysB],
+                  ["特征覆盖率 A", compareResult.featureCoverageA != null ? `${compareResult.featureCoverageA}%` : "—"],
+                  ["特征覆盖率 B", compareResult.featureCoverageB != null ? `${compareResult.featureCoverageB}%` : "—"],
                 ].map(([label, val]) => (
                   <div key={String(label)} style={{ background: S.surface, border: `1px solid ${S.border}`, padding: "8px 10px" }}>
                     <div style={{ color: S.muted, fontSize: 10 }}>{label}</div>
@@ -421,13 +424,13 @@ export default function VersionsPage() {
 
               {/* Regression status */}
               <div style={{ marginBottom: 12, fontSize: 12 }}>
-                <span style={{ color: S.muted }}>Regression Status: </span>
+                <span style={{ color: S.muted }}>回归状态：</span>
                 <span style={{ color: regColor(compareResult.regressionStatus), fontWeight: 700 }}>
-                  {compareResult.regressionStatus}
+                  {{ OK: "正常", WARNING: "注意", CRITICAL: "严重" }[compareResult.regressionStatus] ?? compareResult.regressionStatus}
                 </span>
                 {compareResult.winRateDelta7d !== null && (
                   <span style={{ marginLeft: 8, color: deltaColor(compareResult.winRateDelta7d) }}>
-                    (7d win rate delta: {compareResult.winRateDelta7d >= 0 ? "+" : ""}{compareResult.winRateDelta7d?.toFixed(2)}pp)
+                    （7日胜率变化：{compareResult.winRateDelta7d >= 0 ? "+" : ""}{compareResult.winRateDelta7d?.toFixed(2)}pp）
                   </span>
                 )}
               </div>
@@ -436,14 +439,14 @@ export default function VersionsPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}`, marginBottom: 12 }}>
                 <thead>
                   <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-                    <th style={{ ...cell, textAlign: "left" }}>Horizon</th>
-                    <th style={{ ...cell, textAlign: "right" }}>WinRate A</th>
-                    <th style={{ ...cell, textAlign: "right" }}>WinRate B</th>
-                    <th style={{ ...cell, textAlign: "right" }}>Δ WinRate</th>
-                    <th style={{ ...cell, textAlign: "right" }}>AvgRet A</th>
-                    <th style={{ ...cell, textAlign: "right" }}>AvgRet B</th>
-                    <th style={{ ...cell, textAlign: "right" }}>Δ Return</th>
-                    <th style={{ ...cell, textAlign: "right" }}>Δ Alpha</th>
+                    <th style={{ ...cell, textAlign: "left" }}>周期</th>
+                    <th style={{ ...cell, textAlign: "right" }}>胜率 A</th>
+                    <th style={{ ...cell, textAlign: "right" }}>胜率 B</th>
+                    <th style={{ ...cell, textAlign: "right" }}>Δ 胜率</th>
+                    <th style={{ ...cell, textAlign: "right" }}>均收益 A</th>
+                    <th style={{ ...cell, textAlign: "right" }}>均收益 B</th>
+                    <th style={{ ...cell, textAlign: "right" }}>Δ 收益</th>
+                    <th style={{ ...cell, textAlign: "right" }}>Δ 超额</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -487,12 +490,12 @@ export default function VersionsPage() {
                 {integrityStatus(integrity.drCoveragePct, integrity.drMissingCount)}
               </div>
               <div style={{ color: S.muted, fontSize: 11 }}>
-                {integrity.drLinked.toLocaleString()} / {integrity.drTotal.toLocaleString()} rows linked
+                {integrity.drLinked.toLocaleString()} / {integrity.drTotal.toLocaleString()} 条已关联
               </div>
               {integrity.drMissingCount > 0 && (
                 <div style={{ marginTop: 8, color: S.yellow, fontSize: 11 }}>
-                  ⚠ {integrity.drMissingCount} rows have NULL versionSnapshotId.
-                  <br />Run: <code style={{ background: "#222", padding: "0 4px" }}>npx tsx scripts/backfill-dr-version.ts</code>
+                  ⚠ {integrity.drMissingCount} 条 versionSnapshotId 为空。
+                  <br />运行：<code style={{ background: "#222", padding: "0 4px" }}>npx tsx scripts/backfill-dr-version.ts</code>
                 </div>
               )}
             </div>
@@ -504,17 +507,17 @@ export default function VersionsPage() {
                 {integrityStatus(integrity.bpCoveragePct, integrity.bpMissingCount)}
               </div>
               <div style={{ color: S.muted, fontSize: 11 }}>
-                {integrity.bpLinked.toLocaleString()} / {integrity.bpTotal.toLocaleString()} rows linked
+                {integrity.bpLinked.toLocaleString()} / {integrity.bpTotal.toLocaleString()} 条已关联
               </div>
             </div>
           </div>
 
           {/* Per-version breakdown */}
-          <div style={{ color: S.muted, fontSize: 11, marginBottom: 6, fontWeight: 600 }}>Per-Version Linkage</div>
+          <div style={{ color: S.muted, fontSize: 11, marginBottom: 6, fontWeight: 600 }}>各版本关联情况</div>
           <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
             <thead>
               <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-                {["Role","ID","DR Linked","BP Linked","Learning Report"].map((h) => (
+                {["状态","ID","DR 关联","BP 关联","学习报告"].map((h) => (
                   <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
@@ -527,7 +530,7 @@ export default function VersionsPage() {
                   <td style={cell}>
                     {v.drLinked > 0
                       ? <span style={{ color: S.green }}>{v.drLinked.toLocaleString()}</span>
-                      : <span style={{ color: S.yellow }}>0 ← backfill needed</span>}
+                      : <span style={{ color: S.yellow }}>0 ← 需要回填</span>}
                   </td>
                   <td style={cell}>
                     {v.bpLinked > 0
@@ -536,8 +539,8 @@ export default function VersionsPage() {
                   </td>
                   <td style={cell}>
                     {v.learningReportExists
-                      ? <span style={{ color: S.green }}>✓ exists</span>
-                      : <span style={{ color: S.muted }}>not generated</span>}
+                      ? <span style={{ color: S.green }}>✓ 已生成</span>
+                      : <span style={{ color: S.muted }}>未生成</span>}
                   </td>
                 </tr>
               ))}
@@ -552,11 +555,11 @@ export default function VersionsPage() {
             padding: 12, fontSize: 12,
           }}>
             <strong style={{ color: integrity.status === "OK" ? S.green : integrity.status === "WARNING" ? S.yellow : S.red }}>
-              Overall Integrity: {integrity.status}
+              整体完整性：{{ OK: "正常", WARNING: "警告", CRITICAL: "严重异常" }[integrity.status] ?? integrity.status}
             </strong>
-            {integrity.status === "OK" && " — Every BacktestPositionResult and DailyRecommendation is traceable to a VersionSnapshot."}
-            {integrity.status === "WARNING" && " — DailyRecommendation rows missing versionSnapshotId. Run backfill-dr-version.ts to fix."}
-            {integrity.status === "CRITICAL" && " — BacktestPositionResult rows missing versionSnapshotId. Investigate update-backtest.ts."}
+            {integrity.status === "OK" && " — 所有 BacktestPositionResult 和 DailyRecommendation 均可追溯到 VersionSnapshot。"}
+            {integrity.status === "WARNING" && " — DailyRecommendation 存在空 versionSnapshotId，请运行 backfill-dr-version.ts 修复。"}
+            {integrity.status === "CRITICAL" && " — BacktestPositionResult 存在空 versionSnapshotId，请排查 update-backtest.ts。"}
           </div>
         </div>
       )}
