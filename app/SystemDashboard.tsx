@@ -3,6 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { getPipelineLabel } from "@/lib/i18n/status-labels";
+
+const FRESHNESS_SOURCE_LABELS: Record<string, string> = {
+  DailyPrice:           "每日行情",
+  StockScore:           "综合评分",
+  DailyRecommendation:  "每日推荐",
+  GlobalMarket:         "全球市场",
+  News:                 "新闻资讯",
+  Backtest:             "历史回测",
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -488,7 +498,7 @@ export function SystemDashboard({
               padding: "8px 14px",
               minWidth: 130,
             }}>
-              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>{src.name}</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>{FRESHNESS_SOURCE_LABELS[src.name] ?? src.name}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: freshnessColor(src.status) }}>
                 {src.latestDate ?? "—"}
               </div>
@@ -601,7 +611,7 @@ export function SystemDashboard({
                   fontSize: 11,
                 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: stageStatusDot(s.status), display: "inline-block", flexShrink: 0 }} />
-                  <span style={{ color: "#64748b" }}>{s.displayName}</span>
+                  <span style={{ color: "#64748b" }}>{getPipelineLabel(s.stage)}</span>
                 </div>
               ))}
             </div>
