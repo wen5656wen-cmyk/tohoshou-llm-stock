@@ -78,20 +78,6 @@ type HealthStatus = {
   message?: string;
 };
 
-type BacktestHealthData = {
-  latestRecommendationDate: string | null;
-  totalRecommendations: number;
-  filled7d: number;
-  filled30d: number;
-  filled90d: number;
-  fillRate7d: number;
-  fillRate30d: number;
-  fillRate90d: number;
-  latestPriceDate: string | null;
-  recentErrors: number;
-  status: "HEALTHY" | "WAITING_PRICE" | "PARTIAL" | "FAILED";
-};
-
 type StatusData = {
   sources: SourceInfo[];
   summary: Summary;
@@ -286,7 +272,6 @@ export default function SyncPage() {
   const [results, setResults] = useState<Record<string, SyncResult>>({});
   const [jobs, setJobs] = useState<Record<string, JobStatus>>({});
   const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [backtestHealth, setBacktestHealth] = useState<BacktestHealthData | null>(null);
   const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -316,19 +301,11 @@ export default function SyncPage() {
     } catch { /* non-critical */ }
   }, []);
 
-  const fetchBacktestHealth = useCallback(async () => {
-    try {
-      const res = await fetch("/api/backtest/health", { cache: "no-store" });
-      const json = await res.json() as BacktestHealthData;
-      setBacktestHealth(json);
-    } catch { /* non-critical */ }
-  }, []);
-
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all([fetchStatus(), fetchHealth(), fetchBacktestHealth()]);
+      await Promise.all([fetchStatus(), fetchHealth()]);
       setRefreshedAt(new Date());
       const msg = lang === "ja-JP" ? "状態を更新しました" : lang === "en-US" ? "Status refreshed" : "状态已刷新";
       showToast(msg, true);
@@ -338,17 +315,16 @@ export default function SyncPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing, fetchStatus, fetchHealth, fetchBacktestHealth, lang]);
+  }, [refreshing, fetchStatus, fetchHealth, lang]);
 
   useEffect(() => {
     fetchStatus();
     fetchHealth();
-    fetchBacktestHealth();
     return () => {
       for (const t of Object.values(pollTimers.current)) clearInterval(t);
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
-  }, [fetchStatus, fetchHealth, fetchBacktestHealth]);
+  }, [fetchStatus, fetchHealth]);
 
   const startPoll = (jobId: string, sourceId: string) => {
     if (pollTimers.current[sourceId]) clearInterval(pollTimers.current[sourceId]);
@@ -486,7 +462,7 @@ export default function SyncPage() {
           </div>
           {/* StockScore */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">StockScore</div>
+            <div className="text-xs text-slate-500 mb-1">综合评分</div>
             <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.stockScoreTotal.toLocaleString()}</div>
             <div className="text-xs text-slate-400">只已评分</div>
           </div>
@@ -495,18 +471,6 @@ export default function SyncPage() {
             <div className="text-xs text-slate-500 mb-1">TDnet 披露</div>
             <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.disclosureTotal.toLocaleString()}</div>
             <div className="text-xs text-slate-400">{sum.disclosureCoveredSymbols}只覆盖</div>
-          </div>
-          {/* BUY count */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">BUY 评级</div>
-            <div className="text-lg font-bold text-emerald-600 tabular-nums">{sum.buyCount}</div>
-            <div className="text-xs text-slate-400">STRONG: {sum.strongBuyCount}</div>
-          </div>
-          {/* Bull rate */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">买入占比</div>
-            <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.bullRate.toFixed(1)}%</div>
-            <div className="text-xs text-slate-400">BUY+STRONG_BUY</div>
           </div>
           {/* Market temp */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -566,74 +530,6 @@ export default function SyncPage() {
                 {health.topIssues.map((issue, i) => (
                   <div key={i}>• {issue}</div>
                 ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* ── Backtest Health card ── */}
-      {backtestHealth && (() => {
-        const bs = backtestHealth.status;
-        const statusCfg = {
-          HEALTHY:       { dot: "🟢", label: "HEALTHY",       cls: "border-emerald-200 bg-emerald-50", textCls: "text-emerald-700" },
-          WAITING_PRICE: { dot: "🟡", label: "WAITING_PRICE", cls: "border-amber-200 bg-amber-50",     textCls: "text-amber-700"   },
-          PARTIAL:       { dot: "🟡", label: "PARTIAL",       cls: "border-amber-200 bg-amber-50",     textCls: "text-amber-700"   },
-          FAILED:        { dot: "🔴", label: "FAILED",        cls: "border-red-200 bg-red-50",         textCls: "text-red-700"     },
-        }[bs];
-        return (
-          <div className={`rounded-2xl border shadow-sm p-5 mb-6 ${statusCfg.cls}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg">📈</span>
-                <h2 className="font-semibold text-slate-900 text-sm">Backtest</h2>
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusCfg.cls} ${statusCfg.textCls} border`}>
-                  {statusCfg.dot} {statusCfg.label}
-                </span>
-                {backtestHealth.recentErrors > 0 && (
-                  <span className="text-xs text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                    ⚠ {backtestHealth.recentErrors} errors (7d)
-                  </span>
-                )}
-              </div>
-              <span className="text-xs text-slate-400">
-                最新价格：{backtestHealth.latestPriceDate ?? "—"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="flex flex-col">
-                <span className="text-xs text-slate-400">最新推荐日期</span>
-                <span className="text-sm font-semibold text-slate-800 tabular-nums">
-                  {backtestHealth.latestRecommendationDate ?? "—"}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs text-slate-400">推荐数量</span>
-                <span className="text-sm font-semibold text-slate-800 tabular-nums">
-                  {backtestHealth.totalRecommendations.toLocaleString()}
-                </span>
-              </div>
-              {(["7d", "30d", "90d"] as const).map((h) => {
-                const filled = backtestHealth[`filled${h}` as keyof BacktestHealthData] as number;
-                const rate   = backtestHealth[`fillRate${h}` as keyof BacktestHealthData] as number;
-                const total  = backtestHealth.totalRecommendations;
-                const rateCls = rate >= 80 ? "text-emerald-600" : rate > 0 ? "text-amber-600" : "text-slate-400";
-                return (
-                  <div key={h} className="flex flex-col">
-                    <span className="text-xs text-slate-400">{h} 填充</span>
-                    <span className="text-sm font-semibold text-slate-800 tabular-nums">
-                      {filled} / {total}
-                    </span>
-                    <span className={`text-xs font-medium tabular-nums ${rateCls}`}>{rate}%</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {bs === "WAITING_PRICE" && (
-              <div className="mt-3 text-xs text-amber-700 border-t border-amber-200 pt-2.5">
-                等待价格同步 — 下一交易日开市后自动填充入场价，pipeline 运行后更新回测数据
               </div>
             )}
           </div>

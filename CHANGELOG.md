@@ -2,6 +2,60 @@
 
 ---
 
+## [17.6.0] - 2026-06-28 — P1: 模块职责归位（Dashboard/AI组合/数据校验/同步状态）
+
+### 改动
+
+**新增**
+- `lib/i18n/system-labels.ts` — 统一标签映射：`getDataSourceLabel`/`getHorizonLabel`，同时 re-export `getPipelineStageLabel`/`getStatusLabel`
+
+**Dashboard（/）职责归位**
+- `app/SystemDashboard.tsx` — 移除「回测摘要 v2.3」、7d/30d/90d horizon 表格、「三策略胜率 v15.0」、「回测数据成熟度倒计时」；Col3 替换为「→ 查看回测验证」重定向卡片；`FRESHNESS_SOURCE_LABELS` 本地 map 替换为 `getDataSourceLabel()`；移除 `/api/strategy/performance` fetch 和 `stratPerf` 状态
+
+**AI组合（/portfolio）职责归位**
+- `app/portfolio/page.tsx` — 移除 Tab 结构（system/watchlist）、`AISignalStatsPanel` 调用、watchlist 状态和 fetch；页面直接渲染免责声明 + `SnapshotsPanel`
+
+**数据校验（/admin/verify）职责归位**
+- `app/admin/verify/page.tsx` — 移除「回测结果」明细表格和「部署历史」展开列表；两者替换为重定向按钮（→/backtest、→/admin/versions）；移除 `btPicks/btResults/deploys` 状态和 `loadBacktest/loadDeploys` callback
+
+**同步状态（/sync）职责归位**
+- `app/sync/page.tsx` — 移除 Backtest Health 卡片（`/api/backtest/health`）、BUY评级卡片、买入占比卡片；「StockScore」标签改为「综合评分」
+
+**汉化统一**
+- `app/admin/mission-control/page.tsx` — 本地 `FRESHNESS_SOURCE_LABELS` 替换为 `getDataSourceLabel()`，与 Dashboard 共用同一映射
+
+### 验收
+- `npm run build` ✅ PASS
+- 生产 CRITICAL=0 ✅
+- 部署记录 #53 ✅
+
+---
+
+## [17.5.0] - 2026-06-28 — P1: 全站汉化二阶段（research/verify/backtest/portfolio/screener）
+
+### 改动
+
+**新增**
+- `lib/i18n/status-labels.ts` — 集中式状态标签映射（`getStatusLabel`/`getPipelineLabel`）
+- `scripts/i18n-scan.ts` — `npm run i18n:scan` 扫描工具，扫描 app/ components/ 中残留英文
+
+**汉化修复**
+- `app/admin/research/page.tsx` — 全页汉化（标题→研究分析、Tab→概览/因子分析/相关性/数据质量/就绪状态、所有列头、警告信息、说明文字、页脚）
+- `app/admin/verify/page.tsx` — "Production Ready"→"生产环境已就绪"、"YES ✓"→"是 ✓"、"Latest"→"最新"、Build/Health/Page 部署徽章汉化
+- `app/admin/mission-control/page.tsx` — "DRY"→"试运行"、"Error:"→"错误："、CRITICAL/WARN 标签、"h ago"→"小时前"、healthGuardStatus 映射为中文
+- `app/admin/experiments/page.tsx` — 状态卡片显示 `cfg.label`（中文），不再显示原始枚举键
+- `app/admin/versions/page.tsx` — 页脚"Version Center"→"版本中心"、"Experiment Dashboard"→"实验管理"
+- `app/backtest/page.tsx` — "vs TOPIX"→"相对TOPIX"、"OPEN positions"→"持仓中"、"ETF Proxy"→"ETF基准"、"Loading…"→"加载中…"、"Date"列头→"日期"
+- `app/portfolio/page.tsx` — "DAY 30%"→"日内 30%"、"SWING 40%"→"波段 40%"、"POSITION 30%"→"持仓 30%"、"vs TOPIX"→"相对TOPIX"
+- `app/screener/page.tsx` — "Score "→"综合分 "
+
+### 验收
+- `npm run build` ✅ PASS
+- `criticalCount: 0` ✅ 生产健康检查
+- 部署记录 #52 ✅
+
+---
+
 ## [17.4.0] - 2026-06-28 — P1: 全站汉化与投资人语言优化
 
 ### 改动

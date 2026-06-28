@@ -1541,89 +1541,22 @@ function WatchlistPanel({
 export default function PortfolioPage() {
   const { t } = useI18n();
 
-  const [activeTab, setActiveTab] = useState<TabKey>("system");
-  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[] | null>(null);
-  const [loadingWatchlist, setLoadingWatchlist] = useState(false);
-  const [watchlistLoaded, setWatchlistLoaded] = useState(false);
-
-  const fetchWatchlist = useCallback(() => {
-    setLoadingWatchlist(true);
-    fetch("/api/watchlist")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((d: WatchlistItem[]) => { setWatchlistItems(d); setWatchlistLoaded(true); setLoadingWatchlist(false); })
-      .catch(() => { setWatchlistItems([]); setWatchlistLoaded(true); setLoadingWatchlist(false); });
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "watchlist" && !watchlistLoaded) fetchWatchlist();
-  }, [activeTab, watchlistLoaded, fetchWatchlist]);
-
-  const TABS: { key: TabKey; label: MessageKey }[] = [
-    { key: "system",    label: "portfolio.tab_system"    },
-    { key: "watchlist", label: "portfolio.tab_watchlist" },
-  ];
-
   return (
     <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
-
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
       </div>
-
-      <div className="flex border-b border-slate-700/40 mb-0">
-        {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors relative ${
-              activeTab === key ? "text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {t(label)}
-            {activeTab === key && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t-full" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="px-1 py-3 mb-5">
-        <p className="text-xs text-slate-500 leading-relaxed">
-          {activeTab === "system" ? t("portfolio.tab_system_desc") : t("portfolio.tab_watchlist_desc")}
-        </p>
-      </div>
-
-      {activeTab === "system" && (
-        <div className="space-y-6">
-          {/* Research-reference disclaimer */}
-          <div className="flex items-start gap-3 bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 text-xs text-slate-400 leading-relaxed">
-            <span className="text-slate-500 text-base leading-none mt-0.5 shrink-0">◈</span>
-            <span>
-              <strong className="text-slate-300">策略快照 · 仅作研究参考</strong>
-              <br />
-              每日 07:30 JST AI 选出 BUY/STRONG_BUY Top10，等权买入虚拟 ¥1亿资金，记录持仓表现。建仓价为推荐当日收盘价快照，非真实可执行价格。数据用于验证模型表现，不构成投资建议。
-            </span>
-          </div>
-          <AISignalStatsPanel t={t} />
-          <SnapshotsPanel t={t} />
+      <div className="space-y-6">
+        <div className="flex items-start gap-3 bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 text-xs text-slate-400 leading-relaxed">
+          <span className="text-slate-500 text-base leading-none mt-0.5 shrink-0">◈</span>
+          <span>
+            <strong className="text-slate-300">策略快照 · 仅作研究参考</strong>
+            <br />
+            每日 07:30 JST AI 选出 BUY/STRONG_BUY Top10，等权买入虚拟 ¥1亿资金，记录持仓表现。建仓价为推荐当日收盘价快照，非真实可执行价格。数据用于验证模型表现，不构成投资建议。
+          </span>
         </div>
-      )}
-
-      {activeTab === "watchlist" && (
-        <div className="space-y-0">
-          {/* Simulation account disclaimer */}
-          <div className="flex items-start gap-3 bg-amber-950/30 border border-amber-700/40 rounded-lg px-4 py-3 text-xs text-amber-300/80 leading-relaxed mb-4">
-            <span className="text-amber-500 text-base leading-none mt-0.5 shrink-0">⚠</span>
-            <span>
-              <strong className="text-amber-200">模拟账户 · 非真实资金</strong>
-              <br />
-              初始资金 ¥100,000,000 为模拟虚拟资金。买卖操作仅作 AI 选股策略研究，不涉及真实交易，亦不构成任何投资建议。实际市场收益可能与模拟结果存在重大差异。
-            </span>
-          </div>
-          <WatchlistPanel items={watchlistItems} loading={loadingWatchlist} t={t} onRefresh={fetchWatchlist} />
-        </div>
-      )}
-
+        <SnapshotsPanel t={t} />
+      </div>
     </div>
   );
 }

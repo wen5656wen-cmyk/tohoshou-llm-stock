@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { AISafetyPanel } from "@/components/AISafetyPanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -196,15 +197,6 @@ export default function AdminVerifyPage() {
   const [histData, setHistData]     = useState<{ symbol: string; name: string; nameZh: string | null; rows: HistoryRow[] } | null>(null);
   const [histLoading, setHistLoading] = useState(false);
 
-  const [btPicks, setBtPicks]       = useState<BacktestPick[]>([]);
-  const [btResults, setBtResults]   = useState<BacktestResult[]>([]);
-  const [btLoading, setBtLoading]   = useState(false);
-
-  const [deploys, setDeploys]       = useState<DeploymentRow[]>([]);
-  const [deplTotal, setDeplTotal]   = useState(0);
-  const [deplLoading, setDeplLoading] = useState(false);
-  const [deplExpanded, setDeplExpanded] = useState<number | null>(null);
-
   // ── Loaders ────────────────────────────────────────────────────────────────
   const loadStatus = useCallback(async () => {
     setRefreshing(true);
@@ -237,27 +229,9 @@ export default function AdminVerifyPage() {
       .finally(() => setHistLoading(false));
   }, []);
 
-  const loadBacktest = useCallback(() => {
-    setBtLoading(true);
-    fetch("/api/admin/verify?module=backtest&limit=30")
-      .then(r => r.json())
-      .then(d => { setBtPicks(d.picks ?? []); setBtResults(d.results ?? []); })
-      .finally(() => setBtLoading(false));
-  }, []);
-
-  const loadDeploys = useCallback(() => {
-    setDeplLoading(true);
-    fetch("/api/admin/deployments?limit=20")
-      .then(r => r.json())
-      .then(d => { setDeploys(d.rows ?? []); setDeplTotal(d.total ?? 0); })
-      .finally(() => setDeplLoading(false));
-  }, []);
-
   useEffect(() => {
     loadStatus();
     loadDailyRec("", "");
-    loadBacktest();
-    loadDeploys();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -387,15 +361,11 @@ export default function AdminVerifyPage() {
 
       {/* ── Nav ────────────────────────────────────────────────────────────── */}
       <div className="flex gap-3 text-xs text-slate-400 mb-4 flex-wrap">
-        <a href="#modules"     className="hover:text-slate-700">模块检查 / Modules</a>
+        <a href="#modules"  className="hover:text-slate-700">模块检查 / Modules</a>
         <span>·</span>
-        <a href="#dailyrec"    className="hover:text-slate-700">每日推荐 / Daily Rec</a>
+        <a href="#dailyrec" className="hover:text-slate-700">每日推荐 / Daily Rec</a>
         <span>·</span>
-        <a href="#history"     className="hover:text-slate-700">历史快照 / History</a>
-        <span>·</span>
-        <a href="#backtest"    className="hover:text-slate-700">回测结果 / Backtest</a>
-        <span>·</span>
-        <a href="#deployments" className="hover:text-slate-700 font-medium text-blue-400">部署历史 / Deployments</a>
+        <a href="#history"  className="hover:text-slate-700">历史快照 / History</a>
       </div>
 
       {/* ── AI 安全规范 / Decision Engine Safety Rules ──────────────────── */}
@@ -522,187 +492,26 @@ export default function AdminVerifyPage() {
         )}
       </Section>
 
-      {/* ── 回测结果 / Backtest ───────────────────────────────────────────── */}
-      <Section id="backtest" title="回测结果 / Backtest Results">
-        {btLoading ? <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p> : (
-          <>
-            {btResults.length > 0 && (
-              <div className="mb-5">
-                <p className="text-xs font-semibold text-slate-500 mb-2">组合绩效汇总 / Portfolio Summary</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50">
-                        {["日期","规模","周期","胜率","均收益","中位数","样本","最佳%","最差%"].map(h => (
-                          <th key={h} className="text-left px-2 py-1 text-slate-500 font-semibold border-b border-slate-100">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {btResults.map((r, i) => (
-                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className="px-2 py-1 font-mono text-slate-400">{r.date}</td>
-                          <td className="px-2 py-1 font-semibold">{r.portfolioSize}</td>
-                          <td className="px-2 py-1 text-slate-500">{r.horizon}</td>
-                          <td className={`px-2 py-1 font-mono font-bold ${retColor(r.winRate)}`}>{fmt(r.winRate)}%</td>
-                          <td className={`px-2 py-1 font-mono ${retColor(r.avgReturn)}`}>{fmtPct(r.avgReturn)}</td>
-                          <td className={`px-2 py-1 font-mono ${retColor(r.medianReturn)}`}>{fmtPct(r.medianReturn)}</td>
-                          <td className="px-2 py-1 text-slate-500">{r.filled}/{r.totalRecommendations}</td>
-                          <td className={`px-2 py-1 font-mono ${retColor(r.bestReturn)}`}>{fmtPct(r.bestReturn)}</td>
-                          <td className={`px-2 py-1 font-mono ${retColor(r.worstReturn)}`}>{fmtPct(r.worstReturn)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            <p className="text-xs font-semibold text-slate-500 mb-2">
-              逐笔明细 / Individual Picks（含入场价 / with entry price）：{btPicks.length} 条
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50">
-                    {["日期","代码","排名","评级","推荐价","入场价","7日%","30日%","胜负"].map(h => (
-                      <th key={h} className="text-left px-2 py-1 text-slate-500 font-semibold border-b border-slate-100">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {btPicks.length === 0 && (
-                    <tr><td colSpan={9} className="text-center py-4 text-slate-400">暂无入场价记录 / No picks with entry price yet</td></tr>
-                  )}
-                  {btPicks.map((p, i) => {
-                    const win = p.return30d != null ? p.return30d > 0 : p.return7d != null ? p.return7d > 0 : null;
-                    return (
-                      <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="px-2 py-1 font-mono text-slate-400">{p.date}</td>
-                        <td className="px-2 py-1 font-mono font-bold text-indigo-600">{p.symbol}</td>
-                        <td className="px-2 py-1 text-slate-700">#{p.gptRank}</td>
-                        <td className="px-2 py-1">{ratingBadge(p.gptRating)}</td>
-                        <td className="px-2 py-1 font-mono">{fmtJpy(p.buyPrice)}</td>
-                        <td className="px-2 py-1 font-mono font-semibold">{fmtJpy(p.entryPrice)}</td>
-                        <td className={`px-2 py-1 font-mono ${retColor(p.return7d)}`}>{fmtPct(p.return7d)}</td>
-                        <td className={`px-2 py-1 font-mono ${retColor(p.return30d)}`}>{fmtPct(p.return30d)}</td>
-                        <td className="px-2 py-1 font-bold">
-                          {win === true ? <span className="text-emerald-600">盈 WIN</span>
-                           : win === false ? <span className="text-red-500">亏 LOSS</span>
-                           : <span className="text-slate-300">—</span>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+      {/* ── 回测结果 → 重定向 ────────────────────────────────────────────── */}
+      <Section id="backtest" title="回测验证">
+        <p className="text-sm text-slate-500 mb-4">回测数据请前往「回测验证」页面查看。</p>
+        <Link
+          href="/backtest"
+          className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          → 查看回测验证
+        </Link>
       </Section>
 
-      {/* ── 部署历史 / Deployment History ───────────────────────────────────── */}
-      <Section id="deployments" title={`部署历史 / Deployment History · デプロイ履歴 — 共 ${deplTotal} 条`}>
-        {deplLoading ? (
-          <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p>
-        ) : deploys.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm">
-            暂无部署记录 / No deployment records yet<br />
-            <span className="text-xs font-mono mt-1 block">npm run record:deployment -- --commit=xxx ...</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {deploys.map((d, i) => {
-              const isLatest  = i === 0;
-              const expanded  = deplExpanded === d.id;
-              const allPass   = [d.buildStatus, d.apiStatus, d.pageStatus, d.pm2Status].every(s => s === "PASS");
-              const hasWarning = d.healthStatus === "WARNING";
-              const hasFail   = [d.buildStatus, d.healthStatus, d.apiStatus, d.pageStatus, d.pm2Status].some(s => s === "FAIL");
-              const borderCls = d.productionReady
-                ? "border-emerald-200 bg-emerald-50/20"
-                : hasFail
-                  ? "border-red-200 bg-red-50/20"
-                  : "border-slate-200";
-
-              return (
-                <div key={d.id} className={`rounded-xl border ${borderCls} overflow-hidden`}>
-                  {/* Header row */}
-                  <div
-                    className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50/50"
-                    onClick={() => setDeplExpanded(expanded ? null : d.id)}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {isLatest && (
-                        <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase tracking-wide">最新</span>
-                      )}
-                      <span className={`shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${d.productionReady ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
-                        {d.productionReady ? "✓" : "✗"}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-semibold text-slate-800 truncate leading-tight">{d.summary}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{d.deployedAtJst} · {d.commitHash} · {d.operator}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {([
-                        { key: "buildStatus",  label: "构建"  },
-                        { key: "healthStatus", label: "健康"  },
-                        { key: "apiStatus",    label: "API"   },
-                        { key: "pageStatus",   label: "页面"  },
-                        { key: "pm2Status",    label: "PM2"   },
-                      ] as const).map(({ key, label }) => {
-                        const v = d[key];
-                        const cls = v === "PASS" ? "bg-emerald-100 text-emerald-700"
-                                  : v === "WARNING" ? "bg-amber-100 text-amber-700"
-                                  : v === "FAIL" ? "bg-red-100 text-red-600"
-                                  : "bg-slate-100 text-slate-400";
-                        return (
-                          <span key={key} className={`text-[9px] font-bold px-1 py-0.5 rounded font-mono ${cls}`}>{label}</span>
-                        );
-                      })}
-                      <span className="text-slate-300 text-xs ml-1">{expanded ? "▲" : "▼"}</span>
-                    </div>
-                  </div>
-
-                  {/* Expanded detail */}
-                  {expanded && (
-                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
-                      {/* Full acceptance report */}
-                      <div className="bg-slate-800 text-green-400 font-mono text-[10px] rounded-lg p-3 leading-relaxed whitespace-pre-wrap">
-{`DEPLOYMENT ACCEPTANCE REPORT
-${"─".repeat(48)}
-Commit:     ${d.commitHash}
-Summary:    ${d.summary}
-DeployedAt: ${d.deployedAtJst}
-Operator:   ${d.operator}
-${"─".repeat(48)}
-Build:      ${d.buildStatus}
-Health:     ${d.healthStatus}
-API:        ${d.apiStatus}
-Page:       ${d.pageStatus}
-Database:   ${d.databaseStatus}
-PM2:        ${d.pm2Status}
-${"─".repeat(48)}
-Modified Files (${(d.modifiedFiles ?? []).length}):
-${(d.modifiedFiles ?? []).map((f: string) => `  · ${f}`).join("\n") || "  (none)"}
-${"─".repeat(48)}
-Warnings (${(d.warnings ?? []).length}):
-${(d.warnings ?? []).map((w: string) => `  ⚠ ${w}`).join("\n") || "  (none)"}
-Blocking Issues (${(d.blockingIssues ?? []).length}):
-${(d.blockingIssues ?? []).map((b: string) => `  ✗ ${b}`).join("\n") || "  (none)"}
-${"─".repeat(48)}
-Result: Production Ready = ${d.productionReady ? "YES ✓" : "NO ✗"}`}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <div className="mt-3 text-[10px] text-slate-300 text-right">
-          每次部署完成后执行 / After each deploy:<br />
-          <code className="font-mono">npm run record:deployment -- --commit=xxx --summary="..." --productionReady=true ...</code>
-        </div>
+      {/* ── 部署历史 → 重定向 ────────────────────────────────────────────── */}
+      <Section id="deployments" title="版本部署记录">
+        <p className="text-sm text-slate-500 mb-4">部署历史请前往「版本中心」页面查看。</p>
+        <Link
+          href="/admin/versions"
+          className="inline-block px-4 py-2 bg-slate-600 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition-colors"
+        >
+          → 查看版本部署记录
+        </Link>
       </Section>
 
       <p className="text-center text-xs text-slate-300 pb-4">

@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getPipelineLabel } from "@/lib/i18n/status-labels";
-
-const FRESHNESS_SOURCE_LABELS: Record<string, string> = {
-  DailyPrice:           "每日行情",
-  StockScore:           "综合评分",
-  DailyRecommendation:  "每日推荐",
-  GlobalMarket:         "全球市场",
-  News:                 "新闻资讯",
-  Backtest:             "历史回测",
-};
+import { getPipelineLabel, getDataSourceLabel } from "@/lib/i18n/system-labels";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -352,7 +343,7 @@ export default function MissionControlPage() {
             <tbody>
               {freshness.sources.map(s => (
                 <tr key={s.name}>
-                  <td style={cell}>{FRESHNESS_SOURCE_LABELS[s.name] ?? s.name}</td>
+                  <td style={cell}>{getDataSourceLabel(s.name)}</td>
                   <td style={{ ...cell, color: s.latestDate ? "#e5e5e5" : "#555" }}>
                     {s.latestDate ?? "无数据"}
                   </td>
