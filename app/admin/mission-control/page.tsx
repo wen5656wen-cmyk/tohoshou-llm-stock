@@ -193,7 +193,7 @@ export default function MissionControlPage() {
   }, [load, showDryRun]);
 
   if (loading) return <div style={{ color: "#888", padding: 24, fontFamily: "monospace" }}>加载中…</div>;
-  if (error)   return <div style={{ color: "#ef4444", padding: 24, fontFamily: "monospace" }}>Error: {error}</div>;
+  if (error)   return <div style={{ color: "#ef4444", padding: 24, fontFamily: "monospace" }}>错误：{error}</div>;
   if (!data)   return null;
 
   const { pipeline, freshness, featureCoverage, version, backtest, healthScore } = data;
@@ -302,7 +302,7 @@ export default function MissionControlPage() {
                         fontWeight: 700,
                         letterSpacing: "0.04em",
                       }}>
-                        DRY
+                        试运行
                       </span>
                     )}
                   </td>
@@ -451,12 +451,12 @@ export default function MissionControlPage() {
                        : healthScore.detail.healthGuardStatus === "WARNING" ? "#f59e0b"
                        : "#ef4444"
                 }}>
-                  {healthScore.detail.healthGuardStatus}
+                  {{ PASS: "正常", WARNING: "警告", FAIL: "异常" }[healthScore.detail.healthGuardStatus] ?? healthScore.detail.healthGuardStatus}
                 </span>
                 {healthScore.detail.healthGuardCritical !== null && (
                   <span style={{ color: "#555", marginLeft: 8, fontSize: 11 }}>
-                    CRITICAL={healthScore.detail.healthGuardCritical} WARN={healthScore.detail.healthGuardWarning}
-                    {healthScore.detail.healthGuardAgeHours !== null && ` (${healthScore.detail.healthGuardAgeHours}h ago)`}
+                    严重={healthScore.detail.healthGuardCritical} 警告={healthScore.detail.healthGuardWarning}
+                    {healthScore.detail.healthGuardAgeHours !== null && ` (${healthScore.detail.healthGuardAgeHours}小时前)`}
                   </span>
                 )}
               </div>

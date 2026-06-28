@@ -86,9 +86,9 @@ function corrColor(v: number | null) {
 }
 
 function directionBadge(d: string) {
-  if (d === "positive") return <span style={{ color: "#000", background: C.green,  fontSize: 10, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>▲ POS</span>;
-  if (d === "negative") return <span style={{ color: "#000", background: C.red,    fontSize: 10, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>▼ NEG</span>;
-  if (d === "neutral")  return <span style={{ color: C.muted, border: `1px solid ${C.border}`, fontSize: 10, padding: "1px 5px", borderRadius: 3 }}>= NEUTRAL</span>;
+  if (d === "positive") return <span style={{ color: "#000", background: C.green,  fontSize: 10, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>▲ 正向</span>;
+  if (d === "negative") return <span style={{ color: "#000", background: C.red,    fontSize: 10, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>▼ 负向</span>;
+  if (d === "neutral")  return <span style={{ color: C.muted, border: `1px solid ${C.border}`, fontSize: 10, padding: "1px 5px", borderRadius: 3 }}>= 中性</span>;
   return <span style={{ color: C.muted, fontSize: 10 }}>—</span>;
 }
 
@@ -133,13 +133,13 @@ export default function ResearchPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Research Dashboard</h1>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>研究分析</h1>
           <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
-            Read-only · {now}{loading ? " · loading…" : ""}
+            只读模式 · {now}{loading ? " · 加载中…" : ""}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: C.muted }}>Horizon:</span>
+          <span style={{ fontSize: 11, color: C.muted }}>回测周期：</span>
           <select
             value={horizon}
             onChange={(e) => setHorizon(e.target.value)}
@@ -147,35 +147,38 @@ export default function ResearchPage() {
           >
             {HORIZONS.map((h) => <option key={h} value={h}>{h}</option>)}
           </select>
-          <a href="/admin/mission-control" style={{ color: C.blue, fontSize: 11, textDecoration: "none" }}>← Mission Control</a>
+          <a href="/admin/mission-control" style={{ color: C.blue, fontSize: 11, textDecoration: "none" }}>← 控制中心</a>
         </div>
       </div>
 
-      {error && <div style={{ background: "#1a0000", border: `1px solid ${C.red}`, padding: 8, marginBottom: 12, color: C.red, fontSize: 12 }}>Error: {error}</div>}
+      {error && <div style={{ background: "#1a0000", border: `1px solid ${C.red}`, padding: 8, marginBottom: 12, color: C.red, fontSize: 12 }}>错误：{error}</div>}
 
       {/* Data State Banner */}
       {d && !hasData && (
         <div style={{ background: "#1a1200", border: `1px solid ${C.yellow}`, padding: "8px 12px", marginBottom: 12, fontSize: 12 }}>
-          <strong style={{ color: C.yellow }}>⚠ Insufficient data for horizon={horizon}</strong>
-          {" · "}joined rows: {d.dataState.joinedRows} · feat_* coverage: {d.dataState.coveragePct}%
-          {" · "}BP filled: {d.readiness.horizonStatus.find((h) => h.horizon === horizon)?.filledCount ?? 0}
-          {" · "}Factor analysis requires feat_* data AND filled backtest outcomes.
+          <strong style={{ color: C.yellow }}>⚠ 该周期数据不足：{horizon}</strong>
+          {" · "}有效样本：{d.dataState.joinedRows} · 特征覆盖率：{d.dataState.coveragePct}%
+          {" · "}回测填充：{d.readiness.horizonStatus.find((h) => h.horizon === horizon)?.filledCount ?? 0}
+          {" · "}因子分析需要 feat_* 数据和已填充的回测结果。
           {d.readiness.horizonStatus.find((h) => h.horizon === horizon)?.expectedReadyDate &&
-            ` Expected: ${d.readiness.horizonStatus.find((h) => h.horizon === horizon)?.expectedReadyDate}`}
+            ` 预计就绪：${d.readiness.horizonStatus.find((h) => h.horizon === horizon)?.expectedReadyDate}`}
         </div>
       )}
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-        {(["overview", "factors", "correlation", "quality", "readiness"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            style={{ background: tab === t ? "#333" : "transparent", border: `1px solid ${tab === t ? "#555" : C.border}`, color: tab === t ? C.text : C.muted, padding: "4px 12px", cursor: "pointer", ...mono, borderRadius: 3 }}>
-            {t.toUpperCase()}
-          </button>
-        ))}
+        {(["overview", "factors", "correlation", "quality", "readiness"] as const).map((t) => {
+          const TAB_LABELS: Record<string, string> = { overview: "概览", factors: "因子分析", correlation: "相关性", quality: "数据质量", readiness: "就绪状态" };
+          return (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ background: tab === t ? "#333" : "transparent", border: `1px solid ${tab === t ? "#555" : C.border}`, color: tab === t ? C.text : C.muted, padding: "4px 12px", cursor: "pointer", ...mono, borderRadius: 3 }}>
+              {TAB_LABELS[t]}
+            </button>
+          );
+        })}
       </div>
 
-      {!d && loading && <div style={{ color: C.muted, padding: 32, textAlign: "center" }}>Loading research data…</div>}
+      {!d && loading && <div style={{ color: C.muted, padding: 32, textAlign: "center" }}>加载研究数据中…</div>}
 
       {d && (
         <>
@@ -185,10 +188,10 @@ export default function ResearchPage() {
               {/* Data confidence */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
                 {[
-                  { label: "Data Confidence",    value: `${d.summary.dataConfidence}/100`,   color: d.summary.dataConfidence >= 75 ? C.green : d.summary.dataConfidence >= 40 ? C.yellow : C.red },
-                  { label: "Feat_* Coverage",    value: `${d.dataState.coveragePct}%`,        color: d.dataState.coveragePct >= 80 ? C.green : d.dataState.coveragePct > 0 ? C.yellow : C.red },
-                  { label: "Joined Rows",        value: d.dataState.joinedRows.toLocaleString(), color: C.text },
-                  { label: "Trading Days",       value: d.readiness.tradingDays.toString(),   color: d.readiness.tradingDays >= 30 ? C.green : d.readiness.tradingDays > 0 ? C.yellow : C.red },
+                  { label: "数据可信度",    value: `${d.summary.dataConfidence}/100`,   color: d.summary.dataConfidence >= 75 ? C.green : d.summary.dataConfidence >= 40 ? C.yellow : C.red },
+                  { label: "特征覆盖率",    value: `${d.dataState.coveragePct}%`,        color: d.dataState.coveragePct >= 80 ? C.green : d.dataState.coveragePct > 0 ? C.yellow : C.red },
+                  { label: "有效样本",      value: d.dataState.joinedRows.toLocaleString(), color: C.text },
+                  { label: "交易日数量",    value: d.readiness.tradingDays.toString(),   color: d.readiness.tradingDays >= 30 ? C.green : d.readiness.tradingDays > 0 ? C.yellow : C.red },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
                     <div style={{ color: C.muted, fontSize: 10, marginBottom: 4 }}>{label}</div>
@@ -201,9 +204,9 @@ export default function ResearchPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
                 {/* Top Positive Factors */}
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
-                  <div style={{ color: C.green, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>▲ TOP POSITIVE FACTORS</div>
+                  <div style={{ color: C.green, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>▲ 最佳正向因子</div>
                   {d.summary.topPositiveFactors.length === 0
-                    ? <div style={{ color: C.muted, fontSize: 11 }}>No data yet</div>
+                    ? <div style={{ color: C.muted, fontSize: 11 }}>暂无数据</div>
                     : d.summary.topPositiveFactors.map((f, i) => (
                       <div key={f} style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>
                         <span style={{ color: C.muted }}>{i + 1}. </span>{f}
@@ -213,9 +216,9 @@ export default function ResearchPage() {
 
                 {/* Top Negative Factors */}
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
-                  <div style={{ color: C.red, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>▼ TOP NEGATIVE FACTORS</div>
+                  <div style={{ color: C.red, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>▼ 最弱因子</div>
                   {d.summary.topNegativeFactors.length === 0
-                    ? <div style={{ color: C.muted, fontSize: 11 }}>No data yet</div>
+                    ? <div style={{ color: C.muted, fontSize: 11 }}>暂无数据</div>
                     : d.summary.topNegativeFactors.map((f, i) => (
                       <div key={f} style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>
                         <span style={{ color: C.muted }}>{i + 1}. </span>{f}
@@ -225,9 +228,9 @@ export default function ResearchPage() {
 
                 {/* Most Predictive */}
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
-                  <div style={{ color: C.purple, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>⚡ MOST PREDICTIVE</div>
+                  <div style={{ color: C.purple, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>⚡ 最具预测力</div>
                   {d.summary.mostPredictiveFeatures.length === 0
-                    ? <div style={{ color: C.muted, fontSize: 11 }}>No data yet</div>
+                    ? <div style={{ color: C.muted, fontSize: 11 }}>暂无数据</div>
                     : d.summary.mostPredictiveFeatures.map((f, i) => (
                       <div key={f} style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>
                         <span style={{ color: C.muted }}>{i + 1}. </span>{f}
@@ -237,7 +240,7 @@ export default function ResearchPage() {
 
                 {/* Most Stable */}
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
-                  <div style={{ color: C.teal, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>✓ MOST STABLE (coverage)</div>
+                  <div style={{ color: C.teal, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>✓ 最稳定因子</div>
                   {d.summary.mostStableFeatures.map((f, i) => (
                     <div key={f} style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>
                       <span style={{ color: C.muted }}>{i + 1}. </span>{f}
@@ -247,7 +250,7 @@ export default function ResearchPage() {
 
                 {/* Weakest Features */}
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
-                  <div style={{ color: C.orange, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>⚠ WEAKEST (coverage)</div>
+                  <div style={{ color: C.orange, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>⚠ 覆盖率最低</div>
                   {d.summary.weakestFeatures.map((f, i) => (
                     <div key={f} style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>
                       <span style={{ color: C.muted }}>{i + 1}. </span>{f}
@@ -257,9 +260,9 @@ export default function ResearchPage() {
 
                 {/* Observations */}
                 <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
-                  <div style={{ color: C.blue, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>ℹ OBSERVATIONS</div>
+                  <div style={{ color: C.blue, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>ℹ 分析说明</div>
                   {d.summary.observations.length === 0
-                    ? <div style={{ color: C.muted, fontSize: 11 }}>System nominal.</div>
+                    ? <div style={{ color: C.muted, fontSize: 11 }}>系统运行正常</div>
                     : d.summary.observations.map((obs, i) => (
                       <div key={i} style={{ color: C.text, fontSize: 11, marginBottom: 5, lineHeight: 1.4 }}>• {obs}</div>
                     ))}
@@ -273,13 +276,13 @@ export default function ResearchPage() {
             <div>
               {!hasData && (
                 <div style={{ color: C.muted, padding: 16, background: C.surface, border: `1px solid ${C.border}`, marginBottom: 12, fontSize: 12 }}>
-                  Factor contribution analysis requires joined feat_* + backtest data. Currently {d.dataState.joinedRows} joined rows for {horizon}.
+                  因子贡献分析需要已联结的 feat_* 及回测数据。当前 {d.dataState.joinedRows} 条有效样本（周期 {horizon}）。
                 </div>
               )}
               <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}` }}>
                 <thead>
                   <tr style={{ background: "#181818" }}>
-                    {["Feature","Type","Cov%","Samples","Direction","TOP WR","MID WR","BOT WR","Δ WinRate","Δ Return","Δ Alpha"].map((h) => (
+                    {["因子","类型","覆盖率","样本","方向","高分胜率","中分胜率","低分胜率","Δ胜率","Δ收益","Δ超额"].map((h) => (
                       <th key={h} style={{ ...th, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -294,7 +297,7 @@ export default function ResearchPage() {
                         <td style={{ ...cell, color: C.blue, whiteSpace: "nowrap" }}>{f.label}</td>
                         <td style={{ ...cell, color: C.muted }}>{f.type}</td>
                         <td style={{ ...cell, color: f.coverage > 50 ? C.green : f.coverage > 0 ? C.yellow : C.red }}>{f.coverage}%</td>
-                        <td style={cell}>{f.insufficient ? <span style={{ color: C.muted }}>insuff.</span> : f.sampleCount}</td>
+                        <td style={cell}>{f.insufficient ? <span style={{ color: C.muted }}>不足</span> : f.sampleCount}</td>
                         <td style={cell}>{directionBadge(f.direction)}</td>
                         {/* Numeric tertile win rates */}
                         {f.type === "numeric" ? (
@@ -330,17 +333,17 @@ export default function ResearchPage() {
             <div>
               {!d.correlation.hasData && (
                 <div style={{ color: C.muted, padding: 16, background: C.surface, border: `1px solid ${C.border}`, marginBottom: 12, fontSize: 12 }}>
-                  Correlation analysis requires feat_* data with filled backtest outcomes. Currently insufficient data.
+                  相关性分析需要已联结的 feat_* 数据和已填充的回测结果，当前数据不足。
                 </div>
               )}
 
               {/* Feature → Outcome correlations */}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ color: C.muted, fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Feature → Outcome Correlations (Pearson r)</div>
+                <div style={{ color: C.muted, fontSize: 11, fontWeight: 600, marginBottom: 6 }}>特征与结果相关性（Pearson r）</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}` }}>
                   <thead>
                     <tr style={{ background: "#181818" }}>
-                      {["Feature","Samples","r(Return)","r(Alpha)","r(WinRate)","Strongest Signal"].map((h) => (
+                      {["因子","样本","r(收益)","r(超额)","r(胜率)","最强信号"].map((h) => (
                         <th key={h} style={th}>{h}</th>
                       ))}
                     </tr>
@@ -378,17 +381,17 @@ export default function ResearchPage() {
               {/* High correlation pairs */}
               <div>
                 <div style={{ color: C.muted, fontSize: 11, fontWeight: 600, marginBottom: 6 }}>
-                  High Feature-Feature Correlation (|r| ≥ 0.70) — Potential Redundancy
+                  高因子间相关性 (|r| ≥ 0.70) — 潜在冗余
                 </div>
                 {d.correlation.highCorrPairs.length === 0 ? (
                   <div style={{ color: C.muted, fontSize: 12, padding: 12, background: C.surface, border: `1px solid ${C.border}` }}>
-                    {d.correlation.hasData ? "No highly correlated feature pairs found (|r| < 0.70)." : "No data available."}
+                    {d.correlation.hasData ? "未发现高相关因子对 (|r| < 0.70)" : "暂无数据"}
                   </div>
                 ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}` }}>
                     <thead>
                       <tr style={{ background: "#181818" }}>
-                        {["Feature A","Feature B","Pearson r","Interpretation"].map((h) => <th key={h} style={th}>{h}</th>)}
+                        {["因子 A","因子 B","Pearson r","说明"].map((h) => <th key={h} style={th}>{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -398,9 +401,9 @@ export default function ResearchPage() {
                           <td style={{ ...cell, color: C.blue }}>{p.labelB}</td>
                           <td style={{ ...cell, textAlign: "right", color: corrColor(p.corr), fontWeight: 700 }}>{p.corr.toFixed(3)}</td>
                           <td style={{ ...cell, color: C.muted, fontSize: 11 }}>
-                            {Math.abs(p.corr) >= 0.9 ? "Highly redundant — consider using only one"
-                              : Math.abs(p.corr) >= 0.7 ? "Moderately redundant — monitor for multicollinearity"
-                              : "Low concern"}
+                            {Math.abs(p.corr) >= 0.9 ? "高度冗余 — 建议只保留一个"
+                              : Math.abs(p.corr) >= 0.7 ? "中度冗余 — 注意多重共线性"
+                              : "影响较小"}
                           </td>
                         </tr>
                       ))}
@@ -417,9 +420,9 @@ export default function ResearchPage() {
               {/* Summary */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Total DR Rows",        value: d.quality.total.toLocaleString(),     color: C.text  },
-                  { label: "Overall Coverage",     value: `${d.quality.overallCoverage}%`,       color: d.quality.overallCoverage > 80 ? C.green : d.quality.overallCoverage > 0 ? C.yellow : C.red },
-                  { label: "Unexpected NULLs",     value: d.quality.unexpectedNulls.length.toString(),
+                  { label: "推荐总行数",    value: d.quality.total.toLocaleString(),     color: C.text  },
+                  { label: "整体覆盖率",    value: `${d.quality.overallCoverage}%`,       color: d.quality.overallCoverage > 80 ? C.green : d.quality.overallCoverage > 0 ? C.yellow : C.red },
+                  { label: "异常空值",      value: d.quality.unexpectedNulls.length.toString(),
                     color: d.quality.unexpectedNulls.length === 30 ? C.yellow : d.quality.unexpectedNulls.length === 0 ? C.green : C.red },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
@@ -431,7 +434,7 @@ export default function ResearchPage() {
 
               {d.quality.unexpectedNulls.length === 30 && (
                 <div style={{ background: "#1a1200", border: `1px solid ${C.yellow}`, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: C.yellow }}>
-                  ⚠ All 30 feat_* fields are NULL. First data expected after 2026-06-27 07:30 JST cron run (rerank-top500.ts Step 8).
+                  ⚠ 全部 30 个 feat_* 字段为空。首批数据预计在 2026-06-27 07:30 JST Cron 运行（rerank-top500.ts Step 8）后生成。
                 </div>
               )}
 
@@ -439,7 +442,7 @@ export default function ResearchPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}` }}>
                 <thead>
                   <tr style={{ background: "#181818" }}>
-                    {["Feature","Type","Coverage","Filled / Total","Min","Max","Mean","Stddev","Median"].map((h) => (
+                    {["因子","类型","覆盖率","已填 / 总计","最小","最大","均值","标准差","中位数"].map((h) => (
                       <th key={h} style={{ ...th, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -473,10 +476,10 @@ export default function ResearchPage() {
               {/* Summary stats */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
                 {[
-                  { label: "Trading Days",     value: d.readiness.tradingDays.toString(),           color: d.readiness.tradingDays >= 30 ? C.green : C.yellow },
-                  { label: "Available Horizons", value: d.readiness.availableHorizons.join(", ") || "none", color: d.readiness.availableHorizons.length >= 5 ? C.green : d.readiness.availableHorizons.length > 0 ? C.yellow : C.red },
-                  { label: "Earliest RecDate", value: d.readiness.earliestRecDate ?? "—",           color: C.muted },
-                  { label: "Latest RecDate",   value: d.readiness.latestRecDate   ?? "—",           color: C.muted },
+                  { label: "交易日数量",      value: d.readiness.tradingDays.toString(),           color: d.readiness.tradingDays >= 30 ? C.green : C.yellow },
+                  { label: "可用回测周期",    value: d.readiness.availableHorizons.join(", ") || "无", color: d.readiness.availableHorizons.length >= 5 ? C.green : d.readiness.availableHorizons.length > 0 ? C.yellow : C.red },
+                  { label: "最早推荐日",      value: d.readiness.earliestRecDate ?? "—",           color: C.muted },
+                  { label: "最新推荐日",      value: d.readiness.latestRecDate   ?? "—",           color: C.muted },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 12 }}>
                     <div style={{ color: C.muted, fontSize: 10 }}>{label}</div>
@@ -489,7 +492,7 @@ export default function ResearchPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}` }}>
                 <thead>
                   <tr style={{ background: "#181818" }}>
-                    {["Horizon","Cal Days Required","Filled","Total","Fill Rate","Status","Expected Ready Date"].map((h) => (
+                    {["周期","所需日历天数","已填充","总计","填充率","状态","预计就绪日期"].map((h) => (
                       <th key={h} style={{ ...th, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -508,12 +511,12 @@ export default function ResearchPage() {
                       </td>
                       <td style={cell}>
                         {h.ready
-                          ? <span style={{ color: C.green, fontWeight: 700 }}>✅ READY</span>
+                          ? <span style={{ color: C.green, fontWeight: 700 }}>✅ 就绪</span>
                           : <span style={{ color: h.filledCount > 0 ? C.yellow : C.muted }}>
-                              {h.filledCount > 0 ? "PARTIAL" : "PENDING"}
+                              {h.filledCount > 0 ? "部分就绪" : "等待中"}
                             </span>}
                       </td>
-                      <td style={{ ...cell, color: C.muted }}>{h.expectedReadyDate ?? (h.ready ? "—" : "calculating…")}</td>
+                      <td style={{ ...cell, color: C.muted }}>{h.expectedReadyDate ?? (h.ready ? "—" : "计算中…")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -521,12 +524,12 @@ export default function ResearchPage() {
 
               {/* Readiness context */}
               <div style={{ marginTop: 12, background: C.surface, border: `1px solid ${C.border}`, padding: 12, fontSize: 11, color: C.muted }}>
-                <strong style={{ color: C.text }}>Walk-Forward Readiness Rules:</strong>
-                <br />• A horizon is READY when backtest positions have filled returnPct values (exit price recorded).
-                <br />• Fill requires: recDate + N calendar days have elapsed and DailyPrice data exists for the exit date.
-                <br />• Calendar days buffer: 1d=4, 3d=6, 5d=9, 7d=12, 10d=17, 20d=32, 30d=46, 60d=92, 90d=132.
-                <br />• Walk-forward execution: NOT YET IMPLEMENTED. This panel shows readiness only.
-                <br />• Minimum recommended trading days for reliable statistics: 30+ days.
+                <strong style={{ color: C.text }}>滚动就绪规则：</strong>
+                <br />• 当回测仓位的 returnPct 已填充（出场价已记录）时，该周期标记为「就绪」。
+                <br />• 填充条件：recDate + N 日历天已过去，且出场日的行情数据存在。
+                <br />• 日历天缓冲：1d=4, 3d=6, 5d=9, 7d=12, 10d=17, 20d=32, 30d=46, 60d=92, 90d=132。
+                <br />• 滚动执行：尚未实现，本面板仅显示就绪状态。
+                <br />• 建议最少 30 个交易日以获得可靠统计结果。
               </div>
             </div>
           )}
@@ -534,9 +537,9 @@ export default function ResearchPage() {
       )}
 
       <div style={{ marginTop: 24, fontSize: 10, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
-        Research Dashboard · Step 6 · read-only · no model changes ·
-        <a href="/admin/versions" style={{ color: C.muted, marginLeft: 6 }}>Version Center</a>
-        <a href="/admin/experiments" style={{ color: C.muted, marginLeft: 6 }}>Experiments</a>
+        研究分析 · 第6步 · 只读 · 不修改模型 ·
+        <a href="/admin/versions" style={{ color: C.muted, marginLeft: 6 }}>版本中心</a>
+        <a href="/admin/experiments" style={{ color: C.muted, marginLeft: 6 }}>实验管理</a>
       </div>
     </div>
   );

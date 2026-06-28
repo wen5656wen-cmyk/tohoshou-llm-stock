@@ -55,7 +55,8 @@
     "learning:report:dry": "npx tsx scripts/generate-learning-report.ts --dry-run",
     "backfill:dr-version": "npx tsx scripts/backfill-dr-version.ts",
     "backfill:dr-version:dry": "npx tsx scripts/backfill-dr-version.ts --dry-run",
-    "pipeline:dry-run": "npx tsx scripts/dry-run-pipeline.ts"
+    "pipeline:dry-run": "npx tsx scripts/dry-run-pipeline.ts",
+    "i18n:scan": "npx tsx scripts/i18n-scan.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

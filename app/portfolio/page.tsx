@@ -196,7 +196,7 @@ function StrategyAllocationSection({
   }
   if (stats.length === 0) return null;
 
-  const LABEL: Record<string, string> = { DAY: "DAY 30%", SWING: "SWING 40%", POSITION: "POSITION 30%" };
+  const LABEL: Record<string, string> = { DAY: "日内 30%", SWING: "波段 40%", POSITION: "持仓 30%" };
 
   return (
     <div className="mx-5 my-3">
@@ -335,7 +335,7 @@ function SnapshotCard({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-400 mb-0.5">vs TOPIX</div>
+            <div className="text-xs text-slate-400 mb-0.5">相对TOPIX</div>
             <div className="text-sm font-semibold">
               {snap.isOutperformingTopix == null ? (
                 <span className="text-slate-500">—</span>

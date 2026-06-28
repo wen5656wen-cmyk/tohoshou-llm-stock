@@ -354,7 +354,7 @@ export default function ScreenerPage() {
               {/* Score + badge */}
               <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                 <span className={`text-[13px] font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
-                  Score {displayScore?.toFixed(0) ?? "—"}
+                  综合分 {displayScore?.toFixed(0) ?? "—"}
                 </span>
                 {hasGpt && (
                   <span className="text-[9px] text-indigo-500 font-mono">

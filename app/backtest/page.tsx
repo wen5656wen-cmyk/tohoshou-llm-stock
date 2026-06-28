@@ -669,12 +669,12 @@ export default function BacktestPage() {
                     <div className={`text-2xl font-bold font-mono ${s.avgAlphaPct != null && s.avgAlphaPct > 0 ? "text-emerald-400" : "text-slate-400"}`}>
                       {s.avgAlphaPct != null ? `${s.avgAlphaPct > 0 ? "+" : ""}${s.avgAlphaPct.toFixed(2)}%` : "—"}
                     </div>
-                    <div className="text-slate-600 text-[10px] mt-0.5">vs TOPIX</div>
+                    <div className="text-slate-600 text-[10px] mt-0.5">相对TOPIX</div>
                   </div>
                   <div className="bg-slate-800/40 rounded-lg p-3">
                     <div className="text-slate-500 text-xs mb-1">持仓中</div>
                     <div className="text-2xl font-bold font-mono text-slate-300">{s.openRows}</div>
-                    <div className="text-slate-600 text-[10px] mt-0.5">OPEN positions</div>
+                    <div className="text-slate-600 text-[10px] mt-0.5">持仓中</div>
                   </div>
                 </div>
 
@@ -810,7 +810,7 @@ export default function BacktestPage() {
           value={stat7d?.benchmarkTopixReturn != null
             ? `${stat7d.benchmarkTopixReturn > 0 ? "+" : ""}${stat7d.benchmarkTopixReturn.toFixed(2)}%`
             : "—"}
-          sub="1306.T ETF Proxy"
+          sub="1306.T ETF基准"
           valueColor={stat7d?.benchmarkTopixReturn != null
             ? (stat7d.benchmarkTopixReturn > 0 ? "text-emerald-400" : "text-red-400")
             : undefined}
@@ -851,7 +851,7 @@ export default function BacktestPage() {
       </div>
 
       {loading && (
-        <div className="text-slate-400 text-sm animate-pulse py-16 text-center">Loading…</div>
+        <div className="text-slate-400 text-sm animate-pulse py-16 text-center">加载中…</div>
       )}
 
       {!loading && error && (
@@ -1174,7 +1174,7 @@ export default function BacktestPage() {
                     <th className="px-4 py-3 text-right">{t("backtest.col_rank")}</th>
                     <th className="px-4 py-3 text-right">{t("backtest.col_entry_price")}</th>
                     <th className="px-4 py-3 text-right">{t("backtest.col_ret30d")}</th>
-                    <th className="px-4 py-3 text-right">Date</th>
+                    <th className="px-4 py-3 text-right">日期</th>
                   </tr>
                 </thead>
                 <tbody>

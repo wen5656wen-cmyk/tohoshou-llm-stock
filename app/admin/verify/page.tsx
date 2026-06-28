@@ -310,7 +310,7 @@ export default function AdminVerifyPage() {
               {ready ? "✓ 生产环境就绪" : "✗ 生产环境未就绪"}
             </div>
             <div className={`text-sm font-semibold mb-3 ${ready ? "text-emerald-600" : "text-red-600"}`}>
-              {ready ? "Production Ready" : "Not Production Ready"}
+              {ready ? "生产环境已就绪" : "生产环境未就绪"}
             </div>
 
             {/* 指标行 */}
@@ -318,7 +318,7 @@ export default function AdminVerifyPage() {
               <div>
                 <span className="text-slate-500 text-xs">允许推荐 / Allow Recommendation</span>
                 <div className={`font-bold ${status?.meta.healthAllowRec ? "text-emerald-700" : "text-slate-400"}`}>
-                  {status?.meta.healthAllowRec === true ? "YES ✓" : status?.meta.healthAllowRec === false ? "NO ✗" : "—"}
+                  {status?.meta.healthAllowRec === true ? "是 ✓" : status?.meta.healthAllowRec === false ? "否 ✗" : "—"}
                 </div>
               </div>
               <div>
@@ -369,14 +369,14 @@ export default function AdminVerifyPage() {
             >
               {refreshing ? "检查中…" : "⟳ 刷新全部检查"}
             </button>
-            <div className="text-xs text-slate-400 text-center -mt-1">Refresh All Checks</div>
+            <div className="text-xs text-slate-400 text-center -mt-1">刷新所有检查</div>
             <button
               onClick={copyReport}
               className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm px-4 py-2 rounded-lg font-semibold transition"
             >
               {copied ? "✓ 已复制!" : "⎘ 复制验收报告"}
             </button>
-            <div className="text-xs text-slate-400 text-center -mt-1">Copy Acceptance Report</div>
+            <div className="text-xs text-slate-400 text-center -mt-1">复制验收报告</div>
             <div className="text-xs text-slate-400 text-center mt-1">
               最后检查 / Last checked:<br />
               {status ? new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" }).slice(0, 16) + " JST" : "—"}
@@ -632,7 +632,7 @@ export default function AdminVerifyPage() {
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       {isLatest && (
-                        <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase tracking-wide">Latest</span>
+                        <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase tracking-wide">最新</span>
                       )}
                       <span className={`shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${d.productionReady ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
                         {d.productionReady ? "✓" : "✗"}
@@ -644,11 +644,11 @@ export default function AdminVerifyPage() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {([
-                        { key: "buildStatus",  label: "Build"  },
-                        { key: "healthStatus", label: "Health" },
-                        { key: "apiStatus",    label: "API"    },
-                        { key: "pageStatus",   label: "Page"   },
-                        { key: "pm2Status",    label: "PM2"    },
+                        { key: "buildStatus",  label: "构建"  },
+                        { key: "healthStatus", label: "健康"  },
+                        { key: "apiStatus",    label: "API"   },
+                        { key: "pageStatus",   label: "页面"  },
+                        { key: "pm2Status",    label: "PM2"   },
                       ] as const).map(({ key, label }) => {
                         const v = d[key];
                         const cls = v === "PASS" ? "bg-emerald-100 text-emerald-700"

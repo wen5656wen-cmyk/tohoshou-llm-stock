@@ -565,8 +565,8 @@ export default function VersionsPage() {
       )}
 
       <div style={{ marginTop: 24, fontSize: 10, color: S.muted, borderTop: `1px solid ${S.border}`, paddingTop: 8 }}>
-        Version Center · auto-refreshes every 60s ·{" "}
-        <a href="/admin/experiments" style={{ color: S.muted }}>Experiment Dashboard →</a>
+        版本中心 · 每60秒自动刷新 ·{" "}
+        <a href="/admin/experiments" style={{ color: S.muted }}>实验管理 →</a>
       </div>
     </div>
   );

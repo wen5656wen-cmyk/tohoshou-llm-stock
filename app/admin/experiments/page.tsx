@@ -160,7 +160,7 @@ export default function ExperimentsPage() {
               }}
             >
               <div style={{ fontSize: 22, fontWeight: 700 }}>{count}</div>
-              <div style={{ fontSize: 10 }}>{status}</div>
+              <div style={{ fontSize: 10 }}>{cfg.label}</div>
             </button>
           );
         })}
