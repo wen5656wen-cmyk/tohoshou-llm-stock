@@ -2,6 +2,37 @@
 
 ---
 
+## [17.8.0] - 2026-06-28 — T1: Trading Architecture Baseline 建立
+
+### 改动
+
+**新增**
+- `docs/Trading-Architecture.md` — 三交易体系架构规范（16节）：
+  1. 文档目的（设计原则 / 适用/不适用范围）
+  2. 三交易体系总体架构（数据流 / 3:4:3资金分配图）
+  3. Day Trade 定义（1日日内 / 5只等权 / 止盈+1.5% / 止损-1.0%）
+  4. Swing Trade 定义（3-10日 / 止盈+5% / 止损-3% / 时间止损10日）
+  5. Long Trade 定义（20-90日 / 止盈+15% / 止损-8% / STRONG_BUY专用）
+  6. AI评分与策略关系（共享评分 / 独立规则对比表 / 评分流程图）
+  7. 资金管理（独立资金池推荐方案 / 3:4:3 / 等权仓位计算）
+  8. Snapshot（生成时机 / 不生成情况 / 内容字段设计）
+  9. Portfolio（三套独立 / 汇总视图 / 买卖记录字段）
+  10. Backtest（三套独立 / 指标定义 / 数据成熟度 / 生命周期）
+  11. Learning（三策略汇总方式 / integrityScore加权计算）
+  12. Cron（每日调度时间表 / 禁止重启窗口）
+  13. 数据库规划（StrategyPosition / StrategyCapitalLog / StrategyBacktestSummary / ER图）
+  14. UI规划（/strategy 页面布局 / 三Tab展示内容）
+  15. 实施路线（Phase 1-6：DB → 策略引擎 → Portfolio → Backtest → Learning → UI）
+  16. 暂不开发（8项明确排除项）
+
+### 验收
+- 代码无修改 ✅
+- 数据库无修改 ✅
+- `docs/Trading-Architecture.md` 已建立 ✅
+- 部署记录 #57 ✅
+
+---
+
 ## [17.7.1] - 2026-06-28 — T1: Module Responsibility Baseline 完整版（11节）
 
 ### 改动
