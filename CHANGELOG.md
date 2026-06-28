@@ -2,6 +2,51 @@
 
 ---
 
+## [17.2.0] - 2026-06-28 — P1-Cron Fix: sync-all-prices spawn（事件循环解阻塞）
+
+### 问题根因
+
+`cron-scheduler.ts` 的 `run()` 函数使用 `execSync()`，在主进程同步执行脚本。
+`sync-all-prices.ts` 耗时约 1.5 小时，独占 Node.js 事件循环，导致：
+- node-cron 内部 `setInterval` 被阻塞，07:00 / 07:30 slot 打印 "missed execution" 并跳过
+- 每周日整条 AI 评分流水线（compute-scores → rerank → portfolio → ...）全部 NEVER_RUN
+- 需要人工干预补跑（见 2026-06-28 T1 MONDAY OPEN CHECK 记录）
+
+### 修复
+
+#### `scripts/cron-scheduler.ts`
+
+- **新增 `runAsync()`**：使用 `spawn()` 在子进程执行脚本，立即返回 `Promise<void>`，不占用主进程事件循环；处理 timeout/error/close 三个事件，统一写 `pipeline-runs.jsonl`
+- **`run()` + `execSync` 全部移除**，替换为 `await runAsync()`
+- **06:00 slot**：改为普通（非 async）callback，fire-and-forget：`syncPricesPromise = runAsync(...)` 不 await，子进程在后台运行，主进程立即返回
+- **07:30 slot**：改为 `async` callback，pipeline 开始前先 `await syncPricesPromise`（等价格同步完成后再计算评分），随后顺序 `await runAsync(...)` 执行各阶段
+- **所有其他 callback**：改为 `async` + `await runAsync()`，事件循环永远保持空闲
+- **新增 00:00 JST 日次リセット**：每天清空 `syncPricesPromise`，确保 07:30 等待的是当日任务
+- **`runNewsSync()`** 移除，合并至各 cron slot 的 `await runAsync("sync-news.ts", ...)`
+- 启动日志更新为 `v17.2.0 — async spawn 修复`，schedule 摘要标注 `06:00 価格(spawn)`
+
+### 效果
+
+- 07:00 news sync 和 07:30 AI pipeline 在 sync-all-prices 运行期间正常触发
+- 流水线全自动完成，无需手动补跑
+- 长任务（rerank-top500 ~47min）也通过 `await runAsync()` 在子进程执行，不阻塞未来 slot
+
+### 修改文件
+
+| 文件 | 变更 |
+|------|------|
+| `scripts/cron-scheduler.ts` | 重写：execSync→spawn，全 async callback，syncPricesPromise 协调机制 |
+
+### 验证
+
+- `npx tsc --noEmit` ✅ 无错误
+- `npm run build` ✅ exit 0
+- PM2 restart tohoshou-cron ✅ online（2026-06-28 15:00 JST）
+- 启动日志确认 `06:00 価格(spawn)` ✅
+- commit: `0f368a9`，deployment #49
+
+---
+
 ## [17.1.0] - 2026-06-26 — AI Portfolio Strategy Allocation (3:4:3)
 
 **Schema + 核心逻辑:**
