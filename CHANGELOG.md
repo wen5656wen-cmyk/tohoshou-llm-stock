@@ -2,6 +2,41 @@
 
 ---
 
+## [17.10.0] - 2026-06-29 — P2A: Day Trade Strategy Engine
+
+### 改动
+
+**新增脚本**
+- `scripts/day-strategy.ts` — Day Trade 策略执行引擎（330行）
+  - `--dry-run` / `--date=YYYY-MM-DD` 参数支持
+  - 3级候选股降级：L1（DAY typed + score≥75 + BUY/STRONG_BUY）→ L2（DAY typed，无 score 门槛）→ L3（全量 BUY/STRONG_BUY，支持 v15.0 以前历史日期）
+  - Step 3+4 合并：候选股在 sync 阶段产出，dry-run 不再重查 DB
+  - ¥30M 池 / 5 支持仓 / ¥6M 均配 / 止盈 +1.5% / 止损 -1.0%
+  - 日本 100 股手数取整 `Math.floor(6M / price / 100) * 100`
+  - DATA_MISSING 股票记录为 WAITING_OPEN（幂等）
+  - 事务内原子写 StrategyTradeResult×5 + StrategySnapshot + StrategyCapitalLog
+
+**cron-scheduler.ts**
+- 新增 16:30 JST 工作日 cron → `day-strategy.ts`
+
+**health:data 新增 4 项 Strategy 检查（S7–S10）**
+- `day_trade_stale_waiting_open`（CRITICAL）：WAITING_OPEN 超 24h
+- `day_trade_stale_waiting_close`（WARNING）：WAITING_CLOSE 超 24h
+- `day_trade_result_freshness`（INFO）：最新 CLOSED 交易时间
+- `day_trade_valid_status`（WARNING）：策略结果状态合规
+
+**package.json**
+- 新增 `day-strategy`、`day-strategy:dry` 脚本
+
+### 验收（2026-06-26 历史日）
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0（S7–S10 全 PASS）
+- Dry Run PASS：5 支候选，4 笔收盘，P&L ¥656,550
+- 真实写入 PASS：StrategyTradeResult×5 + Snapshot×1 + CapitalLog×1
+- 池余额：¥30,000,000 → ¥30,656,550（+2.19%，Alpha +4.11% vs TOPIX）
+
+---
+
 ## [17.9.0] - 2026-06-29 — P1: Trading Architecture Phase 1 — 三策略数据库底座
 
 ### 改动

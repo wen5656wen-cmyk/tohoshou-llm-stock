@@ -560,6 +560,77 @@ async function main() {
       pass: true,
     });
 
+    // ── Phase 2A: Day Strategy Engine checks ──────────────────────────────────
+    // CHECK S7: WAITING_OPEN stale > 24h (prices never arrived)
+    const oneDayAgo = new Date(Date.now() - 86400_000);
+    const staleWaitingOpen = await (prisma as any).strategyTradeResult.count({
+      where: {
+        strategyType: "DAY_TRADE",
+        status: "WAITING_OPEN",
+        createdAt: { lt: oneDayAgo },
+      },
+    });
+    add({
+      id: "day_trade_no_stale_waiting_open", level: "CRITICAL",
+      name: "Day Trade stale WAITING_OPEN (>24h) = 0",
+      value: staleWaitingOpen,
+      pass: staleWaitingOpen === 0,
+      details: staleWaitingOpen > 0
+        ? ["Trades stuck WAITING_OPEN >24h — prices may be missing", "Fix: check DailyPrice sync for those dates"]
+        : [],
+    });
+
+    // CHECK S8: WAITING_CLOSE stale > 24h
+    const staleWaitingClose = await (prisma as any).strategyTradeResult.count({
+      where: {
+        strategyType: "DAY_TRADE",
+        status: "WAITING_CLOSE",
+        createdAt: { lt: oneDayAgo },
+      },
+    });
+    add({
+      id: "day_trade_no_stale_waiting_close", level: "WARNING",
+      name: "Day Trade stale WAITING_CLOSE (>24h) = 0",
+      value: staleWaitingClose,
+      pass: staleWaitingClose === 0,
+      details: staleWaitingClose > 0
+        ? ["Day trades stuck WAITING_CLOSE — close prices missing", "Fix: re-run day-strategy after price sync"]
+        : [],
+    });
+
+    // CHECK S9: Latest day strategy result (freshness)
+    const latestDayResult = await (prisma as any).strategyTradeResult.findFirst({
+      where: { strategyType: "DAY_TRADE", status: "CLOSED" },
+      orderBy: { tradeDate: "desc" },
+      select: { tradeDate: true },
+    });
+    const latestDayDate = (latestDayResult as any)?.tradeDate?.toISOString().slice(0, 10) ?? "none";
+    const dayAgeDays = latestDayResult
+      ? Math.floor((todayJst.getTime() - (latestDayResult as any).tradeDate.getTime()) / 86400_000)
+      : 99;
+    add({
+      id: "day_trade_result_freshness", level: "INFO",
+      name: "Day Trade latest CLOSED result",
+      value: latestDayResult
+        ? `${latestDayDate} (${dayAgeDays}d ago)`
+        : "no results yet (expected until first run)",
+      pass: true,
+    });
+
+    // CHECK S10: No invalid status in StrategyTradeResult for Day Trade
+    const invalidDayStatus = await (prisma as any).strategyTradeResult.count({
+      where: {
+        strategyType: "DAY_TRADE",
+        status: { notIn: ["CLOSED", "WAITING_OPEN", "WAITING_CLOSE", "SKIPPED_MARKET_CLOSED"] },
+      },
+    });
+    add({
+      id: "day_trade_result_no_invalid_status", level: "WARNING",
+      name: "Day Trade results have valid status",
+      value: invalidDayStatus === 0 ? "OK" : `${invalidDayStatus} invalid`,
+      pass: invalidDayStatus === 0,
+    });
+
   } catch (e: any) {
     add({
       id: "strategy_tables_exist", level: "CRITICAL",

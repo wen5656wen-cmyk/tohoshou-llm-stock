@@ -236,6 +236,16 @@ cron.schedule("30 7 * * *", async () => {
   }
 }, { timezone: "Asia/Tokyo" });
 
+// ── 16:30 JST — Day Trade Strategy Engine（工作日，收盘结算后）──────────────
+//
+// 时间选择：日本市场 15:30 收盘，J-Quants 收盘价通常 16:00 前可用。
+// day-strategy.ts 自动处理最新有价格的交易日，失败不影响其他流水线。
+//
+cron.schedule("30 16 * * 1-5", async () => {
+  log("INFO", "⏰ 16:30 触发：Day Trade Strategy Engine");
+  await runAsync("day-strategy.ts", "Day Trade Strategy", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
 cron.schedule("30 18 * * 1-5", async () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");
@@ -257,4 +267,4 @@ cron.schedule("30 22 * * *", async () => {
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
 log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(並行spawn+流水線) / 07:00·12·18·22 ニュース");
-log("INFO", "           07:30 AI評分+rerank+健全性 / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
+log("INFO", "           07:30 AI評分+rerank+健全性 / 16:30 Day Trade策略(工作日) / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
