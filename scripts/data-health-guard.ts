@@ -631,6 +631,69 @@ async function main() {
       pass: invalidDayStatus === 0,
     });
 
+    // ── Swing Strategy checks (S11–S15) ──────────────────────────────────────
+
+    // CHECK S11: SWING OPEN position count <= MAX_POSITIONS (10)
+    const swingOpenCount = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "SWING_TRADE", status: "OPEN" },
+    });
+    add({
+      id: "swing_open_position_count", level: "WARNING",
+      name: "Swing OPEN positions <= 10",
+      value: swingOpenCount,
+      pass: swingOpenCount <= 10,
+      details: swingOpenCount > 10 ? [`Expected max 10, found ${swingOpenCount}`] : undefined,
+    });
+
+    // CHECK S12: No duplicate open positions (same symbol open twice)
+    const swingOpenSymbols = await (prisma as any).strategyPosition.findMany({
+      where: { strategyType: "SWING_TRADE", status: "OPEN" },
+      select: { symbol: true },
+    });
+    const swingSymbolList = (swingOpenSymbols as any[]).map((p: any) => p.symbol);
+    const swingUniqSymbols = new Set(swingSymbolList);
+    const swingDups = swingSymbolList.length - swingUniqSymbols.size;
+    add({
+      id: "swing_no_duplicate_positions", level: "WARNING",
+      name: "Swing no duplicate OPEN positions",
+      value: swingDups === 0 ? "OK" : `${swingDups} duplicates`,
+      pass: swingDups === 0,
+    });
+
+    // CHECK S13 (CRITICAL): No CLOSED position with exitPrice=NULL
+    const swingClosedNoExit = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "SWING_TRADE", status: "CLOSED", exitPrice: null },
+    });
+    add({
+      id: "swing_closed_has_exit_price", level: "CRITICAL",
+      name: "Swing CLOSED positions have exitPrice",
+      value: swingClosedNoExit === 0 ? "OK" : `${swingClosedNoExit} missing`,
+      pass: swingClosedNoExit === 0,
+      details: swingClosedNoExit > 0 ? ["CLOSED positions must have exitPrice"] : undefined,
+    });
+
+    // CHECK S14: No positions with holdingDays < 0
+    const swingNegHoldDays = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "SWING_TRADE", holdingDays: { lt: 0 } },
+    });
+    add({
+      id: "swing_no_negative_holding_days", level: "WARNING",
+      name: "Swing no negative holdingDays",
+      value: swingNegHoldDays === 0 ? "OK" : `${swingNegHoldDays} negative`,
+      pass: swingNegHoldDays === 0,
+    });
+
+    // CHECK S15: OPEN positions all have returnPct (INFO — null ok if just opened)
+    const swingOpenNullReturn = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "SWING_TRADE", status: "OPEN", returnPct: null, holdingDays: { gt: 0 } },
+    });
+    add({
+      id: "swing_open_has_return_pct", level: "INFO",
+      name: "Swing OPEN positions (>0 days) have returnPct",
+      value: swingOpenNullReturn === 0 ? "OK" : `${swingOpenNullReturn} missing`,
+      pass: swingOpenNullReturn === 0,
+    });
+
   } catch (e: any) {
     add({
       id: "strategy_tables_exist", level: "CRITICAL",

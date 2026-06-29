@@ -246,6 +246,16 @@ cron.schedule("30 16 * * 1-5", async () => {
   await runAsync("day-strategy.ts", "Day Trade Strategy", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 16:35 JST — Swing Trade Strategy Engine（工作日，Day 结束后）────────────
+//
+// Swing runs 5 minutes after Day to avoid race conditions on shared DB tables.
+// Failure is isolated — does not affect Day or other pipeline stages.
+//
+cron.schedule("35 16 * * 1-5", async () => {
+  log("INFO", "⏰ 16:35 触发：Swing Trade Strategy Engine");
+  await runAsync("swing-strategy.ts", "Swing Trade Strategy", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
 cron.schedule("30 18 * * 1-5", async () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");

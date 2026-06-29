@@ -2,6 +2,42 @@
 
 ---
 
+## [17.11.0] - 2026-06-29 — P2B: Swing Trade Strategy Engine
+
+### 改动
+
+**新增脚本**
+- `scripts/swing-strategy.ts` — Swing Trade 策略执行引擎（420行）
+  - 资金池 ¥40M / 最多10持仓 / 每笔 ¥4M 等权
+  - 止盈 +8%、止损 -5%、时间止损 20日、AI分 < 60 退出、跌出 Top10 退出
+  - 3级 DR 降级（L1: SWING typed + score≥70 → L2: SWING typed → L3: 全量 BUY/STRONG_BUY）
+  - 幂等检查：StrategySnapshot 已存在则跳过
+  - 全流程：更新 OPEN 持仓 → 触发退出 → 写 StrategyTradeResult → 开新仓 → Snapshot + CapitalLog
+  - `--dry-run` / `--date=YYYY-MM-DD` 参数支持
+
+**cron-scheduler.ts**
+- 新增 16:35 JST 工作日 cron → `swing-strategy.ts`（比 Day 晚5分钟，避免竞争）
+
+**health:data 新增 5 项 Swing 检查（S11–S15）**
+- `swing_open_position_count`（WARNING）：OPEN 持仓 <= 10
+- `swing_no_duplicate_positions`（WARNING）：无重复 OPEN 持仓
+- `swing_closed_has_exit_price`（CRITICAL）：CLOSED 持仓必须有 exitPrice
+- `swing_no_negative_holding_days`（WARNING）：holdingDays >= 0
+- `swing_open_has_return_pct`（INFO）：持仓 > 0 天的 OPEN 持仓有 returnPct
+
+**package.json**
+- 新增 `swing-strategy`、`swing-strategy:dry` 脚本
+
+### 验收（2026-06-26 历史日）
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0（S11–S15 全 PASS，共36项通过）
+- Dry Run PASS：10支候选，8新仓（2支因价格过高qty=0自动跳过）
+- 真实写入 PASS：StrategyPosition×8 + Snapshot×1 + CapitalLog×1
+- 2026-06-27/28（周末）：正确退出，无交易
+- 2026-06-29（无价格数据）：正确退出，无交易
+
+---
+
 ## [17.10.0] - 2026-06-29 — P2A: Day Trade Strategy Engine
 
 ### 改动
