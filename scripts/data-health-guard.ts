@@ -466,6 +466,113 @@ async function main() {
   add({ id: "portfolio_value", level: "WARNING", name: "Portfolio Value computable (≥5 prices)", value: portfolioPriceOk ? "OK" : "FAIL", pass: portfolioPriceOk });
   add({ id: "portfolio_backtest", level: "INFO", name: "Portfolio BacktestResult (TOP10) exists", value: top10BacktestCount, pass: top10BacktestCount > 0 });
 
+  // ── Strategy Phase 1 Checks ───────────────────────────────────────────────
+  // CHECK S1: Strategy tables exist and StrategyType enum is usable
+  try {
+    const [recCount, posCount, tradeCount, snapCount, capCount, summaryCount] = await Promise.all([
+      (prisma as any).strategyRecommendation.count(),
+      (prisma as any).strategyPosition.count(),
+      (prisma as any).strategyTradeResult.count(),
+      (prisma as any).strategySnapshot.count(),
+      (prisma as any).strategyCapitalLog.count(),
+      (prisma as any).strategyBacktestSummary.count(),
+    ]);
+    add({
+      id: "strategy_tables_exist", level: "CRITICAL",
+      name: "Strategy tables (6) accessible",
+      value: `rec=${recCount} pos=${posCount} trade=${tradeCount} snap=${snapCount} cap=${capCount} summary=${summaryCount}`,
+      pass: true,
+    });
+
+    // CHECK S2: Three capital pools initialized
+    const capitalLogs = await Promise.all([
+      (prisma as any).strategyCapitalLog.findFirst({ where: { strategyType: "DAY_TRADE" } }),
+      (prisma as any).strategyCapitalLog.findFirst({ where: { strategyType: "SWING_TRADE" } }),
+      (prisma as any).strategyCapitalLog.findFirst({ where: { strategyType: "LONG_TRADE" } }),
+    ]);
+    const uninitPools = ["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"].filter((_, i) => !capitalLogs[i]);
+    add({
+      id: "strategy_capital_initialized", level: "WARNING",
+      name: "Strategy capital pools initialized (3/3)",
+      value: uninitPools.length === 0 ? "3/3" : `${3 - uninitPools.length}/3 (missing: ${uninitPools.join(", ")})`,
+      pass: uninitPools.length === 0,
+      details: uninitPools.length > 0 ? ["Run: npm run strategy:init-capital"] : [],
+    });
+
+    // CHECK S3: Day Trade must not have long-term OPEN positions (holdingDays > 1)
+    const dayLongOpen = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "DAY_TRADE", status: "OPEN", holdingDays: { gt: 1 } },
+    });
+    add({
+      id: "day_trade_no_overnight", level: "CRITICAL",
+      name: "Day Trade OPEN positions with holdingDays>1 = 0",
+      value: dayLongOpen,
+      pass: dayLongOpen === 0,
+      details: dayLongOpen > 0 ? ["Day Trade must not carry positions overnight"] : [],
+    });
+
+    // CHECK S4: Swing/Long positions have valid status
+    const invalidStatusCount = await (prisma as any).strategyPosition.count({
+      where: {
+        strategyType: { in: ["SWING_TRADE", "LONG_TRADE"] },
+        status: { notIn: ["OPEN", "CLOSED"] },
+      },
+    });
+    add({
+      id: "strategy_position_valid_status", level: "WARNING",
+      name: "Swing/Long positions have valid status",
+      value: invalidStatusCount === 0 ? "OK" : `${invalidStatusCount} invalid`,
+      pass: invalidStatusCount === 0,
+    });
+
+    // CHECK S5: StrategySnapshot not generated on weekends for Day Trade
+    // Day Trade snapshots should only exist on weekdays (Mon=1 … Fri=5)
+    const weekendDaySnaps = await (prisma as any).strategySnapshot.findMany({
+      where: { strategyType: "DAY_TRADE" },
+      select: { snapshotDate: true },
+    });
+    const weekendViolations = (weekendDaySnaps as Array<{ snapshotDate: Date }>).filter((s) => {
+      const dow = s.snapshotDate.getUTCDay(); // 0=Sun, 6=Sat
+      return dow === 0 || dow === 6;
+    });
+    add({
+      id: "day_trade_no_weekend_snapshot", level: "WARNING",
+      name: "Day Trade StrategySnapshot not on weekends",
+      value: weekendViolations.length === 0 ? "OK" : `${weekendViolations.length} weekend snapshots`,
+      pass: weekendViolations.length === 0,
+      details: weekendViolations.slice(0, 3).map(
+        s => `${s.snapshotDate.toISOString().slice(0, 10)} (weekday=${s.snapshotDate.getUTCDay()})`
+      ),
+    });
+
+    // CHECK S6: StrategySnapshot uses distinct strategyType (no mixing)
+    const snapTypes = await (prisma as any).strategySnapshot.groupBy({
+      by: ["strategyType"],
+      _count: { id: true },
+    });
+    const snapTypesCount = snapTypes.length;
+    add({
+      id: "strategy_snapshot_distinguished", level: "INFO",
+      name: "StrategySnapshot records by strategyType",
+      value: snapTypesCount === 0
+        ? "empty (Phase 1 — no data yet)"
+        : snapTypes.map((r: any) => `${r.strategyType}:${r._count.id}`).join(", "),
+      pass: true,
+    });
+
+  } catch (e: any) {
+    add({
+      id: "strategy_tables_exist", level: "CRITICAL",
+      name: "Strategy tables (6) accessible",
+      value: "FAIL",
+      pass: false,
+      details: [
+        `DB error: ${e?.message ?? String(e)}`,
+        "Fix: npx prisma db push --accept-data-loss",
+      ],
+    });
+  }
+
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const criticals = checks.filter(c => !c.pass && c.level === "CRITICAL");
   const warnings  = checks.filter(c => !c.pass && c.level === "WARNING");
