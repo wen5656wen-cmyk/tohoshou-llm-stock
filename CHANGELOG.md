@@ -2,6 +2,48 @@
 
 ---
 
+## [17.9.0] - 2026-06-29 — P1: Trading Architecture Phase 1 — 三策略数据库底座
+
+### 改动
+
+**新增 enum（4个）**
+- `StrategyType`：`DAY_TRADE | SWING_TRADE | LONG_TRADE`
+- `StrategyPositionStatus`：`OPEN | CLOSED`
+- `StrategyTradeStatus`：`WAITING_OPEN | WAITING_CLOSE | CLOSED | WAITING_DATA | SKIPPED_MARKET_CLOSED`
+- `StrategyExitReason`：11种出场原因（`DAY_CLOSE | TAKE_PROFIT | STOP_LOSS | AI_SCORE_DROP | DROPPED_FROM_TOP10 | MAX_HOLD_DAYS | FUNDAMENTAL_RISK | NEGATIVE_NEWS | MANUAL | MARKET_CLOSED | DATA_MISSING`）
+
+**新增表（6个）**
+- `strategy_recommendations` — 每日策略推荐候选（含 unique: strategyType+tradeDate+symbol）
+- `strategy_positions` — Swing/Long 持仓记录（unique: strategyType+symbol+entryDate）
+- `strategy_trade_results` — 所有已完成交易（Day Trade 主记录）
+- `strategy_snapshots` — 每日策略表现快照（CREATE-only，unique: strategyType+snapshotDate）
+- `strategy_capital_logs` — 独立资金池流水（3:4:3 独立）
+- `strategy_backtest_summaries` — 三策略独立回测汇总（unique: strategyType+horizon+asOfDate）
+
+**新增脚本**
+- `scripts/init-strategy-capital.ts` — 幂等资金池初始化；DAY_TRADE ¥30M / SWING_TRADE ¥40M / LONG_TRADE ¥30M
+
+**package.json**
+- 新增 `strategy:init-capital` 脚本
+
+**health:data 新增 6 项 Strategy 检查**
+- `strategy_tables_exist`（CRITICAL）：6张表可访问
+- `strategy_capital_initialized`（WARNING）：3套资金池是否初始化
+- `day_trade_no_overnight`（CRITICAL）：Day Trade 无隔夜 OPEN 仓
+- `strategy_position_valid_status`（WARNING）：Swing/Long 持仓状态合规
+- `day_trade_no_weekend_snapshot`（WARNING）：Day Trade 快照不在周末
+- `strategy_snapshot_distinguished`（INFO）：Snapshot 按 strategyType 区分统计
+
+### 验收
+- `npm run build` ✅ PASS（webpack）
+- `prisma db push` ✅ PASS（生产服务器）
+- `npm run strategy:init-capital` ✅ PASS（DAY 30M / SWING 40M / LONG 30M 初始化正确）
+- `npm run health:data` ✅ CRITICAL=0（WARNING=3，均为已知数据质量问题）
+- 部署记录 #58 ✅
+- commit `6900b3c` ✅
+
+---
+
 ## [17.8.0] - 2026-06-28 — T1: Trading Architecture Baseline 建立
 
 ### 改动
