@@ -2,6 +2,39 @@
 
 ---
 
+## [17.16.0] - 2026-06-30 — Phase 6: Strategy Center V1.0
+
+### 改动
+
+**新增页面**
+- `app/strategy/page.tsx` — Strategy Center（`/strategy`）三策略统一管理中心
+  - Overview section：3张卡片（DAY/SWING/LONG），各显示 Learning Grade/Recommendation/关键指标
+  - 三栏 Tab 切换（DAY | SWING | LONG），各 Tab 独立 fetch `/api/strategy/{type}` 详情
+  - DAY Tab 规范：禁止显示持仓/持有天数，仅显示 Learning / Backtest / 近期成交 / Top10推荐
+  - SWING / LONG Tab：资金池 + 当前持仓 + Learning + Backtest + 推荐
+  - 统一色调：DAY=amber / SWING=blue / LONG=emerald
+
+**新增 API**
+- `app/api/strategy/overview/route.ts` — 并行查询3策略 Overview（持仓数/成交数/Learning/Backtest/快照/推荐）
+- `app/api/strategy/[type]/route.ts` — 单策略详情（资金池/持仓/近期成交/Backtest/Learning/Top10推荐）
+
+**i18n 三语言扩充（34个新 Key）**
+- `lib/i18n/types.ts` + zh-CN / ja-JP / en-US 同步新增 Strategy Center 相关文案
+
+**导航更新**
+- `components/Sidebar.tsx` — Core 组添加「策略中心 /strategy」（◆ 图标）
+- `components/mobile/MobileBottomNav.tsx` — 替换 /backtest 为 /strategy（移动端5项限制）
+
+**旧页面 Legacy 通知**
+- `app/portfolio/page.tsx` — 顶部新增 ⚠ 橙色提示横幅：「此页面已停止维护，请使用 Strategy Center」+ 「前往 Strategy Center →」按钮
+
+### 规范锁定
+- DAY tab 禁止显示「当前持仓」（PositionsSection 用 isDayTrade 守卫）
+- 所有新策略 API 数据源仅读 Strategy* 新表，禁止 DailyRecommendation
+- 移动端底导 `/backtest` 已替换（桌面侧边栏仍保留 /backtest 链接）
+
+---
+
 ## [17.15.0] - 2026-06-30 — Phase 5: Strategy Learning Engine
 
 ### 改动

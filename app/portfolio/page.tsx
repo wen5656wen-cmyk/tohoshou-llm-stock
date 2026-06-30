@@ -1547,6 +1547,19 @@ export default function PortfolioPage() {
         <h1 className="text-2xl font-bold text-white">{t("portfolio.ai_title")}</h1>
       </div>
       <div className="space-y-6">
+        {/* Legacy notice */}
+        <div className="flex items-center justify-between gap-3 bg-amber-900/20 border border-amber-700/40 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-xs text-amber-300">
+            <span className="text-base leading-none">⚠</span>
+            <span>{t("strategy.legacy.notice")}</span>
+          </div>
+          <Link
+            href="/strategy"
+            className="text-xs font-medium text-amber-300 hover:text-amber-100 bg-amber-900/40 hover:bg-amber-900/70 px-3 py-1.5 rounded transition-colors flex-shrink-0"
+          >
+            {t("strategy.legacy.goto")} →
+          </Link>
+        </div>
         <div className="flex items-start gap-3 bg-slate-800/40 border border-slate-600/30 rounded-lg px-4 py-3 text-xs text-slate-400 leading-relaxed">
           <span className="text-slate-500 text-base leading-none mt-0.5 shrink-0">◈</span>
           <span>
