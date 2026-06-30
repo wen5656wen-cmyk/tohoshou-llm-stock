@@ -24,6 +24,52 @@ Phase 7 开启条件（需同时满足）：
 
 ---
 
+## [17.21.0] - 2026-06-30 — P1 Bug Fix: StrategySnapshot winRate 重复×100
+
+### 根因
+`day-strategy.ts` / `swing-strategy.ts` / `long-strategy.ts` 写入 `StrategySnapshot.winRate`
+时已乘以100（存储 0~100），而 Strategy Center UI 渲染时再次 `×100` → 显示 **5000%**。
+
+其余表（`StrategyBacktestSummary` / `StrategyLearningReport` / `StrategyDailyValidation`）
+均正确存储 0~1，UI `×100` 显示正确。
+
+### 修复
+
+**`scripts/day-strategy.ts`**
+- `winRate = wins / total * 100` → `wins / total`（0~1）
+- `console.log` 行补 `×100` 保持日志可读性
+
+**`scripts/swing-strategy.ts`**
+- `winRate` 局部变量移除 `×100`
+- Snapshot inline 写入 `((wins) / (total)) * 100` → 移除 `* 100`
+- `console.log` 行补 `×100`
+
+**`scripts/long-strategy.ts`**
+- `winRate = ... * 100` → 移除 `* 100`
+- `console.log` 行补 `×100`
+
+**DB Migration（生产已执行）**
+- `strategy_snapshots` 表：DAY_TRADE 2026-06-26 `winRate: 50 → 0.5`
+- `remaining winRate > 1: 0` ✅
+
+### 统一规范（全系统确认）
+| 表 | 存储单位 | UI 渲染 |
+|---|---|---|
+| StrategySnapshot | 0~1（修复后）| ×100 显示 |
+| StrategyBacktestSummary | 0~1 | ×100 显示 |
+| StrategyLearningReport | 0~1 | ×100 显示 |
+| StrategyDailyValidation | 0~1 | ×100 显示 |
+| BacktestPositionResult（旧）| 0~100 | 直接显示（backtest页面）|
+
+### 验收
+- DB winRate=0.5 → UI 显示 50.0% ✅
+- 5000% Bug 修复 ✅
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0
+- deployment #70，commit ac816af
+
+---
+
 ## [17.20.0] - 2026-06-30 — T2 P2: Legacy AI组合页面最终收尾
 
 ### 目标
