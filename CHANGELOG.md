@@ -2,6 +2,54 @@
 
 ---
 
+## [17.18.0] - 2026-06-30 — T2 P1: Weekly & Monthly Strategy Report System
+
+### 目标
+T2 第一阶段（P1）：建立策略运营自动报告系统。每周六 17:30 JST 生成周报，月末 18:00 JST 生成月报，
+Strategy Center 新增「报告」第5个 Tab，健康守卫新增 S31/S32 WARNING 检查。
+
+### 改动
+
+**新增脚本**
+- `scripts/generate-weekly-report.ts` — 周报生成引擎
+  - 统计当周（周一至周五）已结算交易：成交数、胜率、平均收益、平均超额、最大回撤、持仓天数
+  - 汇总最新 Learning Grade + Recommendation + 完整性分
+  - 输出本周健康检查日志（通过/失败/异常天数）
+  - 保存至 `reports/weekly/YYYY-Www.md`，自动剪枝（保留13周）
+- `scripts/generate-monthly-report.ts` — 月报生成引擎
+  - 月内全量已结算交易统计 + Sharpe/Sortino 样本近似
+  - 月内评级变化（首末 Grade 对比）
+  - 月度异常事件汇总 + 健康趋势表 + Phase 7 就绪天数
+  - 保存至 `reports/monthly/YYYY-MM.md`，自动剪枝（保留12个月）
+  - 含内置月末守卫（非月最后一天自动跳过，`FORCE=1` 可覆盖）
+
+**Cron 新增**
+- `30 17 * * 6`（土曜 17:30 JST）：`generate-weekly-report.ts`
+- `0 18 28-31 * *`（月末 18:00 JST）：`generate-monthly-report.ts`（脚本内部二次验证）
+
+**新 API**
+- `app/api/reports/weekly/route.ts` — 列举周报文件 + 读取指定周内容
+- `app/api/reports/monthly/route.ts` — 列举月报文件 + 读取指定月内容
+
+**Strategy Center 更新**
+- `app/strategy/page.tsx` — 新增「报告」第5个 Tab（teal 配色）
+  - `ReportsTab` 组件：双栏（周报 + 月报），含文件选择器 + Markdown 原文展示
+  - `ReportSection` 子组件：可复用，支持 teal / indigo 颜色主题
+
+**Health Guard**
+- S31（WARNING）：`weekly_report_exists` — 最新周报是否存在且不超过14天
+- S32（WARNING）：`monthly_report_exists` — 最新月报是否存在且不超过35天
+
+**i18n**
+- 三语言新增8个 Key（strategy.reports.*）
+
+**其他**
+- `package.json`：新增 `generate-weekly-report` / `generate-monthly-report` / `generate-monthly-report:force`
+- `.gitignore`：将 `reports` 改为 `/reports`（防止误排除 `app/api/reports/` 路由目录）
+- `reports/weekly/.gitkeep` + `reports/monthly/.gitkeep`：目录占位（数据文件本身不入库）
+
+---
+
 ## [17.17.0] - 2026-06-30 — T1: Trading Architecture V1 Stabilization
 
 ### 目标
