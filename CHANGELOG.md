@@ -2,6 +2,49 @@
 
 ---
 
+## [17.15.0] - 2026-06-30 — Phase 5: Strategy Learning Engine
+
+### 改动
+
+**新增脚本**
+- `scripts/strategy-learning.ts` — Strategy Learning Engine（Phase 5）
+  - 读取 `StrategyBacktestSummary`（不触碰 Day/Swing/Long 引擎、SR Engine、Backtest Engine、Dashboard）
+  - 三维评分体系（0-100 每项）：
+    - `predictionScore`：winRate质量(×0.40) + alpha质量(×0.35) + 回报质量(×0.25)
+    - `stabilityScore`：horizon覆盖率（READY×1.0 / PARTIAL×0.5 / INSUFFICIENT×0）+ fillRate一致性
+    - `confidenceScore`：样本量(×0.50) + maxDrawdown风险(×0.30) + Sharpe质量(×0.20)
+    - `integrityScore`：prediction×40% + stability×30% + confidence×30%
+  - Learning Grade：A+(≥85) / A(≥75) / B(≥60) / C(≥45) / D(<45)
+  - Recommendation：READY(≥75) / PARTIAL(≥60) / NOT_READY(<60)
+  - 统一 `StrategyLearningSummary`：DAY×30% + SWING×40% + LONG×30% 加权 integrityScore
+  - `--strategy=DAY|SWING|LONG`（默认 ALL）/ `--dry-run` / `--date=YYYY-MM-DD`
+
+**schema.prisma**
+- `StrategyLearningReport`：id/strategyType/reportDate/sampleCount/fillRate/winRate/avgReturnPct/alpha/maxDrawdown/predictionScore/stabilityScore/confidenceScore/integrityScore/grade/recommendation/summary
+- `StrategyLearningSummary`：reportDate（unique）/ dayIntegrity/swingIntegrity/longIntegrity/integrityScore/grade/recommendation/summary
+- 生产已 `db push` 并 `generate`
+
+**cron-scheduler.ts**
+- 新增 17:00 JST（工作日）：Strategy Learning Engine，位于 Backtest(16:45) 之后
+
+**data-health-guard.ts**
+- S28: DAY Learning report exists（INFO）
+- S29: SWING Learning report exists（INFO）
+- S30: LONG Learning report exists（INFO）
+
+**package.json**
+- `strategy-learning` / `strategy-learning:dry`
+
+### 生产验证（2026-06-30 首次运行）
+
+- DAY_TRADE: **grade=C, score=48.31, NOT_READY**（1个 READY horizon，4笔成交，win=50%, α=4.11%）
+- SWING_TRADE: **grade=D, score=0, NOT_READY**（无已平仓持仓，随时间积累自动晋升）
+- LONG_TRADE: **grade=D, score=0, NOT_READY**（同上）
+- Unified: **grade=D, score=14.49, NOT_READY**（加权：DAY×30%=14.49）
+- Health: CRITICAL=0, 51 checks pass, S28-S30 ✅
+
+---
+
 ## [17.14.0] - 2026-06-30 — Phase 4: Strategy Backtest Engine
 
 ### 改动

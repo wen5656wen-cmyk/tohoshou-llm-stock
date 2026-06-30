@@ -862,6 +862,52 @@ async function main() {
       pass: true,
     });
 
+    // ── Phase 5: Strategy Learning checks ──────────────────────────────────
+    // CHECK S28: DAY_TRADE learning report exists
+    const dayLearning = await (prisma as any).strategyLearningReport.findFirst({
+      where: { strategyType: "DAY_TRADE" },
+      orderBy: { reportDate: "desc" },
+      select: { reportDate: true, grade: true, recommendation: true, integrityScore: true },
+    });
+    add({
+      id: "learning_day_exists", level: "INFO",
+      name: "DAY Learning report exists",
+      value: dayLearning
+        ? `${new Date(dayLearning.reportDate).toISOString().slice(0, 10)} | grade=${dayLearning.grade} score=${dayLearning.integrityScore?.toFixed(1) ?? "N/A"} → ${dayLearning.recommendation}`
+        : "No rows yet",
+      pass: true,
+    });
+
+    // CHECK S29: SWING_TRADE learning report exists
+    const swingLearning = await (prisma as any).strategyLearningReport.findFirst({
+      where: { strategyType: "SWING_TRADE" },
+      orderBy: { reportDate: "desc" },
+      select: { reportDate: true, grade: true, recommendation: true, integrityScore: true },
+    });
+    add({
+      id: "learning_swing_exists", level: "INFO",
+      name: "SWING Learning report exists",
+      value: swingLearning
+        ? `${new Date(swingLearning.reportDate).toISOString().slice(0, 10)} | grade=${swingLearning.grade} score=${swingLearning.integrityScore?.toFixed(1) ?? "N/A"} → ${swingLearning.recommendation}`
+        : "No rows yet",
+      pass: true,
+    });
+
+    // CHECK S30: LONG_TRADE learning report exists
+    const longLearning = await (prisma as any).strategyLearningReport.findFirst({
+      where: { strategyType: "LONG_TRADE" },
+      orderBy: { reportDate: "desc" },
+      select: { reportDate: true, grade: true, recommendation: true, integrityScore: true },
+    });
+    add({
+      id: "learning_long_exists", level: "INFO",
+      name: "LONG Learning report exists",
+      value: longLearning
+        ? `${new Date(longLearning.reportDate).toISOString().slice(0, 10)} | grade=${longLearning.grade} score=${longLearning.integrityScore?.toFixed(1) ?? "N/A"} → ${longLearning.recommendation}`
+        : "No rows yet",
+      pass: true,
+    });
+
   } catch (e: any) {
     add({
       id: "strategy_tables_exist", level: "CRITICAL",

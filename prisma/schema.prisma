@@ -1120,3 +1120,54 @@ model StrategyBacktestSummary {
   @@index([asOfDate])
   @@map("strategy_backtest_summaries")
 }
+
+// Per-strategy daily learning report (Phase 5)
+model StrategyLearningReport {
+  id              Int          @id @default(autoincrement())
+  strategyType    StrategyType
+  reportDate      DateTime     @db.Date
+
+  sampleCount     Int          @default(0)
+  fillRate        Float?
+  winRate         Float?
+  avgReturnPct    Float?
+  alpha           Float?
+  maxDrawdown     Float?
+
+  predictionScore Float?
+  stabilityScore  Float?
+  confidenceScore Float?
+  integrityScore  Float?
+
+  grade           String?      // A+, A, B, C, D
+  recommendation  String?      // READY, PARTIAL, NOT_READY
+  summary         String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([strategyType, reportDate])
+  @@index([strategyType])
+  @@index([reportDate])
+  @@map("strategy_learning_reports")
+}
+
+// Unified cross-strategy learning summary with weighted integrity score (Phase 5)
+model StrategyLearningSummary {
+  id              Int      @id @default(autoincrement())
+  reportDate      DateTime @db.Date @unique
+
+  dayIntegrity    Float?
+  swingIntegrity  Float?
+  longIntegrity   Float?
+  integrityScore  Float?   // weighted: DAY×30% + SWING×40% + LONG×30%
+
+  grade           String?  // A+, A, B, C, D
+  recommendation  String?  // READY, PARTIAL, NOT_READY
+  summary         String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("strategy_learning_summaries")
+}
