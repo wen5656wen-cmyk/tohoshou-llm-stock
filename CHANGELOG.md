@@ -2,6 +2,28 @@
 
 ---
 
+## 🏁 MILESTONE — Trading Architecture V1：Production Stable（2026-06-30）
+
+```
+Status        : ✅ Production Stable
+Freeze Date   : 2026-06-30
+Architecture  : FROZEN
+Production    : YES
+Current Mode  : Operation & Data Accumulation
+Next Major    : v18.x（Phase 7 — AI Strategy Optimization）
+```
+
+**V1 包含版本：v17.9.0 → v17.19.0**（Phase 1 数据底座 → Phase 6 Strategy Center → T1 稳定化 → T2 UI精修）
+
+Phase 7 开启条件（需同时满足）：
+- DAY_TRADE 成交 ≥ 100 次
+- SWING_TRADE 平仓 ≥ 30 次
+- LONG_TRADE 平仓 ≥ 20 次
+- StrategyLearningSummary Grade ≥ C
+- 连续 30 日 CRITICAL = 0
+
+---
+
 ## [17.18.0] - 2026-06-30 — T2 P1: Weekly & Monthly Strategy Report System
 
 ### 目标
