@@ -522,7 +522,8 @@ async function main() {
           : 0,
         cumulativeReturnPct: cumulativeRet,
         topixReturnPct:      topixToday,
-        alpha:               topixToday != null ? cumulativeRet - topixToday : null,
+        // TODO: 累计 Alpha 等待 topix baseline 后正式启用（cumulativeRet 与 topixToday 时间维度不同，相减无意义）
+        alpha:               null,
         winRate:             winRate > 0 ? winRate : null,
         openPositions:       totalOpenAfter,
         closedTrades:        closedAll + exits.length,

@@ -542,7 +542,8 @@ async function main() {
           : 0,
         cumulativeReturnPct: cumulativeRet,
         topixReturnPct:      topixToday,
-        alpha:               topixToday != null ? cumulativeRet - topixToday : null,
+        // TODO: 累计 Alpha 等待 topix baseline 后正式启用（cumulativeRet 与 topixToday 时间维度不同，相减无意义）
+        alpha:               null,
         winRate:             closedAll + exits.length > 0
           ? (winsAll + exits.filter(e => e.win).length) / (closedAll + exits.length)
           : null,

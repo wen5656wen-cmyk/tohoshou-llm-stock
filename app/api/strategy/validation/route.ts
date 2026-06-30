@@ -29,12 +29,12 @@ export async function GET() {
     const swingGrade  = latest?.swingGrade       ?? null;
     const longGrade   = latest?.longGrade        ?? null;
 
-    // Count consecutive healthOk days from latest (up to 30)
-    const healthDays = records.reduce((count: number, r: any) => {
-      if (count === -1) return -1; // streak broken
-      return r.healthOk ? count + 1 : -1;
-    }, 0);
-    const consecutiveHealthDays = healthDays === -1 ? 0 : healthDays;
+    // Count trailing consecutive healthOk days (records are DESC ordered, most recent first)
+    let consecutiveHealthDays = 0;
+    for (const r of records) {
+      if (!r.healthOk) break;
+      consecutiveHealthDays++;
+    }
 
     const conditions = [
       { key: "day100",   met: dayFilled   >= 100, current: String(dayFilled),   target: "100" },
