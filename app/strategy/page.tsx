@@ -42,11 +42,33 @@ type BacktestSummary = {
 };
 
 type Recommendation = {
-  rank:      number;
-  symbol:    string;
-  aiScore:   number | null;
-  finalScore: number | null;
-  tradeDate: string;
+  rank:             number;
+  symbol:           string;
+  aiScore:          number | null;
+  finalScore:       number | null;
+  technicalScore:   number | null;
+  fundamentalScore: number | null;
+  newsScore:        number | null;
+  tradeDate:        string;
+};
+
+type TodayExecution = {
+  dayRecOk:   boolean;
+  swingRecOk: boolean;
+  longRecOk:  boolean;
+  backtestOk: boolean;
+  learningOk: boolean;
+  healthOk:   boolean;
+  validDate:  string | null;
+  isToday:    boolean;
+};
+
+type RecentValidationSummary = {
+  healthDays:  number;
+  totalDays:   number;
+  phase7Ready: boolean;
+  phase7Detail: string | null;
+  stableDays:  number;
 };
 
 type OpenPosition = {
@@ -96,8 +118,10 @@ type OverviewStrategy = {
 };
 
 type OverviewData = {
-  strategies: Record<StratType, OverviewStrategy>;
-  unified:    { reportDate: string; integrityScore: number | null; grade: string | null; recommendation: string | null } | null;
+  strategies:        Record<StratType, OverviewStrategy>;
+  unified:           { reportDate: string; integrityScore: number | null; grade: string | null; recommendation: string | null } | null;
+  todayExecution?:   TodayExecution | null;
+  recentValidation?: RecentValidationSummary | null;
 };
 
 // ── Color utilities ───────────────────────────────────────────────────────────
@@ -169,12 +193,28 @@ function RecBadge({ rec, t }: { rec: string | null; t: (k: MessageKey) => string
 
 // ── Fillrate maturity label ───────────────────────────────────────────────────
 
-function maturity(fillRate: number | null): { label: string; cls: string } {
-  if (fillRate == null || fillRate < 0.30) return { label: "INSUFFICIENT", cls: "text-slate-500" };
-  if (fillRate < 0.50) return { label: "LIMITED",       cls: "text-orange-400" };
-  if (fillRate < 0.80) return { label: "PARTIAL",       cls: "text-yellow-400" };
-  return                       { label: "READY",         cls: "text-emerald-400" };
+function maturity(fillRate: number | null): { labelKey: MessageKey; cls: string } {
+  if (fillRate == null || fillRate < 0.30) return { labelKey: "strategy.maturity.insufficient", cls: "text-slate-500" };
+  if (fillRate < 0.50) return { labelKey: "strategy.maturity.limited",        cls: "text-orange-400" };
+  if (fillRate < 0.80) return { labelKey: "strategy.status.partial",          cls: "text-yellow-400" };
+  return                       { labelKey: "strategy.status.ready",            cls: "text-emerald-400" };
 }
+
+// ── Exit reason translation map ───────────────────────────────────────────────
+
+const EXIT_REASON_KEYS: Record<string, MessageKey> = {
+  DAY_CLOSE:          "strategy.exit.DAY_CLOSE",
+  TAKE_PROFIT:        "strategy.exit.TAKE_PROFIT",
+  STOP_LOSS:          "strategy.exit.STOP_LOSS",
+  AI_SCORE_DROP:      "strategy.exit.AI_SCORE_DROP",
+  DROPPED_FROM_TOP10: "strategy.exit.DROPPED_FROM_TOP10",
+  MAX_HOLD_DAYS:      "strategy.exit.MAX_HOLD_DAYS",
+  FUNDAMENTAL_RISK:   "strategy.exit.FUNDAMENTAL_RISK",
+  NEGATIVE_NEWS:      "strategy.exit.NEGATIVE_NEWS",
+  MANUAL:             "strategy.exit.MANUAL",
+  MARKET_CLOSED:      "strategy.exit.MARKET_CLOSED",
+  DATA_MISSING:       "strategy.exit.DATA_MISSING",
+};
 
 // ── Overview card ─────────────────────────────────────────────────────────────
 
@@ -239,7 +279,13 @@ function OverviewCard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-500">
+      {/* Closed trades — prominent display */}
+      <div className="mt-2.5 mb-1">
+        <div className="text-[10px] text-slate-500 mb-0.5">{t("strategy.closed_count")}</div>
+        <div className="text-sm font-semibold tabular-nums text-slate-200">{data.closedTrades}</div>
+      </div>
+
+      <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
         <span>{t("strategy.open_count")} <span className="text-slate-300">{data.openPositions}</span></span>
         <span>{t("strategy.sample_count")} <span className="text-slate-300">{data.closedTrades}</span></span>
         {data.recommendations && (
@@ -361,7 +407,7 @@ function BacktestSection({ summaries, t }: { summaries: BacktestSummary[]; t: (k
                     {row.maxDrawdown != null ? `${row.maxDrawdown.toFixed(1)}%` : "—"}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{row.filledCount}</td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums ${m.cls}`}>{m.label}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${m.cls}`}>{t(m.labelKey)}</td>
                 </tr>
               );
             })}
@@ -435,7 +481,7 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
   return (
     <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-700/40 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.trade.title")}</h3>
+        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.trade.recent")}</h3>
         <span className="text-xs text-slate-500">{trades.length}</span>
       </div>
       {trades.length === 0 ? (
@@ -445,18 +491,23 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-700/30 text-slate-500">
-                <th className="text-left px-4 py-2">銘柄</th>
-                <th className="text-right px-3 py-2">日付</th>
-                <th className="text-right px-3 py-2">損益%</th>
-                <th className="text-right px-3 py-2">α</th>
-                <th className="text-right px-3 py-2">保有</th>
-                <th className="text-right px-4 py-2">決済</th>
+                <th className="text-left px-4 py-2">{t("strategy.rec.date")}</th>
+                <th className="text-left px-3 py-2">銘柄</th>
+                <th className="text-right px-3 py-2">{t("strategy.trade.buy_price")}</th>
+                <th className="text-right px-3 py-2">{t("strategy.trade.sell_price")}</th>
+                <th className="text-right px-3 py-2">{t("strategy.avg_return")}</th>
+                <th className="text-right px-3 py-2">Alpha</th>
+                <th className="text-right px-3 py-2">{t("strategy.days_unit")}</th>
+                <th className="text-right px-4 py-2">{t("strategy.trade.exit_reason")}</th>
               </tr>
             </thead>
             <tbody>
               {trades.map((tr) => (
                 <tr key={tr.id} className="border-b border-slate-700/20 hover:bg-slate-700/10">
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2.5 tabular-nums text-slate-400">
+                    {tr.tradeDate ? tr.tradeDate.slice(0, 10) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1.5">
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tr.win ? "bg-emerald-400" : "bg-red-400"}`} />
                       <Link href={`/stocks/${encodeURIComponent(tr.symbol)}`} className="text-blue-400 hover:text-blue-300 font-medium">
@@ -464,8 +515,11 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
                       </Link>
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
-                    {tr.tradeDate ? tr.tradeDate.slice(0, 10) : "—"}
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                    {tr.entryPrice != null ? `¥${Math.round(tr.entryPrice).toLocaleString("ja-JP")}` : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                    {tr.exitPrice != null ? `¥${Math.round(tr.exitPrice).toLocaleString("ja-JP")}` : "—"}
                   </td>
                   <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${returnColor(tr.returnPct)}`}>
                     {fmtPct(tr.returnPct)}
@@ -476,8 +530,10 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
                   <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
                     {tr.holdingDays != null ? `${tr.holdingDays}${t("strategy.days_unit")}` : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-slate-500">
-                    {tr.exitReason ?? "—"}
+                  <td className="px-4 py-2.5 text-right text-slate-400">
+                    {tr.exitReason && EXIT_REASON_KEYS[tr.exitReason]
+                      ? t(EXIT_REASON_KEYS[tr.exitReason])
+                      : (tr.exitReason ?? "—")}
                   </td>
                 </tr>
               ))}
@@ -492,11 +548,30 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
 // ── Recommendations section ───────────────────────────────────────────────────
 
 function RecommendationSection({
-  recs, t,
+  recs, strategyType, t,
 }: {
   recs: StrategyDetail["recommendations"];
+  strategyType: StratType;
   t: (k: MessageKey) => string;
 }) {
+  type ScoreCol = { label: string; val: (r: Recommendation) => number | null };
+  const extraCols: ScoreCol[] =
+    strategyType === "DAY_TRADE"
+      ? [
+          { label: t("strategy.rec.tech"), val: (r) => r.technicalScore },
+          { label: t("strategy.rec.news"), val: (r) => r.newsScore },
+          { label: t("strategy.rec.final"), val: (r) => r.finalScore },
+        ]
+      : strategyType === "SWING_TRADE"
+      ? [
+          { label: t("strategy.rec.tech"), val: (r) => r.technicalScore },
+          { label: t("strategy.rec.final"), val: (r) => r.finalScore },
+        ]
+      : [
+          { label: t("strategy.rec.fund"), val: (r) => r.fundamentalScore },
+          { label: t("strategy.rec.final"), val: (r) => r.finalScore },
+        ];
+
   return (
     <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-700/40 flex items-center justify-between">
@@ -509,20 +584,39 @@ function RecommendationSection({
       {recs.top10.length === 0 ? (
         <div className="p-6 text-center text-slate-500 text-sm">{t("strategy.collecting")}</div>
       ) : (
-        <div className="p-3 grid grid-cols-2 md:grid-cols-5 gap-2">
-          {recs.top10.map((rec) => (
-            <Link
-              key={rec.symbol}
-              href={`/stocks/${encodeURIComponent(rec.symbol)}`}
-              className="bg-slate-700/30 rounded-lg p-2.5 hover:bg-slate-700/50 transition-colors text-center"
-            >
-              <div className="text-[10px] text-slate-500 mb-0.5">#{rec.rank}</div>
-              <div className="text-sm font-semibold text-blue-400">{rec.symbol}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
-                {t("strategy.rec.ai_score")} {rec.aiScore != null ? rec.aiScore.toFixed(1) : "—"}
-              </div>
-            </Link>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-700/30 text-slate-500">
+                <th className="text-left px-4 py-2">#</th>
+                <th className="text-left px-3 py-2">銘柄</th>
+                <th className="text-right px-3 py-2">{t("strategy.rec.ai_score")}</th>
+                {extraCols.map((c) => (
+                  <th key={c.label} className="text-right px-3 py-2">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recs.top10.map((rec) => (
+                <tr key={rec.symbol} className="border-b border-slate-700/20 hover:bg-slate-700/10">
+                  <td className="px-4 py-2.5 text-slate-500 tabular-nums">{rec.rank}</td>
+                  <td className="px-3 py-2.5">
+                    <Link href={`/stocks/${encodeURIComponent(rec.symbol)}`} className="text-blue-400 hover:text-blue-300 font-semibold">
+                      {rec.symbol}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">
+                    {rec.aiScore != null ? rec.aiScore.toFixed(1) : "—"}
+                  </td>
+                  {extraCols.map((c) => (
+                    <td key={c.label} className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                      {c.val(rec) != null ? (c.val(rec) as number).toFixed(1) : "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -643,9 +737,9 @@ function StrategyTab({
       )}
 
       {/* Recommendations (Top10) */}
-      <RecommendationSection recs={detail.recommendations} t={t} />
+      <RecommendationSection recs={detail.recommendations} strategyType={strategyType} t={t} />
 
-      {/* Trades (all strategies — "今日交易" for DAY, "最近交易" for SWING/LONG) */}
+      {/* Recent closed trades */}
       <TradesSection trades={detail.recentTrades} t={t} />
 
       {/* Positions (SWING / LONG only — spec: DAY 禁止显示持有至今/当前持仓) */}
@@ -1021,6 +1115,117 @@ function ReportSection({
   );
 }
 
+// ── Three status cards ────────────────────────────────────────────────────────
+
+function StatusChip({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div className={`flex items-center gap-1.5 text-xs ${ok ? "text-emerald-400" : "text-slate-500"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ok ? "bg-emerald-400" : "bg-slate-600"}`} />
+      {label}
+    </div>
+  );
+}
+
+function SystemStatusCard({ unified, t }: { unified: OverviewData["unified"]; t: (k: MessageKey) => string }) {
+  if (!unified) return null;
+  const isRunning = unified.grade && ["A+", "A", "B", "C"].includes(unified.grade);
+  return (
+    <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
+      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        {t("strategy.system_status.title")}
+      </div>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="text-2xl font-bold text-slate-100 tabular-nums">
+            {unified.integrityScore?.toFixed(1) ?? "—"}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-0.5">{t("strategy.learning.integrity")}</div>
+        </div>
+        <div className="text-right">
+          <GradeBadge grade={unified.grade ?? null} />
+          <div className={`text-xs mt-1.5 font-medium ${isRunning ? "text-emerald-400" : "text-slate-400"}`}>
+            {isRunning ? t("strategy.system_status.running") : t("strategy.system_status.init")}
+          </div>
+        </div>
+      </div>
+      {unified.reportDate && (
+        <div className="text-[10px] text-slate-500">
+          {t("strategy.learning.grade")} {new Date(unified.reportDate).toISOString().slice(0, 10)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TodayExecutionCard({ exec, t }: { exec: TodayExecution | null | undefined; t: (k: MessageKey) => string }) {
+  const checks = exec ? [
+    { ok: exec.dayRecOk,   label: t("strategy.today_exec.rec_day")    },
+    { ok: exec.swingRecOk, label: t("strategy.today_exec.rec_swing")  },
+    { ok: exec.longRecOk,  label: t("strategy.today_exec.rec_long")   },
+    { ok: exec.backtestOk, label: t("strategy.today_exec.backtest")   },
+    { ok: exec.learningOk, label: t("strategy.today_exec.learning")   },
+    { ok: exec.healthOk,   label: t("strategy.today_exec.validation") },
+  ] : [];
+  const passCount = checks.filter((c) => c.ok).length;
+  return (
+    <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+          {t("strategy.today_exec.title")}
+        </div>
+        {exec && (
+          <span className={`text-xs font-semibold tabular-nums ${
+            passCount === 6 ? "text-emerald-400" : passCount >= 4 ? "text-yellow-400" : "text-slate-500"
+          }`}>
+            {passCount}/6
+          </span>
+        )}
+      </div>
+      {!exec ? (
+        <div className="text-slate-600 text-xs">{t("strategy.collecting")}</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-y-2 gap-x-3">
+          {checks.map((c) => <StatusChip key={c.label} ok={c.ok} label={c.label} />)}
+        </div>
+      )}
+      {exec?.validDate && (
+        <div className="text-[10px] text-slate-600 mt-3">{exec.validDate}</div>
+      )}
+    </div>
+  );
+}
+
+function StabilizationStatusCard({ val, t }: { val: RecentValidationSummary | null | undefined; t: (k: MessageKey) => string }) {
+  return (
+    <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
+      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        {t("strategy.stab_card.title")}
+      </div>
+      {!val ? (
+        <div className="text-slate-600 text-xs">{t("strategy.collecting")}</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <div className="text-xl font-bold text-slate-100 tabular-nums">{val.stableDays}</div>
+              <div className="text-[10px] text-slate-500">{t("strategy.stab_card.days")}</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-slate-100 tabular-nums">{val.healthDays}/{val.totalDays}</div>
+              <div className="text-[10px] text-slate-500">{t("strategy.stab_card.health_days")}</div>
+            </div>
+          </div>
+          <div className="border-t border-slate-700/40 pt-2 mt-2">
+            <div className={`text-xs font-medium ${val.phase7Ready ? "text-violet-400" : "text-slate-500"}`}>
+              {val.phase7Ready ? t("strategy.stab_card.phase7_ready") : t("strategy.stab_card.phase7")}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 type ActiveTab = StratType | "STABILIZATION" | "REPORTS";
 
 export default function StrategyPage() {
@@ -1056,6 +1261,13 @@ export default function StrategyPage() {
             <RecBadge rec={unified.recommendation ?? null} t={t} />
           </div>
         )}
+      </div>
+
+      {/* Three status cards */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <SystemStatusCard unified={overview?.unified ?? null} t={t} />
+        <TodayExecutionCard exec={overview?.todayExecution} t={t} />
+        <StabilizationStatusCard val={overview?.recentValidation} t={t} />
       </div>
 
       {/* Overview cards */}

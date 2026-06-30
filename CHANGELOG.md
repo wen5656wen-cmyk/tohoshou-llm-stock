@@ -4810,3 +4810,30 @@ ssh root@8.209.247.68 "cd /opt/tohoshou && npx tsx scripts/seed-chinese-names.ts
 - AI 评分引擎（5维度）
 - LINE Bot 集成
 - 生产部署：aitohoshou.com（阿里云 8.209.247.68）
+
+## v17.19.0 — 2026-06-30
+
+### T2 P1: Strategy Center UI 精修 + AI组合 Legacy 退役
+
+**app/portfolio/page.tsx** — 完全重写为 Legacy 重定向页
+- 移除所有旧 AI Top10 快照展示内容
+- 简洁重定向卡片，含公告提醒 + 「前往策略中心」按钮
+
+**app/strategy/page.tsx** — 大范围 UI 精修
+- 顶部新增三状态卡行（综合状态 / 今日执行状态 / 稳定化状态）
+- 成交记录改名「最近成交记录」，新增买入价/卖出价列，退出原因 i18n 翻译（11种）
+- 推荐列表重构为表格，按策略类型动态显示得分列（日内:技术+新闻+综合, 波段:技术+综合, 长线:基本面+综合）
+- 回测成熟度标签 i18n 化（数据不足/数据有限/...）
+- "Strategy Center" → "策略中心"（三语言）
+
+**app/api/strategy/overview/route.ts** — API 增强
+- 新增 `todayExecution`（日内/波段/长线推荐、回测、学习、日检验6项状态）
+- 新增 `recentValidation`（近30天健康天数、stableDays、phase7Ready）
+
+**app/api/strategy/[type]/route.ts** — top10 新增得分字段
+- 返回 `technicalScore / fundamentalScore / newsScore / moneyFlowScore / riskScore`
+
+**lib/i18n/** — 新增 ~50 个 i18n key
+- portfolio.legacy.* (6), strategy.system_status.* (4), strategy.today_exec.* (7)
+- strategy.stab_card.* (5), strategy.exit.* (11 退出原因), strategy.maturity.*
+- strategy.rec.final/tech/fund/news/date
