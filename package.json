@@ -61,7 +61,9 @@
     "day-strategy": "npx tsx scripts/day-strategy.ts",
     "day-strategy:dry": "npx tsx scripts/day-strategy.ts --dry-run",
     "swing-strategy": "npx tsx scripts/swing-strategy.ts",
-    "swing-strategy:dry": "npx tsx scripts/swing-strategy.ts --dry-run"
+    "swing-strategy:dry": "npx tsx scripts/swing-strategy.ts --dry-run",
+    "long-strategy": "npx tsx scripts/long-strategy.ts",
+    "long-strategy:dry": "npx tsx scripts/long-strategy.ts --dry-run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

@@ -2,6 +2,42 @@
 
 ---
 
+## [17.12.0] - 2026-06-30 — P2C: Long Trade Strategy Engine
+
+### 改动
+
+**新增脚本**
+- `scripts/long-strategy.ts` — Long Trade 策略执行引擎（380行）
+  - 资金池 ¥30M / 最多10持仓 / 每笔 ¥3M 等权
+  - 入场条件：STRONG_BUY + adaptiveScore ≥ 75 + fundamentalScore ≥ 18（70% of 25）+ riskOverride = NONE
+  - 退出规则：止盈 +20%、止损 -10%、时间止损 90日、AI分 < 55、评级降级退出
+  - 换仓规则：仅在有空仓时补仓，禁止每日换仓
+  - 3级 DR 降级：L1 (POSITION+STRONG_BUY+score≥75+fund≥18) → L2 (POSITION+STRONG_BUY) → L3 (全量STRONG_BUY)
+  - 今日评级获取：从 DailyRecommendation 读取当日评级用于 STRONG_BUY 降级检测
+  - `--dry-run` / `--date=YYYY-MM-DD` 参数
+
+**cron-scheduler.ts**
+- 新增 16:40 JST 工作日 cron → `long-strategy.ts`（比 Swing 晚5分钟）
+
+**health:data 新增 5 项 Long 检查（S16–S20）**
+- `long_open_position_count`（WARNING）：OPEN 持仓 <= 10
+- `long_no_duplicate_positions`（WARNING）：无重复 OPEN 持仓
+- `long_closed_has_exit_price`（CRITICAL）：CLOSED 持仓必须有 exitPrice
+- `long_no_negative_holding_days`（WARNING）：holdingDays >= 0
+- `long_capital_initialized`（INFO）：资金池有日志记录
+
+**package.json**
+- 新增 `long-strategy`、`long-strategy:dry` 脚本
+
+### 验收
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0（共41项通过，S16–S20全绿）
+- Dry Run PASS（2026-06-26：3支STRONG_BUY候选，3新仓）
+- 真实写入 PASS：StrategyPosition×3 + Snapshot×1 + CapitalLog×1
+- 2026-06-29 更新 PASS：3仓 UPDATE，无退出，换仓规则：7 slots available but no new qualified candidates（禁止旋转，正确）
+
+---
+
 ## [17.11.0] - 2026-06-29 — P2B: Swing Trade Strategy Engine
 
 ### 改动

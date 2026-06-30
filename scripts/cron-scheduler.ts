@@ -256,6 +256,15 @@ cron.schedule("35 16 * * 1-5", async () => {
   await runAsync("swing-strategy.ts", "Swing Trade Strategy", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 16:40 JST — Long Trade Strategy Engine（工作日，Swing 结束后）────────────
+//
+// Long runs 5 minutes after Swing. Failure is isolated.
+//
+cron.schedule("40 16 * * 1-5", async () => {
+  log("INFO", "⏰ 16:40 触发：Long Trade Strategy Engine");
+  await runAsync("long-strategy.ts", "Long Trade Strategy", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
 cron.schedule("30 18 * * 1-5", async () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");

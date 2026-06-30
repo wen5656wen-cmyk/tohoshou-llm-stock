@@ -694,6 +694,69 @@ async function main() {
       pass: swingOpenNullReturn === 0,
     });
 
+    // ── Long Strategy checks (S16–S20) ───────────────────────────────────────
+
+    // CHECK S16: LONG OPEN position count <= 10
+    const longOpenCount = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "LONG_TRADE", status: "OPEN" },
+    });
+    add({
+      id: "long_open_position_count", level: "WARNING",
+      name: "Long OPEN positions <= 10",
+      value: longOpenCount,
+      pass: longOpenCount <= 10,
+      details: longOpenCount > 10 ? [`Expected max 10, found ${longOpenCount}`] : undefined,
+    });
+
+    // CHECK S17: No duplicate open symbols for Long
+    const longOpenSymbols = await (prisma as any).strategyPosition.findMany({
+      where: { strategyType: "LONG_TRADE", status: "OPEN" },
+      select: { symbol: true },
+    });
+    const longSymbolList  = (longOpenSymbols as any[]).map((p: any) => p.symbol);
+    const longUniqSymbols = new Set(longSymbolList);
+    const longDups        = longSymbolList.length - longUniqSymbols.size;
+    add({
+      id: "long_no_duplicate_positions", level: "WARNING",
+      name: "Long no duplicate OPEN positions",
+      value: longDups === 0 ? "OK" : `${longDups} duplicates`,
+      pass: longDups === 0,
+    });
+
+    // CHECK S18 (CRITICAL): No CLOSED Long position with exitPrice=NULL
+    const longClosedNoExit = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "LONG_TRADE", status: "CLOSED", exitPrice: null },
+    });
+    add({
+      id: "long_closed_has_exit_price", level: "CRITICAL",
+      name: "Long CLOSED positions have exitPrice",
+      value: longClosedNoExit === 0 ? "OK" : `${longClosedNoExit} missing`,
+      pass: longClosedNoExit === 0,
+      details: longClosedNoExit > 0 ? ["CLOSED positions must have exitPrice"] : undefined,
+    });
+
+    // CHECK S19: No negative holdingDays for Long
+    const longNegHold = await (prisma as any).strategyPosition.count({
+      where: { strategyType: "LONG_TRADE", holdingDays: { lt: 0 } },
+    });
+    add({
+      id: "long_no_negative_holding_days", level: "WARNING",
+      name: "Long no negative holdingDays",
+      value: longNegHold === 0 ? "OK" : `${longNegHold} negative`,
+      pass: longNegHold === 0,
+    });
+
+    // CHECK S20: Long capital pool initialized
+    const longCapCount = await (prisma as any).strategyCapitalLog.count({
+      where: { strategyType: "LONG_TRADE" },
+    });
+    add({
+      id: "long_capital_initialized", level: "INFO",
+      name: "Long capital pool has log entries",
+      value: longCapCount > 0 ? `${longCapCount} entries` : "0 (not run yet)",
+      pass: longCapCount >= 0, // INFO only — always pass, just informational
+    });
+
   } catch (e: any) {
     add({
       id: "strategy_tables_exist", level: "CRITICAL",
