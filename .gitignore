@@ -53,8 +53,8 @@ next-env.d.ts
 # prisma local db
 prisma/dev.db
 
-# reports
-reports
+# reports (data files only — API routes at app/api/reports/ are NOT excluded)
+/reports
 
 # logs
 *.log

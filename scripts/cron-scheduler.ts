@@ -303,6 +303,28 @@ cron.schedule("15 17 * * 1-5", async () => {
   await runAsync("strategy-daily-validation.ts", "Strategy Daily Validation", 5 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 土曜 17:30 JST — Weekly Strategy Report（T2 P1）─────────────────────────
+//
+// 毎週土曜日に前週の戦略パフォーマンスレポートを生成。
+// Strategy Daily Validation の最終実行（金曜 17:15）後に実行する。
+// 生成ファイル: reports/weekly/YYYY-Www.md（13週間保持）
+//
+cron.schedule("30 17 * * 6", async () => {
+  log("INFO", "⏰ 土曜 17:30 触发：Weekly Strategy Report");
+  await runAsync("generate-weekly-report.ts", "Weekly Strategy Report", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+// ── 月末 18:00 JST — Monthly Strategy Report（T2 P1）────────────────────────
+//
+// 月末（28〜31日）18:00 JST に起動、スクリプト内部で「今日が月の最終日か」を確認してから実行。
+// FORCE=1 環境変数で強制実行可能。
+// 生成ファイル: reports/monthly/YYYY-MM.md（12ヶ月間保持）
+//
+cron.schedule("0 18 28-31 * *", async () => {
+  log("INFO", "⏰ 月末チェック 18:00 触发：Monthly Strategy Report");
+  await runAsync("generate-monthly-report.ts", "Monthly Strategy Report", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
 cron.schedule("30 18 * * 1-5", async () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");
@@ -324,4 +346,4 @@ cron.schedule("30 22 * * *", async () => {
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
 log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(並行spawn+流水線) / 07:00·12·18·22 ニュース");
-log("INFO", "           07:30 AI評分+rerank+健全性 / 16:30 Day / 16:35 Swing / 16:40 Long / 16:45 Backtest / 17:00 Learning / 17:15 DailyValidation(工作日) / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
+log("INFO", "           07:30 AI評分+rerank+健全性 / 16:30 Day / 16:35 Swing / 16:40 Long / 16:45 Backtest / 17:00 Learning / 17:15 DailyValidation(工作日) / 土17:30 WeeklyReport / 月末18:00 MonthlyReport / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");

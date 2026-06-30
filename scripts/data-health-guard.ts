@@ -921,6 +921,70 @@ async function main() {
     });
   }
 
+  // ── Phase 6: Report file checks (filesystem, no DB needed) ────────────────
+  // CHECK S31: Weekly report exists (most recent week ≤ 14 days old)
+  {
+    const weeklyDir   = path.join(process.cwd(), "reports", "weekly");
+    const weeklyFiles = fs.existsSync(weeklyDir)
+      ? fs.readdirSync(weeklyDir).filter((f) => /^\d{4}-W\d{2}\.md$/.test(f)).sort()
+      : [];
+    const latestWeekly = weeklyFiles[weeklyFiles.length - 1] ?? null;
+    let weeklyPass  = true;
+    let weeklyValue = latestWeekly ? latestWeekly.replace(".md", "") : "No weekly reports yet";
+    if (latestWeekly) {
+      const m = latestWeekly.match(/^(\d{4})-W(\d{2})/);
+      if (m) {
+        const jan4   = new Date(Date.UTC(Number(m[1]), 0, 4));
+        const startW1 = new Date(jan4);
+        startW1.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() || 7) - 1));
+        const ageMs  = Date.now() - (startW1.getTime() + (Number(m[2]) - 1) * 7 * 24 * 3600 * 1000);
+        if (ageMs > 14 * 24 * 3600 * 1000) {
+          weeklyPass  = false;
+          weeklyValue = `Stale: ${latestWeekly.replace(".md", "")} (>14 days old)`;
+        }
+      }
+    } else {
+      weeklyPass = false;
+    }
+    add({
+      id: "weekly_report_exists", level: "WARNING",
+      name: "Weekly report exists",
+      value: weeklyValue,
+      pass: weeklyPass,
+      details: weeklyPass ? [] : ["Fix: npm run generate-weekly-report (or wait for Sat 17:30 JST cron)"],
+    });
+  }
+
+  // CHECK S32: Monthly report exists (most recent month ≤ 35 days old)
+  {
+    const monthlyDir   = path.join(process.cwd(), "reports", "monthly");
+    const monthlyFiles = fs.existsSync(monthlyDir)
+      ? fs.readdirSync(monthlyDir).filter((f) => /^\d{4}-\d{2}\.md$/.test(f)).sort()
+      : [];
+    const latestMonthly = monthlyFiles[monthlyFiles.length - 1] ?? null;
+    let monthlyPass  = true;
+    let monthlyValue = latestMonthly ? latestMonthly.replace(".md", "") : "No monthly reports yet";
+    if (latestMonthly) {
+      const m = latestMonthly.match(/^(\d{4})-(\d{2})/);
+      if (m) {
+        const ageMs = Date.now() - new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1)).getTime();
+        if (ageMs > 35 * 24 * 3600 * 1000) {
+          monthlyPass  = false;
+          monthlyValue = `Stale: ${latestMonthly.replace(".md", "")} (>35 days old)`;
+        }
+      }
+    } else {
+      monthlyPass = false;
+    }
+    add({
+      id: "monthly_report_exists", level: "WARNING",
+      name: "Monthly report exists",
+      value: monthlyValue,
+      pass: monthlyPass,
+      details: monthlyPass ? [] : ["Fix: FORCE=1 npm run generate-monthly-report"],
+    });
+  }
+
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const criticals = checks.filter(c => !c.pass && c.level === "CRITICAL");
   const warnings  = checks.filter(c => !c.pass && c.level === "WARNING");

@@ -1058,6 +1058,14 @@ export type Messages = {
   "strategy.phase7.swingC": string;
   "strategy.phase7.longC": string;
   "strategy.phase7.health30": string;
+  "strategy.reports.tab": string;
+  "strategy.reports.title": string;
+  "strategy.reports.weekly.title": string;
+  "strategy.reports.monthly.title": string;
+  "strategy.reports.loading": string;
+  "strategy.reports.nodata": string;
+  "strategy.reports.select": string;
+  "strategy.reports.generated": string;
 };
 
 export type MessageKey = keyof Messages;

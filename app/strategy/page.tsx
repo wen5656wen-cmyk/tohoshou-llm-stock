@@ -896,7 +896,132 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type ActiveTab = StratType | "STABILIZATION";
+// ── Reports tab ───────────────────────────────────────────────────────────────
+
+type ReportData = {
+  files:   string[];
+  latest:  string | null;
+  label:   string | null;
+  content: string | null;
+};
+
+function ReportsTab({ t }: { t: (k: MessageKey) => string }) {
+  const [weeklyLabel, setWeeklyLabel]   = useState<string | null>(null);
+  const [monthlyLabel, setMonthlyLabel] = useState<string | null>(null);
+  const [weeklyData, setWeeklyData]     = useState<ReportData | null>(null);
+  const [monthlyData, setMonthlyData]   = useState<ReportData | null>(null);
+  const [loading, setLoading]           = useState(true);
+
+  const fetchReports = useCallback((wLabel: string | null, mLabel: string | null) => {
+    setLoading(true);
+    const wQ = wLabel ? `?label=${wLabel}` : "";
+    const mQ = mLabel ? `?label=${mLabel}` : "";
+    Promise.all([
+      fetch(`/api/reports/weekly${wQ}`).then((r) => r.json()),
+      fetch(`/api/reports/monthly${mQ}`).then((r) => r.json()),
+    ]).then(([wd, md]: [ReportData, ReportData]) => {
+      setWeeklyData(wd);
+      setMonthlyData(md);
+      if (!wLabel) setWeeklyLabel(wd.latest);
+      if (!mLabel) setMonthlyLabel(md.latest);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { fetchReports(null, null); }, [fetchReports]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map((i) => <div key={i} className="h-40 bg-slate-800/30 rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 bg-teal-900/20 border border-teal-700/40 rounded-xl px-5 py-4">
+        <span className="text-teal-300 text-lg">📊</span>
+        <div>
+          <div className="text-sm font-semibold text-teal-300">{t("strategy.reports.title")}</div>
+          <div className="text-xs text-teal-400/70 mt-0.5">T2 P1 — Reporting System</div>
+        </div>
+      </div>
+
+      {/* Weekly Report */}
+      <ReportSection
+        title={t("strategy.reports.weekly.title")}
+        data={weeklyData}
+        selectedLabel={weeklyLabel}
+        onSelect={(label) => {
+          setWeeklyLabel(label);
+          fetchReports(label, monthlyLabel);
+        }}
+        t={t}
+        accent="teal"
+      />
+
+      {/* Monthly Report */}
+      <ReportSection
+        title={t("strategy.reports.monthly.title")}
+        data={monthlyData}
+        selectedLabel={monthlyLabel}
+        onSelect={(label) => {
+          setMonthlyLabel(label);
+          fetchReports(weeklyLabel, label);
+        }}
+        t={t}
+        accent="indigo"
+      />
+    </div>
+  );
+}
+
+function ReportSection({
+  title, data, selectedLabel, onSelect, t, accent,
+}: {
+  title: string;
+  data: ReportData | null;
+  selectedLabel: string | null;
+  onSelect: (label: string) => void;
+  t: (k: MessageKey) => string;
+  accent: "teal" | "indigo";
+}) {
+  const accentCls = accent === "teal"
+    ? { border: "border-teal-700/30", bg: "bg-teal-900/10", text: "text-teal-400", sel: "bg-teal-900/40 border-teal-600/50 text-teal-200" }
+    : { border: "border-indigo-700/30", bg: "bg-indigo-900/10", text: "text-indigo-400", sel: "bg-indigo-900/40 border-indigo-600/50 text-indigo-200" };
+
+  return (
+    <div className={`border ${accentCls.border} rounded-xl overflow-hidden`}>
+      <div className={`${accentCls.bg} px-4 py-3 flex items-center justify-between gap-3`}>
+        <span className={`text-sm font-semibold ${accentCls.text}`}>{title}</span>
+        {data && data.files.length > 0 && (
+          <select
+            value={selectedLabel ?? ""}
+            onChange={(e) => onSelect(e.target.value)}
+            className={`text-xs px-2 py-1 rounded border ${accentCls.sel} bg-transparent cursor-pointer`}
+          >
+            {data.files.map((f) => (
+              <option key={f} value={f} className="bg-slate-900">{f}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      <div className="p-4">
+        {!data || !data.content ? (
+          <p className="text-slate-500 text-sm">{t("strategy.reports.nodata")}</p>
+        ) : (
+          <pre className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-mono max-h-[500px] overflow-y-auto">
+            {data.content}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type ActiveTab = StratType | "STABILIZATION" | "REPORTS";
 
 export default function StrategyPage() {
   const { t } = useI18n();
@@ -990,11 +1115,24 @@ export default function StrategyPage() {
         >
           {t("strategy.stabilization.tab")}
         </button>
+        {/* Reports tab */}
+        <button
+          onClick={() => setActiveTab("REPORTS")}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === "REPORTS"
+              ? "text-teal-400 border-teal-400"
+              : "text-slate-500 border-transparent hover:text-slate-300"
+          }`}
+        >
+          {t("strategy.reports.tab")}
+        </button>
       </div>
 
       {/* Active tab content */}
       {activeTab === "STABILIZATION" ? (
         <StabilizationTab t={t} />
+      ) : activeTab === "REPORTS" ? (
+        <ReportsTab t={t} />
       ) : (
         <StrategyTab
           key={activeTab}
