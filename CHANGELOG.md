@@ -2,6 +2,52 @@
 
 ---
 
+## [17.13.0] - 2026-06-30 — Phase 3: Strategy Recommendation Engine
+
+### 改动
+
+**新增脚本**
+- `scripts/generate-strategy-recommendations.ts` — 策略推荐引擎（380行）
+  - 读取 StockScore（compute-scores.ts 预计算），生成 DAY_TRADE / SWING_TRADE / LONG_TRADE 三套推荐
+  - 每套 Top 100，前 10 名标记 `isTop10 = true`
+  - 权重方案：
+    - DAY: tech×40% + moneyFlow×30% + news×20% + fund×10%
+    - SWING: adaptive×30% + tech×30% + moneyFlow×20% + news×10% + fund×10%
+    - LONG: fund×35% + adaptive×30% + moneyFlow×15% + tech×10% + news×10%
+  - 入场过滤：DAY/SWING 排除 AVOID；LONG 仅 STRONG_BUY
+  - 幂等性：当日已生成则跳过
+  - Legacy 同步：更新 DailyRecommendation.strategyType（DAY/SWING/POSITION）
+  - `--dry-run` / `--date=YYYY-MM-DD` 参数
+
+**schema.prisma**
+- `StrategyRecommendation` 新增 `isTop10 Boolean @default(false)` 字段
+- 新增索引 `@@index([strategyType, tradeDate, isTop10])`
+
+**策略脚本重构（禁止直接查询 DailyRecommendation）**
+- `day-strategy.ts`：Step 1 改从 StrategyRecommendation 取最新日期；Step 3+4 合并的 DR-fallback 替换为直接读 StrategyRecommendation Top N
+- `swing-strategy.ts`：同上，Step 3 读 isTop10=true 行
+- `long-strategy.ts`：同上，Step 3 读 isTop10=true 行；Step 6 STRONG_BUY 降级检测改从 StockScore.recommendationV2 读取
+
+**cron-scheduler.ts**
+- 07:30 流水线完成后追加 `generate-strategy-recommendations.ts`（最多15分钟）
+
+**health:data 新增 4 项 Phase 3 检查（S21–S24）**
+- `sr_day_count`（WARNING）：DAY_TRADE 推荐 >= 10 条
+- `sr_swing_count`（WARNING）：SWING_TRADE 推荐 >= 10 条
+- `sr_long_count`（INFO）：LONG_TRADE 推荐（STRONG_BUY 严格，可为0）
+- `sr_top10_marked`（WARNING）：isTop10=true 总数 >= 10
+
+**package.json**
+- 新增 `generate-strategy-recs`、`generate-strategy-recs:dry` 脚本
+
+### 生产验证
+- 2026-06-30 首次运行：DAY 100条 / SWING 100条 / LONG 15条（215总行）
+- health:data CRITICAL=0，45项全通过
+- day-strategy:dry 正确从 StrategyRecommendation 读取（mode: auto latest SR）
+- 部署 #62，commit 517816a
+
+---
+
 ## [17.12.0] - 2026-06-30 — P2C: Long Trade Strategy Engine
 
 ### 改动
