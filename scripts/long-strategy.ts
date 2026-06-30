@@ -374,7 +374,7 @@ async function main() {
     where: { strategyType: STRATEGY_TYPE, status: "CLOSED", win: true },
   });
   const winRate = (closedAll + exits.length) > 0
-    ? ((winsAll + exits.filter(e => e.win).length) / (closedAll + exits.length)) * 100
+    ? (winsAll + exits.filter(e => e.win).length) / (closedAll + exits.length)
     : 0;
 
   row("Cash before",    fmtYen(cashBefore));
@@ -561,7 +561,7 @@ async function main() {
   console.log(`  Unrealized: ${fmtYen(unrealizedPnl)}`);
   console.log(`  Pool:       ${fmtYen(totalBefore)} → ${fmtYen(totalAfter)}`);
   console.log(`  Cumulative: ${fmtPct(cumulativeRet)}`);
-  console.log(`  Win rate:   ${fmt(winRate, 1)}% (all time)`);
+  console.log(`  Win rate:   ${fmt(winRate * 100, 1)}% (all time)`);
   console.log(`  Elapsed:    ${elapsed}s`);
   console.log("═".repeat(62));
 

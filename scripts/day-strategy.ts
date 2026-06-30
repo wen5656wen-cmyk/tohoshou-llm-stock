@@ -331,7 +331,7 @@ async function main() {
   // Summary stats
   const closedTrades   = trades.filter(t => t.status === "CLOSED");
   const winTrades      = closedTrades.filter(t => t.win);
-  const winRate        = closedTrades.length > 0 ? winTrades.length / closedTrades.length * 100 : 0;
+  const winRate        = closedTrades.length > 0 ? winTrades.length / closedTrades.length : 0;
   const totalReturn    = closedTrades.reduce((s, t) => s + t.returnAmount, 0);
   const totalInvested  = closedTrades.reduce((s, t) => s + t.investedAmount, 0);
   const avgReturnPct   = closedTrades.length > 0
@@ -355,7 +355,7 @@ async function main() {
   }
 
   console.log(`\n  Closed trades:  ${closedTrades.length} / ${trades.length}`);
-  console.log(`  Win rate:       ${fmt(winRate, 1)}%  (${winTrades.length}W / ${closedTrades.length - winTrades.length}L)`);
+  console.log(`  Win rate:       ${fmt(winRate * 100, 1)}%  (${winTrades.length}W / ${closedTrades.length - winTrades.length}L)`);
   console.log(`  Avg return:     ${avgReturnPct >= 0 ? "+" : ""}${fmt(avgReturnPct)}%`);
   console.log(`  Total P&L:      ${fmtYen(totalReturn)}`);
   console.log(`  Pool before:    ${fmtYen(poolTotal)}`);
