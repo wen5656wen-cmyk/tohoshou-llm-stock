@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-type NavItem = { href: string; label: string; icon: string };
+type NavItem = { href: string; label: string; icon: string; badge?: string };
 type NavGroup = { labelKey: string; items: NavItem[] };
 
 export default function Sidebar() {
@@ -19,7 +19,7 @@ export default function Sidebar() {
         { href: "/",                   label: t("nav.cockpit"),        icon: "◈" },
         { href: "/screener",           label: t("nav.aiScreener"),    icon: "✦" },
         { href: "/strategy",           label: t("nav.strategyCenter"), icon: "◆" },
-        { href: "/portfolio",          label: t("nav.aiPortfolio"),   icon: "◇" },
+        { href: "/portfolio",          label: t("nav.aiPortfolio"),   icon: "◇", badge: "Legacy" },
         { href: "/backtest",           label: t("nav.backtest"),      icon: "▣" },
         { href: "/admin/research",     label: t("nav.research"),      icon: "◉" },
       ],
@@ -67,7 +67,7 @@ export default function Sidebar() {
               </span>
             </div>
             <div className="space-y-0.5">
-              {group.items.map(({ href, label, icon }) => (
+              {group.items.map(({ href, label, icon, badge }) => (
                 <Link
                   key={href}
                   href={href}
@@ -79,7 +79,12 @@ export default function Sidebar() {
                   }`}
                 >
                   <span className="text-base w-5 text-center">{icon}</span>
-                  {label}
+                  <span className="flex-1">{label}</span>
+                  {badge && (
+                    <span className="text-[9px] font-bold text-slate-500 bg-slate-700/50 border border-slate-600/40 px-1.5 py-0.5 rounded tracking-wider">
+                      {badge}
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
