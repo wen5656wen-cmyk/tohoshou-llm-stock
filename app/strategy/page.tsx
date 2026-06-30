@@ -672,13 +672,237 @@ function StrategyTab({
   );
 }
 
+// ── Stabilization tab types ───────────────────────────────────────────────────
+
+type ValidationRecord = {
+  id: number;
+  validationDate: string;
+  dayRecOk: boolean; swingRecOk: boolean; longRecOk: boolean;
+  strategyOk: boolean; snapshotOk: boolean; tradeResultOk: boolean;
+  backtestOk: boolean; learningOk: boolean; healthOk: boolean;
+  allPass: boolean; failCount: number; incidentReport: string | null;
+  dayFilledTotal: number | null; swingClosedTotal: number | null; longClosedTotal: number | null;
+  dayWinRate: number | null; swingWinRate: number | null; longWinRate: number | null;
+  dayGrade: string | null; swingGrade: string | null; longGrade: string | null;
+  phase7Ready: boolean;
+};
+
+type Phase7Cond = { key: string; met: boolean; current: string; target: string };
+
+type ValidationData = {
+  records: ValidationRecord[];
+  latest: ValidationRecord | null;
+  phase7: { ready: boolean; conditions: Phase7Cond[] };
+  stats: { totalRuns: number; passRuns: number; passRate: number | null; incidentRuns: number; consecutiveHealthDays: number };
+};
+
+const PHASE7_LABEL_MAP: Record<string, MessageKey> = {
+  day100:   "strategy.phase7.day100",
+  swing30:  "strategy.phase7.swing30",
+  long20:   "strategy.phase7.long20",
+  dayB:     "strategy.phase7.gradeB",
+  swingC:   "strategy.phase7.swingC",
+  longC:    "strategy.phase7.longC",
+  health30: "strategy.phase7.health30",
+};
+
+const CHECK_FIELDS = [
+  { field: "dayRecOk",      label: "strategy.validation.check.dayRec"   as MessageKey },
+  { field: "swingRecOk",    label: "strategy.validation.check.swingRec" as MessageKey },
+  { field: "longRecOk",     label: "strategy.validation.check.longRec"  as MessageKey },
+  { field: "strategyOk",    label: "strategy.validation.check.strategy" as MessageKey },
+  { field: "snapshotOk",    label: "strategy.validation.check.snapshot" as MessageKey },
+  { field: "tradeResultOk", label: "strategy.validation.check.trade"    as MessageKey },
+  { field: "backtestOk",    label: "strategy.validation.check.backtest" as MessageKey },
+  { field: "learningOk",    label: "strategy.validation.check.learning" as MessageKey },
+  { field: "healthOk",      label: "strategy.validation.check.health"   as MessageKey },
+] as const;
+
+// ── Stabilization tab component ───────────────────────────────────────────────
+
+function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
+  const [data, setData]       = useState<ValidationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/strategy/validation")
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((d: ValidationData) => { setData(d); setLoading(false); })
+      .catch((e) => { setError(String(e)); setLoading(false); });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => <div key={i} className="h-28 bg-slate-800/30 rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-900/20 border border-red-700/40 rounded-xl p-6 text-red-400 text-sm">
+        Error: {error}
+      </div>
+    );
+  }
+
+  const records = data?.records ?? [];
+  const latest  = data?.latest ?? null;
+  const phase7  = data?.phase7 ?? { ready: false, conditions: [] };
+  const stats   = data?.stats  ?? { totalRuns: 0, passRuns: 0, passRate: null, incidentRuns: 0, consecutiveHealthDays: 0 };
+
+  return (
+    <div className="space-y-5">
+      {/* Stabilization header banner */}
+      <div className="flex items-center justify-between bg-violet-900/20 border border-violet-700/40 rounded-xl px-5 py-4">
+        <div>
+          <div className="text-sm font-semibold text-violet-300">{t("strategy.stabilization.title")}</div>
+          <div className="text-xs text-violet-400/70 mt-0.5">{t("strategy.stabilization.period")}</div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-[10px] font-semibold text-violet-400 bg-violet-900/40 border border-violet-700/50 px-2.5 py-1 rounded">
+            {t("strategy.stabilization.frozen")}
+          </span>
+          <span className="text-[10px] text-slate-500">
+            {t("strategy.validation.passRate")}{": "}
+            {stats.passRate != null ? `${(stats.passRate * 100).toFixed(0)}%` : "—"}
+            {` (${stats.passRuns}/${stats.totalRuns})`}
+          </span>
+        </div>
+      </div>
+
+      {/* Phase 7 readiness */}
+      <div className="bg-slate-800/30 rounded-xl border border-slate-700/40 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-700/40 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-300">{t("strategy.phase7.title")}</h3>
+          {phase7.ready ? (
+            <span className="text-xs font-bold text-emerald-300 bg-emerald-900/40 border border-emerald-700/50 px-2.5 py-1 rounded">
+              🚀 {t("strategy.phase7.ready")}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-500 bg-slate-700/30 px-2.5 py-1 rounded">
+              {t("strategy.phase7.not_ready")}
+            </span>
+          )}
+        </div>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+          {phase7.conditions.map((cond) => (
+            <div
+              key={cond.key}
+              className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border ${
+                cond.met ? "bg-emerald-900/10 border-emerald-800/30" : "bg-slate-700/20 border-slate-700/30"
+              }`}
+            >
+              <div className="flex items-center gap-2 text-xs">
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${
+                  cond.met ? "bg-emerald-500/30 text-emerald-300" : "bg-slate-600/40 text-slate-400"
+                }`}>
+                  {cond.met ? "✓" : "○"}
+                </span>
+                <span className={cond.met ? "text-slate-300" : "text-slate-500"}>
+                  {t(PHASE7_LABEL_MAP[cond.key] ?? "strategy.phase7.conditions")}
+                </span>
+              </div>
+              <span className={`text-[10px] tabular-nums flex-shrink-0 font-mono ${cond.met ? "text-emerald-400" : "text-slate-500"}`}>
+                {cond.current}/{cond.target}
+              </span>
+            </div>
+          ))}
+          {phase7.conditions.length === 0 && (
+            <p className="col-span-2 text-center text-slate-500 text-xs py-2">
+              {t("strategy.validation.noData")}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Cumulative stats */}
+      {latest && (
+        <div className="bg-slate-800/30 rounded-xl border border-slate-700/40 p-4">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+            {t("strategy.cumulative.title")}
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-xs text-center">
+            {[
+              { label: "DAY",   filled: latest.dayFilledTotal,   winRate: latest.dayWinRate,   grade: latest.dayGrade   },
+              { label: "SWING", filled: latest.swingClosedTotal, winRate: latest.swingWinRate, grade: latest.swingGrade },
+              { label: "LONG",  filled: latest.longClosedTotal,  winRate: latest.longWinRate,  grade: latest.longGrade  },
+            ].map(({ label, filled, winRate, grade }) => (
+              <div key={label}>
+                <div className="text-[10px] text-slate-500 mb-1">{label}</div>
+                <div className="text-lg font-bold text-slate-200 tabular-nums">{filled ?? 0}</div>
+                <div className="text-[10px] text-slate-400 mb-1">
+                  {winRate != null ? `${(winRate * 100).toFixed(0)}% win` : "—"}
+                </div>
+                <GradeBadge grade={grade ?? null} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Daily validation history */}
+      <div className="bg-slate-800/30 rounded-xl border border-slate-700/40 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-700/40 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-300">{t("strategy.validation.title")}</h3>
+          <span className="text-xs text-slate-500">{records.length}{" "}days</span>
+        </div>
+        {records.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 text-sm">{t("strategy.validation.noData")}</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="border-b border-slate-700/30 text-slate-500">
+                  <th className="text-left px-4 py-2 whitespace-nowrap">{t("strategy.validation.date")}</th>
+                  {CHECK_FIELDS.map(({ label }) => (
+                    <th key={label} className="text-center px-1.5 py-2 whitespace-nowrap">{t(label)}</th>
+                  ))}
+                  <th className="text-center px-3 py-2">{t("strategy.validation.incident")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((r) => (
+                  <tr key={r.id} className={`border-b border-slate-700/20 hover:bg-slate-700/10 ${r.allPass ? "" : "bg-red-900/5"}`}>
+                    <td className="px-4 py-2 text-slate-300 font-mono whitespace-nowrap">
+                      {r.validationDate?.slice(0, 10)}
+                    </td>
+                    {CHECK_FIELDS.map(({ field }) => (
+                      <td key={field} className="text-center px-1.5 py-2">
+                        <span className={(r as any)[field] ? "text-emerald-400" : "text-red-400"}>
+                          {(r as any)[field] ? "✓" : "✗"}
+                        </span>
+                      </td>
+                    ))}
+                    <td className="text-center px-3 py-2">
+                      {r.incidentReport
+                        ? <span className="text-red-400" title={r.incidentReport}>⚠</span>
+                        : <span className="text-slate-600">—</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
+
+type ActiveTab = StratType | "STABILIZATION";
 
 export default function StrategyPage() {
   const { t } = useI18n();
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<StratType>("DAY_TRADE");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("DAY_TRADE");
 
   useEffect(() => {
     fetch("/api/strategy/overview")
@@ -755,15 +979,30 @@ export default function StrategyPage() {
             </button>
           );
         })}
+        {/* Stabilization tab */}
+        <button
+          onClick={() => setActiveTab("STABILIZATION")}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ml-auto ${
+            activeTab === "STABILIZATION"
+              ? "text-violet-400 border-violet-400"
+              : "text-slate-500 border-transparent hover:text-slate-300"
+          }`}
+        >
+          {t("strategy.stabilization.tab")}
+        </button>
       </div>
 
       {/* Active tab content */}
-      <StrategyTab
-        key={activeTab}
-        strategyType={activeTab}
-        overview={overview?.strategies[activeTab] ?? null}
-        t={t}
-      />
+      {activeTab === "STABILIZATION" ? (
+        <StabilizationTab t={t} />
+      ) : (
+        <StrategyTab
+          key={activeTab}
+          strategyType={activeTab as StratType}
+          overview={overview?.strategies[activeTab as StratType] ?? null}
+          t={t}
+        />
+      )}
     </div>
   );
 }

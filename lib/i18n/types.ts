@@ -1022,6 +1022,42 @@ export type Messages = {
   "strategy.day.status.closed": string;
   "strategy.day.status.waiting": string;
   "strategy.day.status.nodata": string;
+
+  // ─── Strategy Stabilization / T1 ───────────────────────────────────────────
+  "strategy.stabilization.tab": string;
+  "strategy.stabilization.title": string;
+  "strategy.stabilization.frozen": string;
+  "strategy.stabilization.period": string;
+  "strategy.validation.title": string;
+  "strategy.validation.date": string;
+  "strategy.validation.allPass": string;
+  "strategy.validation.failCount": string;
+  "strategy.validation.incident": string;
+  "strategy.validation.noData": string;
+  "strategy.validation.passRate": string;
+  "strategy.validation.check.dayRec": string;
+  "strategy.validation.check.swingRec": string;
+  "strategy.validation.check.longRec": string;
+  "strategy.validation.check.strategy": string;
+  "strategy.validation.check.snapshot": string;
+  "strategy.validation.check.trade": string;
+  "strategy.validation.check.backtest": string;
+  "strategy.validation.check.learning": string;
+  "strategy.validation.check.health": string;
+  "strategy.cumulative.title": string;
+  "strategy.cumulative.dayTrades": string;
+  "strategy.cumulative.closedTrades": string;
+  "strategy.phase7.title": string;
+  "strategy.phase7.ready": string;
+  "strategy.phase7.not_ready": string;
+  "strategy.phase7.conditions": string;
+  "strategy.phase7.day100": string;
+  "strategy.phase7.swing30": string;
+  "strategy.phase7.long20": string;
+  "strategy.phase7.gradeB": string;
+  "strategy.phase7.swingC": string;
+  "strategy.phase7.longC": string;
+  "strategy.phase7.health30": string;
 };
 
 export type MessageKey = keyof Messages;

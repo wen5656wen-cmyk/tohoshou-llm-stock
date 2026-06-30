@@ -69,7 +69,9 @@
     "strategy-backtest:new": "npx tsx scripts/strategy-backtest.ts",
     "strategy-backtest:new:dry": "npx tsx scripts/strategy-backtest.ts --dry-run",
     "strategy-learning": "npx tsx scripts/strategy-learning.ts",
-    "strategy-learning:dry": "npx tsx scripts/strategy-learning.ts --dry-run"
+    "strategy-learning:dry": "npx tsx scripts/strategy-learning.ts --dry-run",
+    "strategy-validation": "npx tsx scripts/strategy-daily-validation.ts",
+    "strategy-validation:dry": "DRY_RUN=1 npx tsx scripts/strategy-daily-validation.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

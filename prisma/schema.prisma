@@ -1171,3 +1171,58 @@ model StrategyLearningSummary {
 
   @@map("strategy_learning_summaries")
 }
+
+// Trading Architecture V1 — Daily validation record (T1 Stabilization)
+model StrategyDailyValidation {
+  id             Int      @id @default(autoincrement())
+  validationDate DateTime @db.Date @unique
+
+  // Check 1-3: Recommendations generated today
+  dayRecOk      Boolean @default(false)
+  swingRecOk    Boolean @default(false)
+  longRecOk     Boolean @default(false)
+
+  // Check 4: Strategy scripts produced capital/position data
+  strategyOk    Boolean @default(false)
+
+  // Check 5: Capital pool is being tracked
+  snapshotOk    Boolean @default(false)
+
+  // Check 6: At least one trade result recorded
+  tradeResultOk Boolean @default(false)
+
+  // Check 7: Backtest updated today
+  backtestOk    Boolean @default(false)
+
+  // Check 8: Learning updated today
+  learningOk    Boolean @default(false)
+
+  // Check 9: All time-critical checks pass (derived health indicator)
+  healthOk      Boolean @default(false)
+
+  // Overall
+  allPass       Boolean @default(false)
+  failCount     Int     @default(0)
+  incidentReport String? @db.Text
+
+  // Cumulative stats at time of validation
+  dayFilledTotal   Int?
+  swingClosedTotal Int?
+  longClosedTotal  Int?
+  dayWinRate       Float?
+  swingWinRate     Float?
+  longWinRate      Float?
+  dayGrade         String?
+  swingGrade       String?
+  longGrade        String?
+
+  // Phase 7 readiness snapshot
+  phase7Ready  Boolean @default(false)
+  phase7Detail String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([validationDate])
+  @@map("strategy_daily_validations")
+}

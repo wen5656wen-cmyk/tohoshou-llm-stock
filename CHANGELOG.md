@@ -2,6 +2,69 @@
 
 ---
 
+## [17.17.0] - 2026-06-30 — T1: Trading Architecture V1 Stabilization
+
+### 目标
+Trading Architecture V1 全部阶段完成后进入连续30个交易日稳定运行验证阶段。
+V1 冻结：禁止修改数据库 Schema、禁止修改交易流程，仅允许 Bug Fix / 性能优化 / 日志优化。
+
+### 改动
+
+**新 DB 表**
+- `StrategyDailyValidation`（新增）：每日9项验证结果、累计统计、Phase 7 就绪状态
+
+**新增脚本**
+- `scripts/strategy-daily-validation.ts` — T1 每日验证引擎
+  - 9项检查：DAY/SWING/LONG推荐、策略执行、资金快照、交易记录、回测更新、学习更新、系统健康
+  - 累计统计：三策略成交/胜率/Learning Grade 快照
+  - Phase 7 就绪判定：7个条件（成交量+Grade+连续30日Health）
+  - Incident Report：任一 FAIL → console.error 输出事故报告
+  - 自动剪枝：保留最近45天（约30个交易日）
+
+**Cron 新增**
+- 17:15 JST（工作日）：`strategy-daily-validation.ts`，位于 Learning(17:00) 之后
+
+**新 API**
+- `app/api/strategy/validation/route.ts` — 返回最近30条记录 + Phase 7 条件状态 + 运行统计
+
+**Strategy Center 更新**
+- `app/strategy/page.tsx` — 新增「稳定化」第4个 Tab（violet 配色）
+  - Phase 7 开启条件面板（7项条件进度）
+  - 累计统计（DAY/SWING/LONG 成交数/胜率/Grade）
+  - 30天日验证历史表（9列 ✓/✗）
+  - Stabilization 状态横幅（V1 FROZEN 标签 + 通过率）
+
+**i18n**
+- 三语言新增31个 Key（strategy.stabilization.* / strategy.validation.* / strategy.phase7.*）
+
+**package.json**
+- 新增 `strategy-validation` / `strategy-validation:dry` 脚本
+
+### Phase 7 开启条件（7项）
+| 条件 | 目标 | 当前 |
+|------|------|------|
+| DAY 成交 | ≥ 100 | 5 |
+| SWING 平仓 | ≥ 30 | 0 |
+| LONG 平仓 | ≥ 20 | 0 |
+| DAY Grade | ≥ B | C |
+| SWING Grade | ≥ C | D |
+| LONG Grade | ≥ C | D |
+| 连续30日 Health CRITICAL=0 | 30 | 0 |
+
+### 首次验证结果（2026-06-30）
+```
+DAY:C(5) SWING:D(0) LONG:D(0)
+ALL PASS ✅ — Phase 7: NOT READY
+```
+
+### 规则锁定（T1 Stabilization）
+- 禁止新增大型功能
+- 禁止修改数据库 Schema（此版本是最后一次 Schema 变更）
+- 禁止修改三交易体系流程（Day/Swing/Long Strategy Engine）
+- 仅允许：Bug Fix / 性能优化 / 日志优化
+
+---
+
 ## [17.16.0] - 2026-06-30 — Phase 6: Strategy Center V1.0
 
 ### 改动
