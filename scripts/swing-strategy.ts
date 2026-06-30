@@ -31,7 +31,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STRATEGY_TYPE    = "SWING_TRADE";
-const DR_STRATEGY_TYPE = "SWING";
 const POOL_INITIAL     = 40_000_000;
 const MAX_POSITIONS    = 10;
 const POSITION_SIZE    = POOL_INITIAL / MAX_POSITIONS; // ¥4M
@@ -108,18 +107,20 @@ async function main() {
     row("Mode",    "explicit --date");
     row("runDate", dateArg);
   } else {
-    // Auto: use the latest date that has DailyRecommendation data
-    const latestDR = await (prisma as any).dailyRecommendation.findFirst({
-      orderBy: { date: "desc" },
-      select: { date: true },
+    // Auto: use the latest date that has StrategyRecommendation data
+    const latestSR = await (prisma as any).strategyRecommendation.findFirst({
+      where: { strategyType: STRATEGY_TYPE },
+      orderBy: { tradeDate: "desc" },
+      select: { tradeDate: true },
     });
-    if (!latestDR) {
-      console.log("\n⚠  No DailyRecommendation rows found. Exiting.");
+    if (!latestSR) {
+      console.log("\n⚠  No StrategyRecommendation (SWING_TRADE) found.");
+      console.log("   Run: npm run generate-strategy-recs");
       await prisma.$disconnect();
       return;
     }
-    runDate = jstDate(latestDR.date as Date);
-    row("Mode",    "auto (latest DR date)");
+    runDate = jstDate(latestSR.tradeDate as Date);
+    row("Mode",    "auto (latest StrategyRecommendation)");
     row("runDate", runDate.toISOString().slice(0, 10));
   }
 
@@ -155,135 +156,30 @@ async function main() {
     return;
   }
 
-  // ── Step 3: Sync StrategyRecommendation (top-10 SWING candidates) ──────────
-  step("Sync StrategyRecommendation (SWING_TRADE top 10)");
+  // ── Step 3: Load StrategyRecommendation (from generate-strategy-recs) ───────
+  step("Load StrategyRecommendation");
 
-  type DrRow = {
-    symbol: string; gptRank: number; adaptiveScore: number | null;
-    finalScore: number | null; feat_technicalScore: number | null;
-    feat_fundamentalScore: number | null; feat_newsSentimentScore: number | null;
-    feat_moneyFlowScore: number | null; recommendation: string | null;
-    summaryZh: string | null;
-  };
-
-  const existingRecs = await (prisma as any).strategyRecommendation.count({
-    where: { strategyType: STRATEGY_TYPE, tradeDate: runDate },
+  const srRecs = await (prisma as any).strategyRecommendation.findMany({
+    where: { strategyType: STRATEGY_TYPE, tradeDate: runDate, isTop10: true },
+    orderBy: { rank: "asc" },
+    select: { symbol: true, rank: true, aiScore: true },
   });
 
-  let sourceRows: DrRow[] = [];
-  let fallbackLabel = "";
-
-  if (existingRecs === 0) {
-    // L1: SWING typed + score ≥ 70 + BUY/STRONG_BUY
-    const l1 = await (prisma as any).dailyRecommendation.findMany({
-      where: {
-        date: runDate,
-        strategyType: DR_STRATEGY_TYPE,
-        recommendation: { in: ["STRONG_BUY", "BUY"] },
-        adaptiveScore: { gte: 70 },
-      },
-      orderBy: { gptRank: "asc" },
-      take: TOP_N,
-      select: {
-        symbol: true, gptRank: true, adaptiveScore: true, finalScore: true,
-        feat_technicalScore: true, feat_fundamentalScore: true,
-        feat_newsSentimentScore: true, feat_moneyFlowScore: true,
-        recommendation: true, summaryZh: true,
-      },
-    });
-
-    if (l1.length > 0) {
-      sourceRows = l1 as DrRow[];
-    } else {
-      // L2: SWING typed, relax score threshold
-      const l2 = await (prisma as any).dailyRecommendation.findMany({
-        where: { date: runDate, strategyType: DR_STRATEGY_TYPE },
-        orderBy: { gptRank: "asc" },
-        take: TOP_N,
-        select: {
-          symbol: true, gptRank: true, adaptiveScore: true, finalScore: true,
-          feat_technicalScore: true, feat_fundamentalScore: true,
-          feat_newsSentimentScore: true, feat_moneyFlowScore: true,
-          recommendation: true, summaryZh: true,
-        },
-      });
-
-      if (l2.length > 0) {
-        sourceRows    = l2 as DrRow[];
-        fallbackLabel = "L2: score threshold relaxed";
-      } else {
-        // L3: any BUY/STRONG_BUY (legacy dates before v15)
-        const l3 = await (prisma as any).dailyRecommendation.findMany({
-          where: { date: runDate, recommendation: { in: ["STRONG_BUY", "BUY"] } },
-          orderBy: { gptRank: "asc" },
-          take: TOP_N,
-          select: {
-            symbol: true, gptRank: true, adaptiveScore: true, finalScore: true,
-            feat_technicalScore: true, feat_fundamentalScore: true,
-            feat_newsSentimentScore: true, feat_moneyFlowScore: true,
-            recommendation: true, summaryZh: true,
-          },
-        });
-
-        if (l3.length === 0) {
-          console.log(`\n⚠  No DailyRecommendation for ${runDateStr}. Cannot run Swing Strategy.`);
-          await prisma.$disconnect();
-          return;
-        }
-        sourceRows    = l3 as DrRow[];
-        fallbackLabel = "L3: no SWING-typed recs, using top BUY/STRONG_BUY overall";
-      }
-    }
-
-    if (fallbackLabel) console.log(`  ⚠  Fallback ${fallbackLabel}`);
-
-    if (!DRY_RUN) {
-      for (let i = 0; i < sourceRows.length; i++) {
-        const dr = sourceRows[i];
-        await (prisma as any).strategyRecommendation.upsert({
-          where: { strategyType_tradeDate_symbol: { strategyType: STRATEGY_TYPE, tradeDate: runDate, symbol: dr.symbol } },
-          create: {
-            strategyType:         STRATEGY_TYPE,
-            tradeDate:            runDate,
-            symbol:               dr.symbol,
-            rank:                 i + 1,
-            aiScore:              dr.adaptiveScore,
-            finalScore:           dr.finalScore,
-            technicalScore:       dr.feat_technicalScore,
-            fundamentalScore:     dr.feat_fundamentalScore,
-            newsScore:            dr.feat_newsSentimentScore,
-            moneyFlowScore:       dr.feat_moneyFlowScore,
-            recommendationReason: dr.summaryZh ?? null,
-            sourceScoreDate:      runDate,
-          },
-          update: {},
-        });
-      }
-      row("StrategyRecommendation synced", sourceRows.length);
-    } else {
-      row("StrategyRecommendation [DRY]", `would sync ${sourceRows.length} rows`);
-    }
-  } else {
-    // Load existing recs so we have the top-N set for "dropped from top10" check
-    const existing = await (prisma as any).strategyRecommendation.findMany({
-      where: { strategyType: STRATEGY_TYPE, tradeDate: runDate },
-      orderBy: { rank: "asc" },
-      take: TOP_N,
-      select: { symbol: true, rank: true, aiScore: true },
-    });
-    sourceRows = (existing as any[]).map((r: any) => ({
-      symbol: r.symbol, gptRank: r.rank, adaptiveScore: r.aiScore,
-      finalScore: null, feat_technicalScore: null, feat_fundamentalScore: null,
-      feat_newsSentimentScore: null, feat_moneyFlowScore: null,
-      recommendation: null, summaryZh: null,
-    }));
-    row("StrategyRecommendation", `${existingRecs} rows already exist`);
+  if (srRecs.length === 0) {
+    console.log(`\n⚠  No StrategyRecommendation for ${runDateStr} (${STRATEGY_TYPE}).`);
+    console.log("   Run: npm run generate-strategy-recs -- before running strategies.");
+    await prisma.$disconnect();
+    return;
   }
 
+  const sourceRows = (srRecs as any[]).map(r => ({
+    symbol:        r.symbol as string,
+    adaptiveScore: r.aiScore as number | null,
+    rank:          r.rank as number,
+  }));
+
   const topNSymbolSet = new Set(sourceRows.map(r => r.symbol));
-  const scoreMap = new Map<string, number | null>(
-    sourceRows.map(r => [r.symbol, r.adaptiveScore])
-  );
+  const scoreMap      = new Map<string, number | null>(sourceRows.map(r => [r.symbol, r.adaptiveScore]));
 
   console.log(`\n  Today's top ${sourceRows.length} SWING candidates:`);
   sourceRows.slice(0, 5).forEach((r, i) => {

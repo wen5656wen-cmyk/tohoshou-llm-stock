@@ -948,6 +948,7 @@ model StrategyRecommendation {
   moneyFlowScore       Float?
   riskScore            Float?
   finalScore           Float?
+  isTop10              Boolean      @default(false)
 
   recommendationReason String?      @db.Text
   sourceScoreDate      DateTime?    @db.Date
@@ -957,6 +958,7 @@ model StrategyRecommendation {
 
   @@unique([strategyType, tradeDate, symbol])
   @@index([strategyType, tradeDate, rank])
+  @@index([strategyType, tradeDate, isTop10])
   @@index([tradeDate])
   @@index([symbol])
   @@map("strategy_recommendations")

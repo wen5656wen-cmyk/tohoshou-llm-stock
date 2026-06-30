@@ -757,6 +757,66 @@ async function main() {
       pass: longCapCount >= 0, // INFO only — always pass, just informational
     });
 
+    // ── Phase 3: StrategyRecommendation Engine checks (S21–S24) ────────────────
+    // Find the most recent tradeDate in StrategyRecommendation
+    const latestSRRow = await (prisma as any).strategyRecommendation.findFirst({
+      orderBy: { tradeDate: "desc" },
+      select: { tradeDate: true },
+    });
+    const latestSRDate = latestSRRow?.tradeDate as Date | undefined;
+
+    // CHECK S21: DAY_TRADE recommendations generated today (or most recent trading day)
+    const dayRecCount = latestSRDate
+      ? await (prisma as any).strategyRecommendation.count({
+          where: { strategyType: "DAY_TRADE", tradeDate: latestSRDate },
+        })
+      : 0;
+    add({
+      id: "sr_day_count", level: "WARNING",
+      name: "DAY_TRADE StrategyRecommendation count",
+      value: dayRecCount > 0 ? `${dayRecCount} rows` : "0 (generate-strategy-recs not run?)",
+      pass: dayRecCount >= 10,
+    });
+
+    // CHECK S22: SWING_TRADE recommendations generated
+    const swingRecCount = latestSRDate
+      ? await (prisma as any).strategyRecommendation.count({
+          where: { strategyType: "SWING_TRADE", tradeDate: latestSRDate },
+        })
+      : 0;
+    add({
+      id: "sr_swing_count", level: "WARNING",
+      name: "SWING_TRADE StrategyRecommendation count",
+      value: swingRecCount > 0 ? `${swingRecCount} rows` : "0 (generate-strategy-recs not run?)",
+      pass: swingRecCount >= 10,
+    });
+
+    // CHECK S23: LONG_TRADE recommendations generated
+    const longRecCount = latestSRDate
+      ? await (prisma as any).strategyRecommendation.count({
+          where: { strategyType: "LONG_TRADE", tradeDate: latestSRDate },
+        })
+      : 0;
+    add({
+      id: "sr_long_count", level: "INFO",
+      name: "LONG_TRADE StrategyRecommendation count",
+      value: longRecCount > 0 ? `${longRecCount} rows` : "0 (STRONG_BUY filter may yield 0)",
+      pass: longRecCount >= 0, // INFO — LONG can be 0 on low-signal days
+    });
+
+    // CHECK S24: isTop10 marked for each strategy
+    const top10Count = latestSRDate
+      ? await (prisma as any).strategyRecommendation.count({
+          where: { tradeDate: latestSRDate, isTop10: true },
+        })
+      : 0;
+    add({
+      id: "sr_top10_marked", level: "WARNING",
+      name: "isTop10=true rows across all strategies",
+      value: top10Count > 0 ? `${top10Count} rows` : "0 (isTop10 not set?)",
+      pass: top10Count >= 10,
+    });
+
   } catch (e: any) {
     add({
       id: "strategy_tables_exist", level: "CRITICAL",

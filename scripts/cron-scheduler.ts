@@ -234,6 +234,9 @@ cron.schedule("30 7 * * *", async () => {
     await runAsync("generate-learning-report.ts", "Learning Engine レポート生成 [fallback]");
     await runAsync("data-health-guard.ts",        "データ健全性チェック [fallback]");
   }
+  // Phase 3: generate StrategyRecommendation after pipeline completes
+  // Runs after rerank-top500 so StockScore and DailyRecommendation are both fresh
+  await runAsync("generate-strategy-recommendations.ts", "Strategy Recommendation Engine", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
 // ── 16:30 JST — Day Trade Strategy Engine（工作日，收盘结算后）──────────────

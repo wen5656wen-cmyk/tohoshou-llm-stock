@@ -58,6 +58,8 @@
     "pipeline:dry-run": "npx tsx scripts/dry-run-pipeline.ts",
     "i18n:scan": "npx tsx scripts/i18n-scan.ts",
     "strategy:init-capital": "npx tsx scripts/init-strategy-capital.ts",
+    "generate-strategy-recs": "npx tsx scripts/generate-strategy-recommendations.ts",
+    "generate-strategy-recs:dry": "npx tsx scripts/generate-strategy-recommendations.ts --dry-run",
     "day-strategy": "npx tsx scripts/day-strategy.ts",
     "day-strategy:dry": "npx tsx scripts/day-strategy.ts --dry-run",
     "swing-strategy": "npx tsx scripts/swing-strategy.ts",
