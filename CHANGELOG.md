@@ -24,6 +24,50 @@ Phase 7 开启条件（需同时满足）：
 
 ---
 
+## [17.22.0] - 2026-06-30 — P1 Production Audit Bug Fix Sprint（全部P1修复）
+
+### P1-001/002：StrategySnapshot.alpha 错误值修复（swing + long）
+**根因：** `cumulativeRet - topixToday`：`cumulativeRet` 是策略启动以来的累计回报（如 +14.7%），
+`topixToday` 是当日 TOPIX 单日涨跌（如 -0.3%）。两者时间维度不同，差值无任何经济意义。
+
+**修复：**
+- `scripts/swing-strategy.ts:545` / `scripts/long-strategy.ts:525`：StrategySnapshot 写入改为 `alpha: null`
+- 添加 TODO 注释：累计 Alpha 等待 topix baseline 后正式启用
+- **DB Migration（生产已执行）：** 3条 SWING/LONG StrategySnapshot alpha 错误值已清零，0条残留
+
+**注意：** StrategyPosition/StrategyTradeResult 的个交 alpha（持仓期间 TOPIX 累计收益对比）
+逻辑正确，未改动。
+
+### P1-003：Phase 7 连续健康天数算法修复
+**根因：** `app/api/strategy/validation/route.ts` 使用 `reduce(-1 哨兵)` 模式：只要历史上有任意一天
+`healthOk=false`，哨兵永不恢复，`consecutiveHealthDays` 被强制归零，显示「0/30天」。
+
+**修复：** 改为从最新记录（DESC 顺序）向前迭代，遇 false 立即 break：
+```typescript
+let consecutiveHealthDays = 0;
+for (const r of records) {
+  if (!r.healthOk) break;
+  consecutiveHealthDays++;
+}
+```
+Phase 7 健康进度条现在准确反映最近连续 PASS 天数。
+
+### P1-004：package.json strategy-backtest 脚本命名修正
+**根因：** `npm run strategy-backtest` 执行旧引擎 `compute-strategy-backtest.ts`（写旧表），
+新引擎藏在 `:new` 后缀下，开发者手动运行结果对 Strategy Center 完全无效。
+
+**修复：**
+| 旧命令 | 新命令 | 脚本 |
+|--------|--------|------|
+| `strategy-backtest` | `strategy-backtest:legacy` | `compute-strategy-backtest.ts`（旧）|
+| `strategy-backtest:dry` | `strategy-backtest:legacy:dry` | 同上 dry |
+| `strategy-backtest:new` | `strategy-backtest` | `strategy-backtest.ts`（新，正式）|
+| `strategy-backtest:new:dry` | `strategy-backtest:dry` | 同上 dry |
+
+### Commit: 878ae98
+
+---
+
 ## [17.21.0] - 2026-06-30 — P1 Bug Fix: StrategySnapshot winRate 重复×100
 
 ### 根因
