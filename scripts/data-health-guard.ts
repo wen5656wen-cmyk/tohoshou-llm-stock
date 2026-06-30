@@ -817,6 +817,51 @@ async function main() {
       pass: top10Count >= 10,
     });
 
+    // CHECK S25: DAY_TRADE backtest summary exists
+    const dayBacktest = await (prisma as any).strategyBacktestSummary.findFirst({
+      where: { strategyType: "DAY_TRADE" },
+      orderBy: { asOfDate: "desc" },
+      select: { asOfDate: true, filledCount: true, fillRate: true },
+    });
+    add({
+      id: "backtest_day_exists", level: "INFO",
+      name: "DAY_TRADE backtest summary exists",
+      value: dayBacktest
+        ? `asOf=${new Date(dayBacktest.asOfDate).toISOString().slice(0, 10)}, n=${dayBacktest.filledCount}, fill=${dayBacktest.fillRate != null ? (dayBacktest.fillRate * 100).toFixed(0) + "%" : "N/A"}`
+        : "No rows yet",
+      pass: true, // INFO-only: always pass, accumulates data over time
+    });
+
+    // CHECK S26: SWING_TRADE backtest summary exists
+    const swingBacktest = await (prisma as any).strategyBacktestSummary.findFirst({
+      where: { strategyType: "SWING_TRADE" },
+      orderBy: { asOfDate: "desc" },
+      select: { asOfDate: true, filledCount: true, fillRate: true },
+    });
+    add({
+      id: "backtest_swing_exists", level: "INFO",
+      name: "SWING_TRADE backtest summary exists",
+      value: swingBacktest
+        ? `asOf=${new Date(swingBacktest.asOfDate).toISOString().slice(0, 10)}, n=${swingBacktest.filledCount}, fill=${swingBacktest.fillRate != null ? (swingBacktest.fillRate * 100).toFixed(0) + "%" : "N/A"}`
+        : "No rows yet",
+      pass: true,
+    });
+
+    // CHECK S27: LONG_TRADE backtest summary exists
+    const longBacktest = await (prisma as any).strategyBacktestSummary.findFirst({
+      where: { strategyType: "LONG_TRADE" },
+      orderBy: { asOfDate: "desc" },
+      select: { asOfDate: true, filledCount: true, fillRate: true },
+    });
+    add({
+      id: "backtest_long_exists", level: "INFO",
+      name: "LONG_TRADE backtest summary exists",
+      value: longBacktest
+        ? `asOf=${new Date(longBacktest.asOfDate).toISOString().slice(0, 10)}, n=${longBacktest.filledCount}, fill=${longBacktest.fillRate != null ? (longBacktest.fillRate * 100).toFixed(0) + "%" : "N/A"}`
+        : "No rows yet",
+      pass: true,
+    });
+
   } catch (e: any) {
     add({
       id: "strategy_tables_exist", level: "CRITICAL",

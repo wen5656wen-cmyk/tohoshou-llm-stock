@@ -65,7 +65,9 @@
     "swing-strategy": "npx tsx scripts/swing-strategy.ts",
     "swing-strategy:dry": "npx tsx scripts/swing-strategy.ts --dry-run",
     "long-strategy": "npx tsx scripts/long-strategy.ts",
-    "long-strategy:dry": "npx tsx scripts/long-strategy.ts --dry-run"
+    "long-strategy:dry": "npx tsx scripts/long-strategy.ts --dry-run",
+    "strategy-backtest:new": "npx tsx scripts/strategy-backtest.ts",
+    "strategy-backtest:new:dry": "npx tsx scripts/strategy-backtest.ts --dry-run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

@@ -268,6 +268,18 @@ cron.schedule("40 16 * * 1-5", async () => {
   await runAsync("long-strategy.ts", "Long Trade Strategy", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 16:45 JST — Strategy Backtest Engine（工作日，Long 结束后）──────────────
+//
+// Reads StrategyTradeResult for all three strategies and computes rolling
+// performance statistics (win rate, alpha, Sharpe, drawdown) per horizon.
+// Writes to StrategyBacktestSummary. Runs after Long so all closed trades
+// for today are already settled before the summary is computed.
+//
+cron.schedule("45 16 * * 1-5", async () => {
+  log("INFO", "⏰ 16:45 触发：Strategy Backtest Engine");
+  await runAsync("strategy-backtest.ts", "Strategy Backtest Engine", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 18:30 JST — JPX 空売り比率取得（工作日）────────────────────────────────
 cron.schedule("30 18 * * 1-5", async () => {
   log("INFO", "⏰ 18:30 触发：JPX 空売り比率取得");
@@ -289,4 +301,4 @@ cron.schedule("30 22 * * *", async () => {
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
 log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(並行spawn+流水線) / 07:00·12·18·22 ニュース");
-log("INFO", "           07:30 AI評分+rerank+健全性 / 16:30 Day Trade策略(工作日) / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
+log("INFO", "           07:30 AI評分+rerank+健全性 / 16:30 Day / 16:35 Swing / 16:40 Long / 16:45 Backtest(工作日) / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");

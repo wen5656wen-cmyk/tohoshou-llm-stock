@@ -1100,12 +1100,17 @@ model StrategyBacktestSummary {
   fillRate        Float?
 
   winRate         Float?
+  lossRate        Float?
   avgReturnPct    Float?
   medianReturnPct Float?
   maxReturnPct    Float?
   minReturnPct    Float?
+  avgHoldingDays  Float?
+  maxHoldingDays  Int?
   topixReturnPct  Float?
   alpha           Float?
+  maxDrawdown     Float?
+  sharpeRatio     Float?
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt

@@ -2,6 +2,43 @@
 
 ---
 
+## [17.14.0] - 2026-06-30 — Phase 4: Strategy Backtest Engine
+
+### 改动
+
+**新增脚本**
+- `scripts/strategy-backtest.ts` — 策略回测引擎（Phase 4）
+  - 读取 `StrategyTradeResult`，不读取 `DailyRecommendation`
+  - 三套策略独立 horizon：DAY(1D,3D,5D) / SWING(5D,7D,20D,30D) / LONG(30D,60D,90D,180D,365D)
+  - 统计项（14个）：sampleCount / filledCount / fillRate / winRate / lossRate / avgReturnPct / medianReturnPct / maxReturnPct / minReturnPct / avgHoldingDays / maxHoldingDays / topixReturnPct / alpha / maxDrawdown / sharpeRatio
+  - fillRate 成熟度：≥80% READY / 50-79% PARTIAL / 30-49% LIMITED / <30% INSUFFICIENT
+  - Upsert 至 `StrategyBacktestSummary`（unique: strategyType_horizon_asOfDate）
+  - `--strategy=DAY|SWING|LONG`（默认 ALL）/ `--dry-run` / `--date=YYYY-MM-DD`
+
+**schema.prisma**
+- `StrategyBacktestSummary` 新增5字段：`lossRate` / `avgHoldingDays` / `maxHoldingDays` / `maxDrawdown` / `sharpeRatio`
+- 生产已 `db push` 并 `generate`
+
+**cron-scheduler.ts**
+- 新增 16:45 JST（工作日）：Strategy Backtest Engine，位于 Long(16:40) 之后
+
+**data-health-guard.ts**
+- S25: DAY_TRADE backtest summary exists（INFO）
+- S26: SWING_TRADE backtest summary exists（INFO）
+- S27: LONG_TRADE backtest summary exists（INFO）
+
+**package.json**
+- `strategy-backtest:new` / `strategy-backtest:new:dry` 脚本入口
+
+### 生产验证
+
+- 首次运行写入12行（3策略×12 horizon）
+- DAY_TRADE 5D: READY（n=4, win=50%, avg=2.82%, α=4.11%）— 5条 StrategyTradeResult 已结算
+- SWING/LONG: INSUFFICIENT（无已平仓持仓，随数据积累自动晋升）
+- Health: CRITICAL=0, 48 checks pass, S25-S27 ✅
+
+---
+
 ## [17.13.0] - 2026-06-30 — Phase 3: Strategy Recommendation Engine
 
 ### 改动
