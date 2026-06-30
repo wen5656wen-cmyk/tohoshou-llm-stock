@@ -24,6 +24,44 @@ Phase 7 开启条件（需同时满足）：
 
 ---
 
+## [17.20.0] - 2026-06-30 — T2 P2: Legacy AI组合页面最终收尾
+
+### 目标
+/portfolio 页面彻底完成 Legacy 化。统一 Layout、新增升级说明与新旧架构对照、Sidebar Legacy Badge。
+不恢复任何旧业务数据，仅保留历史入口与 Strategy Center 跳转。
+
+### 改动
+
+**`app/portfolio/page.tsx`（完全重写）**
+- 外层改用 `p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen`，与 Strategy Center 统一 Layout
+- 内容区 `max-w-[860px] mx-auto`，消除左右大面积留白
+- 新增「Trading Architecture V1 升级说明」卡片（upgrade_body1-4 + 三策略列表）
+- 新增「新旧架构对照」表格卡（6行：策略/周期/收益/学习/回测/维护状态）
+- 「进入策略中心 →」按钮居中，宽 240px，Primary Green
+- 页面底部新增「Legacy Notice」区块（旧快照停止生成 + 历史数据说明）
+
+**`components/Sidebar.tsx`**
+- `NavItem` 新增可选 `badge?: string` 字段
+- `/portfolio` 添加 `badge: "Legacy"`（灰色小标签，渲染在导航项右侧）
+
+**`lib/i18n/types.ts` + 三语言文件（zh-CN / ja-JP / en-US）**
+- `portfolio.legacy.title/subtitle` 更新文案（title → "AI组合（Legacy）"）
+- 新增 27 个 key：upgrade_title / upgrade_body1-4 / strategy_day/swing/long / cmp_title / cmp_col_legacy/new / cmp_r1-r6_legacy/new / notice_footer_title/body1/body2
+
+### 验收
+- Layout 与 Strategy Center 统一 ✅
+- 升级说明卡 ✅
+- 新旧架构对照表 ✅
+- 「进入策略中心」按钮 ✅
+- Sidebar Legacy Badge ✅
+- 不恢复旧数据 ✅
+- `npm run build` ✅ PASS
+- `npm run health:data` ✅ CRITICAL=0
+- 生产 HTTP 200 ✅
+- deployment #69，commit 7dae458
+
+---
+
 ## [17.18.0] - 2026-06-30 — T2 P1: Weekly & Monthly Strategy Report System
 
 ### 目标
