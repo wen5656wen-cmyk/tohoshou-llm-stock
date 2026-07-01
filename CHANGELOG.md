@@ -2,6 +2,86 @@
 
 ---
 
+## [17.24.0] - 2026-07-01 — P0 Day Trade 生产链路修复：T+1 结算时序 + 价格同步限流 + 断点续跑
+
+### 背景
+`/review payment` 级别审计发现 Day Trade 自 2026-06-26 后从未自动产生过成交/快照——
+Strategy Center「最近成交记录」永远停在 2026-06-26，是 3 个独立根因叠加的结果。
+
+### 根因 1：16:30 JST 结算时序与价格同步时序矛盾
+`day-strategy.ts` 旧版在当天 16:30 JST 结算当天交易，要求当天 DailyPrice 已有收盘价；
+但全站唯一的价格同步 cron 只在**次日** 06:00 JST 才写入前一交易日的收盘数据——16:30 时
+当天收盘价在架构上永远不可能存在，每个交易日都必然触发「无数据」放弃写入。
+
+**修复（T+1 结算）：** `day-strategy.ts` 改为自动断点续跑模式——处理所有已有
+`StrategyRecommendation` 但尚未结算、且严格早于今天（JST）的历史交易日；`cron-scheduler.ts`
+删除 16:30 触发，改为在 07:30 价格同步完成（`await syncPricesPromise`）之后立即结算 T-1。
+单只股票缺 open/close 价格时标记新增状态 `SKIPPED_DATA_MISSING`（不再用
+`WAITING_OPEN`/`WAITING_CLOSE`，避免重演 v17.23.0 的 stale>24h 误报 CRITICAL）。
+
+### 根因 2：部署流程未重启 tohoshou-cron
+`cron-scheduler.ts` 的 `cron.schedule()` 注册只在进程启动时读取一次；历次部署只
+`pm2 restart tohoshou-web`，导致 2026-06-29 当天新增的 Day Trade 16:30 调度从未被
+运行中的旧进程加载——当天没有任何触发记录（日志证实全天无 Day Trade 相关行），
+是「静默漏跑」而非报错。
+
+**修复：** `CLAUDE.md` 部署流程明确要求——凡改动 `cron-scheduler.ts`，必须同时
+`pm2 restart tohoshou-cron`（非 07:30–14:00 JST 时段内执行），并用 `pm2 list` 核实
+两个进程的重启计数/pid 均已变化。
+
+### 根因 3：sync-all-prices 遭 J-Quants 429 限流，3 天几乎全灭
+生产环境实测确认：J-Quants API（AWS API Gateway usage plan）对持续高频请求有短窗口限流
+（约 60-70 秒后自动恢复）；旧配置 concurrency=5 + 批次间隔 200ms 实际持续速率约
+25 req/秒，远超限额，导致 2026-06-28~06-30 连续 3 天 3597~3598/3718 只股票同步失败
+（成功率仅约 3%），`sync-prices-failed-*.json` 100% 为 429 错误。
+
+**修复：** `sync-all-prices.ts` 加入全局共享节流网关（`SYNC_MIN_INTERVAL_MS`，默认
+500ms，所有并发 worker 共享同一发号时钟，实际速率与并发数解耦）；命中 429 时设置
+90 秒全局冷却；新增失败原因分类统计（rate_limit/timeout/db_write_failed/
+symbol_format/api_error/unknown）写入 `sync-prices-failed-<date>-summary.json`。
+默认并发数从 5 降为 2（实际吞吐由共享节流间隔决定，非并发数）。
+
+### Health Guard 增强（`data-health-guard.ts`）
+- 新增 CHECK：DAY_TRADE 最近连续缺失 TradeResult 的交易日天数——1 天 WARNING，
+  ≥2 天 CRITICAL（S33）
+- 新增 CHECK：DailyPrice 在**最近一个已完整同步的交易日**（非当天，避免当天数据
+  尚未同步完成时误报）覆盖率 <80% → CRITICAL
+- S10 有效状态白名单加入 `SKIPPED_DATA_MISSING`
+
+### Strategy Center API 修复（`app/api/strategy/overview/route.ts` + `app/strategy/page.tsx`）
+「今日执行状态」卡片原本只读 `StrategyDailyValidation.dayRecOk`（只检查推荐是否生成），
+无法反映 TradeResult/Snapshot 是否真的写入——这正是本次故障能持续 5 天却「看起来健康」
+的原因之一。新增独立字段 `dayTradeResultOk`/`dayTradeSnapshotOk`，直接查询最近一个
+应结算交易日的 TradeResult/Snapshot 是否存在，前端卡片由 6 项扩为 7 项。
+
+### 生产数据补跑
+- `sync-all-prices --prices-only` 全量重跑：3718/3718 成功，0 失败，0 次 429（验证限流
+  修复彻底生效），DailyPrice 覆盖率 2026-06-29 从 119→3686 条、2026-06-30 从 119→3680 条
+- `day-strategy.ts` 自动结算：2026-06-30 新增 5 笔真实成交（P&L +¥845,100，
+  Alpha +2.37% vs TOPIX）+ 1 条 StrategySnapshot + 1 条 StrategyCapitalLog
+- **2026-06-29 无法补跑**：`generate-strategy-recommendations.ts`（Phase 3）实际部署于
+  2026-06-30 凌晨，06-29 当天从未生成过 `StrategyRecommendation`；`StockScore` 非按日
+  版本化存储，无法在事后重建「当天 AI 会推荐什么」而不产生前视偏差（look-ahead bias，
+  违反 `lib/safety-rules.ts` 铁律一）。因此 06-29 是永久性数据缺口，未伪造补齐，
+  health guard 的连续缺失检查会自然跳过该日（因其从无 recommendation，不进入候选清单）。
+
+### 已知的、本次未处理的旁支发现
+补跑价格数据后，`data-health-guard.ts` 的既有检查「Split contamination」新增 7 项 CRITICAL——
+经核实为 backfill 引入 06-29/06-30 历史数据后，`StockScore.return60d`（今晨 07:30 计算，
+基于当时不完整的价格历史）与刷新后的 60 日窗口不再对齐的**过渡态**，与 Day Trade 无关、
+非本次引入的新 bug，预期在明日 07:30 JST `compute-scores.ts` 自然重算后恢复；未在本次
+范围内强制触发 90 分钟的全量重算。
+
+### 验收
+- `npm run build` ✅ PASS
+- `npm run health:data`：Day Trade 相关全部检查 ✅ PASS（含新增 S33/覆盖率检查）；
+  唯一剩余 CRITICAL 为上述已知旁支过渡态（非 Day Trade 范畴）
+- Strategy Center 最近成交记录现含 2026-06-26 / 2026-06-30（2026-06-29 因史实缺口
+  无法补齐，2026-07-01 因 T+1 设计需等次日结算）
+- `pm2 list` 确认 tohoshou-web / tohoshou-cron 均已重启并加载新代码
+
+---
+
 ## [17.23.0] - 2026-07-01 — P1 生产红色报警修复：Day Trade 高价股卡死 WAITING_OPEN + 报警文案误报
 
 ### 背景

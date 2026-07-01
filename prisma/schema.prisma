@@ -918,6 +918,7 @@ enum StrategyTradeStatus {
   WAITING_DATA
   SKIPPED_MARKET_CLOSED
   SKIPPED_LOT_SIZE
+  SKIPPED_DATA_MISSING
 }
 
 enum StrategyExitReason {

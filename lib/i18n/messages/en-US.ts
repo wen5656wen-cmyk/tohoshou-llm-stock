@@ -1095,6 +1095,7 @@ const enUS: Messages = {
   "strategy.today_exec.backtest":      "Backtest Updated",
   "strategy.today_exec.learning":      "Learning Updated",
   "strategy.today_exec.validation":    "Daily Validation OK",
+  "strategy.today_exec.day_settled":   "Day Trade Settled",
   "strategy.stab_card.title":          "Stabilization",
   "strategy.stab_card.days":           "Total Days",
   "strategy.stab_card.health_days":    "Last 30d Health",

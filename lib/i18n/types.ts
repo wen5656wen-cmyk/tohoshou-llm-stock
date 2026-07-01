@@ -1111,6 +1111,7 @@ export type Messages = {
   "strategy.today_exec.backtest": string;
   "strategy.today_exec.learning": string;
   "strategy.today_exec.validation": string;
+  "strategy.today_exec.day_settled": string;
   "strategy.stab_card.title": string;
   "strategy.stab_card.days": string;
   "strategy.stab_card.health_days": string;

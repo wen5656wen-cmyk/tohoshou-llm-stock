@@ -301,6 +301,46 @@ async function main() {
     details: staleTotal > 0 ? [`stale=${staleCount} null=${nullSyncCount}`] : [],
   });
 
+  // ── CHECK 23: DailyPrice coverage on the last COMPLETED trading day ──────
+  // P0 fix (2026-07-01): sync-all-prices was hitting J-Quants rate limits and
+  // silently succeeding for only ~3% of the market (119/3700) for 3 straight
+  // days (2026-06-28 ~ 06-30) while still exiting 0 — nothing previously
+  // caught this. Day Trade and every downstream strategy engine silently
+  // starved of data. This check makes that failure mode CRITICAL.
+  //
+  // IMPORTANT: must NOT check literally the latest DailyPrice date — "today"
+  // (JST) is always partial/in-flight until the next morning's full sync
+  // completes (see day-strategy.ts T+1 timing fix), so checking today's
+  // coverage mid-day would false-trigger CRITICAL every single day. Instead
+  // check the most recent date strictly before today — the last sync that
+  // had a full day to complete.
+  const nowJstForCoverage   = new Date(Date.now() + 9 * 3600 * 1000);
+  const todayJstForCoverage = new Date(Date.UTC(
+    nowJstForCoverage.getUTCFullYear(), nowJstForCoverage.getUTCMonth(), nowJstForCoverage.getUTCDate(),
+  ));
+  const lastCompletedPriceRow = await prisma.dailyPrice.findFirst({
+    where: { date: { lt: todayJstForCoverage } },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+  let priceCoveragePct = 100;
+  let priceCoverageRows = 0;
+  const lastCompletedDateStr = lastCompletedPriceRow?.date?.toISOString().slice(0, 10) ?? "none";
+  if (lastCompletedPriceRow) {
+    priceCoverageRows = await prisma.dailyPrice.count({ where: { date: lastCompletedPriceRow.date } });
+    priceCoveragePct  = stockTotal > 0 ? (priceCoverageRows / stockTotal) * 100 : 0;
+  }
+  add({
+    id: "daily_price_coverage_last_completed_date", level: "CRITICAL",
+    name: "DailyPrice coverage on last completed trading day ≥80%",
+    value: `${priceCoveragePct.toFixed(1)}% (${priceCoverageRows}/${stockTotal}) on ${lastCompletedDateStr}`,
+    pass: priceCoveragePct >= 80,
+    details: priceCoveragePct < 80
+      ? ["Check sync-prices-failed-<date>.json for failure reasons (commonly J-Quants 429 rate limit)",
+         "Fix: npm run sync-prices-retry, or re-run sync-all-prices with lower SYNC_CONCURRENCY"]
+      : [],
+  });
+
   // ── CHECK 16: STRONG_BUY criteria compliance ──────────────────────────────
   const sbStocks = await prisma.stockScore.findMany({
     where: { recommendationV2: "STRONG_BUY" },
@@ -621,7 +661,7 @@ async function main() {
     const invalidDayStatus = await (prisma as any).strategyTradeResult.count({
       where: {
         strategyType: "DAY_TRADE",
-        status: { notIn: ["CLOSED", "WAITING_OPEN", "WAITING_CLOSE", "SKIPPED_MARKET_CLOSED", "SKIPPED_LOT_SIZE"] },
+        status: { notIn: ["CLOSED", "WAITING_OPEN", "WAITING_CLOSE", "SKIPPED_MARKET_CLOSED", "SKIPPED_LOT_SIZE", "SKIPPED_DATA_MISSING"] },
       },
     });
     add({
@@ -629,6 +669,45 @@ async function main() {
       name: "Day Trade results have valid status",
       value: invalidDayStatus === 0 ? "OK" : `${invalidDayStatus} invalid`,
       pass: invalidDayStatus === 0,
+    });
+
+    // CHECK S33: Day Trade TradeResult recent coverage (P0 fix, 2026-07-01)
+    // A trading day can have a StrategyRecommendation but never get a matching
+    // StrategyTradeResult if the settlement cron didn't run or crashed — this
+    // is exactly what happened silently from 2026-06-26 onward. Walk backward
+    // from the most recent DAY_TRADE recommendation date (excluding today,
+    // which can never be settled yet under T+1 timing) and count how many
+    // consecutive trading days in a row are missing a TradeResult.
+    const recentDayRecDates = await (prisma as any).strategyRecommendation.findMany({
+      where: { strategyType: "DAY_TRADE", tradeDate: { lt: todayJst } },
+      distinct: ["tradeDate"],
+      orderBy: { tradeDate: "desc" },
+      take: 5,
+      select: { tradeDate: true },
+    });
+    let consecutiveMissingDays = 0;
+    const missingDayDates: string[] = [];
+    for (const r of recentDayRecDates as Array<{ tradeDate: Date }>) {
+      const cnt = await (prisma as any).strategyTradeResult.count({
+        where: { strategyType: "DAY_TRADE", tradeDate: r.tradeDate },
+      });
+      if (cnt === 0) {
+        consecutiveMissingDays++;
+        missingDayDates.push(r.tradeDate.toISOString().slice(0, 10));
+      } else {
+        break; // stop at the first day (most recent first) that IS settled
+      }
+    }
+    const missingLevel: Level = consecutiveMissingDays >= 2 ? "CRITICAL" : "WARNING";
+    add({
+      id: "day_trade_result_recent_coverage",
+      level: missingLevel,
+      name: "Day Trade TradeResult recent coverage (0 consecutive missing days)",
+      value: consecutiveMissingDays === 0 ? "OK" : `${consecutiveMissingDays} consecutive day(s) missing`,
+      pass: consecutiveMissingDays === 0,
+      details: missingDayDates.length > 0
+        ? [`Missing: ${missingDayDates.join(", ")}`, "Fix: npm run day-strategy (auto catch-up)"]
+        : [],
     });
 
     // ── Swing Strategy checks (S11–S15) ──────────────────────────────────────

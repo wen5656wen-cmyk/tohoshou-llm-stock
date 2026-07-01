@@ -98,9 +98,20 @@ sshpass -p 'Wen565656' scp prisma/schema.prisma root@8.209.247.68:/opt/tohoshou/
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
   "cd /opt/tohoshou && npx prisma db push --accept-data-loss && npx prisma generate"
 
-# 5. Restart ONLY tohoshou-web — NEVER restart tohoshou-cron during 07:30–14:00 JST
-#    (restarting cron during the pipeline kills rerank-top500 mid-run, preventing pipeline-runs.jsonl write)
+# 5. Restart tohoshou-web ALWAYS. Restart tohoshou-cron ONLY IF scripts/cron-scheduler.ts
+#    changed (new/removed/modified cron.schedule() calls) — node-cron registers schedules
+#    once at process start from in-memory code, so rsync-ing scripts/ alone does NOT make a
+#    long-running tohoshou-cron process pick up new schedules. This exact gap silently
+#    dropped an entire day of Day Trade cron execution on 2026-06-29 (P0 root cause #1 —
+#    see CHANGELOG v17.24.0). Restarting cron is safe EXCEPT during 07:30–14:00 JST, when
+#    the rerank-top500 pipeline is running (a restart mid-run kills it and drops the
+#    pipeline-runs.jsonl write) — outside that window it's always safe.
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-web --update-env"
+# Only when cron-scheduler.ts (or any script it directly registers a schedule for) changed,
+# and current time is OUTSIDE 07:30–14:00 JST:
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-cron --update-env"
+# Verify both processes actually restarted (check "uptime" resets / "restart" counter increments):
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 list"
 
 # 6. Record deployment (MANDATORY — see Rule 7 in docs/CLAUDE_DEVELOPMENT_RULES.md)
 curl -s -X POST "https://aitohoshou.com/api/admin/deployments" \
@@ -414,6 +425,9 @@ sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \
 # After scripts/lib changes only (no rebuild needed)
 sshpass -p 'Wen565656' rsync -avz scripts/ root@8.209.247.68:/opt/tohoshou/scripts/
 sshpass -p 'Wen565656' rsync -avz lib/ root@8.209.247.68:/opt/tohoshou/lib/
+# If scripts/cron-scheduler.ts changed, tohoshou-cron MUST also be restarted (see
+# "Deploy Sequence" step 5 above) — rsync alone does not reload its in-memory schedules.
+sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 "pm2 restart tohoshou-cron --update-env"
 
 # Run a script on production (must cd first — dotenv resolves .env from CWD)
 sshpass -p 'Wen565656' ssh -o StrictHostKeyChecking=no root@8.209.247.68 \

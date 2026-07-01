@@ -1095,6 +1095,7 @@ const zhCN: Messages = {
   "strategy.today_exec.backtest":      "回测已更新",
   "strategy.today_exec.learning":      "学习已更新",
   "strategy.today_exec.validation":    "日检验已通过",
+  "strategy.today_exec.day_settled":   "日内交易已结算",
   "strategy.stab_card.title":          "稳定化状态",
   "strategy.stab_card.days":           "累计运行天数",
   "strategy.stab_card.health_days":    "近30天健康",

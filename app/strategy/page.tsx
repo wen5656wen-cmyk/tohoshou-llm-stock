@@ -61,6 +61,9 @@ type TodayExecution = {
   healthOk:   boolean;
   validDate:  string | null;
   isToday:    boolean;
+  dayTradeSettledDate: string | null;
+  dayTradeResultOk:    boolean;
+  dayTradeSnapshotOk:  boolean;
 };
 
 type RecentValidationSummary = {
@@ -1159,14 +1162,16 @@ function SystemStatusCard({ unified, t }: { unified: OverviewData["unified"]; t:
 
 function TodayExecutionCard({ exec, t }: { exec: TodayExecution | null | undefined; t: (k: MessageKey) => string }) {
   const checks = exec ? [
-    { ok: exec.dayRecOk,   label: t("strategy.today_exec.rec_day")    },
-    { ok: exec.swingRecOk, label: t("strategy.today_exec.rec_swing")  },
-    { ok: exec.longRecOk,  label: t("strategy.today_exec.rec_long")   },
-    { ok: exec.backtestOk, label: t("strategy.today_exec.backtest")   },
-    { ok: exec.learningOk, label: t("strategy.today_exec.learning")   },
-    { ok: exec.healthOk,   label: t("strategy.today_exec.validation") },
+    { ok: exec.dayRecOk,          label: t("strategy.today_exec.rec_day")     },
+    { ok: exec.swingRecOk,        label: t("strategy.today_exec.rec_swing")   },
+    { ok: exec.longRecOk,         label: t("strategy.today_exec.rec_long")    },
+    { ok: exec.backtestOk,        label: t("strategy.today_exec.backtest")    },
+    { ok: exec.learningOk,        label: t("strategy.today_exec.learning")    },
+    { ok: exec.healthOk,          label: t("strategy.today_exec.validation")  },
+    { ok: exec.dayTradeResultOk,  label: t("strategy.today_exec.day_settled") },
   ] : [];
   const passCount = checks.filter((c) => c.ok).length;
+  const totalCount = checks.length;
   return (
     <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
@@ -1175,9 +1180,9 @@ function TodayExecutionCard({ exec, t }: { exec: TodayExecution | null | undefin
         </div>
         {exec && (
           <span className={`text-xs font-semibold tabular-nums ${
-            passCount === 6 ? "text-emerald-400" : passCount >= 4 ? "text-yellow-400" : "text-slate-500"
+            passCount === totalCount ? "text-emerald-400" : passCount >= totalCount - 2 ? "text-yellow-400" : "text-slate-500"
           }`}>
-            {passCount}/6
+            {passCount}/{totalCount}
           </span>
         )}
       </div>

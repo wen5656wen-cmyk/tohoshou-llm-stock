@@ -1095,6 +1095,7 @@ const jaJP: Messages = {
   "strategy.today_exec.backtest":      "バックテスト更新",
   "strategy.today_exec.learning":      "学習更新",
   "strategy.today_exec.validation":    "日次検証通過",
+  "strategy.today_exec.day_settled":   "デイトレード決済済み",
   "strategy.stab_card.title":          "安定化ステータス",
   "strategy.stab_card.days":           "累計稼働日数",
   "strategy.stab_card.health_days":    "直近30日健全",

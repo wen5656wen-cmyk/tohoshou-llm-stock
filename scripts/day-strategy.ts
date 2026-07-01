@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * scripts/day-strategy.ts  — Day Trade Strategy Engine  (v1.0.0)
+ * scripts/day-strategy.ts  — Day Trade Strategy Engine  (v2.0.0 — T+1 settlement)
  *
  * Day Trade 设计 (Trading-Architecture.md §3):
  *   - 资金池    ¥30,000,000  (DAY_TRADE)
@@ -10,19 +10,40 @@
  *   - 强制平仓  当日收盘（本脚本用 DailyPrice.close 模拟）
  *   - 禁止隔夜
  *
- * 执行流程:
- *   1. 确定 tradeDate（从 StrategyRecommendation 取最新日期）
- *   2. 检查是否交易日（周末/节假日跳过）
+ * P0 修复（v2.0.0，2026-07-01）— T+1 结算时序:
+ *   旧版本在 T 日 16:30 JST 结算 T 日交易，但 DailyPrice 只在次日 06:00 JST
+ *   才同步完成，导致 16:30 时 T 日收盘价永远不存在 —— 每个交易日都会必然
+ *   触发 "No DailyPrice data" 而放弃写入，Day Trade 自 2026-06-26 后从未
+ *   产生过自动成交记录。
+ *
+ *   新时序：
+ *     T 日   07:30 JST  generate-strategy-recs 生成 T 日推荐
+ *     T+1 日 06:00 JST  sync-all-prices 同步 T 日完整 DailyPrice
+ *     T+1 日 07:30 JST  cron 在价格同步完成后调用本脚本结算 T 日
+ *
+ *   tradeDate 字段仍记录真实交易日 T（不是结算发生的日期 T+1）。
+ *   自动模式（无 --date）会自动处理所有「已有 StrategyRecommendation 但尚未
+ *   结算」且早于今天（JST）的历史交易日，具备断点续跑能力：如果某天 cron
+ *   漏跑，下一次运行会自动补上，不会永久丢失当天数据。
+ *
+ *   单只股票缺 open/close 价格时标记 SKIPPED_DATA_MISSING（不再使用
+ *   WAITING_OPEN/WAITING_CLOSE）——因为 T+1 结算已经等过一整晚，缺失就是
+ *   缺失，不是"等待中"；继续用 WAITING_* 会被 health guard 的 stale>24h
+ *   检查误判为卡死数据（与 v17.23.0 SKIPPED_LOT_SIZE 修复同一类问题）。
+ *
+ * 执行流程（每个待结算交易日）:
+ *   1. 检查是否交易日（周末跳过）
+ *   2. 检查该日是否有 DailyPrice（全市场 0 条 = 节假日，整体跳过）
  *   3. 读取 StrategyRecommendation（由 generate-strategy-recs 预先生成）
  *   4. 幂等检查（当日 TradeResult 已存在则跳过）
- *   5. 读取开盘/收盘价
+ *   5. 逐股票读取开盘/收盘价，缺失的标记 SKIPPED_DATA_MISSING（不影响其他股票）
  *   6. 计算交易结果 + TOPIX Alpha
  *   7. 写入 StrategyTradeResult / StrategySnapshot / StrategyCapitalLog
  *
  * Usage:
- *   npm run day-strategy           # 处理最新可用交易日
- *   npm run day-strategy:dry       # Dry Run（不写 DB）
- *   npx tsx scripts/day-strategy.ts --date=2026-06-26
+ *   npm run day-strategy                     # 自动结算所有待处理的历史交易日（不含今天）
+ *   npm run day-strategy:dry                  # Dry Run（不写 DB）
+ *   npx tsx scripts/day-strategy.ts --date=2026-06-26            # 手动指定/补跑单日
  *   npx tsx scripts/day-strategy.ts --dry-run --date=2026-06-26
  */
 
@@ -31,12 +52,13 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 // ── Constants (per Trading-Architecture.md §3 & §7) ──────────────────────────
-const STRATEGY_TYPE    = "DAY_TRADE";
-const POOL_INITIAL     = 30_000_000;     // ¥30M
-const MAX_POSITIONS    = 5;
-const POSITION_SIZE    = POOL_INITIAL / MAX_POSITIONS; // ¥6M per stock
-const TAKE_PROFIT_PCT  = 1.5;            // +1.5%
-const STOP_LOSS_PCT    = -1.0;           // -1.0%
+const STRATEGY_TYPE     = "DAY_TRADE";
+const POOL_INITIAL       = 30_000_000;     // ¥30M
+const MAX_POSITIONS      = 5;
+const POSITION_SIZE      = POOL_INITIAL / MAX_POSITIONS; // ¥6M per stock
+const TAKE_PROFIT_PCT    = 1.5;            // +1.5%
+const STOP_LOSS_PCT      = -1.0;           // -1.0%
+const MAX_CATCHUP_DAYS   = 20;             // safety cap per run in auto mode
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 const DRY_RUN   = process.argv.includes("--dry-run");
@@ -72,84 +94,62 @@ function exitReason(returnPct: number): string {
   return "DAY_CLOSE";
 }
 
-// ── Log ───────────────────────────────────────────────────────────────────────
-const startedAt = new Date();
-let   stepIdx   = 0;
-function step(msg: string) {
-  stepIdx++;
-  const elapsed = ((Date.now() - startedAt.getTime()) / 1000).toFixed(1);
-  console.log(`\n[Step ${stepIdx}] ${msg}  (+${elapsed}s)`);
-}
-
 function row(label: string, value: string | number) {
   console.log(`  ${label.padEnd(28)} ${value}`);
 }
 
+// ── Print summary from existing DB records (already-processed days) ─────────
+async function printSummaryFromDB(tradeDate: Date) {
+  const tradeDateStr = tradeDate.toISOString().slice(0, 10);
+  const trades = await (prisma as any).strategyTradeResult.findMany({
+    where: { strategyType: STRATEGY_TYPE, tradeDate },
+    select: { symbol: true, returnPct: true, returnAmount: true, win: true, status: true, exitReason: true },
+  });
+  const closed = (trades as any[]).filter(t => t.status === "CLOSED");
+  const wins   = closed.filter(t => t.win);
+  const pnl    = closed.reduce((s: number, t: any) => s + (t.returnAmount ?? 0), 0);
+
+  console.log(`\n  Already processed: ${tradeDateStr}`);
+  console.log(`  Closed: ${closed.length}/${(trades as any[]).length}  Wins: ${wins.length}  P&L: ${fmtYen(pnl)}`);
+  (trades as any[]).forEach((t: any) => {
+    const ret = t.returnPct != null ? `${t.returnPct >= 0 ? "+" : ""}${fmt(t.returnPct)}%` : t.status;
+    console.log(`    ${t.symbol.padEnd(10)} ${ret.padStart(8)}  ${t.exitReason}`);
+  });
+}
+
+type SettleResult = "settled" | "already_done" | "market_closed" | "no_recommendations";
+
 // ═══════════════════════════════════════════════════════════════════════════════
-async function main() {
-  console.log("═".repeat(62));
-  console.log(`  Day Trade Strategy Engine${DRY_RUN ? "  🔍 DRY RUN" : ""}`);
-  console.log(`  Started: ${startedAt.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })} JST`);
-  console.log("═".repeat(62));
-
-  // ── Step 1: Determine tradeDate ─────────────────────────────────────────────
-  step("Determine tradeDate");
-
-  let tradeDate: Date;
-
-  if (dateArg) {
-    // Explicit date from CLI
-    const [y, m, d] = dateArg.split("-").map(Number);
-    tradeDate = new Date(Date.UTC(y, m - 1, d));
-    row("Mode", "explicit --date");
-    row("tradeDate", dateArg);
-  } else {
-    // Auto: use latest StrategyRecommendation date (generated by generate-strategy-recs)
-    const latestSR = await (prisma as any).strategyRecommendation.findFirst({
-      where: { strategyType: STRATEGY_TYPE },
-      orderBy: { tradeDate: "desc" },
-      select: { tradeDate: true },
-    });
-
-    if (!latestSR) {
-      console.log("\n⚠  No StrategyRecommendation (DAY_TRADE) found.");
-      console.log("   Run: npm run generate-strategy-recs");
-      await prisma.$disconnect();
-      return;
-    }
-
-    tradeDate = jstDate(latestSR.tradeDate as Date);
-    row("Mode", "auto (latest StrategyRecommendation)");
-    row("tradeDate", tradeDate.toISOString().slice(0, 10));
-  }
-
+// Settle a single trade date. Never throws for expected business conditions
+// (holiday / no recs / already settled) — only for real errors.
+// ═══════════════════════════════════════════════════════════════════════════════
+async function settleDate(tradeDate: Date): Promise<SettleResult> {
   const tradeDateStr = tradeDate.toISOString().slice(0, 10);
 
-  // ── Step 2: Trading day check ───────────────────────────────────────────────
-  step("Check TSE trading day");
+  console.log("\n" + "═".repeat(62));
+  console.log(`  Day Trade Strategy Engine — settling ${tradeDateStr}${DRY_RUN ? "  🔍 DRY RUN" : ""}`);
+  console.log("═".repeat(62));
 
+  // ── Step 1: Trading day check ────────────────────────────────────────────
   if (isWeekend(tradeDate)) {
     const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][tradeDate.getUTCDay()];
     console.log(`\n🚫 ${tradeDateStr} is a weekend (${dow}) — market closed.`);
-    console.log("   No trades generated.  exitReason: MARKET_CLOSED");
-    await prisma.$disconnect();
-    return;
+    return "market_closed";
   }
   row("Day of week", ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][tradeDate.getUTCDay()]);
 
-  // Check if prices exist at all for this date (holiday detection)
+  // Check if prices exist at all for this date (holiday detection).
+  // NOTE: this only tells us the date was a trading day (market-wide data
+  // exists) — individual missing symbols are handled per-symbol below via
+  // SKIPPED_DATA_MISSING, not by aborting the whole date.
   const priceCount = await (prisma as any).dailyPrice.count({ where: { date: tradeDate } });
   if (priceCount === 0) {
-    console.log(`\n🚫 No DailyPrice data for ${tradeDateStr} — holiday or data not yet synced.`);
-    console.log("   No trades generated.  exitReason: MARKET_CLOSED");
-    await prisma.$disconnect();
-    return;
+    console.log(`\n🚫 No DailyPrice data at all for ${tradeDateStr} — holiday or not yet synced.`);
+    return "market_closed";
   }
-  row("DailyPrice rows for date", priceCount);
+  row("DailyPrice rows for date (market-wide)", priceCount);
 
-  // ── Step 3: Load StrategyRecommendation (from generate-strategy-recs) ────────
-  step("Load StrategyRecommendation");
-
+  // ── Step 2: Load StrategyRecommendation ──────────────────────────────────
   const srRecs = await (prisma as any).strategyRecommendation.findMany({
     where: { strategyType: STRATEGY_TYPE, tradeDate },
     orderBy: { rank: "asc" },
@@ -159,9 +159,7 @@ async function main() {
 
   if (srRecs.length === 0) {
     console.log(`\n⚠  No StrategyRecommendation for ${tradeDateStr} (${STRATEGY_TYPE}).`);
-    console.log("   Run: npm run generate-strategy-recs -- before running strategies.");
-    await prisma.$disconnect();
-    return;
+    return "no_recommendations";
   }
 
   const candidates = (srRecs as any[]).map(r => ({
@@ -174,9 +172,7 @@ async function main() {
   console.log("\n  Candidates:");
   candidates.forEach(c => console.log(`    #${c.rank}  ${c.symbol}  score=${fmt(c.aiScore ?? 0, 1)}`));
 
-  // ── Step 5: Idempotency check ───────────────────────────────────────────────
-  step("Idempotency check");
-
+  // ── Step 3: Idempotency check ─────────────────────────────────────────────
   const existingTrades = await (prisma as any).strategyTradeResult.count({
     where: { strategyType: STRATEGY_TYPE, tradeDate },
   });
@@ -184,14 +180,11 @@ async function main() {
   if (existingTrades > 0) {
     console.log(`\n✅ StrategyTradeResult already exists for ${tradeDateStr} (${existingTrades} records). Skipping.`);
     await printSummaryFromDB(tradeDate);
-    await prisma.$disconnect();
-    return;
+    return "already_done";
   }
   row("Existing trades", 0);
 
-  // ── Step 6: Load prices ─────────────────────────────────────────────────────
-  step("Load DailyPrice (open, close)");
-
+  // ── Step 4: Load prices ───────────────────────────────────────────────────
   const symbols = candidates.map(c => c.symbol);
 
   const prices = await (prisma as any).dailyPrice.findMany({
@@ -207,12 +200,10 @@ async function main() {
 
   const missingPrices = symbols.filter(s => !priceMap.has(s));
   if (missingPrices.length > 0) {
-    console.log(`  ⚠  Missing prices for: ${missingPrices.join(", ")}`);
+    console.log(`  ⚠  Missing prices for: ${missingPrices.join(", ")} — will mark SKIPPED_DATA_MISSING`);
   }
 
-  // ── Step 7: Load TOPIX return ───────────────────────────────────────────────
-  step("Load TOPIX return (for Alpha)");
-
+  // ── Step 5: Load TOPIX return ─────────────────────────────────────────────
   const gm = await (prisma as any).globalMarket.findUnique({
     where: { date: tradeDate },
     select: { topixChange: true },
@@ -221,9 +212,7 @@ async function main() {
   const topixReturn = (gm as any)?.topixChange ?? null;
   row("TOPIX 1d return", topixReturn != null ? `${fmt(topixReturn)}%` : "N/A");
 
-  // ── Step 8: Load current capital state ─────────────────────────────────────
-  step("Load capital pool state");
-
+  // ── Step 6: Load current capital state ────────────────────────────────────
   const latestCapLog = await (prisma as any).strategyCapitalLog.findFirst({
     where: { strategyType: STRATEGY_TYPE },
     orderBy: { createdAt: "desc" },
@@ -232,9 +221,7 @@ async function main() {
   const poolTotal = (latestCapLog as any)?.totalAfter ?? POOL_INITIAL;
   row("Pool total (before trade)", fmtYen(poolTotal));
 
-  // ── Step 9: Calculate trades ────────────────────────────────────────────────
-  step("Calculate trade results");
-
+  // ── Step 7: Calculate trades ──────────────────────────────────────────────
   type TradeCalc = {
     symbol:        string;
     rank:          number;
@@ -250,8 +237,6 @@ async function main() {
     win:           boolean;
     exitReason:    string;
     status:        string;
-    waitingOpen:   boolean;
-    waitingClose:  boolean;
   };
 
   const trades: TradeCalc[] = [];
@@ -259,16 +244,20 @@ async function main() {
   for (const c of candidates) {
     const p = priceMap.get(c.symbol);
 
-    if (!p || !p.open || p.open <= 0) {
-      // No open price
+    if (!p || !p.open || p.open <= 0 || !p.close || p.close <= 0) {
+      // Data permanently missing for this symbol on this date — T+1 settlement
+      // has already waited a full day for sync, so this is not "waiting",
+      // it's a definitive skip. Never use WAITING_OPEN/WAITING_CLOSE here
+      // (see v17.23.0 SKIPPED_LOT_SIZE incident for why that anti-pattern
+      // breaks the stale>24h health check).
       trades.push({
         symbol: c.symbol, rank: c.rank,
-        entryPrice: 0, exitPrice: 0, quantity: 0,
+        entryPrice: p?.open ?? 0, exitPrice: 0, quantity: 0,
         investedAmount: 0, exitValue: 0,
         returnPct: 0, returnAmount: 0,
         topixReturnPct: topixReturn, alpha: null,
         win: false, exitReason: "DATA_MISSING",
-        status: "WAITING_OPEN", waitingOpen: true, waitingClose: false,
+        status: "SKIPPED_DATA_MISSING",
       });
       continue;
     }
@@ -277,8 +266,6 @@ async function main() {
     if (qty <= 0) {
       // Share price too high for one lot (100 shares) within POSITION_SIZE —
       // this is a permanent condition for this trade date, not missing data.
-      // Must not be tagged WAITING_OPEN: entryPrice is already known and no
-      // future price sync will ever resolve it.
       trades.push({
         symbol: c.symbol, rank: c.rank,
         entryPrice: p.open, exitPrice: 0, quantity: 0,
@@ -286,21 +273,7 @@ async function main() {
         returnPct: 0, returnAmount: 0,
         topixReturnPct: topixReturn, alpha: null,
         win: false, exitReason: "LOT_SIZE_TOO_SMALL",
-        status: "SKIPPED_LOT_SIZE", waitingOpen: false, waitingClose: false,
-      });
-      continue;
-    }
-
-    if (!p.close || p.close <= 0) {
-      // No close price
-      trades.push({
-        symbol: c.symbol, rank: c.rank,
-        entryPrice: p.open, exitPrice: 0, quantity: qty,
-        investedAmount: qty * p.open, exitValue: 0,
-        returnPct: 0, returnAmount: 0,
-        topixReturnPct: topixReturn, alpha: null,
-        win: false, exitReason: "DATA_MISSING",
-        status: "WAITING_CLOSE", waitingOpen: false, waitingClose: true,
+        status: "SKIPPED_LOT_SIZE",
       });
       continue;
     }
@@ -327,8 +300,6 @@ async function main() {
       win:           retPct > 0,
       exitReason:    reason,
       status:        "CLOSED",
-      waitingOpen:   false,
-      waitingClose:  false,
     });
   }
 
@@ -368,17 +339,14 @@ async function main() {
     console.log(`  Avg Alpha:      ${avgAlpha >= 0 ? "+" : ""}${fmt(avgAlpha)}% vs TOPIX`);
   }
 
-  // ── Step 10: Write to DB ────────────────────────────────────────────────────
-  step(DRY_RUN ? "DB write skipped (Dry Run)" : "Write to database");
-
+  // ── Step 8: Write to DB ────────────────────────────────────────────────────
   if (DRY_RUN) {
     console.log("\n  [DRY RUN] Would write:");
     console.log(`    StrategyTradeResult  × ${trades.length}`);
     console.log(`    StrategySnapshot     × 1  (${tradeDateStr}  DAY_TRADE)`);
     console.log(`    StrategyCapitalLog   × 1`);
     console.log("\n✅ Dry Run complete — no changes made.");
-    await prisma.$disconnect();
-    return;
+    return "settled";
   }
 
   // Write StrategyTradeResult
@@ -467,39 +435,70 @@ async function main() {
   });
   console.log("  ✅ StrategyCapitalLog updated");
 
-  // ── Final summary ───────────────────────────────────────────────────────────
-  const elapsed = ((Date.now() - startedAt.getTime()) / 1000).toFixed(1);
-  console.log("\n" + "═".repeat(62));
-  console.log(`  Day Strategy Complete — ${tradeDateStr}`);
-  console.log(`  Trades:  ${closedTrades.length} closed | ${trades.filter(t => t.waitingOpen).length} WAITING_OPEN | ${trades.filter(t => t.waitingClose).length} WAITING_CLOSE`);
-  console.log(`  Win:     ${winTrades.length}/${closedTrades.length}  (${fmt(winRate, 1)}%)`);
+  console.log(`\n  Day Strategy settled — ${tradeDateStr}`);
+  console.log(`  Trades:  ${closedTrades.length} closed | ${trades.filter(t => t.status === "SKIPPED_DATA_MISSING").length} SKIPPED_DATA_MISSING | ${trades.filter(t => t.status === "SKIPPED_LOT_SIZE").length} SKIPPED_LOT_SIZE`);
+  console.log(`  Win:     ${winTrades.length}/${closedTrades.length}  (${fmt(winRate * 100, 1)}%)`);
   console.log(`  P&L:     ${fmtYen(totalReturn)}`);
   console.log(`  Pool:    ${fmtYen(poolTotal)} → ${fmtYen(newPoolTotal)}`);
   console.log(`  Cumul:   ${cumulativeRet >= 0 ? "+" : ""}${fmt(cumulativeRet)}% since inception`);
   if (avgAlpha != null) console.log(`  Alpha:   ${avgAlpha >= 0 ? "+" : ""}${fmt(avgAlpha)}% vs TOPIX`);
-  console.log(`  Elapsed: ${elapsed}s`);
-  console.log("═".repeat(62));
 
-  await prisma.$disconnect();
+  return "settled";
 }
 
-// ── Print summary from existing DB records (already-processed days) ─────────
-async function printSummaryFromDB(tradeDate: Date) {
-  const tradeDateStr = tradeDate.toISOString().slice(0, 10);
-  const trades = await (prisma as any).strategyTradeResult.findMany({
-    where: { strategyType: STRATEGY_TYPE, tradeDate },
-    select: { symbol: true, returnPct: true, returnAmount: true, win: true, status: true, exitReason: true },
-  });
-  const closed = (trades as any[]).filter(t => t.status === "CLOSED");
-  const wins   = closed.filter(t => t.win);
-  const pnl    = closed.reduce((s: number, t: any) => s + (t.returnAmount ?? 0), 0);
+// ═══════════════════════════════════════════════════════════════════════════════
+async function main() {
+  const startedAt = new Date();
 
-  console.log(`\n  Already processed: ${tradeDateStr}`);
-  console.log(`  Closed: ${closed.length}/${(trades as any[]).length}  Wins: ${wins.length}  P&L: ${fmtYen(pnl)}`);
-  (trades as any[]).forEach((t: any) => {
-    const ret = t.returnPct != null ? `${t.returnPct >= 0 ? "+" : ""}${fmt(t.returnPct)}%` : t.status;
-    console.log(`    ${t.symbol.padEnd(10)} ${ret.padStart(8)}  ${t.exitReason}`);
-  });
+  if (dateArg) {
+    // Explicit date from CLI — manual run / backfill for a specific historical day.
+    const [y, m, d] = dateArg.split("-").map(Number);
+    const tradeDate = new Date(Date.UTC(y, m - 1, d));
+    await settleDate(tradeDate);
+  } else {
+    // Auto mode: catch up on every DAY_TRADE trading day that has a
+    // StrategyRecommendation but is not yet settled, strictly before today
+    // (JST) — "today" can never be settled same-day because its DailyPrice
+    // close won't exist until tomorrow's 06:00 JST sync.
+    const todayJst = jstDate();
+
+    const recDates = await (prisma as any).strategyRecommendation.findMany({
+      where: { strategyType: STRATEGY_TYPE, tradeDate: { lt: todayJst } },
+      distinct: ["tradeDate"],
+      orderBy: { tradeDate: "asc" },
+      select: { tradeDate: true },
+    });
+
+    if (recDates.length === 0) {
+      console.log("\n⚠  No past StrategyRecommendation (DAY_TRADE) found to settle.");
+      console.log("   Run: npm run generate-strategy-recs first.");
+    } else {
+      const candidateDates = (recDates as any[]).map(r => jstDate(r.tradeDate));
+      const toProcess = candidateDates.slice(-MAX_CATCHUP_DAYS); // most recent N, oldest first within that window
+      if (candidateDates.length > MAX_CATCHUP_DAYS) {
+        console.log(`\n⚠  ${candidateDates.length} candidate dates found — capping at most recent ${MAX_CATCHUP_DAYS} per run.`);
+      }
+
+      let settledCount = 0, alreadyDoneCount = 0, skippedCount = 0;
+      for (const d of toProcess) {
+        const result = await settleDate(d);
+        if (result === "settled") settledCount++;
+        else if (result === "already_done") alreadyDoneCount++;
+        else skippedCount++;
+      }
+
+      console.log("\n" + "═".repeat(62));
+      console.log(`  Day Trade catch-up run complete`);
+      console.log(`  Dates processed:  ${toProcess.length}`);
+      console.log(`  Newly settled:    ${settledCount}`);
+      console.log(`  Already done:     ${alreadyDoneCount}`);
+      console.log(`  Skipped (holiday/no-rec): ${skippedCount}`);
+      console.log(`  Elapsed: ${((Date.now() - startedAt.getTime()) / 1000).toFixed(1)}s`);
+      console.log("═".repeat(62));
+    }
+  }
+
+  await prisma.$disconnect();
 }
 
 // ── Entry ─────────────────────────────────────────────────────────────────────

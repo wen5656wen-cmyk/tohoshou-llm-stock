@@ -160,6 +160,41 @@ export async function GET() {
       (prisma as any).strategyDailyValidation.count(),
     ]);
 
+    // ── Day Trade settlement check (P0 fix, 2026-07-01) ─────────────────────
+    // StrategyDailyValidation.dayRecOk only checks that a StrategyRecommendation
+    // was generated for today — it says nothing about whether the previous
+    // trading day's Day Trade was actually SETTLED (StrategyTradeResult /
+    // StrategySnapshot written). That gap is exactly how Strategy Center kept
+    // showing "healthy" for days while Day Trade's cron silently produced zero
+    // trades from 2026-06-26 onward. Check the most recent DAY_TRADE
+    // recommendation date strictly before today (the day that should already
+    // be settled under T+1 timing) directly against TradeResult/Snapshot.
+    const latestPastDayRec = await (prisma as any).strategyRecommendation.findFirst({
+      where: { strategyType: "DAY_TRADE", tradeDate: { lt: today } },
+      orderBy: { tradeDate: "desc" },
+      select: { tradeDate: true },
+    });
+    let dayTradeSettlement: {
+      settledDate: string | null;
+      tradeResultOk: boolean;
+      snapshotOk: boolean;
+    } = { settledDate: null, tradeResultOk: true, snapshotOk: true };
+    if (latestPastDayRec) {
+      const [trCount, snapCount] = await Promise.all([
+        (prisma as any).strategyTradeResult.count({
+          where: { strategyType: "DAY_TRADE", tradeDate: latestPastDayRec.tradeDate },
+        }),
+        (prisma as any).strategySnapshot.count({
+          where: { strategyType: "DAY_TRADE", snapshotDate: latestPastDayRec.tradeDate },
+        }),
+      ]);
+      dayTradeSettlement = {
+        settledDate: new Date(latestPastDayRec.tradeDate).toISOString().slice(0, 10),
+        tradeResultOk: trCount > 0,
+        snapshotOk: snapCount > 0,
+      };
+    }
+
     const openMap   = new Map(openPositionCounts.map((r: any) => [r.strategyType, r._count.id]));
     const closedMap = new Map(closedTradeCounts.map((r: any) => [r.strategyType, r._count.id]));
 
@@ -190,6 +225,10 @@ export async function GET() {
         healthOk:    latestValidation.healthOk,
         validDate:   valDate,
         isToday:     valDate === todayStr,
+        // Day Trade settlement — independent of dayRecOk (recommendation ≠ settlement)
+        dayTradeSettledDate:   dayTradeSettlement.settledDate,
+        dayTradeResultOk:      dayTradeSettlement.tradeResultOk,
+        dayTradeSnapshotOk:    dayTradeSettlement.snapshotOk,
       };
     }
 

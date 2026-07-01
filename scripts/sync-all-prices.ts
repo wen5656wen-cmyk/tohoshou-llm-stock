@@ -1,13 +1,29 @@
 #!/usr/bin/env npx tsx
 /**
- * 株価並行同期（v2 — 有限並行キュー + 自動後続流水線）
+ * 株価並行同期（v3 — レート制限対応 + 有限並行キュー + 自動後続流水線）
  *
  * Phase 1: J-Quants から OHLCV を並行取得 → DailyPrice / Stock に upsert
  * Phase 2: 価格同期完了後、AI 評分流水線を自動実行（--prices-only 時はスキップ）
  *
+ * P0 修復（v3, 2026-07-01）— J-Quants レート制限:
+ *   旧設定（concurrency=5, batch delay=200ms）は実測で持続 ~25 req/秒相当となり、
+ *   J-Quants API（AWS API Gateway usage plan, 429 "Rate limit exceeded"）を
+ *   3日連続でほぼ全滅させた（3700銘柄中 3597〜3598 件が 429、成功は約119件のみ。
+ *   2026-06-28/06-29/06-30 の sync-prices-failed-*.json で確認）。
+ *   本番で直接検証：持続的な複数バッチ送信では低い並行数・間隔でも 429 が発生し、
+ *   トラフィックを完全に止めてから約60〜70秒で回復することを確認。単発の
+ *   小規模バースト（20並列など）は単独では問題ないが、3700銘柄分の持続的な
+ *   送信では逃げ場がない。
+ *
+ *   修正：全ワーカー共有のグローバル最小間隔ゲート（SYNC_MIN_INTERVAL_MS）で
+ *   実際の発火タイミングを一本化し、並行数を下げても実効レートは変わらない
+ *   ようにした。429 を検知したら全ワーカー共通のクールダウン（cooldownUntil）
+ *   を設定し、以降のリクエストは自動的に待機してから再開する。
+ *
  * 並行設定（環境変数で上書き可）:
- *   SYNC_CONCURRENCY    デフォルト 5（並行数）
- *   SYNC_BATCH_DELAY_MS デフォルト 200ms（バッチ間隔）
+ *   SYNC_CONCURRENCY    デフォルト 2（並行数。実効レートは MIN_INTERVAL が支配的）
+ *   SYNC_BATCH_DELAY_MS デフォルト 200ms（バッチ間隔、MIN_INTERVAL と併用）
+ *   SYNC_MIN_INTERVAL_MS デフォルト 500ms（全リクエスト共有の最小発火間隔）
  *
  * フラグ:
  *   --daily         最近7日のみ（軽量増分モード）
@@ -43,9 +59,46 @@ const LIMIT        = LIMIT_ARG ? parseInt(LIMIT_ARG.split("=")[1]) : undefined;
 const RUN_PIPELINE = !PRICES_ONLY && !RETRY_FAILED;
 
 // ── Concurrency config ─────────────────────────────────────────────────────────
-const CONCURRENCY    = Math.max(1, parseInt(process.env.SYNC_CONCURRENCY    ?? "5"));
-const BATCH_DELAY_MS = Math.max(0, parseInt(process.env.SYNC_BATCH_DELAY_MS ?? "200"));
-const MAX_RETRIES    = 2; // 最大 2 回リトライ（初回 + 2 = 計 3 アテンプト）
+const CONCURRENCY       = Math.max(1, parseInt(process.env.SYNC_CONCURRENCY     ?? "2"));
+const BATCH_DELAY_MS    = Math.max(0, parseInt(process.env.SYNC_BATCH_DELAY_MS  ?? "200"));
+const MIN_INTERVAL_MS   = Math.max(0, parseInt(process.env.SYNC_MIN_INTERVAL_MS ?? "500"));
+const MAX_RETRIES       = 3; // 最大 3 回リトライ（初回 + 3 = 計 4 アテンプト。429 はクールダウンが本体）
+
+// ── Global rate-limit gate (shared across all concurrent workers) ──────────────
+// Every outgoing request passes through here first. This makes the *effective*
+// throughput independent of CONCURRENCY — raising concurrency only overlaps
+// network latency, it does not increase request rate, because every worker
+// waits on the same shared clock.
+let nextAllowedAt  = 0;     // timestamp of the earliest the next request may fire
+let cooldownUntil  = 0;     // set after a 429 — all requests pause until this passes
+let rateLimitHits  = 0;
+
+async function throttleGate(): Promise<void> {
+  const now1 = Date.now();
+  if (cooldownUntil > now1) {
+    await new Promise(r => setTimeout(r, cooldownUntil - now1));
+  }
+  const now2  = Date.now();
+  const fireAt = Math.max(now2, nextAllowedAt);
+  nextAllowedAt = fireAt + MIN_INTERVAL_MS;
+  if (fireAt > now2) {
+    await new Promise(r => setTimeout(r, fireAt - now2));
+  }
+}
+
+class RateLimitError extends Error {}
+
+// ── Failure categorization (for diagnostics) ────────────────────────────────────
+type FailCategory = "rate_limit" | "timeout" | "symbol_format" | "db_write_failed" | "api_error" | "unknown";
+
+function categorize(message: string): FailCategory {
+  if (/^429\b/.test(message) || /rate limit/i.test(message)) return "rate_limit";
+  if (/AbortError|timeout/i.test(message)) return "timeout";
+  if (/prisma|P20\d\d|constraint|column|relation/i.test(message)) return "db_write_failed";
+  if (/^4\d\d\b/.test(message) && /code|symbol|invalid/i.test(message)) return "symbol_format";
+  if (/^[45]\d\d\b/.test(message)) return "api_error";
+  return "unknown";
+}
 
 const DATE_RANGE_DAYS = DAILY_MODE ? 7 : 400;
 
@@ -74,12 +127,21 @@ async function fetchBars(code5: string, from: string, to: string): Promise<Bar[]
   const url = `${BASE}/equities/bars/daily?code=${code5}&dateFrom=${from}&dateTo=${to}`;
 
   async function doFetch(u: string): Promise<{ data: Bar[]; pagination_key?: string }> {
+    await throttleGate();
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
     try {
       const res = await fetch(u, { headers: { "x-api-key": API_KEY }, signal: ac.signal });
       if (!res.ok) {
         const body = await res.text().catch(() => "");
+        if (res.status === 429) {
+          // Shared cooldown: every worker backs off, not just this one.
+          // Empirically the API recovers within ~60-70s of zero traffic once
+          // the short-window quota is exhausted — 90s cooldown gives margin.
+          rateLimitHits++;
+          cooldownUntil = Date.now() + 90_000;
+          throw new RateLimitError(`429 ${body.slice(0, 100)}`);
+        }
         throw new Error(`${res.status} ${body.slice(0, 100)}`);
       }
       return res.json() as Promise<{ data: Bar[]; pagination_key?: string }>;
@@ -171,9 +233,14 @@ async function syncWithRetry(
       else           counters.skip++;
       return;
     } catch (e) {
+      const isRateLimit = e instanceof RateLimitError;
       lastErr = (e instanceof Error ? e.message : String(e)).slice(0, 80);
       if (attempt <= MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, 500 * attempt)); // 500ms → 1000ms
+        // Rate-limit retries rely mainly on the shared throttleGate cooldown
+        // (set in doFetch) — a small extra per-attempt buffer here just
+        // avoids every worker retrying in exact lockstep.
+        const backoff = isRateLimit ? 2000 * attempt : 500 * attempt;
+        await new Promise(r => setTimeout(r, backoff));
       }
     }
   }
@@ -258,9 +325,11 @@ async function main() {
   }
 
   const totalBatches = Math.ceil(total / CONCURRENCY);
-  const estSec       = totalBatches * (1.5 + BATCH_DELAY_MS / 1000);
+  // Effective rate is dominated by the shared MIN_INTERVAL_MS gate, not by
+  // CONCURRENCY/BATCH_DELAY_MS alone (see throttleGate()).
+  const estSec       = total * (MIN_INTERVAL_MS / 1000);
   const estMin       = (estSec / 60).toFixed(0);
-  console.log(`対象: ${total} 銘柄  バッチ数: ${totalBatches}  推計: ~${estMin}分\n`);
+  console.log(`対象: ${total} 銘柄  バッチ数: ${totalBatches}  minInterval: ${MIN_INTERVAL_MS}ms  推計: ~${estMin}分\n`);
 
   // ── Phase 1: 並行バッチ同期 ────────────────────────────────────────────────
   const counters: Counters = { ok: 0, skip: 0, err: 0, failedEntries: [] };
@@ -297,11 +366,27 @@ async function main() {
   console.log(`  success   : ${counters.ok}`);
   console.log(`  skipped   : ${counters.skip}  (J-Quants returned no bars)`);
   console.log(`  failed    : ${counters.err}`);
+  console.log(`  rate-limit hits (incl. retries): ${rateLimitHits}`);
   console.log(`  duration  : ${phase1Min}m`);
 
   if (counters.failedEntries.length > 0) {
     writeFileSync(FAIL_FILE, JSON.stringify(counters.failedEntries, null, 2), "utf-8");
     console.log(`\n失敗銘柄保存: ${FAIL_FILE}`);
+
+    // ── Failure category breakdown (P0 diagnostic requirement) ───────────────
+    const byCategory = new Map<FailCategory, number>();
+    for (const entry of counters.failedEntries) {
+      const msg = entry.slice(entry.indexOf(":") + 1).trim();
+      const cat = categorize(msg);
+      byCategory.set(cat, (byCategory.get(cat) ?? 0) + 1);
+    }
+    console.log(`\n失敗原因分類:`);
+    for (const [cat, n] of [...byCategory.entries()].sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${cat.padEnd(16)} ${n}`);
+    }
+    const summaryFile = join(LOG_DIR, `sync-prices-failed-${today}-summary.json`);
+    writeFileSync(summaryFile, JSON.stringify(Object.fromEntries(byCategory), null, 2), "utf-8");
+
     const show = counters.failedEntries.slice(0, 10);
     show.forEach(e => console.log(`  ✗ ${e}`));
     if (counters.failedEntries.length > 10) {

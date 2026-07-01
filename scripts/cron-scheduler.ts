@@ -7,7 +7,7 @@
  *   06:00  株価同期（子进程，不阻塞事件循环）
  *   07:00 / 12:00 / 18:00 / 22:00  新聞取得
  *   07:00  TDnet 開示同期（工作日）
- *   07:30  AI 評分計算 + データ健全性チェック
+ *   07:30  AI 評分計算 + データ健全性チェック + Day Trade T+1 結算 + 戦略推荐生成
  *   18:30  JPX 空売り比率取得（工作日）
  *   22:00  日終メタ同期
  *   22:30  配当历史同步
@@ -21,6 +21,16 @@
  *   sync-all-prices 改用 spawn() 在子进程执行，不再阻塞主进程事件循环。
  *   07:30 pipeline 先 await syncPricesPromise，确保价格同步完成后再计算评分。
  *   所有 cron callback 改为 async + await runAsync()，事件循环永远不被占用。
+ *
+ * P0 Day Trade T+1 修复（v17.24.0，2026-07-01）：
+ *   旧版 Day Trade 在当天 16:30 JST 结算当天交易，但当天 DailyPrice 要到
+ *   次日 06:00 JST 才同步完成 —— 时序上永远等不到收盘价，导致 2026-06-26
+ *   之后 Day Trade 自动结算完全停摆（16:30 触发但每次都因无数据而放弃写入）。
+ *   修复：删除 16:30 触发，改为在 07:30 价格同步完成（await syncPricesPromise）
+ *   之后立即结算前一交易日（T-1），此时价格已入库超过 24 小时。
+ *   day-strategy.ts 同时改为自动断点续跑：会补齐所有尚未结算的历史交易日。
+ *   部署本文件后必须 `pm2 restart tohoshou-cron`（仅 restart tohoshou-web
+ *   不会重新加载新的 cron.schedule() 注册 —— 这正是 06-29 漏跑一整天的根因）。
  */
 
 import "dotenv/config";
@@ -135,7 +145,7 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
 let syncPricesPromise: Promise<void> | null = null;
 
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-log("INFO", "TOHOSHOU AI 調度器启动（v17.3.0 — 並行価格同期 + 自動後続流水線）");
+log("INFO", "TOHOSHOU AI 調度器启动（v17.24.0 — Day Trade T+1 結算修复）");
 log("INFO", `AI Key：${(process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY) ? "✅ 已配置" : "⚠️  未配置"}`);
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
@@ -177,7 +187,7 @@ cron.schedule("0 6 * * *", () => {
   syncPricesPromise = runAsync(
     "sync-all-prices.ts",
     "株価同期",
-    2 * 60 * 60 * 1000, // 2h — 3700 stocks × 250ms ≈ 15min, 含充裕余量
+    2 * 60 * 60 * 1000, // 2h — 3700 stocks × 500ms(rate-limit gate, v3) ≈ 31min, 含充裕余量
   );
   // 不 await — 立即返回，事件循环保持空闲
 }, { timezone: "Asia/Tokyo" });
@@ -234,19 +244,22 @@ cron.schedule("30 7 * * *", async () => {
     await runAsync("generate-learning-report.ts", "Learning Engine レポート生成 [fallback]");
     await runAsync("data-health-guard.ts",        "データ健全性チェック [fallback]");
   }
+
+  // Day Trade Strategy Engine — T+1 settlement (P0 fix, 2026-07-01)
+  //
+  // 旧实现在当天 16:30 JST 结算当天交易，但 DailyPrice 只在次日 06:00 JST
+  // 才同步完成，导致 16:30 时当天收盘价永远不存在，Day Trade 自动结算
+  // 自 2026-06-26 起完全失效（见 docs/CHANGELOG.md P0 Day Trade 生产链路修复）。
+  //
+  // 新时序：DailyPrice 同步完成（上面 await 完毕）之后立即结算 T-1 日交易，
+  // 此时 T-1 的收盘价已经在数据库里超过 24 小时，保证数据就绪。
+  // day-strategy.ts 自动模式会补齐所有尚未结算的历史交易日（断点续跑）。
+  log("INFO", "⏰ 07:30+ 触发：Day Trade Strategy Engine（T+1 结算，价格同步完成后）");
+  await runAsync("day-strategy.ts", "Day Trade Strategy (T+1)", 10 * 60 * 1000);
+
   // Phase 3: generate StrategyRecommendation after pipeline completes
   // Runs after rerank-top500 so StockScore and DailyRecommendation are both fresh
   await runAsync("generate-strategy-recommendations.ts", "Strategy Recommendation Engine", 15 * 60 * 1000);
-}, { timezone: "Asia/Tokyo" });
-
-// ── 16:30 JST — Day Trade Strategy Engine（工作日，收盘结算后）──────────────
-//
-// 时间选择：日本市场 15:30 收盘，J-Quants 收盘价通常 16:00 前可用。
-// day-strategy.ts 自动处理最新有价格的交易日，失败不影响其他流水线。
-//
-cron.schedule("30 16 * * 1-5", async () => {
-  log("INFO", "⏰ 16:30 触发：Day Trade Strategy Engine");
-  await runAsync("day-strategy.ts", "Day Trade Strategy", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
 // ── 16:35 JST — Swing Trade Strategy Engine（工作日，Day 结束后）────────────
@@ -346,4 +359,4 @@ cron.schedule("30 22 * * *", async () => {
 log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
 log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(並行spawn+流水線) / 07:00·12·18·22 ニュース");
-log("INFO", "           07:30 AI評分+rerank+健全性 / 16:30 Day / 16:35 Swing / 16:40 Long / 16:45 Backtest / 17:00 Learning / 17:15 DailyValidation(工作日) / 土17:30 WeeklyReport / 月末18:00 MonthlyReport / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
+log("INFO", "           07:30 AI評分+rerank+健全性+Day(T+1結算)+推荐 / 16:35 Swing / 16:40 Long / 16:45 Backtest / 17:00 Learning / 17:15 DailyValidation(工作日) / 土17:30 WeeklyReport / 月末18:00 MonthlyReport / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
