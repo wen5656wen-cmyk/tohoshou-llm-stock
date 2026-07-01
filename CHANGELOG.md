@@ -2,6 +2,42 @@
 
 ---
 
+## [17.26.1] - 2026-07-01 — 收尾：全量 compute-scores 重算，完成 v17.26.0 遗留的全市场排名刷新
+
+### 背景
+v17.26.0 的定向修复脚本（`repair-stale-return60d.ts`）刻意只刷新了3582只受影响股票的
+`calcIndicators` 技术字段，未重算 `adaptiveScore`/`percentileRank`/`marketRank`/
+`recommendationV2`/`opportunityScore`（避免只对局部股票重排名会破坏另外133只未受影响股票
+的相对排名一致性），当时计划留给次日 07:30 JST 常规全量流水线统一处理。
+
+### 本次操作
+按标准收尾流程，鉴于本次会话直接涉及 StockScore/return60d 修复，在生产环境执行全量
+`npx tsx scripts/compute-scores.ts`（未提前等到次日）：
+- Pass 1：3715 只计算完成（3只因价格记录不足跳过，0错误，33.5s）
+- Pass 2：全市场排名完成（4.4s，1只触发安全守卫降级）
+- Pass 3：AI Action 交易决策计算完成（8.9s，3715只更新）
+- 全部完成，总耗时 46.8s
+
+结果：全市场 `percentileRank`/`marketRank`/`recommendationV2`/`opportunityScore`/
+`tradingAction` 现已基于完整价格历史（含06-29/06-30补数）一致刷新，完成了 v17.26.0 遗留
+的收尾项。`recommendationV2` 分布：STRONG_BUY 18 / BUY 76 / HOLD 721 / WATCH 1707 /
+AVOID 1193（市场温度 NEUTRAL）。
+
+### 验证
+- `health:data`：全量重算前后均 CRITICAL=0（`Split contamination` 检查显式验证为 0，
+  非仅未触发采样阈值），53 PASS / 4 WARNING / 1 INFO，与 v17.26.0 时一致，无新增问题
+- `pm2 restart tohoshou-web` 确认重启成功（pid变化，"✓ Ready in 333ms"）；
+  `pm2 logs` 检查确认无新增错误（error log 中的 "Failed to find Server Action" 均为今晨
+  更早时间的历史记录，是 Next.js 部署后旧浏览器标签页请求已失效 Server Action 的已知良性
+  现象，非本次改动引入）
+- 生产页面存活检查：首页/策略中心/控制中心页面与 API 均 HTTP 200
+
+### 未改动
+本次未修改任何代码文件，仅执行了一次常规数据处理脚本（`compute-scores.ts` 本身在v17.26.0
+及更早版本中已存在，逻辑未变）。
+
+---
+
 ## [17.26.0] - 2026-07-01 — P0 Split Contamination 生产 CRITICAL 根治：Root Cause + 定向数据修复
 
 ### 背景
