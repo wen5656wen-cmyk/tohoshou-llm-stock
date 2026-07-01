@@ -1,129 +1,174 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getPipelineLabel, getDataSourceLabel } from "@/lib/i18n/system-labels";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type StageStatus = "SUCCESS" | "FAILED" | "NEVER_RUN";
-type FreshnessStatus = "FRESH" | "STALE" | "CRITICAL";
-type Grade = "GREEN" | "YELLOW" | "RED";
+type Severity = "NORMAL" | "WARNING" | "CRITICAL";
+type StepStatus = "SUCCESS" | "WAITING" | "FAILED" | "SKIPPED";
 
-interface PipelineStage {
-  stage: string;
-  displayName: string;
-  schedule: string;
-  status: StageStatus;
-  isDryRun: boolean;
-  duration: string | null;
-  durationMs: number | null;
+interface PipelineStep {
+  key: string;
+  name: string;
+  scheduledLabel: string;
+  status: StepStatus;
   lastRunAt: string | null;
   lastRunJst: string | null;
+  durationMs: number | null;
+  duration: string | null;
+  resultSummary: string | null;
   errorMessage: string | null;
-  prodStatus: StageStatus;
-  prodLastRunAt: string | null;
 }
 
-interface FreshnessSource {
-  name: string;
-  latestDate: string | null;
-  days: number | null;
-  status: FreshnessStatus;
+interface StrategyRecBlock {
+  total: number;
+  top10Count: number;
+  latestTradeDate: string | null;
+  status: Severity;
 }
 
-interface FieldStat {
-  field: string;
-  nonNullCount: number;
-  coveragePct: number;
-}
-
-interface HorizonSummary {
-  horizon: string;
-  sampleCount: number;
-  filledCount: number;
-  winRate: number | null;
-  avgReturn: number | null;
+interface DayExec {
+  lastSettledDate: string | null;
+  tradeResultCount: number;
+  closedCount: number;
+  skippedCount: number;
+  snapshotExists: boolean;
+  pnl: number | null;
   alpha: number | null;
 }
 
-interface MissionControlData {
-  pipeline: {
-    stages: PipelineStage[];
-    totalRuns: number;
-    productionRuns: number;
-    dryRunCount: number;
-    includeDryRun: boolean;
+interface OpenExec {
+  openPositions: number;
+  newOpensToday: number;
+  closedToday: number;
+  snapshotExists: boolean;
+  over10: boolean;
+  hasDuplicates: boolean;
+}
+
+interface BacktestBlock {
+  asOfDate: string | null;
+  horizonCount: number;
+  horizons: Array<{ horizon: string; maturity: string; fillRate: number | null }>;
+}
+
+interface LearningEntry {
+  reportDate: string;
+  grade: string | null;
+  recommendation: string | null;
+}
+
+interface MissionControlV2 {
+  productionStatus: {
+    status: Severity;
+    healthCriticalCount: number;
+    healthWarningCount: number;
+    reasons: string[];
+    lastUpdated: string | null;
   };
-  freshness: {
-    sources: FreshnessSource[];
-    latestRecCount: number;
+  todayPipeline: {
+    completedSteps: number;
+    totalSteps: number;
+    steps: PipelineStep[];
   };
-  featureCoverage: {
-    totalRows: number;
-    latestDate: string | null;
-    overallCoveragePct: number;
-    fields: FieldStat[];
-    topMissing: string[];
+  dataFreshness: {
+    dailyPrice: {
+      latestDate: string | null;
+      lastCompletedDate: string | null;
+      coveragePct: number;
+      stockCount: number;
+      coveredCount: number;
+      failedCount: number;
+      status: Severity;
+    };
+    news: { latestAt: string | null; todayNewCount: number };
+    globalMarket: { latestDate: string | null };
+    stockScore: { latestDate: string | null; scoredTodayCount: number };
+  };
+  strategyRecommendations: {
+    DAY_TRADE: StrategyRecBlock;
+    SWING_TRADE: StrategyRecBlock;
+    LONG_TRADE: StrategyRecBlock;
+  };
+  strategyExecutions: {
+    DAY_TRADE: DayExec;
+    SWING_TRADE: OpenExec;
+    LONG_TRADE: OpenExec;
+  };
+  backtest: {
+    DAY_TRADE: BacktestBlock;
+    SWING_TRADE: BacktestBlock;
+    LONG_TRADE: BacktestBlock;
+  };
+  learning: {
+    DAY_TRADE: LearningEntry | null;
+    SWING_TRADE: LearningEntry | null;
+    LONG_TRADE: LearningEntry | null;
+    unified: { reportDate: string; integrityScore: number | null; grade: string | null; recommendation: string | null } | null;
+  };
+  validation: {
+    validationDate: string;
+    allPass: boolean;
+    failCount: number;
+    incidentCount: number;
+    consecutiveHealthDays: number;
+    phase7Ready: boolean;
+    phase7Detail: string | null;
+  } | null;
+  reports: {
+    weekly: { latestFile: string | null; generatedThisPeriod: boolean; updatedAt: string | null; status: Severity };
+    monthly: { latestFile: string | null; generatedThisPeriod: boolean; updatedAt: string | null; status: Severity };
+  };
+  pm2: {
+    available: boolean;
+    web: { name: string; status: string; restarts: number; uptimeMs: number | null } | null;
+    cron: { name: string; status: string; restarts: number; uptimeMs: number | null } | null;
+    cronStaleAfterDeploy: boolean;
+    cronStaleDeployAt: string | null;
+    severity: Severity;
+  };
+  health: {
+    status: string;
+    criticalCount: number;
+    warningCount: number;
+    passCount: number;
+    auditAt: string | null;
+    topIssues: string[];
+    warningIssues: string[];
   };
   version: {
     schemaVersion: string | null;
     modelVersion: string | null;
     scoreVersion: string | null;
     versionSnapshotId: string | null;
-    pipelineRunId: string | null;
-    activeExperiment: string | null;
   };
-  backtest: {
-    horizons: HorizonSummary[];
-    lastComputedAt: string | null;
-  };
-  healthScore: {
-    score: number;
-    grade: Grade;
-    components: {
-      dataFreshness: number;
-      pipelineStatus: number;
-      featureCoverage: number;
-      healthGuard: number;
-    };
-    detail: {
-      healthGuardStatus: string;
-      healthGuardCritical: number | null;
-      healthGuardWarning: number | null;
-      healthGuardAgeHours: number | null;
-    };
-  };
-  computedAt: string;
+  generatedAt: string;
 }
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
-const stageColor: Record<StageStatus, string> = {
-  SUCCESS:   "#22c55e",
-  FAILED:    "#ef4444",
-  NEVER_RUN: "#6b7280",
-};
-const stageLabel: Record<StageStatus, string> = {
-  SUCCESS:   "✅ 成功",
-  FAILED:    "❌ 失败",
-  NEVER_RUN: "— 尚未执行",
-};
-
-const freshnessColor: Record<FreshnessStatus, string> = {
-  FRESH:    "#22c55e",
-  STALE:    "#f59e0b",
+const sevColor: Record<Severity, string> = {
+  NORMAL: "#22c55e",
+  WARNING: "#f59e0b",
   CRITICAL: "#ef4444",
 };
-
-const gradeColor: Record<Grade, string> = {
-  GREEN:  "#22c55e",
-  YELLOW: "#f59e0b",
-  RED:    "#ef4444",
+const sevLabel: Record<Severity, string> = {
+  NORMAL: "正常",
+  WARNING: "注意",
+  CRITICAL: "严重",
 };
-const gradeLabel: Record<Grade, string> = {
-  GREEN:  "系统正常",
-  YELLOW: "需要注意",
-  RED:    "需要处理",
+
+const stepColor: Record<StepStatus, string> = {
+  SUCCESS: "#22c55e",
+  WAITING: "#f59e0b",
+  FAILED: "#ef4444",
+  SKIPPED: "#6b7280",
+};
+const stepLabel: Record<StepStatus, string> = {
+  SUCCESS: "✅ 成功",
+  WAITING: "⏳ 等待",
+  FAILED: "❌ 失败",
+  SKIPPED: "— 跳过",
 };
 
 const cell: React.CSSProperties = {
@@ -133,7 +178,6 @@ const cell: React.CSSProperties = {
   fontSize: 13,
   fontFamily: "monospace",
 };
-
 const th: React.CSSProperties = {
   ...cell,
   background: "#1a1a1a",
@@ -143,7 +187,6 @@ const th: React.CSSProperties = {
   fontSize: 11,
   letterSpacing: "0.05em",
 };
-
 const sectionTitle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
@@ -154,28 +197,38 @@ const sectionTitle: React.CSSProperties = {
   paddingBottom: 4,
   borderBottom: "1px solid #333",
 };
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", background: "#111" };
+const card: React.CSSProperties = { background: "#111", border: "1px solid #222", borderRadius: 4, padding: "10px 12px" };
 
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  background: "#111",
-};
+function fmtUptime(ms: number | null): string {
+  if (ms == null) return "—";
+  const h = Math.floor(ms / 3_600_000);
+  const d = Math.floor(h / 24);
+  if (d > 0) return `${d}d ${h % 24}h`;
+  if (h > 0) return `${h}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
+  return `${Math.floor(ms / 60_000)}m`;
+}
+
+function StatCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={card}>
+      <div style={{ color: "#666", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function MissionControlPage() {
-  const [data, setData] = useState<MissionControlData | null>(null);
+  const [data, setData] = useState<MissionControlV2 | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [showDryRun, setShowDryRun] = useState(false);
 
-  const load = useCallback(async (dryRun = false) => {
+  const load = useCallback(async () => {
     try {
-      const url = dryRun
-        ? "/api/admin/mission-control?includeDryRun=true"
-        : "/api/admin/mission-control";
-      const res = await fetch(url);
+      const res = await fetch("/api/admin/mission-control");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
       setLastRefresh(new Date());
@@ -188,16 +241,16 @@ export default function MissionControlPage() {
   }, []);
 
   useEffect(() => {
-    load(showDryRun);
-    const id = setInterval(() => load(showDryRun), 60_000);
+    load();
+    const id = setInterval(load, 60_000);
     return () => clearInterval(id);
-  }, [load, showDryRun]);
+  }, [load]);
 
   if (loading) return <div style={{ color: "#888", padding: 24, fontFamily: "monospace" }}>加载中…</div>;
   if (error)   return <div style={{ color: "#ef4444", padding: 24, fontFamily: "monospace" }}>错误：{error}</div>;
   if (!data)   return null;
 
-  const { pipeline, freshness, featureCoverage, version, backtest, healthScore } = data;
+  const { productionStatus, todayPipeline, dataFreshness, strategyRecommendations, strategyExecutions, backtest, learning, validation, reports, pm2, health, version } = data;
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#e5e5e5", padding: "16px 20px", fontFamily: "monospace" }}>
@@ -205,314 +258,318 @@ export default function MissionControlPage() {
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20, paddingBottom: 12, borderBottom: "1px solid #222" }}>
         <div>
-          <span style={{ fontSize: 36, fontWeight: 800, color: gradeColor[healthScore.grade] }}>
-            {healthScore.score}
-          </span>
-          <span style={{ fontSize: 18, color: "#666" }}>/100</span>
-          <span style={{
-            marginLeft: 12, padding: "3px 10px", borderRadius: 4,
-            background: gradeColor[healthScore.grade] + "22",
-            color: gradeColor[healthScore.grade],
-            fontSize: 13, fontWeight: 700,
-          }}>
-            {gradeLabel[healthScore.grade]}
-          </span>
+          <div style={{ fontSize: 24, fontWeight: 800 }}>控制中心</div>
+          <div style={{ fontSize: 12, color: "#666" }}>Trading Architecture V1 运营驾驶舱</div>
         </div>
         <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 11, color: "#555" }}>
-          <div>TOHOSHOU AI 控制中心</div>
           <div>最后刷新：{lastRefresh?.toLocaleTimeString("zh-CN")} · 每60秒自动刷新</div>
-          <button onClick={() => load(showDryRun)} style={{ marginTop: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: 3 }}>
+          <button onClick={load} style={{ marginTop: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: 3 }}>
             ↺ 刷新
           </button>
         </div>
       </div>
 
-      {/* ── Score breakdown ── */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, fontSize: 12 }}>
-        {[
-          ["数据新鲜度",   healthScore.components.dataFreshness,   25],
-          ["流水线状态",  healthScore.components.pipelineStatus,  25],
-          ["功能覆盖率", healthScore.components.featureCoverage, 25],
-          ["数据校验",     healthScore.components.healthGuard,     25],
-        ].map(([label, score, max]) => (
-          <div key={String(label)} style={{ flex: 1, background: "#111", border: "1px solid #222", borderRadius: 4, padding: "8px 10px" }}>
-            <div style={{ color: "#666", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: Number(score) >= Number(max) * 0.75 ? "#22c55e" : Number(score) >= Number(max) * 0.5 ? "#f59e0b" : "#ef4444" }}>
-              {score}<span style={{ fontSize: 11, color: "#444" }}>/{max}</span>
-            </div>
+      {/* ── Top 4 overview cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard title="Production Status">
+          <div style={{ fontSize: 22, fontWeight: 800, color: sevColor[productionStatus.status] }}>
+            {sevLabel[productionStatus.status]}
           </div>
-        ))}
-      </div>
-
-      {/* ── Row 1: Pipeline + Freshness ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16, marginBottom: 16 }}>
-
-        {/* Pipeline Status */}
-        <div>
-          <div style={{ ...sectionTitle, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span>
-              流水线状态
-              <span style={{ color: "#444", fontWeight: 400 }}>
-                {" "}({pipeline.productionRuns} 生产 · {pipeline.dryRunCount} 试运行)
-              </span>
-            </span>
-            {pipeline.dryRunCount > 0 && (
-              <button
-                onClick={() => setShowDryRun(v => !v)}
-                style={{
-                  fontSize: 10,
-                  padding: "2px 8px",
-                  cursor: "pointer",
-                  background: showDryRun ? "#1a3a1a" : "#1a1a1a",
-                  color: showDryRun ? "#22c55e" : "#666",
-                  border: `1px solid ${showDryRun ? "#22c55e" : "#444"}`,
-                  borderRadius: 3,
-                  fontFamily: "monospace",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                {showDryRun ? "✓ 试运行已开" : "显示试运行"}
-              </button>
-            )}
+          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+            CRITICAL: {productionStatus.healthCriticalCount} · WARNING: {productionStatus.healthWarningCount}
           </div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={th}>步骤</th>
-                <th style={th}>定时</th>
-                <th style={th}>状态</th>
-                <th style={th}>时长</th>
-                <th style={th}>最后运行 (JST)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pipeline.stages.map(s => (
-                <tr key={s.stage} style={{ opacity: s.isDryRun && showDryRun ? 0.8 : 1 }}>
-                  <td style={cell}>
-                    {getPipelineLabel(s.stage)}
-                    {s.isDryRun && showDryRun && (
-                      <span style={{
-                        marginLeft: 6,
-                        fontSize: 9,
-                        padding: "1px 5px",
-                        background: "#0d2d0d",
-                        color: "#4ade80",
-                        border: "1px solid #166534",
-                        borderRadius: 3,
-                        fontWeight: 700,
-                        letterSpacing: "0.04em",
-                      }}>
-                        试运行
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ ...cell, color: "#555" }}>{s.schedule}</td>
-                  <td style={{ ...cell, color: stageColor[s.status] }}>{stageLabel[s.status]}</td>
-                  <td style={{ ...cell, color: "#aaa" }}>{s.duration ?? "—"}</td>
-                  <td style={{ ...cell, color: "#888", fontSize: 12 }}>
-                    {s.lastRunJst ?? "—"}
-                    {s.errorMessage && (
-                      <div style={{ color: "#ef4444", fontSize: 11, marginTop: 2 }}>
-                        {s.errorMessage.slice(0, 80)}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {showDryRun && pipeline.dryRunCount > 0 && (
-            <div style={{ marginTop: 6, fontSize: 10, color: "#555", padding: "4px 6px", background: "#0d1a0d", border: "1px solid #166534", borderRadius: 3 }}>
-              ℹ 试运行条目仅用于显示验证，不影响健康度评分。
-            </div>
+          <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>
+            {productionStatus.lastUpdated ? new Date(productionStatus.lastUpdated).toLocaleString("zh-CN") : "无数据"}
+          </div>
+          {productionStatus.reasons.length > 0 && (
+            <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 4 }}>{productionStatus.reasons.join(" · ")}</div>
           )}
-        </div>
+        </StatCard>
 
-        {/* Data Freshness */}
-        <div>
-          <div style={sectionTitle}>数据新鲜度</div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={th}>来源</th>
-                <th style={th}>最新日期</th>
-                <th style={th}>时效</th>
-              </tr>
-            </thead>
-            <tbody>
-              {freshness.sources.map(s => (
-                <tr key={s.name}>
-                  <td style={cell}>{getDataSourceLabel(s.name)}</td>
-                  <td style={{ ...cell, color: s.latestDate ? "#e5e5e5" : "#555" }}>
-                    {s.latestDate ?? "无数据"}
-                  </td>
-                  <td style={{ ...cell, color: freshnessColor[s.status] }}>
-                    {s.days === null ? "—" : s.days === 0 ? "今日" : `${s.days}天前`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: 8, fontSize: 11, color: "#555" }}>
-            最新推荐：{freshness.latestRecCount} 条
+        <StatCard title="Today Pipeline">
+          <div style={{ fontSize: 22, fontWeight: 800, color: todayPipeline.completedSteps === todayPipeline.totalSteps ? "#22c55e" : "#f59e0b" }}>
+            {todayPipeline.completedSteps}/{todayPipeline.totalSteps}
           </div>
-        </div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>今日完成步骤</div>
+        </StatCard>
+
+        <StatCard title="Strategy Status">
+          <div style={{ fontSize: 11, lineHeight: 1.8 }}>
+            <div>DAY 推荐 <b style={{ color: "#e5e5e5" }}>{strategyRecommendations.DAY_TRADE.total}</b> · 成交 <b style={{ color: "#e5e5e5" }}>{strategyExecutions.DAY_TRADE.tradeResultCount}</b></div>
+            <div>SWING 推荐 <b style={{ color: "#e5e5e5" }}>{strategyRecommendations.SWING_TRADE.total}</b> · 持仓 <b style={{ color: "#e5e5e5" }}>{strategyExecutions.SWING_TRADE.openPositions}</b></div>
+            <div>LONG 推荐 <b style={{ color: "#e5e5e5" }}>{strategyRecommendations.LONG_TRADE.total}</b> · 持仓 <b style={{ color: "#e5e5e5" }}>{strategyExecutions.LONG_TRADE.openPositions}</b></div>
+          </div>
+        </StatCard>
+
+        <StatCard title="Validation Status">
+          <div style={{ fontSize: 22, fontWeight: 800, color: validation?.allPass ? "#22c55e" : "#ef4444" }}>
+            {validation ? (validation.allPass ? "PASS" : "FAIL") : "—"}
+          </div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+            连续健康 {validation?.consecutiveHealthDays ?? 0} 天 · Phase7 {validation?.phase7Ready ? "READY" : "未就绪"}
+          </div>
+        </StatCard>
       </div>
 
-      {/* ── Row 2: Feature Coverage + Version ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-
-        {/* Feature Coverage */}
-        <div>
-          <div style={sectionTitle}>
-            功能特征覆盖率 (feat_*)
-          </div>
-          <div style={{ background: "#111", border: "1px solid #222", borderRadius: 4, padding: "10px 12px" }}>
-            <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>总行数</div>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{featureCoverage.totalRows.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>覆盖率</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: featureCoverage.overallCoveragePct >= 80 ? "#22c55e" : featureCoverage.overallCoveragePct >= 30 ? "#f59e0b" : "#ef4444" }}>
-                  {featureCoverage.overallCoveragePct}%
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase" }}>日期</div>
-                <div style={{ fontSize: 13, color: "#888" }}>{featureCoverage.latestDate ?? "—"}</div>
-              </div>
-            </div>
-
-            {featureCoverage.overallCoveragePct === 0 && featureCoverage.totalRows > 0 && (
-              <div style={{ padding: "6px 8px", background: "#1a0a00", border: "1px solid #5a3a00", borderRadius: 3, fontSize: 11, color: "#f59e0b", marginBottom: 8 }}>
-                ⚠ feat_* = 0% — 当前行在 feat_* 部署前创建，首批数据将于下次 cron 运行后生成。
-              </div>
-            )}
-
-            {featureCoverage.topMissing.length > 0 && featureCoverage.overallCoveragePct > 0 && (
-              <div>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>缺失字段</div>
-                {featureCoverage.topMissing.map(f => (
-                  <div key={f} style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>{f}</div>
-                ))}
-              </div>
-            )}
-
-            {/* Coverage bar per field */}
-            {featureCoverage.overallCoveragePct > 0 && featureCoverage.fields.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 6 }}>字段覆盖</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  {featureCoverage.fields.map(f => (
-                    <div key={f.field} style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: f.coveragePct >= 90 ? "#22c55e" : f.coveragePct >= 50 ? "#f59e0b" : "#ef4444", flexShrink: 0 }} />
-                      <span style={{ color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {f.field.replace("feat_", "")}
-                      </span>
-                      <span style={{ color: "#444", marginLeft: "auto" }}>{f.coveragePct}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Version Status */}
-        <div>
-          <div style={sectionTitle}>版本状态</div>
-          <div style={{ background: "#111", border: "1px solid #222", borderRadius: 4, padding: "10px 12px" }}>
-            {[
-              ["schemaVersion",     version.schemaVersion],
-              ["modelVersion",      version.modelVersion],
-              ["scoreVersion",      version.scoreVersion],
-              ["versionSnapshotId", version.versionSnapshotId],
-              ["pipelineRunId",     version.pipelineRunId],
-            ].map(([key, val]) => (
-              <div key={key} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #1a1a1a" }}>
-                <span style={{ color: "#555", fontSize: 12 }}>{key}</span>
-                <span style={{ color: val ? "#e5e5e5" : "#444", fontSize: 12 }}>{val ?? "—"}</span>
-              </div>
-            ))}
-            <div style={{ marginTop: 4 }}>
-              <span style={{ color: "#555", fontSize: 12 }}>实验</span>
-              <div style={{ color: version.activeExperiment ? "#f59e0b" : "#444", fontSize: 11, marginTop: 2 }}>
-                {version.activeExperiment ?? "无进行中"}
-              </div>
-            </div>
-
-            <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #1a1a1a" }}>
-              <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>数据校验</div>
-              <div style={{ fontSize: 12 }}>
-                <span style={{
-                  color: healthScore.detail.healthGuardStatus === "PASS" ? "#22c55e"
-                       : healthScore.detail.healthGuardStatus === "WARNING" ? "#f59e0b"
-                       : "#ef4444"
-                }}>
-                  {{ PASS: "正常", WARNING: "警告", FAIL: "异常" }[healthScore.detail.healthGuardStatus] ?? healthScore.detail.healthGuardStatus}
-                </span>
-                {healthScore.detail.healthGuardCritical !== null && (
-                  <span style={{ color: "#555", marginLeft: 8, fontSize: 11 }}>
-                    严重={healthScore.detail.healthGuardCritical} 警告={healthScore.detail.healthGuardWarning}
-                    {healthScore.detail.healthGuardAgeHours !== null && ` (${healthScore.detail.healthGuardAgeHours}小时前)`}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Backtest Summary ── */}
-      <div>
-        <div style={sectionTitle}>
-          回测摘要
-          {backtest.lastComputedAt && <span style={{ color: "#444", fontWeight: 400 }}> · 最后计算 {backtest.lastComputedAt}</span>}
-        </div>
+      {/* ── Trading Architecture V1 Pipeline ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={sectionTitle}>Trading Architecture V1 Pipeline</div>
         <table style={tableStyle}>
           <thead>
             <tr>
-              <th style={th}>周期</th>
-              <th style={th}>样本数</th>
-              <th style={th}>已填充</th>
-              <th style={th}>胜率</th>
-              <th style={th}>平均收益</th>
-              <th style={th}>超额收益</th>
+              <th style={th}>步骤</th>
+              <th style={th}>计划时间</th>
+              <th style={th}>状态</th>
+              <th style={th}>最近运行 (JST)</th>
+              <th style={th}>耗时</th>
+              <th style={th}>输出摘要 / 错误</th>
             </tr>
           </thead>
           <tbody>
-            {backtest.horizons.map(h => (
-              <tr key={h.horizon}>
-                <td style={{ ...cell, fontWeight: 700, color: "#aaa" }}>{h.horizon}</td>
-                <td style={cell}>{h.sampleCount.toLocaleString()}</td>
-                <td style={{ ...cell, color: "#888" }}>{h.filledCount.toLocaleString()}</td>
-                <td style={{ ...cell, color: h.winRate !== null ? (h.winRate >= 50 ? "#22c55e" : "#f59e0b") : "#555" }}>
-                  {h.winRate !== null ? `${h.winRate}%` : "—"}
-                </td>
-                <td style={{ ...cell, color: h.avgReturn !== null ? (h.avgReturn >= 0 ? "#22c55e" : "#ef4444") : "#555" }}>
-                  {h.avgReturn !== null ? `${h.avgReturn >= 0 ? "+" : ""}${h.avgReturn}%` : "—"}
-                </td>
-                <td style={{ ...cell, color: h.alpha !== null ? (h.alpha >= 0 ? "#22c55e" : "#ef4444") : "#555" }}>
-                  {h.alpha !== null ? `${h.alpha >= 0 ? "+" : ""}${h.alpha}%` : "—"}
+            {todayPipeline.steps.map(s => (
+              <tr key={s.key}>
+                <td style={cell}>{s.name}</td>
+                <td style={{ ...cell, color: "#555" }}>{s.scheduledLabel}</td>
+                <td style={{ ...cell, color: stepColor[s.status], fontWeight: 700 }}>{stepLabel[s.status]}</td>
+                <td style={{ ...cell, color: "#888" }}>{s.lastRunJst ?? "—"}</td>
+                <td style={{ ...cell, color: "#aaa" }}>{s.duration ?? "—"}</td>
+                <td style={{ ...cell, color: s.errorMessage ? "#ef4444" : "#888" }}>
+                  {s.errorMessage ?? s.resultSummary ?? "—"}
                 </td>
               </tr>
             ))}
-            {backtest.horizons.every(h => h.sampleCount === 0) && (
-              <tr>
-                <td colSpan={6} style={{ ...cell, color: "#555", textAlign: "center" }}>
-                  暂无回测数据 — 将在收盘后自动生成
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
 
-      <div style={{ marginTop: 16, fontSize: 10, color: "#333", textAlign: "right" }}>
-        计算于 {data.computedAt}
+      {/* ── Data sync status ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={sectionTitle}>数据同步状态</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <StatCard title="DailyPrice">
+            <div style={{ fontSize: 12, color: "#888" }}>最新交易日：{dataFreshness.dailyPrice.lastCompletedDate ?? "—"}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: sevColor[dataFreshness.dailyPrice.status] }}>
+              {dataFreshness.dailyPrice.coveragePct}%
+            </div>
+            <div style={{ fontSize: 11, color: "#666" }}>
+              {dataFreshness.dailyPrice.coveredCount}/{dataFreshness.dailyPrice.stockCount} 只
+              {dataFreshness.dailyPrice.failedCount > 0 && <span style={{ color: "#ef4444" }}> · 失败{dataFreshness.dailyPrice.failedCount}</span>}
+            </div>
+          </StatCard>
+          <StatCard title="News">
+            <div style={{ fontSize: 12, color: "#888" }}>最新：{dataFreshness.news.latestAt ? new Date(dataFreshness.news.latestAt).toLocaleString("zh-CN") : "—"}</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{dataFreshness.news.todayNewCount}</div>
+            <div style={{ fontSize: 11, color: "#666" }}>今日新增</div>
+          </StatCard>
+          <StatCard title="GlobalMarket">
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{dataFreshness.globalMarket.latestDate ?? "—"}</div>
+            <div style={{ fontSize: 11, color: "#666" }}>最新日期</div>
+          </StatCard>
+          <StatCard title="StockScore">
+            <div style={{ fontSize: 12, color: "#888" }}>最新日期：{dataFreshness.stockScore.latestDate ?? "—"}</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{dataFreshness.stockScore.scoredTodayCount}</div>
+            <div style={{ fontSize: 11, color: "#666" }}>今日已评分</div>
+          </StatCard>
+        </div>
+      </div>
+
+      {/* ── Strategy recommendations + executions ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div>
+          <div style={sectionTitle}>三策略推荐状态</div>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={th}>策略</th>
+                <th style={th}>推荐总数</th>
+                <th style={th}>Top10</th>
+                <th style={th}>最新交易日</th>
+                <th style={th}>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map(k => {
+                const r = strategyRecommendations[k];
+                return (
+                  <tr key={k}>
+                    <td style={cell}>{k}</td>
+                    <td style={cell}>{r.total}</td>
+                    <td style={cell}>{r.top10Count}</td>
+                    <td style={{ ...cell, color: "#888" }}>{r.latestTradeDate ?? "—"}</td>
+                    <td style={{ ...cell, color: sevColor[r.status] }}>{sevLabel[r.status]}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div style={sectionTitle}>三策略执行状态</div>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={th}>策略</th>
+                <th style={th}>持仓/成交</th>
+                <th style={th}>新开/平仓</th>
+                <th style={th}>Snapshot</th>
+                <th style={th}>提示</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={cell}>DAY_TRADE</td>
+                <td style={cell}>{strategyExecutions.DAY_TRADE.closedCount} 成交 / {strategyExecutions.DAY_TRADE.skippedCount} 跳过</td>
+                <td style={{ ...cell, color: strategyExecutions.DAY_TRADE.pnl != null ? (strategyExecutions.DAY_TRADE.pnl >= 0 ? "#22c55e" : "#ef4444") : "#555" }}>
+                  P&L {strategyExecutions.DAY_TRADE.pnl != null ? `¥${strategyExecutions.DAY_TRADE.pnl.toLocaleString()}` : "—"}
+                </td>
+                <td style={{ ...cell, color: strategyExecutions.DAY_TRADE.snapshotExists ? "#22c55e" : "#ef4444" }}>
+                  {strategyExecutions.DAY_TRADE.snapshotExists ? "✅" : "❌"}
+                </td>
+                <td style={{ ...cell, color: "#666" }}>{strategyExecutions.DAY_TRADE.lastSettledDate ?? "—"}</td>
+              </tr>
+              {(["SWING_TRADE", "LONG_TRADE"] as const).map(k => {
+                const e = strategyExecutions[k];
+                return (
+                  <tr key={k}>
+                    <td style={cell}>{k}</td>
+                    <td style={cell}>{e.openPositions} 持仓</td>
+                    <td style={cell}>{e.newOpensToday} / {e.closedToday}</td>
+                    <td style={{ ...cell, color: e.snapshotExists ? "#22c55e" : "#f59e0b" }}>{e.snapshotExists ? "✅" : "—"}</td>
+                    <td style={{ ...cell, color: (e.over10 || e.hasDuplicates) ? "#ef4444" : "#555" }}>
+                      {e.over10 ? "超10只 " : ""}{e.hasDuplicates ? "重复持仓" : (e.over10 ? "" : "—")}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Backtest / Learning / Validation ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div>
+          <div style={sectionTitle}>Backtest</div>
+          <div style={card}>
+            {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map(k => {
+              const b = backtest[k];
+              return (
+                <div key={k} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #1a1a1a" }}>
+                  <div style={{ fontSize: 11, color: "#888" }}>{k} · {b.asOfDate ?? "无数据"}</div>
+                  <div style={{ fontSize: 11, color: "#666" }}>
+                    {b.horizons.length === 0 ? "—" : b.horizons.map(h => `${h.horizon}:${h.maturity}`).join("  ")}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <div style={sectionTitle}>Learning</div>
+          <div style={card}>
+            {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map(k => {
+              const l = learning[k];
+              return (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
+                  <span style={{ color: "#888" }}>{k}</span>
+                  <span>{l?.grade ?? "—"} <span style={{ color: "#555" }}>({l?.recommendation ?? "—"})</span></span>
+                </div>
+              );
+            })}
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #1a1a1a", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#888" }}>综合</span>
+              <span>{learning.unified?.grade ?? "—"} ({learning.unified?.integrityScore?.toFixed(1) ?? "—"})</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style={sectionTitle}>Validation</div>
+          <div style={card}>
+            <div style={{ fontSize: 12, color: "#888" }}>最新：{validation?.validationDate ?? "—"}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: validation?.allPass ? "#22c55e" : "#ef4444", marginTop: 4 }}>
+              {validation ? (validation.allPass ? "9/9 PASS" : `FAIL (${validation.failCount})`) : "—"}
+            </div>
+            <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>
+              Incident: {validation?.incidentCount ?? 0} · 连续健康 {validation?.consecutiveHealthDays ?? 0} 天
+            </div>
+            <div style={{ fontSize: 11, color: validation?.phase7Ready ? "#22c55e" : "#666", marginTop: 4 }}>
+              Phase7: {validation?.phase7Ready ? "READY 🚀" : (validation?.phase7Detail ?? "未就绪")}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Reports + PM2 ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div>
+          <div style={sectionTitle}>Report 状态</div>
+          <div style={card}>
+            {([["周报", reports.weekly], ["月报", reports.monthly]] as const).map(([label, r]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #1a1a1a" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#888" }}>{label}</div>
+                  <div style={{ fontSize: 11, color: "#666" }}>{r.latestFile ?? "暂无"}</div>
+                </div>
+                <span style={{ color: sevColor[r.status], fontSize: 11, fontWeight: 700 }}>
+                  {r.generatedThisPeriod ? "已生成" : sevLabel[r.status]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={sectionTitle}>PM2 / Cron 状态</div>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={th}>进程</th>
+                <th style={th}>状态</th>
+                <th style={th}>重启次数</th>
+                <th style={th}>运行时长</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[pm2.web, pm2.cron].map(p => p && (
+                <tr key={p.name}>
+                  <td style={cell}>{p.name}</td>
+                  <td style={{ ...cell, color: p.status === "online" ? "#22c55e" : "#ef4444", fontWeight: 700 }}>
+                    {p.status === "online" ? "✅ online" : `❌ ${p.status}`}
+                  </td>
+                  <td style={cell}>{p.restarts}</td>
+                  <td style={cell}>{fmtUptime(p.uptimeMs)}</td>
+                </tr>
+              ))}
+              {!pm2.available && (
+                <tr><td colSpan={4} style={{ ...cell, color: "#555", textAlign: "center" }}>无法读取 pm2 状态（本地开发环境）</td></tr>
+              )}
+            </tbody>
+          </table>
+          {pm2.cronStaleAfterDeploy && (
+            <div style={{ marginTop: 6, fontSize: 11, color: "#f59e0b", padding: "4px 6px", background: "#1a1400", border: "1px solid #5a4a00", borderRadius: 3 }}>
+              ⚠ cron-scheduler.ts 在当前 tohoshou-cron 进程启动后又被部署（{pm2.cronStaleDeployAt ? new Date(pm2.cronStaleDeployAt).toLocaleString("zh-CN") : ""}），新调度可能未生效，需 pm2 restart tohoshou-cron
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Health detail ── */}
+      {(health.topIssues.length > 0 || health.warningIssues.length > 0) && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={sectionTitle}>Health 详情（PASS {health.passCount} · WARNING {health.warningCount} · CRITICAL {health.criticalCount}）</div>
+          <div style={card}>
+            {health.topIssues.map((i, idx) => <div key={idx} style={{ fontSize: 12, color: "#ef4444", marginBottom: 4 }}>❌ {i}</div>)}
+            {health.warningIssues.map((i, idx) => <div key={idx} style={{ fontSize: 12, color: "#f59e0b", marginBottom: 4 }}>⚠ {i}</div>)}
+          </div>
+        </div>
+      )}
+
+      {/* ── Footer: version info ── */}
+      <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid #222", fontSize: 11, color: "#555" }}>
+        <div style={{ marginBottom: 4, color: "#666", textTransform: "uppercase", letterSpacing: "0.06em" }}>版本信息</div>
+        schemaVersion={version.schemaVersion ?? "—"} · modelVersion={version.modelVersion ?? "—"} · scoreVersion={version.scoreVersion ?? "—"} · versionSnapshotId={version.versionSnapshotId ?? "—"}
+        <div style={{ marginTop: 8, textAlign: "right" }}>计算于 {data.generatedAt}</div>
       </div>
     </div>
   );

@@ -2,6 +2,56 @@
 
 ---
 
+## [17.25.0] - 2026-07-01 — P1 Mission Control V2：Trading Architecture V1 运营驾驶舱
+
+### 目标
+`/admin/mission-control` 全面重写为 Trading Architecture V1 的生产运营驾驶舱，替换早已过时的
+旧 Pipeline（Compute Scores/Rerank Top500/Portfolio Snapshot/AI Signal Stats/Update
+Backtest/Learning Report）。纯只读监控，未改动任何交易逻辑/schema/策略引擎/Cron 时间。
+
+### 新增 API：`app/api/admin/mission-control/route.ts`（完全重写，不再是旧 pipeline 结构）
+返回 `productionStatus/todayPipeline/dataFreshness/strategyRecommendations/
+strategyExecutions/backtest/learning/validation/reports/pm2/health/version/generatedAt`。
+
+### 新 Pipeline（13步，真实反映当前 cron-scheduler.ts 实际调度时间，未虚构任何时间）
+05:30 全球指数 → 06:00 行情同步 → 07:00 新闻 → 07:30 综合评分/三策略推荐/日内T+1结算 →
+16:35 波段 → 16:40 长线 → 16:45 回测 → 17:00 学习 → 17:15 验证 → 周六17:30周报 →
+月末18:00月报。
+
+### 发现并修复：两个"日志盲区"导致的误报 FAILED
+- **compute-scores**：由 `sync-all-prices.ts` 内部通过 `execSync` 链式调用，从未写入
+  `pipeline-runs.jsonl`（该日志只有 2026-06-26 一条历史 dry-run 记录）——导致该步骤在
+  日志驱动的判断下永远显示"逾期未执行"。改用 `StockScore` 当日新鲜度（`computedAt` 落在今天）
+  作为该步骤的真实判据，不依赖那条从未被写入的日志。
+- **day_settle**：本次会话中曾手动 CLI 直接运行 `day-strategy.ts`（绕过 cron 包装器的
+  `runAsync`/`writePipelineLog`），导致今日日志同样缺失。改用"是否存在未结算的历史交易日
+  积压"作为真实判据（而非"今日是否有一条调用记录"），更准确反映运营意义上的"是否已结清"。
+
+### PM2 / Cron 状态
+API 在生产环境直接读取本机 `pm2 jlist`（Next.js 服务端代码与 pm2 daemon 同机运行，无需
+远程凭据）；额外交叉核对 `DeploymentLog` 中最近一次修改 `cron-scheduler.ts` 的部署时间
+是否晚于 `tohoshou-cron` 进程的启动时间——若是，标记 `cronStaleAfterDeploy` WARNING，
+提示"新调度可能未生效"。
+
+### 已知的、本次未处理的旁支发现（更正上一版本 v17.24.0 报告中的错误判断）
+`data-health-guard.ts` 的"Split contamination"CRITICAL（7条）**并未如 v17.24.0 报告预期
+在次日 `compute-scores` 重算后自愈**——今日 07:30 已用完整价格历史重新计算过
+`StockScore.return60d`，问题依然存在。经复核，这更可能是 `return60d` 计算方法论本身的
+问题（疑似跨越真实除权除息（split）区间时使用了未复权 `close` 而非 `adjClose`，导致
+60日窗口首尾两端的复权基准不一致），而非数据过渡态。与 Day Trade、Mission Control 均
+无关，未在本次范围内修复（涉及 `lib/indicators.ts`/`compute-scores.ts` 的计算方法论，
+需要独立评估，不应在监控类任务中顺手改动）。建议后续单开 P1/P2 任务专项排查。
+
+### 验收
+- `npm run build` ✅ PASS
+- `/admin/mission-control` 生产环境实测：11/11 今日步骤全部 SUCCESS（周报/月报按条件正确
+  SKIPPED，非本周六/月末）；三策略推荐/执行/回测/学习/验证/报告/PM2 状态均正常读取
+- `health:data`：CRITICAL=1（上述已知无关旁支问题，非本次引入）
+- 部署：schema 无变更；rsync .next/app/components/lib/scripts/package.json；
+  pm2 restart tohoshou-web + tohoshou-cron 均确认重启成功
+
+---
+
 ## [17.24.0] - 2026-07-01 — P0 Day Trade 生产链路修复：T+1 结算时序 + 价格同步限流 + 断点续跑
 
 ### 背景
