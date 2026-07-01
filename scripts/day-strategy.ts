@@ -275,14 +275,18 @@ async function main() {
 
     const qty = Math.floor(POSITION_SIZE / p.open / 100) * 100;
     if (qty <= 0) {
+      // Share price too high for one lot (100 shares) within POSITION_SIZE —
+      // this is a permanent condition for this trade date, not missing data.
+      // Must not be tagged WAITING_OPEN: entryPrice is already known and no
+      // future price sync will ever resolve it.
       trades.push({
         symbol: c.symbol, rank: c.rank,
         entryPrice: p.open, exitPrice: 0, quantity: 0,
         investedAmount: 0, exitValue: 0,
         returnPct: 0, returnAmount: 0,
         topixReturnPct: topixReturn, alpha: null,
-        win: false, exitReason: "DATA_MISSING",
-        status: "WAITING_OPEN", waitingOpen: false, waitingClose: false,
+        win: false, exitReason: "LOT_SIZE_TOO_SMALL",
+        status: "SKIPPED_LOT_SIZE", waitingOpen: false, waitingClose: false,
       });
       continue;
     }

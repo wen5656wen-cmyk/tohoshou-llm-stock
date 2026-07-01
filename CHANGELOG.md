@@ -2,6 +2,40 @@
 
 ---
 
+## [17.23.0] - 2026-07-01 — P1 生产红色报警修复：Day Trade 高价股卡死 WAITING_OPEN + 报警文案误报
+
+### 背景
+`/admin/verify` 报 `ready:false`，1 CRITICAL：`Day Trade stale WAITING_OPEN (>24h) = 0: 1`，
+同一条消息里还夹带了一条 WARNING（`high52w > price×10 (suspect): 8`），看起来像2个红色阻断项，实际只有1个。
+
+### 根因 1（真实 CRITICAL）：`scripts/day-strategy.ts:276-288`
+Day Trade 单笔仓位 ¥6,000,000 ÷ 8035.T（东京威力科创）开盘价 ¥72,560 ≈ 82.7股，
+日股最小交易单位100股一手 → `floor(82.7/100)*100=0`，quantity算出0股。
+这种"买不起一手"的情况被错误地打上了 `status:"WAITING_OPEN"` 标签——但 entryPrice 其实已经写入，
+这不是在等数据，是这只股票在当前仓位规模下永远买不起一手，属于永久性状态，被 health guard 的
+"WAITING_OPEN 超24小时"检查判定为卡死数据。
+
+**修复：**
+- `prisma/schema.prisma`：`StrategyTradeStatus` 枚举新增 `SKIPPED_LOT_SIZE`；`StrategyExitReason` 枚举新增 `LOT_SIZE_TOO_SMALL`
+- `scripts/day-strategy.ts`：qty≤0 分支 `status` 改为 `SKIPPED_LOT_SIZE`，`exitReason` 改为 `LOT_SIZE_TOO_SMALL`（不再复用 `WAITING_OPEN`/`DATA_MISSING`）
+- `scripts/data-health-guard.ts` CHECK S10 的有效状态白名单加入 `SKIPPED_LOT_SIZE`
+- 生产数据修复：`strategy_trade_results` id=4（8035.T, 2026-06-26）手动改为 `SKIPPED_LOT_SIZE`（历史行，upsert 的 `update:{}` 不会自动修正旧数据）
+
+### 根因 2（报警文案误报）：`scripts/data-health-guard.ts:1007`
+`topIssues = [...criticals, ...warnings]` 把 CRITICAL 和 WARNING 检查混进同一个数组，
+`app/api/admin/verify/route.ts:262` 又直接摘取这个混合数组的前2条，套上"CRITICAL issue(s)"文案，
+导致一条 WARNING（52周高点数据异常）被误标为红色报警的一部分。
+
+**修复：** `topIssues` 只保留 `criticals`；新增独立的 `warningIssues` 字段承载 WARNING 明细。
+
+### 验收
+- `npm run build` ✅ PASS
+- 生产 `npx tsx scripts/data-health-guard.ts`：CRITICAL=0，WARNING=5（非阻断）
+- `curl /api/admin/verify?module=status`：`ready:true`，`blockingIssues:[]`
+- deployment #72，commit（见下）
+
+---
+
 ## 🏁 MILESTONE — Trading Architecture V1：Production Stable（2026-06-30）
 
 ```

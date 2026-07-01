@@ -621,7 +621,7 @@ async function main() {
     const invalidDayStatus = await (prisma as any).strategyTradeResult.count({
       where: {
         strategyType: "DAY_TRADE",
-        status: { notIn: ["CLOSED", "WAITING_OPEN", "WAITING_CLOSE", "SKIPPED_MARKET_CLOSED"] },
+        status: { notIn: ["CLOSED", "WAITING_OPEN", "WAITING_CLOSE", "SKIPPED_MARKET_CLOSED", "SKIPPED_LOT_SIZE"] },
       },
     });
     add({
@@ -1004,7 +1004,13 @@ async function main() {
   console.log(`Requires review: ${requiresReview ? "YES" : "NO"}`);
 
   // ── Build report ──────────────────────────────────────────────────────────
-  const topIssues = [...criticals, ...warnings].map(c => `${c.name}: ${c.value}`);
+  // topIssues must only ever contain CRITICAL checks — this is what the
+  // admin/verify API labels "N CRITICAL issue(s)". Mixing WARNING checks in
+  // here previously caused non-blocking warnings to be misreported as red
+  // alerts (e.g. "high52w > price×10" is WARNING but showed up inside the
+  // CRITICAL summary string).
+  const topIssues     = criticals.map(c => `${c.name}: ${c.value}`);
+  const warningIssues = warnings.map(c => `${c.name}: ${c.value}`);
 
   const report = {
     auditAt: now.toISOString(),
@@ -1022,6 +1028,7 @@ async function main() {
     allowRecommendation,
     requiresReview,
     topIssues,
+    warningIssues,
     checks,
     reportFile: path.basename(jsonPath),
   };

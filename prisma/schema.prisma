@@ -917,6 +917,7 @@ enum StrategyTradeStatus {
   CLOSED
   WAITING_DATA
   SKIPPED_MARKET_CLOSED
+  SKIPPED_LOT_SIZE
 }
 
 enum StrategyExitReason {
@@ -931,6 +932,7 @@ enum StrategyExitReason {
   MANUAL
   MARKET_CLOSED
   DATA_MISSING
+  LOT_SIZE_TOO_SMALL
 }
 
 // Each trading day's ranked candidates per strategy
