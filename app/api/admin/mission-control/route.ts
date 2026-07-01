@@ -168,8 +168,9 @@ export async function GET() {
     const latestPerStage = getLatestPerStage(allRuns);
 
     // ── Health guard latest report ────────────────────────────────────────────
-    let healthGuard: { status: string; critical: number; warning: number; pass: number; auditAt: string | null; topIssues: string[]; warningIssues: string[] } = {
-      status: "UNKNOWN", critical: 0, warning: 0, pass: 0, auditAt: null, topIssues: [], warningIssues: [],
+    type HealthCheckRow = { id: string; level: string; name: string; value: unknown; pass: boolean; details?: string[] };
+    let healthGuard: { status: string; critical: number; warning: number; pass: number; auditAt: string | null; topIssues: string[]; warningIssues: string[]; checks: HealthCheckRow[] } = {
+      status: "UNKNOWN", critical: 0, warning: 0, pass: 0, auditAt: null, topIssues: [], warningIssues: [], checks: [],
     };
     try {
       const reportDir = path.join(process.cwd(), "reports");
@@ -187,10 +188,76 @@ export async function GET() {
             auditAt: report.auditAt ?? null,
             topIssues: report.topIssues ?? [],
             warningIssues: report.warningIssues ?? [],
+            checks: Array.isArray(report.checks) ? report.checks : [],
           };
         }
       }
     } catch {}
+
+    // ── Known-issue knowledge base for Health Detail (display-only annotations) ─
+    // Static, hand-curated context for checks we've actually investigated —
+    // purely informational, does not change pass/fail/severity in any way.
+    const ISSUE_KNOWLEDGE: Record<string, { impact: string; suggestion: string; related: boolean }> = {
+      split_contamination: {
+        impact: "个别股票 return60d 计算疑似跨越真实除权除息（split）区间，收益率可能失真，影响 AI 评分与回测统计口径",
+        suggestion: "排查 lib/indicators.ts / compute-scores.ts 的 return60d 计算是否应改用 adjClose 而非 close（独立任务，不在本次监控优化范围内）",
+        related: false,
+      },
+      daily_price_coverage_last_completed_date: {
+        impact: "价格覆盖率不足会导致下游评分/策略推荐使用不完整数据",
+        suggestion: "检查 logs/sync-prices-failed-<date>.json，必要时执行 npm run sync-prices-retry",
+        related: true,
+      },
+      daily_price_coverage_latest_date: {
+        impact: "价格覆盖率不足会导致下游评分/策略推荐使用不完整数据",
+        suggestion: "检查 logs/sync-prices-failed-<date>.json，必要时执行 npm run sync-prices-retry",
+        related: true,
+      },
+      day_trade_result_recent_coverage: {
+        impact: "Day Trade 结算连续缺失会导致 Strategy Center 数据长期停滞",
+        suggestion: "执行 npm run day-strategy（自动断点续跑）",
+        related: true,
+      },
+      day_trade_no_stale_waiting_open: {
+        impact: "交易长期卡在 WAITING_OPEN 意味着价格数据缺失且未被正确标记为最终状态",
+        suggestion: "检查对应交易日 DailyPrice 是否完整，或该状态是否应为 SKIPPED_DATA_MISSING",
+        related: true,
+      },
+      day_trade_no_stale_waiting_close: {
+        impact: "交易长期卡在 WAITING_CLOSE 意味着收盘价缺失",
+        suggestion: "检查对应交易日 DailyPrice.close 是否完整",
+        related: true,
+      },
+      high52w_10x_price: {
+        impact: "52周高点异常偏高，可能是历史除权数据未正确处理",
+        suggestion: "人工抽查对应股票的历史价格与除权记录",
+        related: false,
+      },
+      low52w_too_low: {
+        impact: "52周低点异常偏低，可能是历史除权数据未正确处理",
+        suggestion: "人工抽查对应股票的历史价格与除权记录",
+        related: false,
+      },
+      stale_prices: {
+        impact: "部分股票价格数据超过3天未更新，评分可能基于陈旧数据",
+        suggestion: "检查这些股票是否停牌/退市，或 sync-all-prices 是否遗漏",
+        related: true,
+      },
+    };
+    function annotateIssue(c: HealthCheckRow) {
+      const known = ISSUE_KNOWLEDGE[c.id];
+      return {
+        id: c.id,
+        name: c.name,
+        level: c.level as Severity,
+        value: String(c.value),
+        impact: known?.impact ?? (c.details?.[0] ?? (c.level === "CRITICAL" ? "该项检查未通过，可能影响生产数据准确性" : "该项检查未通过，建议关注")),
+        suggestion: known?.suggestion ?? (c.details?.[1] ?? c.details?.[0] ?? "建议人工复核 data-health-guard 报告详情"),
+        relatedToCurrentTask: known?.related ?? false,
+      };
+    }
+    const criticalIssueDetails = healthGuard.checks.filter(c => !c.pass && c.level === "CRITICAL").map(annotateIssue);
+    const warningIssueDetails  = healthGuard.checks.filter(c => !c.pass && c.level === "WARNING").map(annotateIssue);
 
     // ── Parallel DB queries ───────────────────────────────────────────────────
     const db = prisma as any;
@@ -225,6 +292,7 @@ export async function GET() {
       latestValidation,
       recentValidations,
       recentDeployments,
+      recentValidationIncidents,
       latestDrVersion,
       activeVersionSnapshot,
     ] = await Promise.all([
@@ -247,7 +315,14 @@ export async function GET() {
       db.strategyLearningSummary.findFirst({ orderBy: { reportDate: "desc" }, select: { reportDate: true, integrityScore: true, grade: true, recommendation: true } }),
       db.strategyDailyValidation.findFirst({ orderBy: { validationDate: "desc" } }),
       db.strategyDailyValidation.findMany({ orderBy: { validationDate: "desc" }, take: 30, select: { healthOk: true } }),
-      prisma.deploymentLog.findMany({ orderBy: { deployedAt: "desc" }, take: 15, select: { modifiedFiles: true, deployedAt: true } }),
+      prisma.deploymentLog.findMany({
+        orderBy: { deployedAt: "desc" }, take: 15,
+        select: { modifiedFiles: true, deployedAt: true, healthStatus: true, summary: true, commitHash: true },
+      }),
+      db.strategyDailyValidation.findMany({
+        where: { incidentReport: { not: null } }, orderBy: { validationDate: "desc" }, take: 10,
+        select: { validationDate: true, incidentReport: true, failCount: true },
+      }),
       prisma.dailyRecommendation.findFirst({ orderBy: { date: "desc" }, select: { schemaVersion: true, modelVersion: true, scoreVersion: true, versionSnapshotId: true } }),
       prisma.versionSnapshot.findFirst({ where: { endDate: null }, orderBy: { startDate: "desc" }, select: { id: true, modelVersion: true, scoreVersion: true, schemaVersion: true } }),
     ]);
@@ -516,17 +591,117 @@ export async function GET() {
     if (severityRank[priceCoverageStatus] > severityRank[productionStatus]) { productionStatus = priceCoverageStatus; reasons.push(`DailyPrice coverage ${priceCoveragePct}%`); }
     if (severityRank[pm2Severity] > severityRank[productionStatus]) { productionStatus = pm2Severity; reasons.push(cronProc?.status !== "online" ? "tohoshou-cron not online" : "cron stale after deploy"); }
 
+    // ── Phase 7 progress (display-only — reuses StrategyDailyValidation's own
+    //    computed fields, does not change any Phase-7 gating logic) ────────────
+    const phase7Progress = latestValidation ? {
+      day:      { current: latestValidation.dayFilledTotal   ?? 0, target: 100 },
+      swing:    { current: latestValidation.swingClosedTotal ?? 0, target: 30 },
+      long:     { current: latestValidation.longClosedTotal  ?? 0, target: 20 },
+      learning: { dayGrade: latestValidation.dayGrade, swingGrade: latestValidation.swingGrade, longGrade: latestValidation.longGrade },
+      health:   { current: consecutiveHealthDays, target: 30 },
+      ready:    latestValidation.phase7Ready,
+      detail:   latestValidation.phase7Detail,
+    } : null;
+
+    // ── Trading Architecture status bar (static facts — display only, no logic) ─
+    const architectureStatus = {
+      version: "V1",
+      status: "FROZEN",
+      frozenDate: "2026-06-30",
+      currentMode: "运营 + 数据积累",
+      nextPhase: "Phase 7 AI Strategy Optimization",
+      unlocked: latestValidation?.phase7Ready ?? false,
+    };
+
+    // ── Refresh / data-age status ─────────────────────────────────────────────
+    const nowMs = Date.now();
+    const healthReportAgeMin = healthGuard.auditAt ? Math.round((nowMs - new Date(healthGuard.auditAt).getTime()) / 60000) : null;
+    const refreshStatus = {
+      generatedAt: new Date(nowMs).toISOString(),
+      healthReportAgeMinutes: healthReportAgeMin,
+      stale: healthReportAgeMin != null && healthReportAgeMin > 5,
+    };
+
+    // ── Recent Incidents (last 10, merged from 4 sources) ─────────────────────
+    type Incident = { time: string; level: Severity; module: string; title: string; description: string; status: string };
+    const incidents: Incident[] = [];
+
+    // Source 1: current health:data CRITICAL / WARNING (from the latest report)
+    if (healthGuard.auditAt) {
+      for (const c of criticalIssueDetails) {
+        incidents.push({ time: healthGuard.auditAt, level: "CRITICAL", module: "Data Health", title: c.name, description: c.impact, status: "待排查" });
+      }
+      for (const c of warningIssueDetails) {
+        incidents.push({ time: healthGuard.auditAt, level: "WARNING", module: "Data Health", title: c.name, description: c.impact, status: "需关注" });
+      }
+    }
+
+    // Source 2: StrategyDailyValidation incident reports (one entry per line item)
+    for (const v of recentValidationIncidents as Array<{ validationDate: Date; incidentReport: string | null; failCount: number }>) {
+      const lines = (v.incidentReport ?? "").split("\n").filter(l => /^\d+\./.test(l));
+      const dateStr = v.validationDate.toISOString();
+      for (const line of lines) {
+        const text = line.replace(/^\d+\.\s*/, "");
+        incidents.push({ time: dateStr, level: "WARNING", module: "Strategy Validation", title: text.split(":")[0] ?? text.slice(0, 30), description: text, status: "见当日验证报告" });
+      }
+    }
+
+    // Source 3: deployment records with non-PASS health status
+    for (const d of recentDeployments as Array<{ deployedAt: Date; healthStatus: string; summary: string; commitHash: string }>) {
+      if (d.healthStatus && d.healthStatus !== "PASS") {
+        incidents.push({
+          time: d.deployedAt.toISOString(),
+          level: d.healthStatus === "FAIL" ? "CRITICAL" : "WARNING",
+          module: "Deployment",
+          title: `部署 ${d.commitHash} health=${d.healthStatus}`,
+          description: d.summary?.slice(0, 100) ?? "",
+          status: "历史部署记录",
+        });
+      }
+    }
+
+    // Source 4: cron-error.log tail summary (recent lines only, best-effort)
+    try {
+      const cronErrLog = path.join(process.cwd(), "logs", "cron-error.log");
+      if (fs.existsSync(cronErrLog)) {
+        const stat = fs.statSync(cronErrLog);
+        if (nowMs - stat.mtime.getTime() < 24 * 3600_000) {
+          const content = fs.readFileSync(cronErrLog, "utf-8");
+          const lastLines = content.trim().split("\n").filter(Boolean).slice(-3);
+          if (lastLines.length) {
+            incidents.push({
+              time: stat.mtime.toISOString(),
+              level: "WARNING",
+              module: "Cron",
+              title: "Cron 错误日志摘要",
+              description: lastLines.join(" | ").slice(0, 200),
+              status: "待确认",
+            });
+          }
+        }
+      }
+    } catch {}
+
+    const recentIncidents = incidents
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 10);
+
     return NextResponse.json({
       productionStatus: {
         status: productionStatus,
-        healthCriticalCount: healthGuard.critical,
+        passCount: healthGuard.pass,
         healthWarningCount: healthGuard.warning,
+        healthCriticalCount: healthGuard.critical,
+        highestSeverity: productionStatus,
         reasons,
         lastUpdated: healthGuard.auditAt,
       },
       todayPipeline: {
         completedSteps,
         totalSteps: applicableSteps.length,
+        completionPct: applicableSteps.length > 0 ? Math.round((completedSteps / applicableSteps.length) * 100) : 0,
+        failedCount: applicableSteps.filter(s => s.status === "FAILED").length,
+        allDoneToday: applicableSteps.length > 0 && completedSteps === applicableSteps.length,
         steps: stepResults,
       },
       dataFreshness: {
@@ -598,6 +773,18 @@ export async function GET() {
         topIssues: healthGuard.topIssues,
         warningIssues: healthGuard.warningIssues,
       },
+      // ── New in P2 (additive only — nothing above was removed/renamed) ────────
+      healthDetails: {
+        passCount: healthGuard.pass,
+        criticalIssues: criticalIssueDetails,
+        warningIssues: warningIssueDetails,
+      },
+      criticalIssues: criticalIssueDetails,
+      warningIssues: warningIssueDetails,
+      recentIncidents,
+      phase7Progress,
+      architectureStatus,
+      refreshStatus,
       version: {
         schemaVersion: latestDrVersion?.schemaVersion ?? activeVersionSnapshot?.schemaVersion ?? null,
         modelVersion:  latestDrVersion?.modelVersion  ?? activeVersionSnapshot?.modelVersion  ?? null,

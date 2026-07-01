@@ -2,6 +2,60 @@
 
 ---
 
+## [17.25.1] - 2026-07-01 — P2 Mission Control V2 细节优化（纯展示层，未改任何业务逻辑）
+
+### 目标
+在 v17.25.0 基础上做运营体验优化：Production Status 展示具体 issue 而非只报数量、Today
+Pipeline 加进度条、三策略状态展开为三列详情、Validation 增加 Phase 7 条件进度、新增
+Health Detail 明细卡与 Recent Incidents 事件流、新增 Trading Architecture 状态条、页面标题
+补充汉化。仅新增/丰富 API 返回字段与页面展示，未触碰 Trading Architecture / 交易逻辑 /
+Schema / Cron 时间 / Strategy Engine / Backtest·Learning·Validation 计算逻辑。
+
+### API 新增字段（`app/api/admin/mission-control/route.ts`，均为新增，未删除/未改变任何既有字段语义）
+- `criticalIssues` / `warningIssues` / `healthDetails`：从 health-guard 报告的完整 `checks`
+  数组解析出结构化明细（name/level/value/impact/suggestion/relatedToCurrentTask），并附带
+  一份手工整理的已知问题知识库（split_contamination 等）用于展示影响与处理建议——**纯展示
+  层标注，不改变任何检查项的 pass/fail/severity 判定**。
+- `recentIncidents`：合并4个来源的最近10条事件（当前 health:data CRITICAL/WARNING、
+  StrategyDailyValidation.incidentReport 逐行拆解、DeploymentLog 中 healthStatus≠PASS 的
+  历史部署、cron-error.log 尾部摘要），按时间倒序。
+- `phase7Progress` / `architectureStatus`：直接复用 StrategyDailyValidation 已计算好的
+  字段（dayFilledTotal/swingClosedTotal/longClosedTotal/dayGrade/swingGrade/longGrade/
+  phase7Ready/phase7Detail）与静态展示常量（V1/FROZEN/2026-06-30冻结日期），**均为纯展示，
+  不参与任何 Phase 7 判定逻辑本身**（判定逻辑仍完全在 strategy-daily-validation.ts 内）。
+- `refreshStatus`：health-guard 报告新鲜度（分钟数 + 是否 >5 分钟过期），供页面提示。
+- `todayPipeline` 新增 `completionPct`/`failedCount`/`allDoneToday`；`productionStatus`
+  新增 `passCount`/`highestSeverity`（`healthCriticalCount`/`healthWarningCount` 等既有
+  字段原样保留）。
+
+### 页面重写（`app/admin/mission-control/page.tsx`）
+- Production Status 卡片下方新增 CRITICAL/WARNING Issues 明细区块，**CRITICAL>0 时强制
+  显示"严重"，不允许显示"正常"**（沿用 v17.25.0 已有的 productionStatus 判定，未减弱）。
+- Today Pipeline 加进度条 + 百分比 + 失败步骤红色高亮。
+- 三策略状态展开为三列（推荐总数/Top10/已成交或持仓/已跳过或新开平仓/最新交易日），
+  每策略显示 正常/注意/异常 三级状态。
+- Validation 卡片新增 Phase 7 条件进度（DAY/SWING/LONG 当前/目标 + Learning 等级 +
+  Health 连续天数/30）。
+- 新增 Health Detail 卡（CRITICAL/WARNING 逐条列出，Split contamination 明确展示，
+  不再只显示数量）与 Recent Incidents 事件流表格。
+- 顶部新增 Trading Architecture 状态条（V1/FROZEN/2026-06-30/运营+数据积累/Phase 7/
+  未就绪，纯展示不参与逻辑）。
+- 页面标题全部汉化（生产状态/今日流水线/策略状态/验证状态/Trading Architecture V1
+  流水线/每日行情/新闻资讯/全球指数/综合评分/策略回测/策略学习/每日验证/报告状态/
+  PM2·Cron 状态），PM2/Cron/API/DAY_TRADE 等技术标识按要求保留在技术表格中。
+
+### 验收
+- `npm run build` ✅ PASS
+- `health:data`：CRITICAL=1（与 v17.25.0 相同的既有 Split contamination 问题，本次页面
+  如实显示为 CRITICAL Issue 明细，未掩盖、未强行改绿）
+- 生产环境实测：`productionStatus.status="CRITICAL"`、`criticalIssues` 明确列出
+  split_contamination 详情、`recentIncidents` 7条正确聚合、`phase7Progress`/
+  `architectureStatus`/`refreshStatus` 均按预期返回、`todayPipeline` 11/11/100%/无失败
+- 部署：schema 无变更；rsync .next/app/components/lib/scripts/package.json；
+  pm2 restart tohoshou-web + tohoshou-cron 均确认重启成功
+
+---
+
 ## [17.25.0] - 2026-07-01 — P1 Mission Control V2：Trading Architecture V1 运营驾驶舱
 
 ### 目标

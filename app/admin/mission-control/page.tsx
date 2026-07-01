@@ -58,17 +58,60 @@ interface LearningEntry {
   recommendation: string | null;
 }
 
+interface IssueDetail {
+  id: string;
+  name: string;
+  level: Severity;
+  value: string;
+  impact: string;
+  suggestion: string;
+  relatedToCurrentTask: boolean;
+}
+
+interface Incident {
+  time: string;
+  level: Severity;
+  module: string;
+  title: string;
+  description: string;
+  status: string;
+}
+
+interface Phase7Progress {
+  day: { current: number; target: number };
+  swing: { current: number; target: number };
+  long: { current: number; target: number };
+  learning: { dayGrade: string | null; swingGrade: string | null; longGrade: string | null };
+  health: { current: number; target: number };
+  ready: boolean;
+  detail: string | null;
+}
+
+interface ArchitectureStatus {
+  version: string;
+  status: string;
+  frozenDate: string;
+  currentMode: string;
+  nextPhase: string;
+  unlocked: boolean;
+}
+
 interface MissionControlV2 {
   productionStatus: {
     status: Severity;
-    healthCriticalCount: number;
+    passCount: number;
     healthWarningCount: number;
+    healthCriticalCount: number;
+    highestSeverity: Severity;
     reasons: string[];
     lastUpdated: string | null;
   };
   todayPipeline: {
     completedSteps: number;
     totalSteps: number;
+    completionPct: number;
+    failedCount: number;
+    allDoneToday: boolean;
     steps: PipelineStep[];
   };
   dataFreshness: {
@@ -136,6 +179,12 @@ interface MissionControlV2 {
     topIssues: string[];
     warningIssues: string[];
   };
+  criticalIssues: IssueDetail[];
+  warningIssues: IssueDetail[];
+  recentIncidents: Incident[];
+  phase7Progress: Phase7Progress | null;
+  architectureStatus: ArchitectureStatus;
+  refreshStatus: { generatedAt: string; healthReportAgeMinutes: number | null; stale: boolean };
   version: {
     schemaVersion: string | null;
     modelVersion: string | null;
@@ -147,56 +196,18 @@ interface MissionControlV2 {
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
-const sevColor: Record<Severity, string> = {
-  NORMAL: "#22c55e",
-  WARNING: "#f59e0b",
-  CRITICAL: "#ef4444",
-};
-const sevLabel: Record<Severity, string> = {
-  NORMAL: "正常",
-  WARNING: "注意",
-  CRITICAL: "严重",
-};
+const sevColor: Record<Severity, string> = { NORMAL: "#22c55e", WARNING: "#f59e0b", CRITICAL: "#ef4444" };
+const sevLabel: Record<Severity, string> = { NORMAL: "正常", WARNING: "注意", CRITICAL: "严重" };
+const sevLabel3: Record<Severity, string> = { NORMAL: "正常", WARNING: "注意", CRITICAL: "异常" };
 
-const stepColor: Record<StepStatus, string> = {
-  SUCCESS: "#22c55e",
-  WAITING: "#f59e0b",
-  FAILED: "#ef4444",
-  SKIPPED: "#6b7280",
-};
-const stepLabel: Record<StepStatus, string> = {
-  SUCCESS: "✅ 成功",
-  WAITING: "⏳ 等待",
-  FAILED: "❌ 失败",
-  SKIPPED: "— 跳过",
-};
+const stepColor: Record<StepStatus, string> = { SUCCESS: "#22c55e", WAITING: "#f59e0b", FAILED: "#ef4444", SKIPPED: "#6b7280" };
+const stepLabel: Record<StepStatus, string> = { SUCCESS: "✅ 成功", WAITING: "⏳ 等待", FAILED: "❌ 失败", SKIPPED: "— 跳过" };
 
-const cell: React.CSSProperties = {
-  padding: "6px 10px",
-  borderBottom: "1px solid #333",
-  verticalAlign: "top",
-  fontSize: 13,
-  fontFamily: "monospace",
-};
-const th: React.CSSProperties = {
-  ...cell,
-  background: "#1a1a1a",
-  color: "#888",
-  fontWeight: 600,
-  textTransform: "uppercase",
-  fontSize: 11,
-  letterSpacing: "0.05em",
-};
-const sectionTitle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: "#888",
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-  marginBottom: 6,
-  paddingBottom: 4,
-  borderBottom: "1px solid #333",
-};
+const STRATEGY_LABEL: Record<string, string> = { DAY_TRADE: "日内", SWING_TRADE: "波段", LONG_TRADE: "长线" };
+
+const cell: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid #333", verticalAlign: "top", fontSize: 13, fontFamily: "monospace" };
+const th: React.CSSProperties = { ...cell, background: "#1a1a1a", color: "#888", fontWeight: 600, textTransform: "uppercase", fontSize: 11, letterSpacing: "0.05em" };
+const sectionTitle: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: "#888", letterSpacing: "0.04em", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid #333" };
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", background: "#111" };
 const card: React.CSSProperties = { background: "#111", border: "1px solid #222", borderRadius: 4, padding: "10px 12px" };
 
@@ -209,11 +220,46 @@ function fmtUptime(ms: number | null): string {
   return `${Math.floor(ms / 60_000)}m`;
 }
 
+function strategySeverity(rec: StrategyRecBlock, exec: OpenExec | null): Severity {
+  if (exec?.hasDuplicates) return "CRITICAL";
+  if (rec.status === "WARNING" || exec?.over10) return "WARNING";
+  return rec.status;
+}
+
 function StatCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={card}>
       <div style={{ color: "#666", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{title}</div>
       {children}
+    </div>
+  );
+}
+
+function ProgressBar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div style={{ background: "#1a1a1a", borderRadius: 3, height: 8, overflow: "hidden", marginTop: 6 }}>
+      <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: "100%", background: color, transition: "width 0.3s" }} />
+    </div>
+  );
+}
+
+function IssueList({ issues }: { issues: IssueDetail[] }) {
+  if (issues.length === 0) return <div style={{ fontSize: 11, color: "#555" }}>无</div>;
+  return (
+    <div>
+      {issues.map(i => (
+        <div key={i.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #1a1a1a" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ color: sevColor[i.level], fontWeight: 700, fontSize: 12 }}>{i.name}</span>
+            <span style={{ color: "#666", fontSize: 11 }}>{i.value}</span>
+          </div>
+          <div style={{ fontSize: 11, color: "#999", marginTop: 3 }}>影响：{i.impact}</div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>建议：{i.suggestion}</div>
+          <div style={{ fontSize: 10, color: i.relatedToCurrentTask ? "#f59e0b" : "#555", marginTop: 2 }}>
+            {i.relatedToCurrentTask ? "● 与近期 Day Trade 修复相关（已知跟踪中）" : "○ 独立问题（与近期修复无关）"}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -225,6 +271,7 @@ export default function MissionControlPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [nowTick, setNowTick] = useState(Date.now());
 
   const load = useCallback(async () => {
     try {
@@ -243,77 +290,121 @@ export default function MissionControlPage() {
   useEffect(() => {
     load();
     const id = setInterval(load, 60_000);
-    return () => clearInterval(id);
+    const tick = setInterval(() => setNowTick(Date.now()), 15_000);
+    return () => { clearInterval(id); clearInterval(tick); };
   }, [load]);
 
   if (loading) return <div style={{ color: "#888", padding: 24, fontFamily: "monospace" }}>加载中…</div>;
   if (error)   return <div style={{ color: "#ef4444", padding: 24, fontFamily: "monospace" }}>错误：{error}</div>;
   if (!data)   return null;
 
-  const { productionStatus, todayPipeline, dataFreshness, strategyRecommendations, strategyExecutions, backtest, learning, validation, reports, pm2, health, version } = data;
+  const {
+    productionStatus, todayPipeline, dataFreshness, strategyRecommendations, strategyExecutions,
+    backtest, learning, validation, reports, pm2, criticalIssues, warningIssues, recentIncidents,
+    phase7Progress, architectureStatus, version,
+  } = data;
+
+  const staleClientRefresh = lastRefresh ? (nowTick - lastRefresh.getTime()) > 5 * 60_000 : false;
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#e5e5e5", padding: "16px 20px", fontFamily: "monospace" }}>
 
       {/* ── Header ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20, paddingBottom: 12, borderBottom: "1px solid #222" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #222" }}>
         <div>
           <div style={{ fontSize: 24, fontWeight: 800 }}>控制中心</div>
           <div style={{ fontSize: 12, color: "#666" }}>Trading Architecture V1 运营驾驶舱</div>
         </div>
-        <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 11, color: "#555" }}>
-          <div>最后刷新：{lastRefresh?.toLocaleTimeString("zh-CN")} · 每60秒自动刷新</div>
+        <div style={{ marginLeft: "auto", textAlign: "right", fontSize: 11, color: staleClientRefresh ? "#f59e0b" : "#555" }}>
+          <div>最后刷新：{lastRefresh?.toLocaleTimeString("zh-CN")} · 自动刷新：60s{staleClientRefresh ? " ⚠ 已超过5分钟未刷新" : ""}</div>
+          <div style={{ color: "#555" }}>数据生成于：{new Date(data.generatedAt).toLocaleString("zh-CN")}</div>
           <button onClick={load} style={{ marginTop: 4, padding: "2px 8px", fontSize: 11, cursor: "pointer", background: "#222", color: "#aaa", border: "1px solid #444", borderRadius: 3 }}>
             ↺ 刷新
           </button>
         </div>
       </div>
 
+      {/* ── Trading Architecture status bar ── */}
+      <div style={{ display: "flex", gap: 16, alignItems: "center", background: "#111", border: "1px solid #222", borderRadius: 4, padding: "8px 14px", marginBottom: 16, fontSize: 12, flexWrap: "wrap" }}>
+        <span style={{ color: "#888" }}>Trading Architecture <b style={{ color: "#e5e5e5" }}>{architectureStatus.version}</b></span>
+        <span style={{ color: "#666" }}>|</span>
+        <span style={{ color: "#888" }}>状态 <b style={{ color: "#3b82f6" }}>{architectureStatus.status}</b></span>
+        <span style={{ color: "#666" }}>|</span>
+        <span style={{ color: "#888" }}>冻结日期 <b style={{ color: "#e5e5e5" }}>{architectureStatus.frozenDate}</b></span>
+        <span style={{ color: "#666" }}>|</span>
+        <span style={{ color: "#888" }}>当前模式 <b style={{ color: "#e5e5e5" }}>{architectureStatus.currentMode}</b></span>
+        <span style={{ color: "#666" }}>|</span>
+        <span style={{ color: "#888" }}>下一阶段 <b style={{ color: "#e5e5e5" }}>{architectureStatus.nextPhase}</b></span>
+        <span style={{ color: "#666" }}>|</span>
+        <span style={{ color: "#888" }}>解锁状态 <b style={{ color: architectureStatus.unlocked ? "#22c55e" : "#f59e0b" }}>{architectureStatus.unlocked ? "已就绪" : "未就绪"}</b></span>
+      </div>
+
       {/* ── Top 4 overview cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
-        <StatCard title="Production Status">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 12 }}>
+        <StatCard title="生产状态 Production Status">
           <div style={{ fontSize: 22, fontWeight: 800, color: sevColor[productionStatus.status] }}>
             {sevLabel[productionStatus.status]}
           </div>
           <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
-            CRITICAL: {productionStatus.healthCriticalCount} · WARNING: {productionStatus.healthWarningCount}
+            PASS {productionStatus.passCount} · WARNING {productionStatus.healthWarningCount} · CRITICAL {productionStatus.healthCriticalCount}
           </div>
           <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>
-            {productionStatus.lastUpdated ? new Date(productionStatus.lastUpdated).toLocaleString("zh-CN") : "无数据"}
+            最近 health:data：{productionStatus.lastUpdated ? new Date(productionStatus.lastUpdated).toLocaleString("zh-CN") : "无数据"}
           </div>
-          {productionStatus.reasons.length > 0 && (
-            <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 4 }}>{productionStatus.reasons.join(" · ")}</div>
-          )}
         </StatCard>
 
-        <StatCard title="Today Pipeline">
-          <div style={{ fontSize: 22, fontWeight: 800, color: todayPipeline.completedSteps === todayPipeline.totalSteps ? "#22c55e" : "#f59e0b" }}>
-            {todayPipeline.completedSteps}/{todayPipeline.totalSteps}
+        <StatCard title="今日流水线 Today Pipeline">
+          <div style={{ fontSize: 22, fontWeight: 800, color: todayPipeline.allDoneToday ? "#22c55e" : (todayPipeline.failedCount > 0 ? "#ef4444" : "#f59e0b") }}>
+            {todayPipeline.completedSteps} / {todayPipeline.totalSteps}
           </div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>今日完成步骤</div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+            {todayPipeline.completionPct}% {todayPipeline.allDoneToday ? "· 今日全部完成" : todayPipeline.failedCount > 0 ? `· ${todayPipeline.failedCount} 步失败` : "· 进行中"}
+          </div>
+          <ProgressBar pct={todayPipeline.completionPct} color={todayPipeline.failedCount > 0 ? "#ef4444" : todayPipeline.allDoneToday ? "#22c55e" : "#f59e0b"} />
         </StatCard>
 
-        <StatCard title="Strategy Status">
+        <StatCard title="策略状态 Strategy Status">
           <div style={{ fontSize: 11, lineHeight: 1.8 }}>
-            <div>DAY 推荐 <b style={{ color: "#e5e5e5" }}>{strategyRecommendations.DAY_TRADE.total}</b> · 成交 <b style={{ color: "#e5e5e5" }}>{strategyExecutions.DAY_TRADE.tradeResultCount}</b></div>
-            <div>SWING 推荐 <b style={{ color: "#e5e5e5" }}>{strategyRecommendations.SWING_TRADE.total}</b> · 持仓 <b style={{ color: "#e5e5e5" }}>{strategyExecutions.SWING_TRADE.openPositions}</b></div>
-            <div>LONG 推荐 <b style={{ color: "#e5e5e5" }}>{strategyRecommendations.LONG_TRADE.total}</b> · 持仓 <b style={{ color: "#e5e5e5" }}>{strategyExecutions.LONG_TRADE.openPositions}</b></div>
+            <div>日内 推荐<b style={{ color: "#e5e5e5" }}> {strategyRecommendations.DAY_TRADE.total}</b> · 成交<b style={{ color: "#e5e5e5" }}> {strategyExecutions.DAY_TRADE.closedCount}</b></div>
+            <div>波段 推荐<b style={{ color: "#e5e5e5" }}> {strategyRecommendations.SWING_TRADE.total}</b> · 持仓<b style={{ color: "#e5e5e5" }}> {strategyExecutions.SWING_TRADE.openPositions}</b></div>
+            <div>长线 推荐<b style={{ color: "#e5e5e5" }}> {strategyRecommendations.LONG_TRADE.total}</b> · 持仓<b style={{ color: "#e5e5e5" }}> {strategyExecutions.LONG_TRADE.openPositions}</b></div>
           </div>
         </StatCard>
 
-        <StatCard title="Validation Status">
+        <StatCard title="验证状态 Validation Status">
           <div style={{ fontSize: 22, fontWeight: 800, color: validation?.allPass ? "#22c55e" : "#ef4444" }}>
             {validation ? (validation.allPass ? "PASS" : "FAIL") : "—"}
           </div>
           <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
-            连续健康 {validation?.consecutiveHealthDays ?? 0} 天 · Phase7 {validation?.phase7Ready ? "READY" : "未就绪"}
+            连续健康 {validation?.consecutiveHealthDays ?? 0} 天 · Phase7 {phase7Progress?.ready ? "已就绪" : "未就绪"}
           </div>
         </StatCard>
       </div>
 
+      {/* ── Production status detail (CRITICAL/WARNING issues below the card row) ── */}
+      {(criticalIssues.length > 0 || warningIssues.length > 0) && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={sectionTitle}>生产状态详情</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div style={card}>
+              <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>
+                CRITICAL Issues（{criticalIssues.length}）
+              </div>
+              <IssueList issues={criticalIssues} />
+            </div>
+            <div style={card}>
+              <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>
+                WARNING Issues（{warningIssues.length}）
+              </div>
+              <IssueList issues={warningIssues} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Trading Architecture V1 Pipeline ── */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={sectionTitle}>Trading Architecture V1 Pipeline</div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={sectionTitle}>Trading Architecture V1 流水线</div>
         <table style={tableStyle}>
           <thead>
             <tr>
@@ -327,7 +418,7 @@ export default function MissionControlPage() {
           </thead>
           <tbody>
             {todayPipeline.steps.map(s => (
-              <tr key={s.key}>
+              <tr key={s.key} style={s.status === "FAILED" ? { background: "#2a0d0d" } : undefined}>
                 <td style={cell}>{s.name}</td>
                 <td style={{ ...cell, color: "#555" }}>{s.scheduledLabel}</td>
                 <td style={{ ...cell, color: stepColor[s.status], fontWeight: 700 }}>{stepLabel[s.status]}</td>
@@ -343,10 +434,10 @@ export default function MissionControlPage() {
       </div>
 
       {/* ── Data sync status ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 16 }}>
         <div style={sectionTitle}>数据同步状态</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-          <StatCard title="DailyPrice">
+          <StatCard title="每日行情 DailyPrice">
             <div style={{ fontSize: 12, color: "#888" }}>最新交易日：{dataFreshness.dailyPrice.lastCompletedDate ?? "—"}</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: sevColor[dataFreshness.dailyPrice.status] }}>
               {dataFreshness.dailyPrice.coveragePct}%
@@ -356,16 +447,16 @@ export default function MissionControlPage() {
               {dataFreshness.dailyPrice.failedCount > 0 && <span style={{ color: "#ef4444" }}> · 失败{dataFreshness.dailyPrice.failedCount}</span>}
             </div>
           </StatCard>
-          <StatCard title="News">
+          <StatCard title="新闻资讯 News">
             <div style={{ fontSize: 12, color: "#888" }}>最新：{dataFreshness.news.latestAt ? new Date(dataFreshness.news.latestAt).toLocaleString("zh-CN") : "—"}</div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{dataFreshness.news.todayNewCount}</div>
             <div style={{ fontSize: 11, color: "#666" }}>今日新增</div>
           </StatCard>
-          <StatCard title="GlobalMarket">
+          <StatCard title="全球指数 GlobalMarket">
             <div style={{ fontSize: 18, fontWeight: 700 }}>{dataFreshness.globalMarket.latestDate ?? "—"}</div>
             <div style={{ fontSize: 11, color: "#666" }}>最新日期</div>
           </StatCard>
-          <StatCard title="StockScore">
+          <StatCard title="综合评分 StockScore">
             <div style={{ fontSize: 12, color: "#888" }}>最新日期：{dataFreshness.stockScore.latestDate ?? "—"}</div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{dataFreshness.stockScore.scoredTodayCount}</div>
             <div style={{ fontSize: 11, color: "#666" }}>今日已评分</div>
@@ -373,90 +464,89 @@ export default function MissionControlPage() {
         </div>
       </div>
 
-      {/* ── Strategy recommendations + executions ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-        <div>
-          <div style={sectionTitle}>三策略推荐状态</div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={th}>策略</th>
-                <th style={th}>推荐总数</th>
-                <th style={th}>Top10</th>
-                <th style={th}>最新交易日</th>
-                <th style={th}>状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map(k => {
-                const r = strategyRecommendations[k];
-                return (
-                  <tr key={k}>
-                    <td style={cell}>{k}</td>
-                    <td style={cell}>{r.total}</td>
-                    <td style={cell}>{r.top10Count}</td>
-                    <td style={{ ...cell, color: "#888" }}>{r.latestTradeDate ?? "—"}</td>
-                    <td style={{ ...cell, color: sevColor[r.status] }}>{sevLabel[r.status]}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <div style={sectionTitle}>三策略执行状态</div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={th}>策略</th>
-                <th style={th}>持仓/成交</th>
-                <th style={th}>新开/平仓</th>
-                <th style={th}>Snapshot</th>
-                <th style={th}>提示</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={cell}>DAY_TRADE</td>
-                <td style={cell}>{strategyExecutions.DAY_TRADE.closedCount} 成交 / {strategyExecutions.DAY_TRADE.skippedCount} 跳过</td>
-                <td style={{ ...cell, color: strategyExecutions.DAY_TRADE.pnl != null ? (strategyExecutions.DAY_TRADE.pnl >= 0 ? "#22c55e" : "#ef4444") : "#555" }}>
-                  P&L {strategyExecutions.DAY_TRADE.pnl != null ? `¥${strategyExecutions.DAY_TRADE.pnl.toLocaleString()}` : "—"}
-                </td>
-                <td style={{ ...cell, color: strategyExecutions.DAY_TRADE.snapshotExists ? "#22c55e" : "#ef4444" }}>
-                  {strategyExecutions.DAY_TRADE.snapshotExists ? "✅" : "❌"}
-                </td>
-                <td style={{ ...cell, color: "#666" }}>{strategyExecutions.DAY_TRADE.lastSettledDate ?? "—"}</td>
-              </tr>
-              {(["SWING_TRADE", "LONG_TRADE"] as const).map(k => {
-                const e = strategyExecutions[k];
-                return (
-                  <tr key={k}>
-                    <td style={cell}>{k}</td>
-                    <td style={cell}>{e.openPositions} 持仓</td>
-                    <td style={cell}>{e.newOpensToday} / {e.closedToday}</td>
-                    <td style={{ ...cell, color: e.snapshotExists ? "#22c55e" : "#f59e0b" }}>{e.snapshotExists ? "✅" : "—"}</td>
-                    <td style={{ ...cell, color: (e.over10 || e.hasDuplicates) ? "#ef4444" : "#555" }}>
-                      {e.over10 ? "超10只 " : ""}{e.hasDuplicates ? "重复持仓" : (e.over10 ? "" : "—")}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* ── Strategy status (3-column detail) ── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={sectionTitle}>三策略详细状态</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+          {/* DAY */}
+          {(() => {
+            const rec = strategyRecommendations.DAY_TRADE, exec = strategyExecutions.DAY_TRADE;
+            const sev = strategySeverity(rec, null);
+            return (
+              <div style={card}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>日内（DAY_TRADE）</span>
+                  <span style={{ color: sevColor[sev], fontSize: 11, fontWeight: 700 }}>{sevLabel3[sev]}</span>
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 2 }}>
+                  <div>推荐总数 <b style={{ float: "right" }}>{rec.total}</b></div>
+                  <div>Top10 <b style={{ float: "right" }}>{rec.top10Count}</b></div>
+                  <div>已成交 <b style={{ float: "right" }}>{exec.closedCount}</b></div>
+                  <div>已跳过 <b style={{ float: "right" }}>{exec.skippedCount}</b></div>
+                  <div>最新交易日 <b style={{ float: "right", color: "#888" }}>{rec.latestTradeDate ?? "—"}</b></div>
+                </div>
+              </div>
+            );
+          })()}
+          {/* SWING */}
+          {(() => {
+            const rec = strategyRecommendations.SWING_TRADE, exec = strategyExecutions.SWING_TRADE;
+            const sev = strategySeverity(rec, exec);
+            return (
+              <div style={card}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>波段（SWING_TRADE）</span>
+                  <span style={{ color: sevColor[sev], fontSize: 11, fontWeight: 700 }}>{sevLabel3[sev]}</span>
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 2 }}>
+                  <div>推荐总数 <b style={{ float: "right" }}>{rec.total}</b></div>
+                  <div>Top10 <b style={{ float: "right" }}>{rec.top10Count}</b></div>
+                  <div>当前持仓 <b style={{ float: "right" }}>{exec.openPositions}</b></div>
+                  <div>今日新开 <b style={{ float: "right" }}>{exec.newOpensToday}</b></div>
+                  <div>今日平仓 <b style={{ float: "right" }}>{exec.closedToday}</b></div>
+                </div>
+                {(exec.over10 || exec.hasDuplicates) && (
+                  <div style={{ fontSize: 10, color: "#ef4444", marginTop: 6 }}>{exec.over10 ? "持仓超10只 " : ""}{exec.hasDuplicates ? "存在重复持仓" : ""}</div>
+                )}
+              </div>
+            );
+          })()}
+          {/* LONG */}
+          {(() => {
+            const rec = strategyRecommendations.LONG_TRADE, exec = strategyExecutions.LONG_TRADE;
+            const sev = strategySeverity(rec, exec);
+            return (
+              <div style={card}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>长线（LONG_TRADE）</span>
+                  <span style={{ color: sevColor[sev], fontSize: 11, fontWeight: 700 }}>{sevLabel3[sev]}</span>
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 2 }}>
+                  <div>推荐总数 <b style={{ float: "right" }}>{rec.total}</b></div>
+                  <div>Top10 <b style={{ float: "right" }}>{rec.top10Count}</b></div>
+                  <div>当前持仓 <b style={{ float: "right" }}>{exec.openPositions}</b></div>
+                  <div>今日新开 <b style={{ float: "right" }}>{exec.newOpensToday}</b></div>
+                  <div>今日平仓 <b style={{ float: "right" }}>{exec.closedToday}</b></div>
+                </div>
+                {(exec.over10 || exec.hasDuplicates) && (
+                  <div style={{ fontSize: 10, color: "#ef4444", marginTop: 6 }}>{exec.over10 ? "持仓超10只 " : ""}{exec.hasDuplicates ? "存在重复持仓" : ""}</div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
       {/* ── Backtest / Learning / Validation ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
-          <div style={sectionTitle}>Backtest</div>
+          <div style={sectionTitle}>策略回测 Backtest</div>
           <div style={card}>
             {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map(k => {
               const b = backtest[k];
               return (
                 <div key={k} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #1a1a1a" }}>
-                  <div style={{ fontSize: 11, color: "#888" }}>{k} · {b.asOfDate ?? "无数据"}</div>
+                  <div style={{ fontSize: 11, color: "#888" }}>{STRATEGY_LABEL[k]} · {b.asOfDate ?? "无数据"}</div>
                   <div style={{ fontSize: 11, color: "#666" }}>
                     {b.horizons.length === 0 ? "—" : b.horizons.map(h => `${h.horizon}:${h.maturity}`).join("  ")}
                   </div>
@@ -466,13 +556,13 @@ export default function MissionControlPage() {
           </div>
         </div>
         <div>
-          <div style={sectionTitle}>Learning</div>
+          <div style={sectionTitle}>策略学习 Learning</div>
           <div style={card}>
             {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map(k => {
               const l = learning[k];
               return (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-                  <span style={{ color: "#888" }}>{k}</span>
+                  <span style={{ color: "#888" }}>{STRATEGY_LABEL[k]}</span>
                   <span>{l?.grade ?? "—"} <span style={{ color: "#555" }}>({l?.recommendation ?? "—"})</span></span>
                 </div>
               );
@@ -484,26 +574,40 @@ export default function MissionControlPage() {
           </div>
         </div>
         <div>
-          <div style={sectionTitle}>Validation</div>
+          <div style={sectionTitle}>每日验证 Validation</div>
           <div style={card}>
             <div style={{ fontSize: 12, color: "#888" }}>最新：{validation?.validationDate ?? "—"}</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: validation?.allPass ? "#22c55e" : "#ef4444", marginTop: 4 }}>
-              {validation ? (validation.allPass ? "9/9 PASS" : `FAIL (${validation.failCount})`) : "—"}
+              {validation ? (validation.allPass ? "9/9 通过" : `${9 - validation.failCount}/9 通过`) : "—"}
             </div>
             <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>
-              Incident: {validation?.incidentCount ?? 0} · 连续健康 {validation?.consecutiveHealthDays ?? 0} 天
+              Incident {validation?.incidentCount ?? 0} · 连续健康 {validation?.consecutiveHealthDays ?? 0} 天
             </div>
-            <div style={{ fontSize: 11, color: validation?.phase7Ready ? "#22c55e" : "#666", marginTop: 4 }}>
-              Phase7: {validation?.phase7Ready ? "READY 🚀" : (validation?.phase7Detail ?? "未就绪")}
-            </div>
+            {phase7Progress && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #1a1a1a" }}>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>Phase 7 进度</div>
+                <div style={{ fontSize: 11, lineHeight: 1.8 }}>
+                  <div>日内 <span style={{ float: "right" }}>{phase7Progress.day.current} / {phase7Progress.day.target}</span></div>
+                  <div>波段 <span style={{ float: "right" }}>{phase7Progress.swing.current} / {phase7Progress.swing.target}</span></div>
+                  <div>长线 <span style={{ float: "right" }}>{phase7Progress.long.current} / {phase7Progress.long.target}</span></div>
+                  <div>Health <span style={{ float: "right" }}>{phase7Progress.health.current} / {phase7Progress.health.target}</span></div>
+                  <div>Learning <span style={{ float: "right", color: "#888" }}>
+                    {phase7Progress.learning.dayGrade ?? "—"}/{phase7Progress.learning.swingGrade ?? "—"}/{phase7Progress.learning.longGrade ?? "—"}
+                  </span></div>
+                </div>
+                <div style={{ fontSize: 11, color: phase7Progress.ready ? "#22c55e" : "#666", marginTop: 4 }}>
+                  {phase7Progress.ready ? "READY 🚀" : (phase7Progress.detail ?? "未就绪")}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ── Reports + PM2 ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
-          <div style={sectionTitle}>Report 状态</div>
+          <div style={sectionTitle}>报告状态 Report</div>
           <div style={card}>
             {([["周报", reports.weekly], ["月报", reports.monthly]] as const).map(([label, r]) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #1a1a1a" }}>
@@ -554,16 +658,53 @@ export default function MissionControlPage() {
         </div>
       </div>
 
-      {/* ── Health detail ── */}
-      {(health.topIssues.length > 0 || health.warningIssues.length > 0) && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={sectionTitle}>Health 详情（PASS {health.passCount} · WARNING {health.warningCount} · CRITICAL {health.criticalCount}）</div>
+      {/* ── Health Detail Card ── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={sectionTitle}>
+          数据校验详情 Health Detail（PASS {productionStatus.passCount} · WARNING {warningIssues.length} · CRITICAL {criticalIssues.length}）
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={card}>
-            {health.topIssues.map((i, idx) => <div key={idx} style={{ fontSize: 12, color: "#ef4444", marginBottom: 4 }}>❌ {i}</div>)}
-            {health.warningIssues.map((i, idx) => <div key={idx} style={{ fontSize: 12, color: "#f59e0b", marginBottom: 4 }}>⚠ {i}</div>)}
+            <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, marginBottom: 6 }}>CRITICAL</div>
+            <IssueList issues={criticalIssues} />
+          </div>
+          <div style={card}>
+            <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, marginBottom: 6 }}>WARNING</div>
+            <IssueList issues={warningIssues} />
           </div>
         </div>
-      )}
+      </div>
+
+      {/* ── Recent Incidents ── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={sectionTitle}>最近事件 Recent Incidents</div>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={th}>时间</th>
+              <th style={th}>级别</th>
+              <th style={th}>模块</th>
+              <th style={th}>标题</th>
+              <th style={th}>说明</th>
+              <th style={th}>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentIncidents.length === 0 ? (
+              <tr><td colSpan={6} style={{ ...cell, color: "#555", textAlign: "center" }}>暂无事件</td></tr>
+            ) : recentIncidents.map((inc, idx) => (
+              <tr key={idx}>
+                <td style={{ ...cell, color: "#888", whiteSpace: "nowrap" }}>{new Date(inc.time).toLocaleString("zh-CN")}</td>
+                <td style={{ ...cell, color: sevColor[inc.level], fontWeight: 700 }}>{sevLabel[inc.level]}</td>
+                <td style={{ ...cell, color: "#888" }}>{inc.module}</td>
+                <td style={cell}>{inc.title}</td>
+                <td style={{ ...cell, color: "#888" }}>{inc.description}</td>
+                <td style={{ ...cell, color: "#666" }}>{inc.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* ── Footer: version info ── */}
       <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid #222", fontSize: 11, color: "#555" }}>
