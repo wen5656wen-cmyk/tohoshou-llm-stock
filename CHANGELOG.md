@@ -2,6 +2,95 @@
 
 ---
 
+## [17.26.0] - 2026-07-01 — P0 Split Contamination 生产 CRITICAL 根治：Root Cause + 定向数据修复
+
+### 背景
+生产环境唯一剩余 CRITICAL `Split contamination = 7`。前两版本报告（v17.24.0/v17.25.0）
+误判为"会在次日 compute-scores 重算后自愈"且"疑似跨真实除权除息区间"——均未经严格验证，
+本次做完整根因排查并推翻此前的错误猜测，改为逐股票精确算术复现。
+
+### Root Cause（已用逐股票精确算术复现验证，非猜测）
+`scripts/data-health-guard.ts` CHECK 2（`split_contamination`）逻辑：取
+`StockScore.priceCount≥20 且 |return60d|>100%` 的前10只（按 return60d 降序），对每只重新
+拉取最近65条 `DailyPrice`（按日期降序），用 `bars[60].adjClose??close` 与 `bars[0]` 独立
+重算一次60日收益率，与 `StockScore.return60d` 相差 >15个百分点即判定为"contamination"。
+
+对全部7只股票（285A.T/6976.T/6327.T/6997.T/3449.T/6779.T/3905.T）逐一验证：
+- `adjClose === close` 对该窗口内每一行都成立 → **不存在真实拆股/除权**（排除 D）
+- 用当前完整 `DailyPrice` 手工按 `nDayReturn` 公式重算，7只全部与 health-guard 的
+  "adj-computed" 值精确吻合（至小数点后1位）→ **算法本身无误**（排除 B）
+- 用"回退2行"（即去掉 06-29/06-30，模拟这两只股票当时的历史状态）手工重算，7只全部与
+  `StockScore` 中"stored"的旧值精确吻合（至小数点后1-2位，6997.T 因额外含07-01行需回退
+  3行同样精确吻合）→ **锁定唯一解释**
+- `StockScore.computedAt` 全库仅一个时间戳 `2026-06-30 21:23:04.043`（今晨常规07:30 JST
+  流水线运行时刻），早于这7只股票 06-29/06-30 `DailyPrice.createdAt`
+  （`2026-07-01 06:15~06:52`，即 v17.24.0 修复验证阶段的价格补数写入时刻）
+
+**结论：Category A — DailyPrice 数据完整性（时效性）问题**：`compute-scores.ts` 于今晨
+07:30 JST 常规运行时，这些股票的 06-29/06-30 收盘价尚未同步成功（v17.24.0 修复前的
+J-Quants 429 限流遗留问题，同一批次），`nDayReturn()` 按数组下标（非日历日期）回溯
+"60天前"，序列少 2-3 行导致回溯基准点整体前移，产生一个内部算术自洽但已过时的
+`return60d`。DailyPrice 当前数值本身完全正确（无需修复）；J-Quants/Yahoo 原始数据无异常
+（排除 E/F）；Health Guard 判断完全正确、如实检出了一个真实的数据不一致（排除 G）。
+
+**扩大排查：不只这7只**。通过 `StockScore.computedAt < 该symbol DailyPrice最新createdAt`
+精确定位，全库共 **3582 只**（占比96.4%）股票的技术指标字段（return5d/20d/60d、
+ma5/20/60、rsi14、macd 等）处于同样的过时状态——这7只只是恰好 |return60d|>100% 排进了
+health-guard 抽样前10而被检出，其余3575只有相同性质但未达抽样/阈值条件，未被现有检查
+发现（不代表没问题，只是未被采样到）。
+
+### Production Fix
+**未修改任何代码逻辑**（`nDayReturn`/`calcIndicators`/`data-health-guard.ts` split_contamination
+判断条件/阈值/等级均未改动，符合"禁止把 CRITICAL 改成 WARNING/禁止放宽阈值/禁止删检查"）。
+根因是数据过时，不是代码缺陷，因此修复手段是**定向数据重算**：
+
+新增 `scripts/repair-stale-return60d.ts`：
+- 精确定位受影响股票：`StockScore.computedAt < MAX(DailyPrice.createdAt) per symbol`
+- 仅重算 `calcIndicators()` 产出的技术字段：`priceCount/latestDate/latestClose/
+  return5d/return20d/return60d/rsi14/macd/macdSignal/macdHist/maTrend/macdSignalLabel`
+- **刻意不重算** `adaptiveScore/technicalScore/percentileRank/marketRank/
+  recommendationV2/opportunityScore/tradingAction` 等全市场排名相关字段——这些是
+  Pass 2 全市场横向比较的产物，只对3582只做局部重算会破坏未受影响的133只股票的相对
+  排名一致性；这些字段将由明日 07:30 JST 常规 `compute-scores.ts` 全量流水线统一刷新，
+  不在本次抢修范围（且不影响 split_contamination 判定，该检查只读 return60d）
+- `--dry-run` 预演确认 3582/0错误 后正式执行：3582 更新 / 0 跳过 / 0 错误
+
+### 历史数据修复结果
+- 3582 只股票的 return5d/20d/60d 等技术字段已刷新为基于完整价格历史的正确值
+- 7只原CRITICAL标的验证：285A.T 311.38%、6976.T 398.15%、6327.T 418.03%、
+  6997.T 296.85%、3449.T 286.52%、6779.T 173.56%、3905.T 152.37% ——与 health-guard
+  "adj-computed" 独立重算值完全一致
+
+### Health 验证
+- 修复前：`Split contamination = 7`（唯一 CRITICAL）
+- 修复后：**CRITICAL = 0**（`✅ Health guard passed`，53 PASS / 4 WARNING / 1 INFO）
+- 剩余4条 WARNING 均为无关既有项（52周高低可疑阈值×2、return20d极端值、return60d极端值
+  "5 genuine, 0 suspect"——已被独立验证为真实市场行情，非污染）
+
+### Mission Control 验证
+- `productionStatus.status = "WARNING"`（非 CRITICAL，如实反映4条既有WARNING）
+- `criticalIssues = []`（空）
+
+### 回归验证（全部正常，未受影响）
+- Day Trade：`recentTrades` 仍正确显示 2026-06-26 / 2026-06-30（StrategyTradeResult
+  未被本次修复触碰）
+- Swing/Long：持仓数正常（5/5），Learning grade=B（SWING）
+- Learning：DAY grade=B / SWING grade=B / LONG grade=D，均由常规 cron 自然产出
+- Backtest：DAY asOf=2026-07-01 n=5 fill=100%，SWING n=4 fill=100%
+- Strategy Center API (`/api/strategy/overview`)：`healthOk=true`，
+  `dayTradeResultOk=true`，`dayTradeSnapshotOk=true`
+- Mission Control：`todayPipeline` 各步骤正常（常规 cron 在本次会话期间自然运行了
+  16:35/16:40/16:45/17:00/17:15 JST 各步骤）
+
+### 验收
+- `npm run build` ✅ PASS
+- `health:data`：修复前 CRITICAL=7 → 修复后 **CRITICAL=0**
+- 部署：rm chunks → rsync .next/scripts/lib → pm2 restart web+cron 均确认重启成功
+- 未触碰：Trading Engine / Strategy Engine / Cron 时间 / Architecture / Schema /
+  Learning 逻辑 / Backtest 逻辑 / Validation 逻辑（仅新增一个独立的技术字段定向修复脚本）
+
+---
+
 ## [17.25.1] - 2026-07-01 — P2 Mission Control V2 细节优化（纯展示层，未改任何业务逻辑）
 
 ### 目标
