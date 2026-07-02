@@ -2,6 +2,70 @@
 
 ---
 
+## [17.27.0] - 2026-07-02 — T2 P3 AI Explain：三策略推荐解释系统（只读解释层，零交易逻辑改动）
+
+### 目标
+为策略中心新增「AI 推荐解释」能力：让用户看清某只股票为什么进入 DAY/SWING/LONG 推荐、
+靠哪个维度入选，以及没进 Top10 时主要差在哪里。**纯解释层 + 展示层**。
+
+### 严格边界（全部遵守，零违反）
+未修改：Trading Architecture / 三策略买卖逻辑 / StrategyRecommendation 生成逻辑 /
+StockScore 计算逻辑 / 资金池 / Cron 时间 / **数据库 Schema** / 未调用任何新的大模型 API /
+未重新评分 / 未改变任何交易结果。解释完全基于已有存储数据，可追溯、可复现，数据缺失时
+显式显示「暂无数据/暂无新闻评分/暂无基本面数据/暂无行情数据」，禁止编造原因。
+
+### 新增 API：`GET /api/strategy/explain`
+- 参数：`strategyType` / `symbol` / `tradeDate`（缺省取该策略最新推荐日）
+- 只读，全部查询限定单 `symbol + tradeDate`，无全表扫描；实测 20–106ms（目标 <500ms）
+- 数据来源：`StrategyRecommendation`（rank/isTop10/aiScore/technical/fundamental/news/
+  moneyFlow/risk/finalScore/recommendationReason）+ `StockScore`（recommendationV2/波动/
+  数据质量）+ `StrategyPosition`（持仓状态/持有天数/浮盈亏）+ `StrategyTradeResult`
+  （状态/退出原因，识别 SKIPPED_LOT_SIZE=买不起一手 / SKIPPED_DATA_MISSING 等）
+- 返回：`conclusion`（STRONG/RECOMMEND/WATCH/NOT_TOP10/INSUFFICIENT）、`reasons[]`
+  （按策略侧重排序的正贡献维度，最多5条）、`risks[]`（仅数据中真实存在的风险项）、
+  `scoreBreakdown`、`status`（推荐中/已买入/已卖出/已跳过/等待数据/未进入Top10）、
+  `rank/totalCount/top10CutoffScore/scoreGap/missingReasons`（合并 not-recommended 场景）、
+  `dataQuality`（hasNews/hasFundamental/hasPrice/scoreSource，纯从 StockScore 派生，
+  不额外查表）、`generatedAt`
+- **说明**：spec 提及的 `AIAnalysis` 表在本项目 schema 中不存在（40 模型），改用 StockScore
+  等价字段（recommendationV2/return60d/highRiskFlag/scoreSource）补充，未新增表
+
+### 策略中心 UI（`app/strategy/page.tsx`）
+- 推荐表新增「AI解释」列 + 每行「查看原因」按钮
+- 新增 `ExplainDrawer` 右侧抽屉（点击打开，不跳转页面、不影响列表加载速度，点击时才请求）：
+  结论徽章 + 操作状态、总结句、（非Top10）当前排名/Top10最低分/分数差距、评分拆解横条
+  （按策略侧重排序，风险为负显红）、入选原因列表、主要短板、风险提示标签、策略适配、
+  数据更新时间；接口失败显示「解释生成失败，请稍后重试」
+- Drawer 状态提升到 `StrategyTab`，`RecommendationSection` 经 `onExplain` 回调触发
+
+### i18n（三语言补齐）
+`lib/i18n/types.ts` 新增 explain.* 全部 key；zh-CN/ja-JP/en-US 三文件同步补齐（结论/入选原因/
+风险/评分拆解/状态/数据质量/summary 模板/策略适配）。summary 模板用 `{token}` 占位 +
+前端 `fill()` 轻量替换，所有 CJK 文案留在 message 文件内（TSX 无新增硬编码 CJK 串）。
+
+### Smoke Test（spec §14）
+新增 `scripts/smoke-explain.ts`（BASE_URL 可配，从 DB 取活体 symbol 后打 HTTP 端点），
+生产 5 项全 PASS：
+- DAY_TRADE Top10（6223.T 西部技研）conclusion=STRONG，reasons=5，106ms
+- SWING_TRADE Top10（8918.T）STRONG，45ms
+- LONG_TRADE Top10（8918.T）STRONG，76ms
+- 非Top10（2670.T）rank=11 / gap=0.03 / cutoff=78.43，正确显示未入选原因，20ms
+- null/未知 symbol 不崩溃，优雅返回 found=false / INSUFFICIENT，55ms
+
+### 验证
+- `npm run build --webpack`：PASS（`/api/strategy/explain` 已进路由清单），`tsc --noEmit` exit 0
+- `health:data`（生产）：CRITICAL=0（53 PASS / 4 WARNING / 1 INFO，与 v17.26.1 基线一致，
+  本次改动不碰数据/schema，不可能新增 CRITICAL）
+- 生产 `/strategy` HTTP 200；公网 `/api/strategy/explain` 返回真实数据
+- 部署：rsync .next（--delete 清 stale chunk）+ lib + scripts，`pm2 restart tohoshou-web`
+  （pid 变化确认重启）；**未重启 tohoshou-cron**（cron-scheduler.ts 未改动）
+
+### Module Responsibility
+AI Explain 归属「策略中心内的推荐解释」，仅落在 `/strategy`，未触及 Dashboard/Portfolio
+Legacy/Mission Control/Verify，符合 Module Responsibility Baseline。
+
+---
+
 ## [17.26.1] - 2026-07-01 — 收尾：全量 compute-scores 重算，完成 v17.26.0 遗留的全市场排名刷新
 
 ### 背景

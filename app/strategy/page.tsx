@@ -551,11 +551,12 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
 // ── Recommendations section ───────────────────────────────────────────────────
 
 function RecommendationSection({
-  recs, strategyType, t,
+  recs, strategyType, t, onExplain,
 }: {
   recs: StrategyDetail["recommendations"];
   strategyType: StratType;
   t: (k: MessageKey) => string;
+  onExplain: (symbol: string) => void;
 }) {
   type ScoreCol = { label: string; val: (r: Recommendation) => number | null };
   const extraCols: ScoreCol[] =
@@ -597,6 +598,7 @@ function RecommendationSection({
                 {extraCols.map((c) => (
                   <th key={c.label} className="text-right px-3 py-2">{c.label}</th>
                 ))}
+                <th className="text-right px-3 py-2">{t("explain.title")}</th>
               </tr>
             </thead>
             <tbody>
@@ -616,6 +618,14 @@ function RecommendationSection({
                       {c.val(rec) != null ? (c.val(rec) as number).toFixed(1) : "—"}
                     </td>
                   ))}
+                  <td className="px-3 py-2.5 text-right">
+                    <button
+                      onClick={() => onExplain(rec.symbol)}
+                      className="text-[11px] px-2 py-1 rounded-md bg-slate-700/50 hover:bg-slate-600/60 text-slate-200 border border-slate-600/40 transition-colors"
+                    >
+                      {t("explain.view_reason")}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -688,6 +698,300 @@ function CapitalSection({
 
 // ── Strategy detail tab ───────────────────────────────────────────────────────
 
+// ── AI Explain Drawer (T2 P3) ───────────────────────────────────────────────
+
+type ExplainData = {
+  strategyType: StratType;
+  symbol: string;
+  name: string | null;
+  nameZh: string | null;
+  tradeDate: string | null;
+  found: boolean;
+  conclusion: "STRONG" | "RECOMMEND" | "WATCH" | "NOT_TOP10" | "INSUFFICIENT";
+  rank: number | null;
+  isTop10: boolean;
+  totalCount: number;
+  top10CutoffScore: number | null;
+  scoreGap: number | null;
+  missingReasons: { code: string; value: number | null }[];
+  scoreBreakdown: {
+    aiScore: number | null; technicalScore: number | null; fundamentalScore: number | null;
+    newsScore: number | null; moneyFlowScore: number | null; riskScore: number | null; finalScore: number | null;
+  } | null;
+  reasons: { code: string; value: number }[];
+  risks: { code: string; value?: number }[];
+  status: "RECOMMENDING" | "BOUGHT" | "SOLD" | "SKIPPED" | "WAITING_DATA" | "NOT_TOP10";
+  recommendation: string | null;
+  dataQuality: { hasNews: boolean; hasFundamental: boolean; hasPrice: boolean; scoreSource: string | null };
+  generatedAt: string;
+};
+
+// Lightweight {token} interpolation — keeps all CJK strings inside i18n files.
+function fill(tpl: string, vars: Record<string, string | number>): string {
+  return tpl.replace(/\{(\w+)\}/g, (_, k: string) => (k in vars ? String(vars[k]) : `{${k}}`));
+}
+
+// Dimension display order per strategy (emphasis first), matching spec §10.
+const DIM_ORDER: Record<StratType, string[]> = {
+  DAY_TRADE:   ["TECH", "NEWS", "AI", "FUND", "FLOW", "RISK"],
+  SWING_TRADE: ["AI", "TECH", "FLOW", "FUND", "NEWS", "RISK"],
+  LONG_TRADE:  ["FUND", "AI", "RISK", "TECH", "NEWS", "FLOW"],
+};
+
+function dimValue(bd: NonNullable<ExplainData["scoreBreakdown"]>, code: string): number | null {
+  switch (code) {
+    case "AI":   return bd.aiScore;
+    case "TECH": return bd.technicalScore;
+    case "FUND": return bd.fundamentalScore;
+    case "NEWS": return bd.newsScore;
+    case "FLOW": return bd.moneyFlowScore;
+    case "RISK": return bd.riskScore;
+    default:     return null;
+  }
+}
+
+function ExplainDrawer({
+  strategyType, symbol, tradeDate, onClose,
+}: {
+  strategyType: StratType;
+  symbol: string;
+  tradeDate: string | null;
+  onClose: () => void;
+}) {
+  const { t, lang } = useI18n();
+  const [data, setData] = useState<ExplainData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    setData(null);
+    const qs = new URLSearchParams({ strategyType, symbol });
+    if (tradeDate) qs.set("tradeDate", tradeDate.slice(0, 10));
+    fetch(`/api/strategy/explain?${qs.toString()}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((d: ExplainData) => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setError(true); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [strategyType, symbol, tradeDate]);
+
+  const displayName = data ? (lang === "zh-CN" ? (data.nameZh ?? data.name) : data.name) : null;
+
+  // Summary sentence composition (traceable — no fabrication)
+  let summary = "";
+  if (data) {
+    if (data.conclusion === "INSUFFICIENT") summary = t("explain.summary.INSUFFICIENT");
+    else if (!data.isTop10) {
+      summary = fill(t("explain.summary.NOT_TOP10"), {
+        strat: stratShort(strategyType, t),
+        rank: data.rank ?? "—",
+        gap: data.scoreGap != null ? data.scoreGap.toFixed(1) : "—",
+      });
+    } else {
+      summary =
+        strategyType === "DAY_TRADE" ? t("explain.summary.DAY")
+        : strategyType === "SWING_TRADE" ? t("explain.summary.SWING")
+        : t("explain.summary.LONG");
+    }
+  }
+
+  const fitKey: MessageKey =
+    strategyType === "DAY_TRADE" ? "explain.fit.DAY"
+    : strategyType === "SWING_TRADE" ? "explain.fit.SWING"
+    : "explain.fit.LONG";
+
+  const conclusionColor =
+    data?.conclusion === "STRONG" ? "bg-emerald-900/50 text-emerald-300 border-emerald-700/40"
+    : data?.conclusion === "RECOMMEND" ? "bg-blue-900/50 text-blue-300 border-blue-700/40"
+    : data?.conclusion === "WATCH" ? "bg-amber-900/50 text-amber-300 border-amber-700/40"
+    : "bg-slate-700/50 text-slate-300 border-slate-600/40";
+
+  // Score bars
+  const bd = data?.scoreBreakdown ?? null;
+  const dims = bd
+    ? DIM_ORDER[strategyType]
+        .map((code) => ({ code, value: dimValue(bd, code) }))
+        .filter((d) => d.value != null)
+    : [];
+  const barMax = Math.max(1, ...dims.map((d) => Math.abs(d.value as number)));
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-md h-full bg-slate-900 border-l border-slate-700/60 shadow-2xl overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-700/50 px-5 py-4 flex items-start justify-between z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-slate-100">{symbol}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">
+                {stratLabel(strategyType, t)}
+              </span>
+            </div>
+            {displayName && <div className="text-xs text-slate-400 mt-0.5">{displayName}</div>}
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-xl leading-none px-1">×</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-5">
+          {loading && (
+            <div className="py-10 text-center text-slate-500 text-sm">{t("explain.loading")}</div>
+          )}
+          {error && (
+            <div className="py-10 text-center text-red-400 text-sm">{t("explain.load_error")}</div>
+          )}
+          {data && !loading && !error && (
+            <>
+              {/* Conclusion + status */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] text-slate-500">{t("explain.conclusion_label")}</span>
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${conclusionColor}`}>
+                  {t(`explain.conclusion.${data.conclusion}` as MessageKey)}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-2">{t("explain.status_label")}</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700/50">
+                  {t(`explain.status.${data.status}` as MessageKey)}
+                </span>
+              </div>
+
+              {/* Summary */}
+              <p className="text-sm text-slate-300 leading-relaxed">{summary}</p>
+
+              {/* Not-Top10 metrics */}
+              {data.found && !data.isTop10 && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-800/50 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{t("explain.rank")}</div>
+                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                      {data.rank ?? "—"}<span className="text-[10px] text-slate-500"> / {data.totalCount}</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/50 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{t("explain.cutoff")}</div>
+                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                      {data.top10CutoffScore != null ? data.top10CutoffScore.toFixed(1) : "—"}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/50 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{t("explain.score_gap")}</div>
+                    <div className="text-sm font-semibold text-amber-400 tabular-nums">
+                      {data.scoreGap != null ? `-${data.scoreGap.toFixed(1)}` : "—"}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Score breakdown */}
+              {bd && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t("explain.breakdown")}</h4>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-500 mr-1">{t("explain.final_score")}</span>
+                      <span className="text-base font-bold text-slate-100 tabular-nums">
+                        {bd.finalScore != null ? bd.finalScore.toFixed(1) : "—"}
+                      </span>
+                    </div>
+                  </div>
+                  {dims.length === 0 ? (
+                    <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {dims.map((d) => {
+                        const v = d.value as number;
+                        const pct = (Math.abs(v) / barMax) * 100;
+                        const neg = v < 0;
+                        return (
+                          <div key={d.code} className="flex items-center gap-2">
+                            <span className="w-14 text-[11px] text-slate-400 shrink-0">
+                              {t(`explain.dim.${d.code}` as MessageKey)}
+                            </span>
+                            <div className="flex-1 h-3 bg-slate-800 rounded overflow-hidden">
+                              <div
+                                className={`h-full ${neg ? "bg-red-500/70" : "bg-blue-500/70"}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className={`w-10 text-right text-[11px] tabular-nums ${neg ? "text-red-400" : "text-slate-300"}`}>
+                              {v.toFixed(0)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Reasons */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.reasons")}</h4>
+                {data.reasons.length === 0 ? (
+                  <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {data.reasons.map((r) => (
+                      <li key={r.code} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300">· {t(`explain.reason.${r.code}` as MessageKey)}</span>
+                        <span className="text-slate-400 tabular-nums">{r.value.toFixed(1)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Not-Top10 weaknesses */}
+              {data.found && !data.isTop10 && data.missingReasons.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.missing")}</h4>
+                  <ul className="space-y-1">
+                    {data.missingReasons.map((m) => (
+                      <li key={m.code} className="flex items-center justify-between text-xs">
+                        <span className="text-amber-300/90">· {t(`explain.reason.${m.code}` as MessageKey)}</span>
+                        <span className="text-slate-400 tabular-nums">{m.value != null ? m.value.toFixed(1) : t("explain.no_data")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Risks */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.risks")}</h4>
+                {data.risks.length === 0 ? (
+                  <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.risks.map((r) => (
+                      <span key={r.code} className="text-[11px] px-2 py-1 rounded-md bg-red-900/20 text-red-300/90 border border-red-800/30">
+                        {t(`explain.risk.${r.code}` as MessageKey)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Strategy fit */}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.fit")}</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">{t(fitKey)}</p>
+              </div>
+
+              {/* Footer meta */}
+              <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
+                <span>{t("explain.updated_at")}: {data.generatedAt.slice(0, 19).replace("T", " ")}</span>
+                {data.tradeDate && <span>{data.tradeDate}</span>}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StrategyTab({
   strategyType,
   overview,
@@ -698,6 +1002,7 @@ function StrategyTab({
   t: (k: MessageKey) => string;
 }) {
   const [detail, setDetail] = useState<StrategyDetail | null>(null);
+  const [explainSymbol, setExplainSymbol] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]  = useState<string | null>(null);
 
@@ -740,7 +1045,22 @@ function StrategyTab({
       )}
 
       {/* Recommendations (Top10) */}
-      <RecommendationSection recs={detail.recommendations} strategyType={strategyType} t={t} />
+      <RecommendationSection
+        recs={detail.recommendations}
+        strategyType={strategyType}
+        t={t}
+        onExplain={setExplainSymbol}
+      />
+
+      {/* AI Explain Drawer (T2 P3) */}
+      {explainSymbol && (
+        <ExplainDrawer
+          strategyType={strategyType}
+          symbol={explainSymbol}
+          tradeDate={detail.recommendations.tradeDate}
+          onClose={() => setExplainSymbol(null)}
+        />
+      )}
 
       {/* Recent closed trades */}
       <TradesSection trades={detail.recentTrades} t={t} />
