@@ -2,6 +2,49 @@
 
 ---
 
+## [17.32.0] - 2026-07-02 — T3 P1 Paper Broker Dashboard（AI 自动交易驾驶舱，UI+只读聚合）
+
+### 目标
+把 /portfolio 从技术型数据页升级为每天可用的「AI 自动交易驾驶舱」。仅 UI 展示 + 只读 API 聚合，
+数据全部来自真实数据库，数据不足显式显示「数据不足/数据积累中」，不造假、不写死。
+
+### 严格边界（未碰）
+未修改三策略算法 / StockScore / StrategyRecommendation / StrategyTradeResult / Learning / Backtest /
+Cron / Paper Broker 撮合逻辑（paper-broker.ts 未动）/ 真实交易逻辑 / **Schema**；未调新大模型。
+
+### API（`GET /api/portfolio/paper` 增量只读聚合，已有字段语义/结构不变）
+新增 9 块：`bossSummary`（今日盈亏YES/NO+收益率、当前资产、累计+跑赢TOPIX/Nikkei、账户状态synced+
+pipeline+healthCritical、交易摘要）、`strategyPools`（三池累计收益/今日盈亏/买卖/持仓）、`holdingsEnhanced`
+（join StockScore 名称/AI评分/建议/风险 + 持仓天数/浮盈）、`todayTradesEnhanced`（order↔execution join +
+名称）、`recentExecutionsEnhanced`（fee=0 + broker "Paper"）、`navSeries`（account 新→insufficient=true）、
+`performanceMetrics`（胜率/均盈亏/盈亏比/均持仓天数/现金比/仓位利用率；maxDrawdown 无 NAV 历史→null）、
+`riskMetrics`（现金比/集中度/连续盈亏天数 + riskLevel LOW/MEDIUM/HIGH，规则写在代码注释）、`aiDailySummary`
+（模板字段：市场态/买卖/持仓/盈亏/主要贡献·拖累/风险/建议，**无模型调用**）。
+- 性能：DailyPrice 不直接查（沿用 StockScore 派生）；GlobalMarket 单行 benchmark；StockScore join ≤~50 symbol；
+  健康 CRITICAL 读最新 `reports/data-health-guard-*.json`。实测 warm API **0.13–0.22s**（<800ms）。
+- riskLevel 规则（注释）：HIGH=现金<15% 或 单股>35% 或 连亏≥3天；LOW=现金≥40% 且 单股≤20% 且 连亏=0；否则 MEDIUM。
+
+### /portfolio 页（重写为驾驶舱）
+顶部老板视角 5 KPI 卡 + AI 今日总结（i18n 模板 fill）+ 三策略基金卡（累计收益/今日盈亏/买卖/持仓）+
+当前持仓（策略/名称/浮盈/持仓天数/AI评分/建议/风险 + 「查看原因」ExplainDrawer→/api/strategy/explain，
+缺失显示「暂无解释」）+ 今日交易（买卖色分 + 查看原因）+ 最近成交（Paper 标识 + 手续费0）+ 账户净值
+（insufficient→「数据积累中」，不画假曲线）+ 绩效分析（null→「数据不足」，不用0伪装）+ 风险中心 +
+数据来源/自动交易流程 Timeline（P6 保留，折叠到底部）。
+
+### i18n
+`dash.*` 三语言补齐（标题/KPI/资金池/持仓/交易/成交/净值/绩效/风险/AI总结/列头/风险等级/建议/市场态/模板）；
+页面无新增硬编码 CJK（表名等技术标识保留英文）。
+
+### 验证
+- `npm run build --webpack` exit 0；`tsc --noEmit` exit 0；无硬编码 CJK。
+- 生产实测（真实、非造假）：今日 NO/-¥9,700；累计 +119,200(+1.192%) vs TOPIX +1.284% → beatTopix=False；
+  Nikkei 缺→null→「数据积累中」；maxDrawdown=null→「数据不足」；胜率50%；risk MEDIUM；AI 市场态UP/贡献7031.T/拖累3092.T；
+  healthCritical=0(读报告)；holdings join StockScore(7031.T aiScore71/BUY_NOW/MEDIUM)。
+- `health:data` CRITICAL=0（53/4/1）；/portfolio HTTP 200；策略/Paper 数据零改动。
+- 部署：仅 rsync .next + lib，`pm2 restart tohoshou-web`（无 schema/scripts/cron 变更，未重启 cron）。
+
+---
+
 ## [17.31.0] - 2026-07-02 — T2 P6 Paper Broker 数据来源可追溯（Data Lineage，仅展示层）
 
 ### 目标
