@@ -1206,6 +1206,38 @@ export type Messages = {
   "explain.fit.DAY": string;
   "explain.fit.SWING": string;
   "explain.fit.LONG": string;
+
+  // ─── T2 P4: Why Not Recommended ───────────────────────────────────────────
+  "explain.why_not": string;
+  "explain.improvement": string;
+  "explain.query_title": string;
+  "explain.query_placeholder": string;
+  "explain.not_candidate_msg": string;
+  "explain.data_insufficient_msg": string;
+  "explain.candidate_pool": string;
+  "explain.overall_score": string;
+  "explain.conclusion.NOT_CANDIDATE": string;
+  "explain.status.NOT_CANDIDATE": string;
+  "explain.short.TECH": string;
+  "explain.short.NEWS": string;
+  "explain.short.FUND": string;
+  "explain.short.AI": string;
+  "explain.short.FLOW": string;
+  "explain.short.RISK": string;
+  "explain.short.FINAL": string;
+  "explain.short.LONG_FILTER": string;
+  "explain.short.WATCH": string;
+  "explain.imp.TECH": string;
+  "explain.imp.NEWS": string;
+  "explain.imp.FUND": string;
+  "explain.imp.AI": string;
+  "explain.imp.FLOW": string;
+  "explain.imp.RISK": string;
+  "explain.imp.GAP": string;
+  "explain.imp.STRONG_BUY": string;
+  "explain.imp.TREND": string;
+  "explain.imp.NOT_SWING": string;
+  "explain.imp.WATCH": string;
 };
 
 export type MessageKey = keyof Messages;

@@ -707,20 +707,25 @@ type ExplainData = {
   nameZh: string | null;
   tradeDate: string | null;
   found: boolean;
-  conclusion: "STRONG" | "RECOMMEND" | "WATCH" | "NOT_TOP10" | "INSUFFICIENT";
+  explanationType: "RECOMMENDED" | "NOT_TOP10" | "NOT_CANDIDATE" | "DATA_INSUFFICIENT";
+  conclusion: "STRONG" | "RECOMMEND" | "WATCH" | "NOT_TOP10" | "NOT_CANDIDATE" | "INSUFFICIENT";
   rank: number | null;
   isTop10: boolean;
   totalCount: number;
+  totalCandidates: number;
   top10CutoffScore: number | null;
   scoreGap: number | null;
+  shortfalls: { code: string; value: number | null }[];
   missingReasons: { code: string; value: number | null }[];
+  improvementFactors: string[];
   scoreBreakdown: {
     aiScore: number | null; technicalScore: number | null; fundamentalScore: number | null;
     newsScore: number | null; moneyFlowScore: number | null; riskScore: number | null; finalScore: number | null;
   } | null;
+  adaptiveScore: number | null;
   reasons: { code: string; value: number }[];
   risks: { code: string; value?: number }[];
-  status: "RECOMMENDING" | "BOUGHT" | "SOLD" | "SKIPPED" | "WAITING_DATA" | "NOT_TOP10";
+  status: "RECOMMENDING" | "BOUGHT" | "SOLD" | "SKIPPED" | "WAITING_DATA" | "NOT_TOP10" | "NOT_CANDIDATE";
   recommendation: string | null;
   dataQuality: { hasNews: boolean; hasFundamental: boolean; hasPrice: boolean; scoreSource: string | null };
   generatedAt: string;
@@ -729,6 +734,13 @@ type ExplainData = {
 // Lightweight {token} interpolation — keeps all CJK strings inside i18n files.
 function fill(tpl: string, vars: Record<string, string | number>): string {
   return tpl.replace(/\{(\w+)\}/g, (_, k: string) => (k in vars ? String(vars[k]) : `{${k}}`));
+}
+
+// Normalize a user-typed stock code: uppercase, and append ".T" for bare digits.
+function normalizeSymbol(raw: string): string {
+  const s = raw.trim().toUpperCase();
+  if (/^\d{3,5}$/.test(s)) return `${s}.T`;
+  return s;
 }
 
 // Dimension display order per strategy (emphasis first), matching spec §10.
@@ -779,11 +791,12 @@ function ExplainDrawer({
 
   const displayName = data ? (lang === "zh-CN" ? (data.nameZh ?? data.name) : data.name) : null;
 
-  // Summary sentence composition (traceable — no fabrication)
+  // Summary sentence composition (traceable — no fabrication), by explanationType
   let summary = "";
   if (data) {
-    if (data.conclusion === "INSUFFICIENT") summary = t("explain.summary.INSUFFICIENT");
-    else if (!data.isTop10) {
+    if (data.explanationType === "DATA_INSUFFICIENT") summary = t("explain.data_insufficient_msg");
+    else if (data.explanationType === "NOT_CANDIDATE") summary = t("explain.not_candidate_msg");
+    else if (data.explanationType === "NOT_TOP10") {
       summary = fill(t("explain.summary.NOT_TOP10"), {
         strat: stratShort(strategyType, t),
         rank: data.rank ?? "—",
@@ -796,6 +809,8 @@ function ExplainDrawer({
         : t("explain.summary.LONG");
     }
   }
+  const isDI = data?.explanationType === "DATA_INSUFFICIENT";
+  const isNC = data?.explanationType === "NOT_CANDIDATE";
 
   const fitKey: MessageKey =
     strategyType === "DAY_TRADE" ? "explain.fit.DAY"
@@ -859,13 +874,13 @@ function ExplainDrawer({
               {/* Summary */}
               <p className="text-sm text-slate-300 leading-relaxed">{summary}</p>
 
-              {/* Not-Top10 metrics */}
-              {data.found && !data.isTop10 && (
+              {/* Not-Top10 metrics: rank / cutoff / gap */}
+              {data.explanationType === "NOT_TOP10" && (
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-slate-800/50 rounded-lg p-2">
                     <div className="text-[10px] text-slate-500">{t("explain.rank")}</div>
                     <div className="text-sm font-semibold text-slate-200 tabular-nums">
-                      {data.rank ?? "—"}<span className="text-[10px] text-slate-500"> / {data.totalCount}</span>
+                      {data.rank ?? "—"}<span className="text-[10px] text-slate-500"> / {data.totalCandidates}</span>
                     </div>
                   </div>
                   <div className="bg-slate-800/50 rounded-lg p-2">
@@ -878,6 +893,28 @@ function ExplainDrawer({
                     <div className="text-[10px] text-slate-500">{t("explain.score_gap")}</div>
                     <div className="text-sm font-semibold text-amber-400 tabular-nums">
                       {data.scoreGap != null ? `-${data.scoreGap.toFixed(1)}` : "—"}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Not-Candidate metrics: candidate pool / overall score / rating */}
+              {isNC && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-800/50 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{t("explain.candidate_pool")}</div>
+                    <div className="text-sm font-semibold text-slate-200 tabular-nums">{data.totalCandidates}</div>
+                  </div>
+                  <div className="bg-slate-800/50 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{t("explain.overall_score")}</div>
+                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                      {data.adaptiveScore != null ? data.adaptiveScore.toFixed(1) : "—"}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/50 rounded-lg p-2">
+                    <div className="text-[10px] text-slate-500">{t("explain.cutoff")}</div>
+                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                      {data.top10CutoffScore != null ? data.top10CutoffScore.toFixed(1) : "—"}
                     </div>
                   </div>
                 </div>
@@ -925,44 +962,56 @@ function ExplainDrawer({
                 </div>
               )}
 
-              {/* Reasons */}
-              <div>
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.reasons")}</h4>
-                {data.reasons.length === 0 ? (
-                  <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
-                ) : (
-                  <ul className="space-y-1">
-                    {data.reasons.map((r) => (
-                      <li key={r.code} className="flex items-center justify-between text-xs">
-                        <span className="text-slate-300">· {t(`explain.reason.${r.code}` as MessageKey)}</span>
-                        <span className="text-slate-400 tabular-nums">{r.value.toFixed(1)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              {/* Reasons — only for stocks in the recommendation pool */}
+              {data.found && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.reasons")}</h4>
+                  {data.reasons.length === 0 ? (
+                    <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
+                  ) : (
+                    <ul className="space-y-1">
+                      {data.reasons.map((r) => (
+                        <li key={r.code} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-300">· {t(`explain.reason.${r.code}` as MessageKey)}</span>
+                          <span className="text-slate-400 tabular-nums">{r.value.toFixed(1)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
-              {/* Not-Top10 weaknesses */}
-              {data.found && !data.isTop10 && data.missingReasons.length > 0 && (
+              {/* Main shortfalls (未入选主要短板) — NOT_TOP10 / NOT_CANDIDATE */}
+              {(data.explanationType === "NOT_TOP10" || isNC) && data.shortfalls.length > 0 && (
                 <div>
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.missing")}</h4>
                   <ul className="space-y-1">
-                    {data.missingReasons.map((m) => (
+                    {data.shortfalls.map((m) => (
                       <li key={m.code} className="flex items-center justify-between text-xs">
-                        <span className="text-amber-300/90">· {t(`explain.reason.${m.code}` as MessageKey)}</span>
-                        <span className="text-slate-400 tabular-nums">{m.value != null ? m.value.toFixed(1) : t("explain.no_data")}</span>
+                        <span className="text-amber-300/90">· {t(`explain.short.${m.code}` as MessageKey)}</span>
+                        <span className="text-slate-400 tabular-nums">{m.value != null ? m.value.toFixed(0) : ""}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* Risks */}
-              <div>
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.risks")}</h4>
-                {data.risks.length === 0 ? (
-                  <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
-                ) : (
+              {/* Improvement factors (改善建议) */}
+              {data.improvementFactors.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.improvement")}</h4>
+                  <ul className="space-y-1">
+                    {data.improvementFactors.map((c) => (
+                      <li key={c} className="text-xs text-emerald-300/90">→ {t(`explain.imp.${c}` as MessageKey)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Risks — hidden when there is no usable data at all */}
+              {!isDI && data.risks.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.risks")}</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {data.risks.map((r) => (
                       <span key={r.code} className="text-[11px] px-2 py-1 rounded-md bg-red-900/20 text-red-300/90 border border-red-800/30">
@@ -970,14 +1019,16 @@ function ExplainDrawer({
                       </span>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Strategy fit */}
-              <div>
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.fit")}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">{t(fitKey)}</p>
-              </div>
+              {!isDI && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.fit")}</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">{t(fitKey)}</p>
+                </div>
+              )}
 
               {/* Footer meta */}
               <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
@@ -1003,6 +1054,7 @@ function StrategyTab({
 }) {
   const [detail, setDetail] = useState<StrategyDetail | null>(null);
   const [explainSymbol, setExplainSymbol] = useState<string | null>(null);
+  const [queryInput, setQueryInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError]  = useState<string | null>(null);
 
@@ -1051,6 +1103,33 @@ function StrategyTab({
         t={t}
         onExplain={setExplainSymbol}
       />
+
+      {/* Why Not Recommended — query any stock (T2 P4) */}
+      <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-300 mb-2">{t("explain.query_title")}</h3>
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const sym = normalizeSymbol(queryInput);
+            if (sym) setExplainSymbol(sym);
+          }}
+        >
+          <input
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            placeholder={t("explain.query_placeholder")}
+            className="flex-1 bg-slate-900/60 border border-slate-700/50 rounded-md px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-500"
+          />
+          <button
+            type="submit"
+            disabled={!queryInput.trim()}
+            className="text-xs px-3 py-1.5 rounded-md bg-blue-600/70 hover:bg-blue-500/70 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            {t("explain.view_reason")}
+          </button>
+        </form>
+      </div>
 
       {/* AI Explain Drawer (T2 P3) */}
       {explainSymbol && (

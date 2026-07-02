@@ -2,6 +2,63 @@
 
 ---
 
+## [17.28.0] - 2026-07-02 — T2 P4 AI Explain 未入选原因（Why Not Recommended，只读增强）
+
+### 目标
+在 v17.27.0 AI Explain 基础上，让用户查询任意股票「为什么没进 DAY/SWING/LONG Top10」：
+当前排名、距 Top10 差多少分、主要短板、需改善哪些因素。纯解释层 + 展示层。
+
+### 严格边界（零违反）
+未改：交易逻辑 / 推荐算法 / StockScore / StrategyRecommendation 生成 / **数据库 Schema** /
+未调新大模型 API / 未改任何交易结果。全部基于已有存储数据，单 symbol+tradeDate 查询无全表扫描。
+
+### API 增强（`GET /api/strategy/explain`）
+新增字段（向后兼容 v17.27.0，未删除既有字段）：
+- `explanationType`：**RECOMMENDED**（在 Top10）/ **NOT_TOP10**（在推荐池但 rank>10）/
+  **NOT_CANDIDATE**（有 StockScore 但不在该策略推荐池）/ **DATA_INSUFFICIENT**（无 StockScore）
+- `totalCandidates`（候选池规模）、`shortfalls[]`（最弱维度，NOT_CANDIDATE 追加 LONG_FILTER/
+  WATCH 结构性短板）、`improvementFactors[]`（≤5 条改善建议，按短板+策略确定性派生）、
+  `adaptiveScore`、`notRecommendedReason`（打包 not-recommended 子字段）
+- 关键判定：有 rec→RECOMMENDED/NOT_TOP10；无 rec 但有 StockScore→NOT_CANDIDATE；无 score→
+  DATA_INSUFFICIENT。短板用归一化 0-100（StockScore 各维度按原生上限 30/25/20/15 归一）比较，
+  跨维度公平。改善建议 code 化（TECH/NEWS/FUND/AI/FLOW/RISK/GAP/STRONG_BUY/TREND/NOT_SWING/WATCH）
+
+### UI（`app/strategy/page.tsx`）
+- 推荐表下方新增「查询未入选原因」输入框（股票代码，`normalizeSymbol` 自动补 `.T`）→ 打开
+  同一 ExplainDrawer
+- ExplainDrawer 按 `explanationType` 分支：
+  - RECOMMENDED：原推荐解释（v17.27.0）保持不变
+  - NOT_TOP10：排名/Top10截止分/分数差距 + 评分拆解 + 主要短板 + 改善建议
+  - NOT_CANDIDATE：候选池规模/综合评分/截止分 + 主要短板 + 改善建议 + 风险
+  - DATA_INSUFFICIENT：仅显示「暂无足够数据解释该股票。」
+- 短板改用 `explain.short.*`（"不足" 语义，区别于 reasons 的 "贡献"），改善建议 `explain.imp.*`
+
+### i18n（三语言补齐）
+types.ts + zh-CN/ja-JP/en-US 新增 explain.why_not / improvement / query_title /
+query_placeholder / not_candidate_msg / data_insufficient_msg / candidate_pool /
+overall_score / conclusion.NOT_CANDIDATE / status.NOT_CANDIDATE / short.*（9）/ imp.*（11）。
+summary 仍用 {token} + 前端 fill()，TSX 无新增硬编码 CJK。
+
+### Smoke Test（`scripts/smoke-explain.ts` 扩展，生产 5/5 PASS）
+- DAY Top10 6223.T → RECOMMENDED（165ms）
+- DAY rank11 2670.T → NOT_TOP10（gap=0.03，imp=3，26ms）
+- SWING rank11 7792.T → NOT_TOP10（gap=0.2，short=3，23ms）
+- LONG 池外 4194.T ビジョナル → NOT_CANDIDATE（adaptive=50，short=4，imp=4，57ms）
+- 未知 0000_NOPE.T → DATA_INSUFFICIENT（found=false，57ms）
+
+### 验证
+- `npm run build --webpack`：exit 0（✓ Compiled successfully）；`tsc --noEmit` exit 0
+- 生产 `health:data`：CRITICAL=0（53 PASS / 4 WARNING / 1 INFO，与基线一致，未新增 CRITICAL）
+- 生产 `/strategy` HTTP 200；公网 explain API 对 NOT_CANDIDATE（4194.T）返回正确结构
+- 部署：rsync .next（--delete 清 stale chunk）+ lib + scripts，`pm2 restart tohoshou-web`
+  （pid 变化）；**未重启 tohoshou-cron**（cron-scheduler.ts 未改动）
+
+### Module Responsibility
+仍归属「策略中心内的推荐解释」，仅落在 `/strategy`，未触及 Dashboard/Portfolio Legacy/
+Mission Control/Verify。
+
+---
+
 ## [17.27.0] - 2026-07-02 — T2 P3 AI Explain：三策略推荐解释系统（只读解释层，零交易逻辑改动）
 
 ### 目标
