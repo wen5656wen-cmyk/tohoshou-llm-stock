@@ -19,7 +19,7 @@ export default function Sidebar() {
         { href: "/",                   label: t("nav.cockpit"),        icon: "◈" },
         { href: "/screener",           label: t("nav.aiScreener"),    icon: "✦" },
         { href: "/strategy",           label: t("nav.strategyCenter"), icon: "◆" },
-        { href: "/portfolio",          label: t("nav.aiPortfolio"),   icon: "◇", badge: "Legacy" },
+        { href: "/portfolio",          label: t("nav.aiPortfolio"),   icon: "◇", badge: "Paper" },
         { href: "/backtest",           label: t("nav.backtest"),      icon: "▣" },
         { href: "/admin/research",     label: t("nav.research"),      icon: "◉" },
       ],

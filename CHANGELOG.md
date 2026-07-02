@@ -2,6 +2,53 @@
 
 ---
 
+## [17.30.0] - 2026-07-02 — T2 P5 Paper Broker 自动交易模拟账户
+
+### 目标
+把 /portfolio 从 Legacy 页升级为「自动交易」模拟券商账户（Paper Broker），初始资金 ¥10,000,000，
+按三策略分配 DAY 3M / SWING 4M / LONG 3M。纯 Paper Trading，不接真实券商 API、不产生真实交易。
+
+### 架构决策（用户拍板）
+- **数据源：镜像真实引擎成交**（非从 Top10 信号独立重算）。Paper Broker 只读镜像三引擎已发生的成交
+  （DAY 读 `StrategyTradeResult`、SWING/LONG 读 `StrategyPosition` 开/平仓），**绝不修改任何策略表**。
+- 真实策略池为 ¥100M（30/40/30M），paper 账户 ¥10M（3/4/3M）= 1/10 scale；Paper Broker 沿用引擎的
+  **决策**（标的/价格/时点），但按**自身池**给仓位定量（paper POSITION_SIZE = 池/MAX_POSITIONS），独立做
+  现金/一手校验。Swing/Long 引擎虽 FROZEN，但存量 StrategyPosition（手动跑产生）会被镜像；Phase 7 激活后自动放量。
+
+### 新增（授权 schema 变更）
+- **5 张 Paper 表**（`prisma db push`，只增不改）：`PaperAccount / PaperOrder / PaperExecution /
+  PaperPosition / PaperCashLog`（复用 StrategyType 枚举，状态用 String）。
+- **`scripts/paper-broker.ts`**：ensureAccount(¥10M, 3/4/3, BROKER_MODE=paper) → 镜像 DAY 当日往返
+  （BUY@open+SELL@close，净额=P&L）+ SWING/LONG 持仓开平 → 每笔写 Order/Execution/CashLog +
+  Position；一手不足→REJECTED `LOT_SIZE_TOO_SMALL`；现金不足→REJECTED `INSUFFICIENT_CASH`；
+  禁负现金/超池；幂等按 `sourceId`；结算包 `$transaction`；OPEN 仓按最新 DailyPrice.close 盯市。
+- **`GET /api/portfolio/paper`**：返回总资产/现金/持仓市值/今日盈亏/累计盈亏/三池/持仓/今日订单/最近成交。
+- **`/portfolio` 页重写**为「自动交易」账户视图（顶部5指标 + 三策略池卡 + 当前持仓 + 今日订单 + 最近成交 +
+  模拟风险提示）；侧栏 badge `Legacy → Paper`，`nav.aiPortfolio` 标签改「自动交易/自動取引/Auto Trading」。
+- **cron**：07:30 slot 在 day-strategy + gen-recs 之后调用 `paper-broker.ts`（只读镜像，秒级）。
+- i18n：`paper.*` 三语言补齐；`package.json` 加 `paper-broker` 脚本。
+
+### 修复（自查发现）
+- Paper cash 读取 order-by 缺陷：`INIT_POOL` cashlog 日期为「今天」，早于历史成交日的 cashlog，
+  `orderBy logDate desc` 会误取 INIT_POOL 导致"当前现金"退回池初值（并会污染未来 cron 的现金基数）。
+  改为 `orderBy id desc`（插入=处理顺序=真正最新），脚本 seed 与 API 同步修正。
+
+### 验证
+- `npm run build --webpack` exit 0；`tsc --noEmit` exit 0；/portfolio 页无硬编码 CJK。
+- 生产 `prisma db push` 建 5 表成功；`paper-broker` 首跑：账户 #1 建成、池 3M/4M/3M、DAY 镜像 14 笔（0 拒绝）、
+  SWING/LONG 14 腿、盯市 10 仓；**二次跑幂等**（0 新镜像）。
+- API 数值自洽：cash 7,412,150 + posVal 2,707,050 = totalAssets 10,119,200，cumPnl 119,200；
+  三池 cash（3,107,350 / 2,284,500 / 2,020,300）为真实当前值（非池初值）。
+- 生产 `health:data` CRITICAL=0（53/4/1，Paper 表不影响 health guard）；/portfolio HTTP 200。
+- **策略表零改动**：/api/strategy/DAY_TRADE 仍 10 成交/0 持仓（Paper Broker 只读）。
+- 部署：db push + rsync .next(--delete)+lib+scripts+package.json；`pm2 restart web+cron`（18:30 JST 窗口外）。
+
+### 未改动
+未修改任何 Strategy Engine / Recommendation / Learning / Backtest / 学习算法 / 资金池逻辑；
+不接真实券商 API；BROKER_MODE=paper（唯一实现），预留 live。
+
+---
+
 ## [17.29.0] - 2026-07-02 — T3 P1 Production Bug Zero Sprint（审计 + 修复,不新增功能）
 
 ### 背景

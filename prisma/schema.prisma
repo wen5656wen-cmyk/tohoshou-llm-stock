@@ -1229,3 +1229,98 @@ model StrategyDailyValidation {
   @@index([validationDate])
   @@map("strategy_daily_validations")
 }
+
+// ─── T2 P5: Paper Broker (自动交易模拟账户) ──────────────────────────────────
+// Isolated paper-trading layer. MIRRORS the three real strategy engines' executed
+// trades (StrategyTradeResult for DAY, StrategyPosition for SWING/LONG) into a
+// simulated ¥10M account (DAY 3M / SWING 4M / LONG 3M), sizing positions to its own
+// pool. READ-ONLY vs. all strategy tables — never writes/modifies them. No real
+// broker API. BROKER_MODE env (paper|live); only "paper" is implemented.
+
+model PaperAccount {
+  id             Int      @id @default(autoincrement())
+  mode           String   @default("paper")     // paper | live
+  initialCapital Float    @default(10000000)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@map("paper_accounts")
+}
+
+model PaperOrder {
+  id            Int          @id @default(autoincrement())
+  accountId     Int
+  strategyType  StrategyType
+  symbol        String
+  side          String       // BUY | SELL
+  orderDate     DateTime     @db.Date
+  requestedQty  Int
+  filledQty     Int          @default(0)
+  limitPrice    Float?       // null = market
+  status        String       @default("PENDING") // PENDING | FILLED | PARTIAL | CANCELLED | REJECTED
+  rejectReason  String?      // LOT_SIZE_TOO_SMALL | INSUFFICIENT_CASH | ...
+  sourceType    String       // STRATEGY_TRADE_RESULT | STRATEGY_POSITION
+  sourceId      Int          // id of the mirrored source row (idempotency)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  @@unique([accountId, strategyType, symbol, side, orderDate, sourceId])
+  @@index([accountId, orderDate])
+  @@index([strategyType, orderDate])
+  @@map("paper_orders")
+}
+
+model PaperExecution {
+  id           Int          @id @default(autoincrement())
+  accountId    Int
+  orderId      Int
+  strategyType StrategyType
+  symbol       String
+  side         String       // BUY | SELL
+  execDate     DateTime     @db.Date
+  price        Float
+  quantity     Int
+  amount       Float        // price * quantity
+  priceBasis   String       // OPEN | CLOSE
+  createdAt    DateTime     @default(now())
+  @@index([accountId, execDate])
+  @@index([orderId])
+  @@map("paper_executions")
+}
+
+model PaperPosition {
+  id             Int          @id @default(autoincrement())
+  accountId      Int
+  strategyType   StrategyType
+  symbol         String
+  status         String       @default("OPEN") // OPEN | CLOSED
+  entryDate      DateTime     @db.Date
+  entryPrice     Float
+  quantity       Int
+  investedAmount Float
+  currentPrice   Float?
+  currentValue   Float?
+  exitDate       DateTime?    @db.Date
+  exitPrice      Float?
+  returnPct      Float?
+  returnAmount   Float?
+  sourceId       Int          // mirrored StrategyTradeResult/StrategyPosition id
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  @@index([accountId, strategyType, status])
+  @@index([symbol])
+  @@map("paper_positions")
+}
+
+model PaperCashLog {
+  id           Int          @id @default(autoincrement())
+  accountId    Int
+  strategyType StrategyType
+  logDate      DateTime     @db.Date
+  cashBefore   Float
+  cashAfter    Float
+  changeAmount Float
+  reason       String
+  orderId      Int?
+  createdAt    DateTime     @default(now())
+  @@index([accountId, strategyType, logDate])
+  @@map("paper_cash_logs")
+}

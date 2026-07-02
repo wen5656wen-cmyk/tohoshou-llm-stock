@@ -74,7 +74,8 @@
     "strategy-validation:dry": "DRY_RUN=1 npx tsx scripts/strategy-daily-validation.ts",
     "generate-weekly-report": "npx tsx scripts/generate-weekly-report.ts",
     "generate-monthly-report": "npx tsx scripts/generate-monthly-report.ts",
-    "generate-monthly-report:force": "FORCE=1 npx tsx scripts/generate-monthly-report.ts"
+    "generate-monthly-report:force": "FORCE=1 npx tsx scripts/generate-monthly-report.ts",
+    "paper-broker": "npx tsx scripts/paper-broker.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

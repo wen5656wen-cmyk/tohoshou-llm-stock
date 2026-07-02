@@ -274,6 +274,11 @@ cron.schedule("30 7 * * *", async () => {
   // Phase 3: generate StrategyRecommendation after pipeline completes
   // Runs after rerank-top500 so StockScore and DailyRecommendation are both fresh
   await runAsync("generate-strategy-recommendations.ts", "Strategy Recommendation Engine", 15 * 60 * 1000);
+
+  // T2 P5: Paper Broker — mirror the strategy engines' executed trades into the
+  // ¥10M simulated account. Read-only vs strategy tables; runs after day-strategy
+  // (and after Swing/Long once activated in Phase 7) so their trades are settled.
+  await runAsync("paper-broker.ts", "Paper Broker (模拟账户同期)", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
 // ── 16:35 JST — Swing Trade Strategy Engine（工作日，Day 结束后）────────────
