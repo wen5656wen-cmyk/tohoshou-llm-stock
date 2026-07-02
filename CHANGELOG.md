@@ -2,6 +2,61 @@
 
 ---
 
+## [17.29.0] - 2026-07-02 — T3 P1 Production Bug Zero Sprint（审计 + 修复,不新增功能）
+
+### 背景
+进入 Production Maintenance 模式,对 app/components/lib/scripts/prisma 全项目做 Production Audit
+（4 个只读子代理并行 + 人工逐条复核 P0/P1,剔除误报）。审计结果:**P0=1 · P1=7 · P2≈14**。
+未开发任何新功能/新页面/新表。
+
+### 审计发现（完整清单见会话《Production Bug Zero Audit》）
+- **P0-1**（生产日志证实）:Swing/Long 策略引擎在自动 cron 下每个交易日空跑——`runDate=T` 而 T 当日
+  收盘价 T+1 才同步,`priceCount(T)===0` 提前 return（Day Trade v17.24.0 已修的 T+1 时序缺陷未同步到
+  另两条线）。生产日志 `2026-07-02/06-30 15:35/15:40 🚫 No DailyPrice ... not yet synced` 佐证。
+  → **按用户决策本次暂不修,仅记录**（激活两条策略线属 FROZEN 架构行为变更,留待专项排期）。
+
+### 本次修复（逐项 tsc+build 验证,一次性风险分级部署 + 运行时验证）
+**P1（交易相邻,已获用户授权 + 安全项）**
+- **P1-1** `update-backtest.ts`:entry(未复权 open) vs exit(复权 adjClose) 价基不一致 → 拆股/分红失真。
+  修复:按入场日调整因子 `adjClose/close` 把 entry 缩放到复权基准与 exit 一致（无 adj 数据回退 raw↔raw）;
+  存储 entryPrice 仍保留原始价供展示。
+- **P1-2** `day-strategy.ts`:结算三表写入包进单个 `$transaction`（全成或全滚),幂等改判 StrategySnapshot
+  （事务末尾写入的完成标记）而非 TradeResult 计数,杜绝崩溃半成品被永久锁死。运行时验证:catch-up
+  "Newly settled:0 / Already done:3",正确跳过不重写。
+- **P1-3** `day/swing/long-strategy.ts`:资金池「上一状态」改 `orderBy logDate desc + where logDate<runDate`
+  （原按 createdAt,乱序 `--date` 补跑会取错资金基数）。
+- **P1-4** `cron-scheduler.ts`:`runAsync` 改返回 `Promise<boolean>`(成功与否);07:30 watchdog 据此判断
+  06:00 同步是否真正成功,失败/未完成时触发降级流水线（原恒 resolve()→失败被记为成功、health 漏跑）。
+- **P1-5** `fetch-jquants-investor-types.ts`:`Number(null/"")===0` 把缺失字段写成真实 0 → 改 `toNum`
+  先判空返回 NaN→null,避免「无数据」当「零资金流」进 moneyFlowScore。
+- **P1-6** `app/api/admin/mission-control/route.ts`:`stockScore.latestDate` 用 `computedAt` 裸 UTC →
+  JST 跨日 off-by-one,改 +9h 后取日期。验证:现返回 2026-07-02（正确）。
+- **P1-7** `lib/trading-action.ts`:WAIT_PULLBACK 入场区间 `entryLow>entryHigh` 倒挂 → 加 `if(low>high) low=high` 钳制。
+
+**P2（安全清理）**
+- `ai-scores/route.ts`:moneyFlowScore 错误回退到 riskScore（维度混淆）→ 移除 `?? s.riskScore`。
+- `ai-decision/route.ts`:重复查询 Stock 表 → 首个 select 加 `id`,复用,删第二次查询。
+- 死代码删除:`components/ScoreBreakdown.tsx`、`lib/stock-display.ts`、`lib/stock-display-name.ts`、
+  `lib/display-labels.ts`、`lib/llm/{client,router}.ts`（全 0 引用,后者潜伏 baseURL 劫持隐患）、
+  `snapshot-valuation.todayJSTString`、`ai-picks` 未用的 STYLE_LABEL/SOURCE_BADGE。
+
+### 遗留 P2（本次不动,记录待排期）
+i18n 硬编码 CJK 泄漏（NewsCard/PriceChart/indicators/screener/watchlist/layout/stocks「億」等,多为既有单语债务）;
+口径类（portfolio/summary 固定 100M 分母、market-stats vs ai-scores 候选池、strategy/overview healthDays 非连续、
+update-ai-signal-stats adjClose、snapshot 日历5天窗口、safety-rules 节假日仅2026-2027、fetch-* 日期/跳过逻辑）;
+day-strategy 断点续跑 `slice(-20)` 静默丢弃;**ROE `<1.5?×100` 启发式**（Financial.roe 量纲存疑,equityRatio
+存为分数,需数据审计后再定,本次不改以免误伤）。
+
+### 验证
+- `npm run build --webpack` exit 0;`tsc --noEmit` exit 0（tsconfig `**/*.ts` 覆盖 scripts/,脚本已类型校验）
+- 生产 `health:data` CRITICAL=0（53 PASS / 4 WARNING / 1 INFO,与基线一致,未新增 CRITICAL）
+- day-strategy 运行时验证幂等（Already done:3,不重写）;strategy/ai-picks/mission-control/stocks/screener/
+  indicators 全 HTTP 200;mission-control latestDate=2026-07-02（P1-6 生效）
+- 部署:rsync .next(--delete)+lib+scripts + 删服务器死文件;`pm2 restart tohoshou-web + tohoshou-cron`
+  （18:16 JST,rerank 窗口外;cron-scheduler.ts 改动已重启,pid 51→52 单次重启无循环）
+
+---
+
 ## [17.28.0] - 2026-07-02 — T2 P4 AI Explain 未入选原因（Why Not Recommended，只读增强）
 
 ### 目标

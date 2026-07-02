@@ -130,10 +130,16 @@ function transformRow(apiRow: ApiRow, section: string): FlowRow[] {
   const date   = new Date(apiRow.EnDate);
   const market = section; // "TSEPrime"
 
+  // P1-5 fix: distinguish "missing field" from "real zero". Number(null) and
+  // Number("") both coerce to 0 (not NaN), so a missing value was being written as
+  // a genuine ¥0 flow and fed into moneyFlowScore as real data. Treat null/""/
+  // undefined as absent → NaN → null.
+  const toNum = (v: unknown): number => (v == null || v === "" ? NaN : Number(v));
+
   return INVESTOR_COLS.map(({ prefix, type, label }) => {
-    const buy  = Number(apiRow[`${prefix}Buy`]  ?? null);
-    const sell = Number(apiRow[`${prefix}Sell`] ?? null);
-    const bal  = Number(apiRow[`${prefix}Bal`]  ?? null);
+    const buy  = toNum(apiRow[`${prefix}Buy`]);
+    const sell = toNum(apiRow[`${prefix}Sell`]);
+    const bal  = toNum(apiRow[`${prefix}Bal`]);
     return {
       date,
       market,

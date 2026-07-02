@@ -72,21 +72,6 @@ const TEMP_CFG: Record<string, { label: string; emoji: string; color: string; bg
   EXTREME_COLD: { label: "市場極寒",   emoji: "🧊", color: "text-slate-700",  bg: "bg-slate-100 border-slate-200" },
 };
 
-const STYLE_LABEL: Record<string, string> = {
-  QUALITY_COMPOUNDER:    "质优复利",
-  GROWTH_MOMENTUM:       "成长动能",
-  CYCLICAL_EXPORTER:     "出口周期",
-  VALUE_DEFENSIVE:       "价值防御",
-  DOMESTIC_DEFENSIVE:    "内需防御",
-  SPECULATIVE_MOMENTUM:  "投机动能",
-};
-
-const SOURCE_BADGE: Record<string, string> = {
-  REAL:     "✅ 真实数据",
-  PARTIAL:  "⚠️ 部分真实",
-  FALLBACK: "🔴 回测",
-};
-
 function ScoreBar({ score, max = 100, color }: { score: number; max?: number; color: string }) {
   const pct = Math.min(100, Math.round((score / max) * 100));
   return (

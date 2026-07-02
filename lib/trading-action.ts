@@ -88,6 +88,10 @@ function buildPrices(action: TradingAction["action"], price: number, ma20: numbe
   } else if (action === "WAIT_PULLBACK") {
     entryLow = r1(Math.max(ma20 ?? price * 0.90, price * 0.90));
     entryHigh = r1(price * 0.96);
+    // P1-7 fix: when MA20 sits above price*0.96 (price hugging MA20 in a slow uptrend)
+    // entryLow could exceed entryHigh, producing an inverted range like ¥1000~¥989.
+    // Clamp so the displayed pullback zone is always low ≤ high.
+    if (entryLow > entryHigh) entryLow = entryHigh;
     stopLoss = r1(ma60 ?? price * 0.88);
     target1 = r1(price * 1.15);
     target2 = r1(price * 1.30);

@@ -266,10 +266,22 @@ async function main() {
         continue;
       }
 
+      // P1-1 fix: put entry and exit on the SAME price basis before computing return.
+      // Exit uses adjClose (split/dividend-adjusted) but entry was raw open, so any
+      // corporate action inside the horizon distorted returnPct (e.g. a 2:1 split
+      // showed ~-50%). Scale the raw entry open by the entry-day adjustment factor
+      // (adjClose/close) so it matches the adjusted exit; fall back to raw↔raw when
+      // adjusted data is absent. Stored entryPrice stays raw (display = real buy price).
+      const entryRow = prices[0];
+      const adjFactor = (entryRow.adjClose != null && entryRow.close > 0)
+        ? entryRow.adjClose / entryRow.close
+        : 1;
+
       for (const { key: h, n, ageThreshold } of HORIZONS) {
         const exitRow = prices[n] ?? null;
         const exitPrice = exitRow ? (exitRow.adjClose ?? exitRow.close) : null;
-        const returnPct = pct(exitPrice, entry.entryPrice);
+        const entryBasis = (exitRow?.adjClose != null) ? entry.entryPrice * adjFactor : entry.entryPrice;
+        const returnPct = pct(exitPrice, entryBasis);
         const winFlag = returnPct != null ? returnPct > 0 : null;
         const bm = horizonBm[h];
         const alphaVsTopix =

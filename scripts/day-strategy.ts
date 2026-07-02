@@ -173,16 +173,22 @@ async function settleDate(tradeDate: Date): Promise<SettleResult> {
   candidates.forEach(c => console.log(`    #${c.rank}  ${c.symbol}  score=${fmt(c.aiScore ?? 0, 1)}`));
 
   // ── Step 3: Idempotency check ─────────────────────────────────────────────
-  const existingTrades = await (prisma as any).strategyTradeResult.count({
-    where: { strategyType: STRATEGY_TYPE, tradeDate },
+  // P1-2 fix: key idempotency on StrategySnapshot (written atomically as the last
+  // step of the settlement transaction), NOT on StrategyTradeResult count. The old
+  // count-based check could early-return "already_done" after a crash that wrote
+  // some TradeResult rows but never the Snapshot/CapitalLog, permanently locking a
+  // half-settled day. With the settlement now wrapped in a single transaction, the
+  // Snapshot's presence means the whole day committed.
+  const existingSnap0 = await (prisma as any).strategySnapshot.findUnique({
+    where: { strategyType_snapshotDate: { strategyType: STRATEGY_TYPE, snapshotDate: tradeDate } },
   });
 
-  if (existingTrades > 0) {
-    console.log(`\n✅ StrategyTradeResult already exists for ${tradeDateStr} (${existingTrades} records). Skipping.`);
+  if (existingSnap0) {
+    console.log(`\n✅ StrategySnapshot already exists for ${tradeDateStr}. Already settled — skipping.`);
     await printSummaryFromDB(tradeDate);
     return "already_done";
   }
-  row("Existing trades", 0);
+  row("Existing settlement", "none");
 
   // ── Step 4: Load prices ───────────────────────────────────────────────────
   const symbols = candidates.map(c => c.symbol);
@@ -213,9 +219,13 @@ async function settleDate(tradeDate: Date): Promise<SettleResult> {
   row("TOPIX 1d return", topixReturn != null ? `${fmt(topixReturn)}%` : "N/A");
 
   // ── Step 6: Load current capital state ────────────────────────────────────
+  // P1-3 fix: locate the prior capital state by business date (logDate) strictly
+  // before this trade date, NOT by write time (createdAt). Ordering by createdAt
+  // returned the most-recently-written row, so an out-of-order `--date` backfill of
+  // an earlier day picked a later day's balance as its base and corrupted the pool.
   const latestCapLog = await (prisma as any).strategyCapitalLog.findFirst({
-    where: { strategyType: STRATEGY_TYPE },
-    orderBy: { createdAt: "desc" },
+    where: { strategyType: STRATEGY_TYPE, logDate: { lt: tradeDate } },
+    orderBy: { logDate: "desc" },
   });
 
   const poolTotal = (latestCapLog as any)?.totalAfter ?? POOL_INITIAL;
@@ -349,55 +359,61 @@ async function settleDate(tradeDate: Date): Promise<SettleResult> {
     return "settled";
   }
 
-  // Write StrategyTradeResult
-  for (const t of trades) {
-    await (prisma as any).strategyTradeResult.upsert({
-      where: {
-        strategyType_tradeDate_symbol: {
-          strategyType: STRATEGY_TYPE,
-          tradeDate,
-          symbol: t.symbol,
+  // P1-2 fix: write StrategyTradeResult rows + StrategySnapshot + StrategyCapitalLog
+  // inside ONE transaction so settlement is all-or-nothing. A crash mid-loop now
+  // rolls back cleanly and the next run redoes the full day (idempotency keyed on
+  // Snapshot, see Step 3). Snapshot is created last as the completion marker.
+  await (prisma as any).$transaction(async (tx: any) => {
+    for (const t of trades) {
+      await tx.strategyTradeResult.upsert({
+        where: {
+          strategyType_tradeDate_symbol: {
+            strategyType: STRATEGY_TYPE,
+            tradeDate,
+            symbol: t.symbol,
+          },
         },
-      },
-      create: {
+        create: {
+          strategyType:    STRATEGY_TYPE,
+          tradeDate,
+          symbol:          t.symbol,
+          entryDate:       tradeDate,
+          entryPrice:      t.entryPrice > 0 ? t.entryPrice : null,
+          exitDate:        t.status === "CLOSED" ? tradeDate : null,
+          exitPrice:       t.exitPrice > 0 ? t.exitPrice : null,
+          quantity:        t.quantity,
+          investedAmount:  t.investedAmount > 0 ? t.investedAmount : null,
+          exitValue:       t.exitValue > 0 ? t.exitValue : null,
+          returnPct:       t.status === "CLOSED" ? t.returnPct : null,
+          returnAmount:    t.status === "CLOSED" ? t.returnAmount : null,
+          topixReturnPct:  t.topixReturnPct,
+          alpha:           t.alpha,
+          win:             t.status === "CLOSED" ? t.win : null,
+          holdingDays:     t.status === "CLOSED" ? 1 : null,
+          exitReason:      t.exitReason,
+          status:          t.status,
+        },
+        update: {},
+      });
+    }
+
+    await tx.strategyCapitalLog.create({
+      data: {
         strategyType:    STRATEGY_TYPE,
-        tradeDate,
-        symbol:          t.symbol,
-        entryDate:       tradeDate,
-        entryPrice:      t.entryPrice > 0 ? t.entryPrice : null,
-        exitDate:        t.status === "CLOSED" ? tradeDate : null,
-        exitPrice:       t.exitPrice > 0 ? t.exitPrice : null,
-        quantity:        t.quantity,
-        investedAmount:  t.investedAmount > 0 ? t.investedAmount : null,
-        exitValue:       t.exitValue > 0 ? t.exitValue : null,
-        returnPct:       t.status === "CLOSED" ? t.returnPct : null,
-        returnAmount:    t.status === "CLOSED" ? t.returnAmount : null,
-        topixReturnPct:  t.topixReturnPct,
-        alpha:           t.alpha,
-        win:             t.status === "CLOSED" ? t.win : null,
-        holdingDays:     t.status === "CLOSED" ? 1 : null,
-        exitReason:      t.exitReason,
-        status:          t.status,
+        logDate:         tradeDate,
+        cashBefore:      poolTotal,
+        cashAfter:       newPoolTotal,
+        investedBefore:  0,          // no overnight coming in
+        investedAfter:   0,          // no overnight going out
+        totalBefore:     poolTotal,
+        totalAfter:      newPoolTotal,
+        changeAmount:    totalReturn,
+        changeReason:    `DAY_CLOSE ${tradeDateStr} ${closedTrades.length}trades W${winTrades.length}L${closedTrades.length - winTrades.length}`,
       },
-      update: {},
     });
-  }
-  console.log(`  ✅ StrategyTradeResult × ${trades.length} written`);
 
-  // Write StrategySnapshot (CREATE-only — skip if already exists)
-  const existingSnap = await (prisma as any).strategySnapshot.findUnique({
-    where: {
-      strategyType_snapshotDate: {
-        strategyType: STRATEGY_TYPE,
-        snapshotDate: tradeDate,
-      },
-    },
-  });
-
-  if (existingSnap) {
-    console.log("  ℹ  StrategySnapshot already exists — skipped (CREATE-only)");
-  } else {
-    await (prisma as any).strategySnapshot.create({
+    // Snapshot written LAST = atomic completion marker for the idempotency check.
+    await tx.strategySnapshot.create({
       data: {
         strategyType:        STRATEGY_TYPE,
         snapshotDate:        tradeDate,
@@ -415,25 +431,8 @@ async function settleDate(tradeDate: Date): Promise<SettleResult> {
         closedTrades:        closedTrades.length,
       },
     });
-    console.log("  ✅ StrategySnapshot created");
-  }
-
-  // Write StrategyCapitalLog
-  await (prisma as any).strategyCapitalLog.create({
-    data: {
-      strategyType:    STRATEGY_TYPE,
-      logDate:         tradeDate,
-      cashBefore:      poolTotal,
-      cashAfter:       newPoolTotal,
-      investedBefore:  0,          // no overnight coming in
-      investedAfter:   0,          // no overnight going out
-      totalBefore:     poolTotal,
-      totalAfter:      newPoolTotal,
-      changeAmount:    totalReturn,
-      changeReason:    `DAY_CLOSE ${tradeDateStr} ${closedTrades.length}trades W${winTrades.length}L${closedTrades.length - winTrades.length}`,
-    },
-  });
-  console.log("  ✅ StrategyCapitalLog updated");
+  }, { timeout: 30000 });
+  console.log(`  ✅ Settlement committed atomically — TradeResult × ${trades.length} + CapitalLog + Snapshot`);
 
   console.log(`\n  Day Strategy settled — ${tradeDateStr}`);
   console.log(`  Trades:  ${closedTrades.length} closed | ${trades.filter(t => t.status === "SKIPPED_DATA_MISSING").length} SKIPPED_DATA_MISSING | ${trades.filter(t => t.status === "SKIPPED_LOT_SIZE").length} SKIPPED_LOT_SIZE`);

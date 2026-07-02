@@ -337,10 +337,13 @@ async function main() {
   // ── Step 9: Compute capital state ───────────────────────────────────────────
   step("Compute capital state");
 
-  // Get latest capital log to find current cash balance
+  // Get latest capital log to find current cash balance.
+  // P1-3 fix: order by business date (logDate) strictly before this run date, not by
+  // write time (createdAt), so out-of-order `--date` backfills use the correct prior
+  // balance instead of a later day's most-recently-written row.
   const latestCapLog = await (prisma as any).strategyCapitalLog.findFirst({
-    where: { strategyType: STRATEGY_TYPE },
-    orderBy: { createdAt: "desc" },
+    where: { strategyType: STRATEGY_TYPE, logDate: { lt: runDate } },
+    orderBy: { logDate: "desc" },
   });
 
   let cashBefore = (latestCapLog as any)?.cashAfter ?? POOL_INITIAL;

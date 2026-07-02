@@ -123,7 +123,7 @@ export async function GET(request: Request) {
       latestDate: s.latestDate ?? "",
       technicalScore: s.technicalScore ?? 0,
       fundamentalScore: s.fundamentalScore ?? 0,
-      moneyFlowScore: s.moneyFlowScore ?? s.riskScore ?? 0,
+      moneyFlowScore: s.moneyFlowScore ?? 0,
       newsSentimentScore: s.newsSentimentScore ?? 0,
       globalTrendScore: s.globalTrendScore ?? 0,
       riskScore: s.riskScore ?? 0,

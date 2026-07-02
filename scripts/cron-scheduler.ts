@@ -82,10 +82,12 @@ function writePipelineLog(entry: {
 
 /**
  * 以子进程运行脚本，不阻塞事件循环。
- * 返回 Promise，resolve 时脚本已退出（成功或失败均 resolve，不 reject）。
+ * 返回 Promise<boolean>，resolve 时脚本已退出（成功或失败均 resolve，不 reject）；
+ * 值为脚本是否成功（exit 0 且未超时）。P1-4 修复：此前恒 resolve()，调用方无法
+ * 区分成功/失败，07:30 watchdog 因此把失败的价格同步误判为成功。
  */
-function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Promise<void> {
-  return new Promise<void>((resolve) => {
+function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
     log("INFO", `▶ 开始 ${label}`);
     const startedAt = new Date();
     const stage = script.replace(/\.ts$/, "");
@@ -113,7 +115,7 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
         durationMs: finishedAt.getTime() - startedAt.getTime(),
         status: "FAILED", exitCode: 1, errorMessage,
       });
-      resolve();
+      resolve(false);
     });
 
     child.on("close", (code) => {
@@ -136,13 +138,13 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
         status: success ? "SUCCESS" : "FAILED",
         exitCode, errorMessage,
       });
-      resolve();
+      resolve(success);
     });
   });
 }
 
-// 跨 cron slot 的价格同步 Promise（06:00 写入，07:30 await）
-let syncPricesPromise: Promise<void> | null = null;
+// 跨 cron slot 的价格同步 Promise（06:00 写入，07:30 await）；值为同步+评分是否成功
+let syncPricesPromise: Promise<boolean> | null = null;
 
 log("INFO", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 log("INFO", "TOHOSHOU AI 調度器启动（v17.24.0 — Day Trade T+1 結算修复）");
@@ -229,13 +231,25 @@ cron.schedule("0 7 * * 1-5", async () => {
 //           syncPricesPromise が null になるので手動で流水線を実行する。
 //
 cron.schedule("30 7 * * *", async () => {
+  // P1-4 fix: act on the real success of the 06:00 sync+scoring, not merely on
+  // whether the promise was set. A failed/partial sync-all-prices (non-zero exit
+  // or timeout) now triggers the degraded pipeline instead of being logged as
+  // "全日流水線完了" while downstream ran on stale StockScore and health never ran.
+  let pipelineOk = false;
   if (syncPricesPromise) {
     log("INFO", "⏰ 07:30 watchdog：sync-all-prices 全工程（価格+評分）完了待機中...");
-    await syncPricesPromise;
-    log("INFO", "✅ 07:30 確認：全日流水線完了（価格同期 → 評分 → 健全性まで）");
+    pipelineOk = await syncPricesPromise;
+    if (pipelineOk) {
+      log("INFO", "✅ 07:30 確認：全日流水線完了（価格同期 → 評分 → 健全性まで）");
+    } else {
+      log("ERROR", "❌ 07:30：sync-all-prices が失敗/未完了（非ゼロ終了 or timeout）→ 降級流水線で復旧");
+    }
   } else {
     // cron が 06:00 以降に再起動された場合の緊急 fallback
     log("WARN", "⚠️ 07:30 fallback：syncPricesPromise 未設置（cron 再起動？）→ 降級流水線起動");
+  }
+
+  if (!pipelineOk) {
     await runAsync("compute-scores.ts",           "AI 評分計算 [fallback]",               90 * 60 * 1000);
     await runAsync("rerank-top500.ts",            "GPT Rerank Top500 [fallback]",          5 * 60 * 60 * 1000);
     await runAsync("create-portfolio-snapshot.ts","AI 組合スナップショット生成 [fallback]");

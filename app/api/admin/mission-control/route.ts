@@ -722,7 +722,13 @@ export async function GET() {
           latestDate: latestGm?.date?.toISOString().slice(0, 10) ?? null,
         },
         stockScore: {
-          latestDate: latestScoreRow?.computedAt?.toISOString().slice(0, 10) ?? null,
+          // P1-6 fix: computedAt is a full timestamp (07:30 JST = 22:30 UTC prior
+          // day). Slicing raw UTC showed "yesterday" every morning. Convert to JST
+          // before taking the date, consistent with todayScoreCount (today-9h) above.
+          // (dailyPrice/globalMarket above use @db.Date UTC-midnight fields, no skew.)
+          latestDate: latestScoreRow?.computedAt
+            ? new Date(latestScoreRow.computedAt.getTime() + 9 * 3600_000).toISOString().slice(0, 10)
+            : null,
           scoredTodayCount: todayScoreCount,
         },
       },

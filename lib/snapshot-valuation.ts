@@ -70,16 +70,6 @@ export function isJSTTradingHours(): boolean {
   return (total >= 540 && total <= 690) || (total >= 750 && total <= 930);
 }
 
-function todayJSTString(): string {
-  return new Date()
-    .toLocaleDateString("ja-JP", {
-      timeZone: "Asia/Tokyo",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .replace(/\//g, "-");
-}
 
 // ── Yahoo Finance parallel batch fetch ─────────────────────────────────────────
 

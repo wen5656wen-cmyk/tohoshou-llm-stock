@@ -15,6 +15,7 @@ export async function GET(
     prisma.stock.findUnique({
       where: { symbol: decoded },
       select: {
+        id: true,
         symbol: true, name: true, nameZh: true, nameEn: true,
         sector: true, industry: true, market: true,
         high52w: true, low52w: true,
@@ -90,15 +91,11 @@ export async function GET(
     }
   }
 
-  // Latest 5 news
-  const stockRow = await prisma.stock.findUnique({
-    where: { symbol: decoded },
-    select: { id: true },
-  });
-  const news = stockRow
+  // Latest 5 news — reuse `stock` fetched above (P2: was a duplicate Stock query)
+  const news = stock
     ? await prisma.news.findMany({
         where: {
-          stockId: stockRow.id,
+          stockId: stock.id,
           relatedSymbolConfidence: { gte: 50 },
         },
         orderBy: { publishedAt: "desc" },
