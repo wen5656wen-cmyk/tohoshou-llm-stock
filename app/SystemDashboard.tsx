@@ -18,6 +18,8 @@ type Props = {
   lastComputedAt: string | null;
   lastNewsSyncAt: string | null;
   lastPriceSyncAt: string | null;
+  universeEnabledCount: number;
+  universeExcludedCount: number;
 };
 
 type FreshnessSource = {
@@ -120,6 +122,8 @@ export function SystemDashboard({
   activeStockCount,
   scoredCount,
   lastTradingDate,
+  universeEnabledCount,
+  universeExcludedCount,
 }: Props) {
   const { t } = useI18n();
   const [mc, setMc] = useState<MissionData | null>(null);
@@ -278,6 +282,21 @@ export function SystemDashboard({
             <div style={{ fontSize: 12, color: "#64748b" }}>
               活跃股：<span style={{ color: "#94a3b8" }}>{activeStockCount.toLocaleString()}</span>
               &nbsp;·&nbsp;有效评分：<span style={{ color: "#94a3b8" }}>{scoredCount.toLocaleString()}</span>
+            </div>
+          </div>
+
+          {/* AI Universe stat card (P1-T1) */}
+          <div style={{ borderTop: "1px solid #1e293b", paddingTop: 10, marginTop: 10 }}>
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 6 }}>{t("universe.dash_title")}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ background: "#0a0a0a", borderRadius: 6, padding: "8px 12px", border: "1px solid #064e3b" }}>
+                <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>{t("universe.dash_enabled")}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#4ade80" }}>{universeEnabledCount.toLocaleString()}</div>
+              </div>
+              <div style={{ background: "#0a0a0a", borderRadius: 6, padding: "8px 12px", border: "1px solid #78350f" }}>
+                <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2 }}>{t("universe.dash_excluded")}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#fbbf24" }}>{universeExcludedCount.toLocaleString()}</div>
+              </div>
             </div>
           </div>
           <div style={{ marginTop: 12 }}>

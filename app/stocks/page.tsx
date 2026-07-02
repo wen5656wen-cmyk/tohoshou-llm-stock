@@ -30,9 +30,12 @@ type StockRow = {
   maTrend: "GOLDEN" | "DEAD" | "BULLISH" | "NEUTRAL" | "BEARISH";
   rsiSignal: string;
   finCount: number;
+  aiEnabled: boolean;
+  excludeReason: string | null;
 };
 
 type SortKey = "latestClose" | "return5d" | "return20d" | "return60d" | "rsi14";
+type UniverseFilter = "all" | "enabled" | "excluded";
 
 const ROW_HEIGHT = 56;
 
@@ -100,6 +103,7 @@ export default function StocksPage() {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("return5d");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
+  const [universe, setUniverse] = useState<UniverseFilter>("enabled");
 
   // Virtual scroll container
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -129,7 +133,15 @@ export default function StocksPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  const enabledCount = rows.filter((r) => r.aiEnabled).length;
+  const excludedCount = rows.filter((r) => !r.aiEnabled).length;
+
   const filtered = rows
+    .filter((r) => {
+      if (universe === "enabled") return r.aiEnabled;
+      if (universe === "excluded") return !r.aiEnabled;
+      return true;
+    })
     .filter((r) => {
       if (!q) return true;
       const ql = q.toLowerCase();
@@ -191,20 +203,42 @@ export default function StocksPage() {
 
       {/* Search + controls */}
       {!error && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5 flex gap-3">
-          <input
-            type="text"
-            placeholder={t("stocks.search_placeholder")}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <Link
-            href="/screener?sort=technical"
-            className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            ◈ {t("stocks.view_technicals")}
-          </Link>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5 flex flex-col gap-3">
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder={t("stocks.search_placeholder")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Link
+              href="/screener?sort=technical"
+              className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              ◈ {t("stocks.view_technicals")}
+            </Link>
+          </div>
+          {/* AI Universe filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {([
+              { key: "all" as const, label: t("universe.filter.all"), count: rows.length },
+              { key: "enabled" as const, label: t("universe.filter.enabled"), count: enabledCount },
+              { key: "excluded" as const, label: t("universe.filter.excluded"), count: excludedCount },
+            ]).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setUniverse(opt.key)}
+                className={`text-xs px-3 py-1.5 rounded-lg font-medium border transition-colors ${
+                  universe === opt.key
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {opt.label} <span className="tabular-nums opacity-80">({opt.count})</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -299,7 +333,14 @@ export default function StocksPage() {
                             {getSecondaryName(s, lang) && (
                               <div className="text-[11px] text-[#94a3b8] truncate">{getSecondaryName(s, lang)}</div>
                             )}
-                            <div className="text-[11px] text-[#64748b] font-mono">{s.symbol}</div>
+                            <div className="text-[11px] text-[#64748b] font-mono">
+                              {s.symbol}
+                              {!s.aiEnabled && (
+                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-sans align-middle">
+                                  {t(`universe.reason.${s.excludeReason ?? "OTHER"}` as MessageKey)}
+                                </span>
+                              )}
+                            </div>
                           </Link>
                         </td>
                         {/* Price */}

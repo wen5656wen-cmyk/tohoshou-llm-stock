@@ -1395,6 +1395,29 @@ const jaJP: Messages = {
   "portfolio.strategy_unallocated": "未配分キャッシュ",
   "portfolio.snap_strategy": "戦略",
   "portfolio.snap_alloc_weight": "目標ウェイト",
+
+  // ─── P1-T1 AI Universe Filter ──────────────────────────────────────────────
+  "universe.title": "AI評価ステータス",
+  "universe.filter.all": "すべて",
+  "universe.filter.enabled": "AI評価対象",
+  "universe.filter.excluded": "除外銘柄",
+  "universe.enabled_label": "AI評価に追加済み",
+  "universe.excluded_label": "AI評価から除外",
+  "universe.add": "AI評価に追加",
+  "universe.remove": "AI評価から除外",
+  "universe.updating": "更新中…",
+  "universe.dash_title": "AI評価プール",
+  "universe.dash_enabled": "有効",
+  "universe.dash_excluded": "除外",
+  "universe.reason.LOW_LIQUIDITY": "流動性不足",
+  "universe.reason.LOW_GROWTH": "成長性不足",
+  "universe.reason.POOR_DATA": "データ品質不良",
+  "universe.reason.ETF": "ETF",
+  "universe.reason.REIT": "REIT",
+  "universe.reason.PREFERRED": "優先株",
+  "universe.reason.DELISTED": "上場廃止",
+  "universe.reason.MANUAL": "手動除外",
+  "universe.reason.OTHER": "その他",
 };
 
 export default jaJP;

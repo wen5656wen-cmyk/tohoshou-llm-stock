@@ -177,8 +177,26 @@ async function main() {
   }
   console.log();
 
-  // ── Pass 1: 逐只股票计算评分 ──────────────────────────────────────────────
+  // ── P1-T1 AI Universe Filter: purge stale scores for excluded stocks ──────
+  // Excluded stocks (aiEnabled=false) must leave the scored universe entirely so
+  // every downstream flow that reads StockScore (rerank / gpt-overlay / ai-scores /
+  // sync-news top200 / strategy-recs / portfolio candidate / backtest) inherits the
+  // filter with zero changes. We delete any lingering StockScore rows here.
+  const excludedRows = await prisma.stock.findMany({
+    where: { aiEnabled: false },
+    select: { symbol: true },
+  });
+  const excludedSymbols = excludedRows.map((s) => s.symbol);
+  if (excludedSymbols.length > 0) {
+    const purged = await prisma.stockScore.deleteMany({
+      where: { symbol: { in: excludedSymbols } },
+    });
+    console.log(`AI Universe: ${excludedSymbols.length} excluded stock(s), purged ${purged.count} stale StockScore row(s)\n`);
+  }
+
+  // ── Pass 1: 逐只股票计算评分（仅 aiEnabled=true）──────────────────────────
   const stocks = await prisma.stock.findMany({
+    where: { aiEnabled: true },
     select: {
       id: true, symbol: true, name: true, nameZh: true, market: true,
       sector: true, industry: true, scaleCategory: true,
@@ -187,7 +205,7 @@ async function main() {
     },
     orderBy: { symbol: "asc" },
   });
-  console.log(`Pass 1: ${stocks.length} 只股票\n`);
+  console.log(`Pass 1: ${stocks.length} 只股票（AI Universe enabled）\n`);
 
   let computed = 0, skipped = 0, errCount = 0;
   const computedAt = new Date();

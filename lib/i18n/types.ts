@@ -1400,6 +1400,29 @@ export type Messages = {
   "dash.ai_tpl": string;
   "dash.ai_contrib": string;
   "dash.ai_detract": string;
+
+  // ─── P1-T1 AI Universe Filter ──────────────────────────────────────────────
+  "universe.title": string;
+  "universe.filter.all": string;
+  "universe.filter.enabled": string;
+  "universe.filter.excluded": string;
+  "universe.enabled_label": string;
+  "universe.excluded_label": string;
+  "universe.add": string;
+  "universe.remove": string;
+  "universe.updating": string;
+  "universe.dash_title": string;
+  "universe.dash_enabled": string;
+  "universe.dash_excluded": string;
+  "universe.reason.LOW_LIQUIDITY": string;
+  "universe.reason.LOW_GROWTH": string;
+  "universe.reason.POOR_DATA": string;
+  "universe.reason.ETF": string;
+  "universe.reason.REIT": string;
+  "universe.reason.PREFERRED": string;
+  "universe.reason.DELISTED": string;
+  "universe.reason.MANUAL": string;
+  "universe.reason.OTHER": string;
 };
 
 export type MessageKey = keyof Messages;

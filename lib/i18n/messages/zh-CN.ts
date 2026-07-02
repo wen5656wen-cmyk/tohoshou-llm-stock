@@ -1395,6 +1395,29 @@ const zhCN: Messages = {
   "portfolio.strategy_unallocated": "未分配现金",
   "portfolio.snap_strategy": "策略",
   "portfolio.snap_alloc_weight": "目标权重",
+
+  // ─── P1-T1 AI Universe Filter ──────────────────────────────────────────────
+  "universe.title": "AI评分状态",
+  "universe.filter.all": "全部",
+  "universe.filter.enabled": "AI评分股票",
+  "universe.filter.excluded": "已排除股票",
+  "universe.enabled_label": "已加入AI评分",
+  "universe.excluded_label": "已移出AI评分",
+  "universe.add": "加入AI评分",
+  "universe.remove": "移出AI评分",
+  "universe.updating": "更新中…",
+  "universe.dash_title": "AI评分池",
+  "universe.dash_enabled": "启用",
+  "universe.dash_excluded": "排除",
+  "universe.reason.LOW_LIQUIDITY": "流动性不足",
+  "universe.reason.LOW_GROWTH": "成长性不足",
+  "universe.reason.POOR_DATA": "数据质量差",
+  "universe.reason.ETF": "ETF",
+  "universe.reason.REIT": "REIT",
+  "universe.reason.PREFERRED": "优先股",
+  "universe.reason.DELISTED": "已退市",
+  "universe.reason.MANUAL": "人工排除",
+  "universe.reason.OTHER": "其它",
 };
 
 export default zhCN;

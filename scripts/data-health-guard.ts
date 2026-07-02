@@ -87,6 +87,25 @@ async function main() {
 
   console.log(`  Stocks: ${stockTotal}  Scores: ${scoreTotal}  Latest price: ${latestPriceDate}\n`);
 
+  // ── P1-T1 AI Universe Filter: universe size / enabled / excluded ──────────
+  const [enabledCount, excludedCount] = await Promise.all([
+    prisma.stock.count({ where: { aiEnabled: true } }),
+    prisma.stock.count({ where: { aiEnabled: false } }),
+  ]);
+  add({
+    id: "ai_universe_size", level: "INFO", name: "AI Universe Size (total stocks)",
+    value: stockTotal, pass: true,
+  });
+  add({
+    id: "ai_universe_enabled", level: "INFO", name: "AI Universe Enabled Stocks",
+    value: enabledCount, pass: enabledCount > 0,
+    details: enabledCount > 0 ? undefined : ["No stocks are aiEnabled — scoring pipeline would be empty"],
+  });
+  add({
+    id: "ai_universe_excluded", level: "INFO", name: "AI Universe Excluded Stocks",
+    value: excludedCount, pass: true,
+  });
+
   // ── CHECK 1: adjClose coverage ────────────────────────────────────────────
   const priceTotal = await prisma.dailyPrice.count();
   const adjCloseCount = await prisma.dailyPrice.count({ where: { adjClose: { not: null } } });

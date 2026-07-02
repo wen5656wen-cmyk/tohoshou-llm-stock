@@ -1,9 +1,19 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-06-24（生产 API + DB 核验后更新，事实来源：/api/admin/verify + psql）
-> **版本：** v10.1.0（HEAD: `3a3ed1f`，最新部署 commit: `73d253e`，2026-06-23 16:08 JST）
+> **最后更新：** 2026-07-03（P1-T1 AI 评分股票池 Universe Filter 上线后更新）
+> **版本：** v17.33.0（P1-T1 AI 评分股票池 Universe Filter；生产 health CRITICAL=0，Size 3719/Enabled 3718/Excluded 1）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
+
+## ⭐ 最新版本速览（v17.33.0 — 2026-07-03）
+
+**P1-T1 AI 评分股票池（Universe Filter）**：`Stock.aiEnabled`(默认 true)+`excludeReason`(原因代码) 建立可维护股票池。
+- **中枢过滤**：`compute-scores.ts` 仅处理 `aiEnabled=true`，并清理被排除股票残留 StockScore；下游 rerank/gpt/ai-scores/sync-news/strategy-recs/portfolio/backtest 读 StockScore 自动继承，零改动。
+- **后台**：`POST /api/admin/stocks/[symbol]/ai-universe`（disable 时 `$transaction` 内删 StockScore 即时生效）；`/stocks/[symbol]` 顶部控制卡【加入/移出 AI 评分】+ 原因下拉。
+- **列表**：`/stocks` 池筛选（全部/AI评分/已排除，默认 AI评分）；`/api/indicators` 每行带 aiEnabled/excludeReason + 追加已排除行。
+- **Health**：新增 Universe Size / Enabled / Excluded 三项 INFO。**Dashboard**：AI 评分池 启用/排除 统计卡。
+- **8198.T**（マックスバリュ東海）默认排除，原因 `LOW_GROWTH`（成长性不足）。
+- 原因代码：`LOW_LIQUIDITY/LOW_GROWTH/POOR_DATA/ETF/REIT/PREFERRED/DELISTED/MANUAL/OTHER`（存代码，i18n 映射标签，见 `lib/ai-universe.ts`）。
 
 ---
 

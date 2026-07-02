@@ -82,6 +82,7 @@ export async function GET(
       select: {
         id: true, symbol: true, name: true, nameZh: true, nameEn: true,
         sector: true, industry: true, market: true, high52w: true, low52w: true,
+        aiEnabled: true, excludeReason: true,
       },
     }),
     prisma.stockScore.findUnique({
@@ -247,6 +248,7 @@ export async function GET(
       symbol: stock.symbol, name: stock.name, nameZh: stock.nameZh, nameEn: stock.nameEn,
       sector: stock.sector, industry: stock.industry, market: stock.market,
       high52w: stock.high52w, low52w: stock.low52w,
+      aiEnabled: stock.aiEnabled, excludeReason: stock.excludeReason,
     },
     score: scoreRow ? {
       computedAt: scoreRow.computedAt?.toISOString() ?? null,

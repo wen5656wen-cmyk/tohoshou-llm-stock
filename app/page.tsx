@@ -24,6 +24,8 @@ async function getDashboardData() {
     latestScore,
     latestNews,
     latestJquants,
+    universeEnabledCount,
+    universeExcludedCount,
   ] = await Promise.all([
     // 1. Active stocks: LISTED + not delisted
     prisma.stock.count({
@@ -72,6 +74,12 @@ async function getDashboardData() {
       orderBy: { startedAt: "desc" },
       select: { startedAt: true, finishedAt: true, successCount: true, status: true },
     }),
+
+    // 9. AI Universe — enabled stocks (P1-T1)
+    prisma.stock.count({ where: { aiEnabled: true } }),
+
+    // 10. AI Universe — excluded stocks (P1-T1)
+    prisma.stock.count({ where: { aiEnabled: false } }),
   ]);
 
   const strongBuyCount =
@@ -90,6 +98,8 @@ async function getDashboardData() {
     lastComputedAt: latestScore?.computedAt?.toISOString() ?? null,
     lastNewsSyncAt: latestNews?.startedAt?.toISOString() ?? null,
     lastPriceSyncAt: latestJquants?.startedAt?.toISOString() ?? null,
+    universeEnabledCount,
+    universeExcludedCount,
   };
 }
 

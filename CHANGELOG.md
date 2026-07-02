@@ -2,6 +2,70 @@
 
 ---
 
+## [17.33.0] - 2026-07-03 — P1-T1 AI 评分股票池（Universe Filter）
+
+### 目标
+建立可维护的股票池过滤机制（而非手工删除个股）。所有 AI 评分流程仅处理 `aiEnabled=true` 的股票；
+后台可在股票详情一键「加入/移出 AI 评分」并选择排除原因；列表可按池筛选；仪表盘与 Health Check 展示池规模。
+
+### 架构决策（关键）
+`compute-scores.ts` 是评分中枢——它枚举 Stock 写入 StockScore，而下游 **rerank-top500 / gpt-score-overlay /
+ai-scores API / sync-news(top200) / generate-strategy-recommendations / create-portfolio-snapshot /
+update-backtest·strategy-backtest** 全部读 StockScore 或其派生表。因此只需在**源头**（compute-scores）
+过滤 `aiEnabled:true` + **清理被排除股票的残留 StockScore**，7 条流程即自动全部继承过滤，零下游改动。
+Admin 关闭个股时在同一 `$transaction` 内**立即删除该股 StockScore 行**，使排除即时生效（不必等次日 07:30）。
+
+### Schema（`prisma db push` 生产已应用，纯增量+默认值，无数据丢失）
+- `Stock.aiEnabled Boolean @default(true)`：false = 从所有 AI 评分流程排除。
+- `Stock.excludeReason String?`：排除原因**代码**（非本地化字符串，见下）。
+- `@@index([aiEnabled])`：池筛选查询走索引。
+
+### 排除原因（存代码，i18n 映射标签）
+`lib/ai-universe.ts` 定义 9 个稳定代码：`LOW_LIQUIDITY / LOW_GROWTH / POOR_DATA / ETF / REIT /
+PREFERRED / DELISTED / MANUAL / OTHER`；显示经 `universe.reason.<CODE>` 三语 i18n（zh 流动性不足/成长性不足/
+数据质量差/ETF/REIT/优先股/已退市/人工排除/其它）。禁止把本地化中文直接存 DB。
+
+### 评分流程（源头过滤 + 清理）
+- `compute-scores.ts`：Pass 1 前先 `deleteMany StockScore where symbol in (aiEnabled=false)`（清理残留），
+  再 `stock.findMany({ where: { aiEnabled: true } })`；日志打印排除数与清理数。
+
+### 后台功能
+- 新 API `POST /api/admin/stocks/[symbol]/ai-universe`（+ GET 查询状态）：
+  disable → 写 `aiEnabled=false + excludeReason` 并 `$transaction` 删 StockScore（返回 `purgedScore`）；
+  enable → `aiEnabled=true, excludeReason=null`（次日 compute-scores 重建评分）。可选 `ADMIN_TOKEN` 鉴权。
+- 股票详情页 `/stocks/[symbol]` 顶部新增 **AI 评分状态控制卡**：显示当前状态（已加入/已移出+原因），
+  提供【加入AI评分】/【移出AI评分】按钮 + 排除原因下拉；`GET /intelligence` 的 `stock` 增返
+  `aiEnabled/excludeReason`。
+
+### 股票列表筛选
+- `/stocks` 新增池筛选按钮：**全部 / AI评分股票 / 已排除股票**（默认「AI评分股票」），各带计数。
+- `/api/indicators` 每行增 `aiEnabled/excludeReason`，并**追加**已排除股票行（指标为 null）供「已排除」筛选；
+  已排除行在名称单元显示原因徽章。
+
+### Health Check
+- `data-health-guard.ts` 新增 3 项 INFO 检查：**AI Universe Size** / **Enabled Stocks**（>0 pass）/
+  **Excluded Stocks**。
+
+### Dashboard
+- 首页新增 **AI 评分池** 统计卡：启用 XXX / 排除 XXX（`app/page.tsx` 增两个 count，
+  `SystemDashboard.tsx` 新增 props + 卡片，标签走 i18n）。
+
+### i18n
+`universe.*` 三语言补齐（title/filter.*/enabled_label/excluded_label/add/remove/updating/dash_*/reason.*×9）。
+
+### 验证（生产实测）
+- `npx tsc --noEmit` exit 0；`npm run build` exit 0（Compiled successfully）；修改的 TSX 无新增硬编码 CJK。
+- 生产 `prisma db push` 成功（3719 股票默认 aiEnabled=true）。
+- 设 8198.T（マックスバリュ東海）→ API 返回 `aiEnabled:false, excludeReason:LOW_GROWTH, purgedScore:true`。
+- `health:data` on prod exit 0 → **CRITICAL=0**；新检查显示 Size 3719 / Enabled 3718 / Excluded 1。
+- 页面 HTTP 200：`/`、`/stocks`、`/stocks/8198.T`、`/portfolio`。
+- `/api/indicators` 501 行（500 scored + 1 excluded）；8198.T `aiEnabled:false`，且不再出现在 scored 集合。
+- 首页 HTML 含 3718 / AI评分池 / 启用；`/intelligence` 8198.T 返 `aiEnabled:false, LOW_GROWTH`。
+- 部署：scp schema + prisma db push + generate；rsync .next + lib + scripts；`pm2 restart tohoshou-web`
+  （**未改 cron-scheduler.ts，未重启 cron**）。
+
+---
+
 ## [17.32.0] - 2026-07-02 — T3 P1 Paper Broker Dashboard（AI 自动交易驾驶舱，UI+只读聚合）
 
 ### 目标

@@ -9,6 +9,8 @@ import { useI18n } from "@/lib/i18n";
 import { getNameLines } from "@/lib/i18n/stock-name";
 import { localeSector, localeMarket } from "@/lib/i18n/market-labels";
 import { getBackHref, getBackLabel } from "@/lib/navigation/back";
+import { EXCLUDE_REASON_CODES } from "@/lib/ai-universe";
+import type { MessageKey } from "@/lib/i18n/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,6 +20,7 @@ type StockInfo = {
   symbol: string; name: string; nameZh: string | null; nameEn: string | null;
   sector: string | null; industry: string | null; market: string | null;
   high52w: number | null; low52w: number | null;
+  aiEnabled?: boolean; excludeReason?: string | null;
 };
 
 type ScoreData = {
@@ -254,6 +257,98 @@ function PerfCell({ stats, label }: { stats: PerfStats | null; label: string }) 
   );
 }
 
+// ── AI Universe admin control (P1-T1) ──────────────────────────────────────────
+
+function AiUniverseControl({
+  symbol,
+  aiEnabled,
+  excludeReason,
+  onUpdate,
+  t,
+}: {
+  symbol: string;
+  aiEnabled: boolean;
+  excludeReason: string | null;
+  onUpdate: (aiEnabled: boolean, excludeReason: string | null) => void;
+  t: (k: MessageKey) => string;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [reasonSel, setReasonSel] = useState<string>(excludeReason ?? "LOW_GROWTH");
+
+  async function submit(nextEnabled: boolean) {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/stocks/${encodeURIComponent(symbol)}/ai-universe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          nextEnabled ? { aiEnabled: true } : { aiEnabled: false, excludeReason: reasonSel }
+        ),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      onUpdate(json.stock.aiEnabled, json.stock.excludeReason ?? null);
+    } catch {
+      // no-op; button re-enables so the operator can retry
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className={`rounded-2xl border shadow-sm p-4 ${
+        aiEnabled ? "bg-white border-slate-200" : "bg-amber-50 border-amber-200"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-slate-700">{t("universe.title")}</span>
+          <span
+            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              aiEnabled ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {aiEnabled
+              ? t("universe.enabled_label")
+              : `${t("universe.excluded_label")} · ${t(`universe.reason.${excludeReason ?? "OTHER"}` as MessageKey)}`}
+          </span>
+        </div>
+        {aiEnabled ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={reasonSel}
+              onChange={(e) => setReasonSel(e.target.value)}
+              className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              {EXCLUDE_REASON_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {t(`universe.reason.${code}` as MessageKey)}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => submit(false)}
+              disabled={saving}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-40"
+            >
+              {saving ? t("universe.updating") : t("universe.remove")}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => submit(true)}
+            disabled={saving}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors disabled:opacity-40"
+          >
+            {saving ? t("universe.updating") : t("universe.add")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -471,6 +566,17 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           {watched ? `★ ${t("nav.watchlist")}` : `☆ ${t("nav.watchlist")}`}
         </button>
       </div>
+
+      {/* ── AI Universe admin control (P1-T1) ─────────────────────────────── */}
+      <AiUniverseControl
+        symbol={stock.symbol}
+        aiEnabled={stock.aiEnabled ?? true}
+        excludeReason={stock.excludeReason ?? null}
+        onUpdate={(aiEnabled, excludeReason) =>
+          setData((prev) => (prev ? { ...prev, stock: { ...prev.stock, aiEnabled, excludeReason } } : prev))
+        }
+        t={t}
+      />
 
       {/* ── ① Hero ───────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">

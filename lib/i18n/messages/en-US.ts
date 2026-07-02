@@ -1395,6 +1395,29 @@ const enUS: Messages = {
   "portfolio.strategy_unallocated": "Unallocated Cash",
   "portfolio.snap_strategy": "Strategy",
   "portfolio.snap_alloc_weight": "Target Weight",
+
+  // ─── P1-T1 AI Universe Filter ──────────────────────────────────────────────
+  "universe.title": "AI Universe",
+  "universe.filter.all": "All",
+  "universe.filter.enabled": "AI-Scored",
+  "universe.filter.excluded": "Excluded",
+  "universe.enabled_label": "In AI Universe",
+  "universe.excluded_label": "Excluded from AI",
+  "universe.add": "Add to AI",
+  "universe.remove": "Remove from AI",
+  "universe.updating": "Updating…",
+  "universe.dash_title": "AI Universe",
+  "universe.dash_enabled": "Enabled",
+  "universe.dash_excluded": "Excluded",
+  "universe.reason.LOW_LIQUIDITY": "Low Liquidity",
+  "universe.reason.LOW_GROWTH": "Low Growth",
+  "universe.reason.POOR_DATA": "Poor Data Quality",
+  "universe.reason.ETF": "ETF",
+  "universe.reason.REIT": "REIT",
+  "universe.reason.PREFERRED": "Preferred",
+  "universe.reason.DELISTED": "Delisted",
+  "universe.reason.MANUAL": "Manual Exclude",
+  "universe.reason.OTHER": "Other",
 };
 
 export default enUS;
