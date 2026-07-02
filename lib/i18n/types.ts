@@ -1281,6 +1281,32 @@ export type Messages = {
   "paper.status.REJECTED": string;
   "paper.reject.LOT_SIZE_TOO_SMALL": string;
   "paper.reject.INSUFFICIENT_CASH": string;
+
+  // ─── T2 P6: Paper Broker Data Lineage ─────────────────────────────────────
+  "lineage.title": string;
+  "lineage.flow_title": string;
+  "lineage.status_ok": string;
+  "lineage.last_update": string;
+  "lineage.note_daily_market": string;
+  "lineage.unit_rows": string;
+  "lineage.src.buy_price": string;
+  "lineage.src.sell_price": string;
+  "lineage.src.latest_price": string;
+  "lineage.src.recommendation": string;
+  "lineage.src.signal": string;
+  "lineage.src.score": string;
+  "lineage.src.ai_explain": string;
+  "lineage.tip.sources": string;
+  "lineage.tip.dailyPrice": string;
+  "lineage.tip.stockScore": string;
+  "lineage.tip.strategyRecommendation": string;
+  "lineage.tip.strategyTradeResult": string;
+  "lineage.tip.paperBroker": string;
+  "lineage.tip.paperOrder": string;
+  "lineage.tip.paperExecution": string;
+  "lineage.tip.paperPosition": string;
+  "lineage.tip.paperCashLog": string;
+  "lineage.tip.portfolio": string;
 };
 
 export type MessageKey = keyof Messages;

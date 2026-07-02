@@ -19,6 +19,17 @@ type PaperData = {
   initialized: boolean; mode: string; initialCapital: number;
   totals: { totalAssets: number; totalCash: number; positionsValue: number; cumulativePnl: number; cumulativePnlPct: number; todayPnl: number; realizedPnl: number; unrealizedPnl: number };
   pools: Pool[]; positions: Position[]; todayDate: string | null; todayOrders: Order[]; recentExecutions: Execution[];
+  lineage?: Lineage;
+};
+type Lineage = {
+  dailyPrice: { latestDate: string | null; count: number };
+  stockScore: { latestDate: string | null; count: number };
+  strategyRecommendation: { latestDate: string | null; day: number; swing: number; long: number };
+  strategyTradeResult: { latestDate: string | null; count: number };
+  paperOrder: { latestDate: string | null; count: number };
+  paperExecution: { latestDate: string | null; count: number };
+  paperPosition: { open: number; total: number };
+  paperCashLog: { count: number };
 };
 
 const STRAT_COLOR: Record<Strat, string> = {
@@ -158,10 +169,103 @@ export default function PortfolioPage() {
                 />
               )}
             </Section>
+
+            {/* ── T2 P6: Data Lineage ─────────────────────────────── */}
+            <LineageMap t={t} />
+
+            {/* ── T2 P6: Auto-trading flow timeline ───────────────── */}
+            {data.lineage && <FlowTimeline t={t} lin={data.lineage} />}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+// Data-source mapping: each display metric → its source table/field/API (literal identifiers).
+function LineageMap({ t }: { t: (k: MessageKey) => string }) {
+  const rows: { label: string; src: string[]; note?: string }[] = [
+    { label: t("paper.total_assets"), src: ["PaperAccount.cash", "+ PaperPosition.currentValue"] },
+    { label: t("paper.cash"), src: ["PaperAccount.cash"] },
+    { label: t("paper.positions_value"), src: ["PaperPosition.currentValue"], note: t("lineage.note_daily_market") },
+    { label: t("paper.today_pnl"), src: ["PaperExecution", "+ DailyPrice.close"] },
+    { label: t("paper.cumulative_pnl"), src: ["PaperCashLog", "+ PaperExecution"] },
+    { label: t("paper.positions_title"), src: ["PaperPosition"] },
+    { label: t("paper.today_orders_title"), src: ["PaperOrder"] },
+    { label: t("paper.executions_title"), src: ["PaperExecution"] },
+    { label: t("lineage.src.buy_price"), src: ["StrategyTradeResult.entryPrice", "(PaperExecution.price)"] },
+    { label: t("lineage.src.sell_price"), src: ["StrategyTradeResult.exitPrice", "(PaperExecution.price)"] },
+    { label: t("lineage.src.latest_price"), src: ["DailyPrice.close"] },
+    { label: t("lineage.src.recommendation"), src: ["StrategyRecommendation"] },
+    { label: t("lineage.src.signal"), src: ["StrategyTradeResult"] },
+    { label: t("lineage.src.score"), src: ["StockScore"] },
+    { label: t("lineage.src.ai_explain"), src: ["/api/strategy/explain"] },
+  ];
+  return (
+    <Section title={t("lineage.title")}>
+      <div className="bg-slate-900/40 rounded-lg border border-slate-700/40 divide-y divide-slate-800/60">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-start justify-between gap-4 px-3 py-2">
+            <div className="text-xs text-slate-400 shrink-0">{r.label}</div>
+            <div className="text-right">
+              <div className="flex flex-wrap justify-end gap-x-1.5">
+                {r.src.map((s, j) => (
+                  <code key={j} className="text-[11px] font-mono text-slate-300">{s}</code>
+                ))}
+              </div>
+              {r.note && <div className="text-[10px] text-slate-600 mt-0.5">{r.note}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// Vertical pipeline timeline: each stage shows status / last-update / count + a native hover tooltip.
+function FlowTimeline({ t, lin }: { t: (k: MessageKey) => string; lin: Lineage }) {
+  type Stage = { name: string; tip: MessageKey; date: string | null; count: string | null };
+  const stages: Stage[] = [
+    { name: "J-Quants + Yahoo Finance + TDnet", tip: "lineage.tip.sources", date: null, count: null },
+    { name: "DailyPrice", tip: "lineage.tip.dailyPrice", date: lin.dailyPrice.latestDate, count: `${lin.dailyPrice.count} ${t("lineage.unit_rows")}` },
+    { name: "StockScore", tip: "lineage.tip.stockScore", date: lin.stockScore.latestDate, count: `${lin.stockScore.count} ${t("lineage.unit_rows")}` },
+    { name: "StrategyRecommendation", tip: "lineage.tip.strategyRecommendation", date: lin.strategyRecommendation.latestDate, count: `DAY ${lin.strategyRecommendation.day} · SWING ${lin.strategyRecommendation.swing} · LONG ${lin.strategyRecommendation.long}` },
+    { name: "StrategyTradeResult", tip: "lineage.tip.strategyTradeResult", date: lin.strategyTradeResult.latestDate, count: `${lin.strategyTradeResult.count} ${t("lineage.unit_rows")}` },
+    { name: "Paper Broker", tip: "lineage.tip.paperBroker", date: null, count: "scripts/paper-broker.ts" },
+    { name: "PaperOrder", tip: "lineage.tip.paperOrder", date: lin.paperOrder.latestDate, count: `${lin.paperOrder.count} ${t("lineage.unit_rows")}` },
+    { name: "PaperExecution", tip: "lineage.tip.paperExecution", date: lin.paperExecution.latestDate, count: `${lin.paperExecution.count} ${t("lineage.unit_rows")}` },
+    { name: "PaperPosition", tip: "lineage.tip.paperPosition", date: null, count: `${lin.paperPosition.open} / ${lin.paperPosition.total}` },
+    { name: "PaperCashLog", tip: "lineage.tip.paperCashLog", date: null, count: `${lin.paperCashLog.count} ${t("lineage.unit_rows")}` },
+    { name: "/portfolio", tip: "lineage.tip.portfolio", date: null, count: null },
+  ];
+  return (
+    <Section title={t("lineage.flow_title")}>
+      <div className="bg-slate-900/40 rounded-lg border border-slate-700/40 p-4">
+        <ol className="space-y-0">
+          {stages.map((s, i) => {
+            const ok = !!(s.date || s.count);
+            return (
+              <li key={i} className="relative flex gap-3 pb-4 last:pb-0" title={t(s.tip)}>
+                {/* connector */}
+                {i < stages.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-slate-700/50" aria-hidden />}
+                <span className={`mt-1 h-[11px] w-[11px] shrink-0 rounded-full border ${ok ? "bg-emerald-500/70 border-emerald-400/60" : "bg-slate-600 border-slate-500"}`} aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="text-xs font-mono text-slate-200">{s.name}</code>
+                    <span className="text-[10px] text-emerald-400">✅ {t("lineage.status_ok")}</span>
+                    <span className="text-slate-600 text-[10px] cursor-help" title={t(s.tip)}>ⓘ</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
+                    {s.date && <span>{t("lineage.last_update")}: {s.date}</span>}
+                    {s.count && <span className="tabular-nums">{s.count}</span>}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </Section>
   );
 }
 

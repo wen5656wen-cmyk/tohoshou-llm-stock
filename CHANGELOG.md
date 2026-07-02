@@ -2,6 +2,39 @@
 
 ---
 
+## [17.31.0] - 2026-07-02 — T2 P6 Paper Broker 数据来源可追溯（Data Lineage，仅展示层）
+
+### 目标
+提升 /portfolio（自动交易）可解释性：每块数据标注来源表/字段/脚本/API，并新增「自动交易流程」时间线。
+
+### 仅改展示层（严格未碰）
+未修改 Trading/Strategy Engine、StrategyRecommendation、StockScore、Learning、Backtest、Validation、
+Cron 时间、Paper Broker 交易逻辑（`scripts/paper-broker.ts` 未动）、数据库计算逻辑、**Schema**。
+
+### 新增
+- **`GET /api/portfolio/paper` 增加 `lineage` 只读聚合块**（纯计数/日期，不改任何逻辑）：DailyPrice /
+  StockScore / StrategyRecommendation（三策略计数）/ StrategyTradeResult / Paper 四表 的最新日期+数量。
+  **性能关键**：DailyPrice 的唯一索引均以 `symbol` 开头，直接 `count where date=X` / `orderBy date desc`
+  会扫 7.9M 行；改由 **StockScore**（3.7k 行、`latestDate` 字段 + `count where latestDate=max`）派生
+  "最新交易日+覆盖数"，语义等价且廉价。实测 API 0.22s、页面 0.31s（<500ms）。
+- **/portfolio 底部两块（展示）**：
+  - **数据来源**：15 行「指标 → 来源」映射（总资产/现金/持仓市值/今日盈亏/累计盈亏/持仓/订单/成交/
+    买入价/卖出价/最新价/推荐来源/交易信号/评分来源/AI解释），来源以 monospace 展示（表名/字段/API 属技术标识，不入 i18n）。
+  - **自动交易流程**：竖向 Timeline（J-Quants+Yahoo+TDnet → DailyPrice → StockScore →
+    StrategyRecommendation → StrategyTradeResult → Paper Broker → PaperOrder → PaperExecution →
+    PaperPosition → PaperCashLog → /portfolio），每步 ✅正常 + 最近更新 + 数据量 + **原生 `title` Hover
+    Tooltip 说明**（无第三方库、无复杂动画）。沿用现有深色 Card/字体/间距。
+- i18n：`lineage.*`（title/flow_title/status_ok/last_update/note/unit_rows + src.*(7) + tip.*(11)）三语言补齐。
+
+### 验证
+- `npm run build --webpack` exit 0；`tsc --noEmit` exit 0；/portfolio 页无硬编码 CJK（表名/J-Quants 等为技术标识）。
+- 生产 lineage 实测：DailyPrice 07-01/3672、StockScore 07-02/3715、SR 07-02 DAY100/SWING100/LONG2、
+  STR 07-01/15、PaperOrder 44/Exec 42/Position 10-26/CashLog 45。
+- `health:data` CRITICAL=0（53/4/1，未新增）；/portfolio HTTP 200；策略/Paper 数据零改动（纯读）。
+- 部署：仅 rsync .next + lib，`pm2 restart tohoshou-web`（无 schema/scripts/cron 变更，未重启 cron）。
+
+---
+
 ## [17.30.0] - 2026-07-02 — T2 P5 Paper Broker 自动交易模拟账户
 
 ### 目标
