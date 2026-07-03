@@ -201,6 +201,14 @@ cron.schedule("0 9 * * *", async () => {
   await runAsync("compute-alpha-analytics.ts", "Alpha Analytics", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:15 JST — Alpha Score（P2-T1 Phase 2A Shadow Mode）─────────────────────
+// Analytics(09:00)の重みで AlphaScore を生成（AlphaScore テーブルのみ）。
+// SHADOW ONLY：StockScore/AdaptiveScore/推荐/Portfolio には一切接続しない。
+cron.schedule("15 9 * * *", async () => {
+  log("INFO", "⏰ 09:15 触发：Alpha Score（Phase 2A Shadow）");
+  await runAsync("compute-alpha-score.ts", "Alpha Score (Shadow)");
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：

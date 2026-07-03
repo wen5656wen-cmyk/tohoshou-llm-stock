@@ -314,20 +314,27 @@ export function SystemDashboard({
             </Link>
           </div>
           {/* Alpha Engine 2.0 — admin entries (P2-T1) */}
-          <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             <Link href="/alpha" style={{
-              display: "block", textAlign: "center", padding: "8px",
+              display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
-              color: "#818cf8", fontSize: 12, textDecoration: "none",
+              color: "#818cf8", fontSize: 11, textDecoration: "none",
             }}>
-              ⚡ Alpha Factors
+              ⚡ Factors
             </Link>
             <Link href="/alpha/report" style={{
-              display: "block", textAlign: "center", padding: "8px",
+              display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
-              color: "#818cf8", fontSize: 12, textDecoration: "none",
+              color: "#818cf8", fontSize: 11, textDecoration: "none",
             }}>
-              ★ Alpha Analytics
+              ★ Analytics
+            </Link>
+            <Link href="/alpha/score" style={{
+              display: "block", textAlign: "center", padding: "8px 4px",
+              background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
+              color: "#a5b4fc", fontSize: 11, textDecoration: "none",
+            }}>
+              ◈ Score
             </Link>
           </div>
         </Section>

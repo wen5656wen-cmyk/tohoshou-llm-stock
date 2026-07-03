@@ -1,11 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T1 Alpha Engine Phase 1.5 Analytics 上线）
-> **版本：** v17.38.0（P2-T1 Alpha Analytics；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T1 Alpha Engine Phase 2A Alpha Score Shadow）
+> **版本：** v17.39.0（P2-T1 Alpha Score Shadow Mode；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.38.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.39.0 — 2026-07-03）
+
+**P2-T1 Alpha Engine 2.0 — Phase 2A（Alpha Score Shadow Mode，不接入 AI Score）**
+- **权重(`lib/alpha/score.ts`)**：源 AlphaFactorReport(默认period30)，Rank IC 主(70%)+Sharpe 辅(30%)归一化，方向=sign(RankIC)自动识别(ATR 负 IC→低波动因子反向)，|IC|<0.01 排除。实测:Dist52wHigh+35.9%/ATR−33.0%/AvgTurnover+16.7%/RS+7.8%/VolExp−6.5%/VolRatio0%。
+- **打分(`compute-alpha-score.ts`,仅aiEnabled,不写StockScore)**：最新AlphaFactor截面z-score(turnover先log10)→composite=Σdir·z·w→alphaScore=clamp(50+10·composite,0,100)+rank+percentile+factorBreakdown JSON。cron 09:15。
+- **新表 AlphaScore**(SHADOW ONLY);**API `/api/alpha/score`**(排名+vs AI Score+vs DailyRecommendation+权重);**页面 `/alpha/score`**(排名/因子贡献/对比/CSV);Dashboard 入口 ⚡Factors/★Analytics/◈Score。
+- **生产完全不变(指纹吻合)**：ΣadaptiveScore146778、SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR500、Portfolio#11/9、compute-scores未跑；AlphaScore 3058行;health CRITICAL=0。
+- 影子分化:#1 6522.T Alpha60.84 vs AI47/WATCH;8306(MUFG)Alpha60.44 vs AI46/WATCH——AlphaScore(动量/低波动/流动性)与AI Score明显不同,供Phase2融合参考。
+- **SHADOW ONLY:绝不接入 AdaptiveScore/GPT Rank/DailyRec/Portfolio。**
+
+## ⭐ 上一版本速览（v17.38.0 — 2026-07-03）
 
 **P2-T1 Alpha Engine 2.0 — Phase 1.5（Alpha Analytics，只读因子有效性统计）**
 - **方法**：因子是价格确定性函数，从 DailyPrice 历史按 as-of 日期重算因子+前瞻收益做因子回测（385,144 观测，as-of 2025-11-25…2026-06-08）。

@@ -81,7 +81,9 @@
     "compute-alpha-factors": "npx tsx scripts/compute-alpha-factors.ts",
     "compute-alpha-factors:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-factors.ts",
     "compute-alpha-analytics": "npx tsx scripts/compute-alpha-analytics.ts",
-    "compute-alpha-analytics:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-analytics.ts"
+    "compute-alpha-analytics:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-analytics.ts",
+    "compute-alpha-score": "npx tsx scripts/compute-alpha-score.ts",
+    "compute-alpha-score:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-score.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

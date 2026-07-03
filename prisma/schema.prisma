@@ -1398,3 +1398,22 @@ model AlphaFactorReport {
   @@index([period])
   @@map("alpha_factor_reports")
 }
+
+// ── Alpha Score — Phase 2A Shadow Mode (P2-T1) ───────────────────────────────
+// Composite score from analytics-weighted Alpha factors. SHADOW ONLY — never fed into
+// AdaptiveScore / GPT rank / DailyRecommendation / Portfolio.
+model AlphaScore {
+  id              Int      @id @default(autoincrement())
+  symbol          String
+  date            DateTime @db.Date
+  alphaScore      Float    // 0–100 (50 = universe average)
+  composite       Float    // raw weighted-z composite
+  factorBreakdown Json     // [{factor,value,z,direction,weight,contribution}]
+  rank            Int      // 1 = best
+  percentile      Float    // 0–100 (higher = better)
+  computedAt      DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@index([date, rank])
+  @@map("alpha_scores")
+}

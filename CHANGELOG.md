@@ -2,6 +2,45 @@
 
 ---
 
+## [17.39.0] - 2026-07-03 — P2-T1 Alpha Engine 2.0（Phase 2A：Alpha Score Shadow Mode）
+
+### 目标
+基于 Phase 1.5 Analytics 生成 **AlphaScore**（影子模式），**不接入正式 AI Score**。仍禁止影响
+Adaptive Score / GPT Rank / Daily Recommendation / Portfolio。
+
+### 权重推导（`lib/alpha/score.ts`，纯函数）
+- 来源 `AlphaFactorReport`（默认 period=30，env `ALPHA_SCORE_WEIGHT_PERIOD`）。
+- **Rank IC 为主（70%）+ Sharpe 为辅（30%）**：`w_i = 0.7·|IC_i|/Σ|IC| + 0.3·|Sharpe_i|/Σ|Sharpe|`，归一化（included Σ=1）。
+- **方向自动识别**：`direction = sign(Rank IC)`——负 IC 因子（如 ATR）自动反向 → **ATR 作为低波动因子处理**（低 ATR 得分高）。
+- `|Rank IC| < 0.01` 的因子视为噪声（权重 0，如本次 VolumeRatio）。
+- 生产实测权重：Distance52WeekHigh +35.9% / ATR −33.0% / AverageTurnover +16.7% / RS +7.8% / VolumeExpansion −6.5% / VolumeRatio 0%。
+
+### 打分（`scripts/compute-alpha-score.ts`，仅 aiEnabled=true，**不写 StockScore**）
+- 取最新 AlphaFactor 快照，各因子**截面 z-score 标准化**（AverageTurnover 先 log10 去偏），`composite = Σ direction·z·weight`。
+- `alphaScore = clamp(50 + 10·composite, 0, 100)`（50=universe 均值）；按 composite 降序排名 + percentile。
+- `factorBreakdown` JSON 存每因子 {value, z, direction, weight, contribution}。DRY_RUN 支持；cron **09:15 JST**。
+
+### 数据库 · API · 页面 · Dashboard
+- 新表 `AlphaScore`（symbol/date/alphaScore/composite/factorBreakdown/rank/percentile/computedAt；严格附加，SHADOW ONLY）。
+- `GET /api/alpha/score?limit=&q=`：AlphaScore 排名 + join 当前 AI Score（adaptiveScore/recommendationV2）+ 今日 DailyRecommendation（gptRank/recommendation）对比 + 权重 meta。
+- `/alpha/score` 管理员页：AlphaScore 排名 + 每股因子贡献（Top 贡献）+ **vs AI Score** + **vs DailyRecommendation** + 权重条 + 搜索 + CSV。
+- SystemDashboard 入口扩为「⚡ Factors / ★ Analytics / ◈ Score」。
+
+### 验证（生产实测）
+- **生产结果完全不变（指纹逐字段吻合 BASELINE）**：Σ adaptiveScore **146778 = 146778**、lastComputedAt 未变、
+  StrongBuy 2 / Buy 21 / Hold 391 / Watch 1494 / Avoid 1161、DR today 500、Portfolio #11 / 9 —— 全一致。
+- AlphaScore 正常生成：**3058 只**（5.2s）；`health:data` exit 0 → **CRITICAL=0**；cron 重启加载 09:15 slot（14:59 JST 窗口外）。
+- `tsc`/`build` exit 0（无 CJK UI）；Alpha score API/页面 HTTP 200。
+- 影子分化示例：#1 6522.T AlphaScore 60.84 vs AI 47/WATCH；#3 8306.T(MUFG) 60.44 vs AI 46/WATCH，DR 未入选
+  ——AlphaScore（动量/低波动/流动性）与生产 AI Score 明显不同，供 Phase 2 融合决策参考。
+
+### 部署
+db push（AlphaScore）+ generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web`（含新 AlphaScore client）+ `tohoshou-cron`（09:15 slot，14:59 JST 窗口外）。
+
+> **SHADOW ONLY**：AlphaScore 本阶段绝不接入 AdaptiveScore/GPT Rank/DailyRecommendation/Portfolio。
+
+---
+
 ## [17.38.0] - 2026-07-03 — P2-T1 Alpha Engine 2.0（Phase 1.5：Alpha Analytics，只读统计）
 
 ### 目标
