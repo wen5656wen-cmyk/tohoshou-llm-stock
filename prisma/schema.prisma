@@ -1333,3 +1333,40 @@ model PaperCashLog {
   @@index([accountId, strategyType, logDate])
   @@map("paper_cash_logs")
 }
+
+// ── Alpha Engine 2.0 — Phase 1 (P2-T1) ───────────────────────────────────────
+// Strictly additive parallel data layer. NEVER consumed by StockScore / AdaptiveScore /
+// GPT rank / DailyRecommendation / Portfolio in Phase 1 (data only).
+model AlphaFactor {
+  id                   Int      @id @default(autoincrement())
+  symbol               String
+  date                 DateTime @db.Date // latest trading day the factors are computed for
+  // ① Relative Strength vs TOPIX (excess return %, N trading days)
+  rs5                  Float?
+  rs20                 Float?
+  rs60                 Float?
+  // ② ATR(14)
+  atr14                Float?
+  atrPct               Float?
+  // ③ 52-week distance (signed %)
+  distanceTo52WeekHigh Float?
+  distanceTo52WeekLow  Float?
+  // ④ liquidity
+  averageTurnover20    Float?
+  // ⑤ volume ratios
+  volumeRatio5         Float?
+  volumeRatio20        Float?
+  // ⑥ consecutive expansion days
+  volumeExpansionDays  Int?
+  // event factors (Phase 1: interface, nullable)
+  buyback              Boolean?
+  dividendRaise        Boolean?
+  guidanceRaise        Boolean?
+  tdnetEvent           Boolean?
+  computedAt           DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@index([date])
+  @@index([symbol])
+  @@map("alpha_factors")
+}

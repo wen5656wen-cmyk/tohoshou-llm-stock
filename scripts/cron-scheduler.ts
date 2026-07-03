@@ -185,6 +185,14 @@ cron.schedule("30 5 * * *", async () => {
   await runAsync("fetch-global-market.ts", "グローバル市場取得");
 }, { timezone: "Asia/Tokyo" });
 
+// ── 08:45 JST — Alpha Factors（P2-T1 Phase 1）────────────────────────────────
+// 価格同期(06:00)+TOPIX(05:30)+評分流水線(~07:56)完了後に走る、追加のみのデータ層。
+// StockScore/推荐/Portfolio には一切触れない（並行 Alpha データを AlphaFactor に upsert）。
+cron.schedule("45 8 * * *", async () => {
+  log("INFO", "⏰ 08:45 触发：Alpha Factors（Phase 1 データ層）");
+  await runAsync("compute-alpha-factors.ts", "Alpha Factors");
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：

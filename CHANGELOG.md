@@ -2,6 +2,51 @@
 
 ---
 
+## [17.37.0] - 2026-07-03 — P2-T1 Alpha Engine 2.0（Phase 1：Alpha Factors，纯新增数据层）
+
+### 目标
+在保持 `v2.0.0-universe-stable` 生产结果**完全不变**的前提下，建立第二代 Alpha 因子系统。
+**本阶段只新增数据**，不修改任何 AI Score / Adaptive Score / GPT Rank / Daily Recommendation / Portfolio / Universe。
+
+### Alpha Factor 模块（`lib/alpha/`，每因子独立、互不耦合）
+- `relative-strength.ts` — **RS5 / RS20 / RS60**：相对 TOPIX 的 5/20/60 交易日超额收益（%），按日期对齐 TOPIX。
+- `atr.ts` — **ATR14 / ATR%**：Average True Range(14) 及其占价百分比。
+- `new-high.ts` — **DistanceTo52WeekHigh / Low**：距 52 周高/低的有符号 %（adjClose，防拆股失真）。
+- `liquidity.ts` — **AverageTurnover20**：20 日平均成交额（JPY = close×volume）。
+- `volume-ratio.ts` — **VolumeRatio5 / VolumeRatio20 / VolumeExpansionDays**：量比（最新/前 N 日均量）+ 连续放量天数。
+- `event-factor.ts` — **Buyback / DividendRaise / GuidanceRaise / TDnetEvent**：Phase 1 仅接口（返回 null，后续阶段填充）。
+- `index.ts` — 类型 `Bar` + `computeAllAlphaFactors()` 编排（仅合并各因子输出，无跨因子耦合）。
+
+### 数据库
+- 新增 `AlphaFactor` 表（`alpha_factors`）：symbol / date / 全部 Alpha 因子 / event 布尔（nullable）/ computedAt；
+  `@@unique([symbol,date])` + 索引。**严格附加**，Phase 1 不被任何评分/推荐消费。
+
+### 脚本 & Cron
+- `scripts/compute-alpha-factors.ts`：读 DailyPrice + GlobalMarket(TOPIX) + Stock（aiEnabled=true），upsert AlphaFactor；
+  **绝不读写 StockScore/DR/Portfolio/GPTScore**；DRY_RUN 支持；`package.json` 加 `compute-alpha-factors(:dry)`。
+- `cron-scheduler.ts`：新增 **08:45 JST** slot（价格/TOPIX/评分流水线完成后）独立运行，隔离于生产关键路径。
+
+### API & 调试页面
+- `GET /api/alpha/[symbol]` — 返回该股最新全部 Alpha 因子。
+- `GET /api/alpha` — 最新交易日全量（供调试页；带 names、q 搜索）。
+- `/alpha` — 管理员调试控制台：因子表格 + 列排序 + 搜索 + CSV 导出（英文/技术标签，无 CJK）。
+
+### 验证（生产实测）
+- **生产结果完全一致（不变性指纹逐字段吻合 BASELINE）**：StockScore 3069、Σ adaptiveScore **146778=146778**、
+  Σ percentileRank 一致、lastComputedAt 未变（compute-scores 未重跑）；StrongBuy **2** / Buy **21** / Hold 391 /
+  Watch 1494 / Avoid 1161 全一致；DailyRecommendation today 500 一致；Portfolio #11 / 9 持仓一致。
+- **AlphaFactor 新增 3069 行**（computed 3069 / skipped 1 / errors 0，17.9s；TOPIX 276 天）。
+- `tsc`/`build` exit 0（无新增 CJK UI）；`health:data` exit 0 → **CRITICAL=0**；Cron 重启加载新 slot（14:24 JST，窗口外）。
+- Alpha API/页面 HTTP 200；抽样 7203.T：RS5 3.31 / RS20 -3.47 / RS60 -24.49 / ATR14 65.79 / ATR% 2.36 /
+  Dist52wH -29.18 / Dist52wL +13.86 / AvgTurnover20 ¥73.6B / VolR5 1.09 / VolR20 1.17 / VolExpDays 1 / events null。
+
+### 部署
+db push（AlphaFactor）+ generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web` + `tohoshou-cron`（新 cron slot，14:24 JST 窗口外）。
+
+> **Phase 2（后续）** 才允许根据历史统计结果调整评分权重；Phase 1 仅建立 Alpha 数据层。
+
+---
+
 ## [🔒 FREEZE] v2.0.0-universe-stable - 2026-07-03 — Production Baseline（P2-T0 收官）
 
 **版本冻结 / Version Freeze**：以 v17.36.2（commit `d066e12`，deployment #88）为 **P2-T1 的生产基线**。

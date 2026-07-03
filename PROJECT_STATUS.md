@@ -1,9 +1,18 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T0 封版 / Production Baseline）
-> **版本：** v17.36.2 🔒 **FROZEN** — Git Tag `v2.0.0-universe-stable`（commit d066e12，deployment #88）
+> **最后更新：** 2026-07-03（P2-T1 Alpha Engine Phase 1 上线）
+> **版本：** v17.37.0（P2-T1 Alpha Factors 数据层；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
+
+## ⭐ 最新版本速览（v17.37.0 — 2026-07-03）
+
+**P2-T1 Alpha Engine 2.0 — Phase 1（Alpha Factors，纯新增数据层）**
+- **`lib/alpha/`**（每因子独立互不耦合）：relative-strength(RS5/20/60 vs TOPIX)、atr(ATR14/ATR%)、new-high(Dist52wHigh/Low)、liquidity(AvgTurnover20)、volume-ratio(VolR5/20/VolExpDays)、event-factor(Buyback/DividendRaise/GuidanceRaise/TDnet — Phase1 仅接口返 null)、index(编排)。
+- **新表 `AlphaFactor`**（严格附加，不被评分/推荐消费）；`scripts/compute-alpha-factors.ts`（读 DailyPrice/GlobalMarket/Stock，绝不读写 StockScore/DR/Portfolio）；cron **08:45 JST** slot。
+- **API** `/api/alpha/[symbol]` + `/api/alpha`（列表）；**调试页 `/alpha`**（排序/搜索/CSV 导出，管理员）。
+- **生产完全不变（指纹逐字段吻合）**：Σ adaptiveScore 146778 不变、SB2/BUY21/HOLD391/WATCH1494/AVOID1161 全同、DR 500、Portfolio#11/9、compute-scores 未重跑；AlphaFactor 新增 3069 行；health CRITICAL=0。
+- **Phase 2 才允许据历史统计调评分权重**；Phase 1 仅数据层。
 
 ## 🔒 P2-T0 封版基线（2026-07-03 Production Baseline）
 

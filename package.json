@@ -77,7 +77,9 @@
     "generate-monthly-report:force": "FORCE=1 npx tsx scripts/generate-monthly-report.ts",
     "paper-broker": "npx tsx scripts/paper-broker.ts",
     "update-ai-universe": "npx tsx scripts/update-ai-universe.ts",
-    "update-ai-universe:dry": "DRY_RUN=1 npx tsx scripts/update-ai-universe.ts"
+    "update-ai-universe:dry": "DRY_RUN=1 npx tsx scripts/update-ai-universe.ts",
+    "compute-alpha-factors": "npx tsx scripts/compute-alpha-factors.ts",
+    "compute-alpha-factors:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-factors.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
