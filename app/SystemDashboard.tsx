@@ -337,6 +337,15 @@ export function SystemDashboard({
               ◈ Score
             </Link>
           </div>
+          <div style={{ marginTop: 8 }}>
+            <Link href="/alpha/backtest" style={{
+              display: "block", textAlign: "center", padding: "8px 4px",
+              background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
+              color: "#6ee7b7", fontSize: 11, textDecoration: "none",
+            }}>
+              ⚖ Shadow Backtest (Production vs Alpha)
+            </Link>
+          </div>
         </Section>
 
         {/* Col 2: Health Score Breakdown */}

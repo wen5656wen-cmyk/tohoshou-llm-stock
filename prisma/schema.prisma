@@ -1417,3 +1417,27 @@ model AlphaScore {
   @@index([date, rank])
   @@map("alpha_scores")
 }
+
+// ── Alpha Shadow Backtest — Phase P2-T2 ──────────────────────────────────────
+// Shadow validation: Production-score vs AlphaScore, reconstructed from DailyPrice.
+// Read-only; never affects production scoring/recommendation.
+model AlphaBacktestResult {
+  id               Int       @id @default(autoincrement())
+  period           Int       // 30 | 90 | 180 (day window)
+  strategy         String    // PRODUCTION | ALPHA
+  topN             Int       // 10 | 20 | 50
+  holdDays         Int       // 5 | 10 | 20
+  cumReturn        Float?
+  alpha            Float?    // annualized excess vs equal-weight market
+  sharpe           Float?
+  maxDrawdown      Float?
+  winRate          Float?
+  annualizedReturn Float?
+  nObs             Int       @default(0)
+  asOfLatest       DateTime? @db.Date
+  computedAt       DateTime  @default(now())
+
+  @@unique([period, strategy, topN, holdDays])
+  @@index([period])
+  @@map("alpha_backtest_results")
+}

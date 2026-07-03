@@ -83,7 +83,9 @@
     "compute-alpha-analytics": "npx tsx scripts/compute-alpha-analytics.ts",
     "compute-alpha-analytics:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-analytics.ts",
     "compute-alpha-score": "npx tsx scripts/compute-alpha-score.ts",
-    "compute-alpha-score:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-score.ts"
+    "compute-alpha-score:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-score.ts",
+    "backtest-shadow": "npx tsx scripts/backtest-shadow.ts",
+    "backtest-shadow:dry": "DRY_RUN=1 npx tsx scripts/backtest-shadow.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

@@ -1,11 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T1 Alpha Engine Phase 2A Alpha Score Shadow）
-> **版本：** v17.39.0（P2-T1 Alpha Score Shadow Mode；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T2 Alpha Shadow Validation Backtest）
+> **版本：** v17.40.0（P2-T2 Shadow Backtest；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.39.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.40.0 — 2026-07-03）
+
+**P2-T2 Shadow Validation Engine（Alpha Shadow Backtest，只读验证）**
+- **方法**：DailyRecommendation 仅12天无前瞻数据、production 分数不可历史重建→**两分数均从 DailyPrice 重建**：AlphaScore(Analytics 加权6因子 z-composite) vs Production(动量核心 z(ret20)+z(ret60),透明标注)。每as-of日截面z→排名→Top10/20/50等权→持有5/10/20日→前瞻收益(385,144观测)。
+- **统计(`lib/alpha/backtest.ts`)**：累计收益/Alpha(年化超额)/Sharpe/最大回撤/胜率/年化/样本数。
+- **新表 AlphaBacktestResult(54行)**；`backtest-shadow.ts`(绝不读写生产表);cron **09:30 JST**。**API `/api/alpha/backtest?period=`**;**页面 `/alpha/backtest`**(Production/Shadow/Overlay 切换+周期+矩阵+CSV);Dashboard ⚖入口。
+- **生产100%一致(指纹吻合)**：ΣadaptiveScore146778、SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR500、Portfolio#11/9、compute-scores未跑；health CRITICAL=0;4个alpha cron slots(08:45/09:00/09:15/09:30)。
+- **关键发现(Top20/20d累计)**：30d Prod−4.61%/Alpha+1.55%(Alpha胜);90d Prod+14.49%/Alpha+9.77%(Alpha输);180d Prod+44.82%/Alpha+25.27%(Alpha输)→**Alpha 未全面优于动量,短周期占优/中长周期在强动量牛市跑输,Phase2融合须审慎禁盲目上线。**
+- **READ-ONLY:回测仅重建历史比较,生产不受影响。**
+
+## ⭐ 上一版本速览（v17.39.0 — 2026-07-03）
 
 **P2-T1 Alpha Engine 2.0 — Phase 2A（Alpha Score Shadow Mode，不接入 AI Score）**
 - **权重(`lib/alpha/score.ts`)**：源 AlphaFactorReport(默认period30)，Rank IC 主(70%)+Sharpe 辅(30%)归一化，方向=sign(RankIC)自动识别(ATR 负 IC→低波动因子反向)，|IC|<0.01 排除。实测:Dist52wHigh+35.9%/ATR−33.0%/AvgTurnover+16.7%/RS+7.8%/VolExp−6.5%/VolRatio0%。

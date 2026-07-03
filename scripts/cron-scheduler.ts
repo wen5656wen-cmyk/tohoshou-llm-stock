@@ -209,6 +209,14 @@ cron.schedule("15 9 * * *", async () => {
   await runAsync("compute-alpha-score.ts", "Alpha Score (Shadow)");
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:30 JST — Alpha Shadow Backtest（P2-T2）───────────────────────────────
+// Production スコア vs AlphaScore を DailyPrice から再構成して検証（AlphaBacktestResult）。
+// READ-ONLY：本番のスコア/推薦/Portfolio には一切影響しない。約 15min timeout。
+cron.schedule("30 9 * * *", async () => {
+  log("INFO", "⏰ 09:30 触发：Alpha Shadow Backtest（P2-T2 検証）");
+  await runAsync("backtest-shadow.ts", "Alpha Shadow Backtest", 15 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：

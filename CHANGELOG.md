@@ -2,6 +2,52 @@
 
 ---
 
+## [17.40.0] - 2026-07-03 — P2-T2 Shadow Validation Engine（Alpha Shadow Backtest）
+
+### 目标
+验证 AlphaScore 是否真正优于当前 Production Score。**只读回测验证**，禁止修改
+AI Score / Adaptive Score / GPT Rank / Daily Recommendation / Portfolio。
+
+### 数据现实 & 方法
+DailyRecommendation 仅 12 天（且无 20 日前瞻数据），无法作为回测的 production 历史；production
+adaptiveScore 未按日期版本化、非技术维度不可历史重建。因此**两分数均从 DailyPrice 历史重建**做公平回测：
+- **AlphaScore** = Analytics 加权 6 因子截面 z-composite（真实 Alpha 引擎）。
+- **Production Score** = 可复现的动量核心 `z(return20d)+z(return60d)`（生产技术排名的重建代理，**透明标注**）。
+- 每个 as-of 日截面 z-score → 按各分数排名 → **Top10/20/50 等权** → 持有 **5/10/20 日** → 前瞻收益；
+  385,144 观测（as-of 2025-11-25…2026-06-08）。
+
+### 统计（`lib/alpha/backtest.ts`，纯函数）
+每策略×TopN×持有×周期输出：**累计收益 / Alpha（年化超额 vs 等权市场）/ Sharpe / 最大回撤 / 胜率 / 年化收益 / 样本数**。
+重叠日采样算胜率/Sharpe；非重叠（步长=持有）权益曲线算累计收益/回撤。
+
+### 数据库 · 脚本 · Cron
+- 新表 `AlphaBacktestResult`（period×strategy×topN×holdDays = 54 行；严格附加）。
+- `scripts/backtest-shadow.ts`（**绝不读写 StockScore/DR/Portfolio/GPTScore**；DRY_RUN）；`package.json` 加 `backtest-shadow(:dry)`。cron **09:30 JST**。
+
+### API · 页面 · Dashboard · CSV
+- `GET /api/alpha/backtest?period=30|90|180`（默认 90）+ headline（Production/Shadow/Alpha）。
+- `/alpha/backtest` 管理员页：headline 卡 + **Production / Shadow / Overlay 切换** + 周期切换 + TopN×持有 矩阵表 + **CSV 导出**。
+- SystemDashboard 入口新增「⚖ Shadow Backtest」。
+
+### 验证（生产实测）
+- **生产推荐 100% 一致（指纹逐字段吻合 BASELINE）**：Σ adaptiveScore **146778 = 146778**、lastComputedAt 未变、
+  StrongBuy 2 / Buy 21 / Hold 391 / Watch 1494 / Avoid 1161、DR today 500、Portfolio #11 / 9 —— 全一致。
+- 回测正常：**385,144 观测 / 24.3s / 54 行**；`health:data` exit 0 → **CRITICAL=0**；cron 重启加载 09:30 slot（15:30 JST 窗口外）；4 个 alpha slots。
+- `tsc`/`build` exit 0（无 CJK UI）；Backtest API/页面 HTTP 200。
+
+### 关键发现（诚实结论）
+Top20 / 持有 20d 累计收益：**30d** Production −4.61% / Shadow(Alpha) +1.55%（Alpha 胜 +6.16%）；
+**90d** Production +14.49% / Shadow +9.77%（Alpha −4.72%）；**180d** Production +44.82% / Shadow +25.27%（Alpha −19.55%）。
+→ **Alpha 并未全面优于 Production**：短周期(30d)占优，中长周期(90/180d)在本轮强动量牛市中跑输动量核心
+（Alpha 因低波动/防御倾向更保守）。**Phase 2 融合须审慎，禁止盲目上线 Alpha。**
+
+### 部署
+db push（AlphaBacktestResult）+ generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web` + `tohoshou-cron`（09:30 slot，15:30 JST 窗口外）。
+
+> **READ-ONLY**：回测仅重建历史数据比较，生产 AI Score / 推荐 / Portfolio 完全不受影响。
+
+---
+
 ## [17.39.0] - 2026-07-03 — P2-T1 Alpha Engine 2.0（Phase 2A：Alpha Score Shadow Mode）
 
 ### 目标
