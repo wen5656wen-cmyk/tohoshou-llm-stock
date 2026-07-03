@@ -33,6 +33,7 @@ type StockRow = {
   aiEnabled: boolean;
   excludeReason: string | null;
   aiExcludeSource: string | null;
+  isWatchlist?: boolean;
 };
 
 type SortKey = "latestClose" | "return5d" | "return20d" | "return60d" | "rsi14";
@@ -329,6 +330,7 @@ export default function StocksPage() {
                         <td style={{ width: 220, minWidth: 220, padding: "0 8px 0 20px" }}>
                           <Link href={buildStockUrl(s.symbol, "stocks", "/stocks")} className="block group">
                             <div className="text-[14px] font-bold text-slate-900 group-hover:text-blue-600 leading-tight truncate">
+                              {s.isWatchlist && <span className="text-amber-500 mr-0.5" title={t("universe.rule.MANUAL_INCLUDE_WATCHLIST")}>★</span>}
                               {getPrimaryName(s, lang)}
                             </div>
                             {getSecondaryName(s, lang) && (

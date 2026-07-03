@@ -77,7 +77,65 @@ export async function GET() {
     aiEnabled: true,
     excludeReason: null as string | null,
     aiExcludeSource: null as string | null,
+    isWatchlist: false,
   }));
+
+  // Manual watchlist includes (aiExcludeRule=MANUAL_INCLUDE_WATCHLIST) are pinned into
+  // the AI universe by an admin. Surface them in the list even when their score keeps
+  // them out of the top-N, so a watchlist stock is always searchable in /stocks.
+  const topSet = new Set(symbols);
+  const watchStocks = await prisma.stock.findMany({
+    where: { aiEnabled: true, aiExcludeSource: "MANUAL", aiExcludeRule: "MANUAL_INCLUDE_WATCHLIST" },
+    select: { symbol: true, name: true, nameZh: true, nameEn: true, sector: true, market: true },
+  });
+  const watchOutside = watchStocks.filter((s) => !topSet.has(s.symbol));
+  const watchScoreRows = watchOutside.length
+    ? await prisma.stockScore.findMany({
+        where: { symbol: { in: watchOutside.map((s) => s.symbol) } },
+        select: {
+          symbol: true, latestDate: true, latestClose: true,
+          return5d: true, return20d: true, return60d: true,
+          rsi14: true, macd: true, macdSignal: true, macdHist: true,
+          maTrend: true, macdSignalLabel: true, tradingAction: true,
+          positionSizePct: true, actionRiskLevel: true,
+        },
+      })
+    : [];
+  const watchScoreMap = new Map(watchScoreRows.map((s) => [s.symbol, s]));
+  const watchlistRows = watchOutside.map((st) => {
+    const s = watchScoreMap.get(st.symbol);
+    return {
+      symbol: st.symbol,
+      name: st.name,
+      nameZh: st.nameZh ?? null,
+      nameEn: st.nameEn ?? null,
+      sector: st.sector ?? null,
+      market: st.market ?? null,
+      latestDate: s?.latestDate ?? "",
+      latestClose: s?.latestClose ?? 0,
+      return5d: s?.return5d ?? null,
+      return20d: s?.return20d ?? null,
+      return60d: s?.return60d ?? null,
+      ma5: null,
+      ma20: null,
+      ma60: null,
+      rsi14: s?.rsi14 ?? null,
+      macd: s?.macd ?? null,
+      macdSignal: s?.macdSignal ?? null,
+      macdHist: s?.macdHist ?? null,
+      maTrend: s?.maTrend ?? "NEUTRAL",
+      macdSignalLabel: s?.macdSignalLabel ?? "NEUTRAL",
+      rsiSignal: rsiSignal(s?.rsi14 ?? null),
+      tradingAction: s?.tradingAction ?? null,
+      positionSizePct: s?.positionSizePct ?? null,
+      actionRiskLevel: s?.actionRiskLevel ?? null,
+      finCount: 0,
+      aiEnabled: true,
+      excludeReason: null as string | null,
+      aiExcludeSource: "MANUAL" as string | null,
+      isWatchlist: true,
+    };
+  });
 
   // Excluded stocks carry no StockScore — surface them (with null indicators) so the
   // list "已排除股票 / Excluded" filter has data to show.
@@ -118,7 +176,8 @@ export async function GET() {
     aiEnabled: false,
     excludeReason: s.excludeReason ?? "OTHER",
     aiExcludeSource: s.aiExcludeSource ?? null,
+    isWatchlist: false,
   }));
 
-  return NextResponse.json([...scoredRows, ...excludedRows]);
+  return NextResponse.json([...scoredRows, ...watchlistRows, ...excludedRows]);
 }

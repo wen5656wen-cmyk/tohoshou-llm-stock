@@ -70,18 +70,22 @@ export async function POST(
   const now = new Date();
 
   if (body.aiEnabled) {
-    // Manual add. If the stock was AUTO/SYSTEM-excluded, this is a manual OVERRIDE:
-    // keep source=MANUAL + the matched rule as a warning so the auto guard won't
-    // re-exclude it, and the UI can flag "kept despite an auto rule". Otherwise it's
-    // a clean enable (clears all provenance). StockScore rebuilt next compute-scores.
+    // Manual add → always a MANUAL decision that the auto guard must respect (it
+    // skips aiExcludeSource==='MANUAL'). Two flavours:
+    //  - was AUTO/SYSTEM-excluded → OVERRIDE: keep the matched auto rule as a warning
+    //    ("kept despite an auto rule"); the guard won't re-exclude it.
+    //  - otherwise (was manually excluded, or a fresh pin) → MANUAL_INCLUDE_WATCHLIST:
+    //    a protected watchlist include that the guard will never auto-exclude.
+    // Either way source=MANUAL, so the stock is pinned into the universe.
+    // StockScore is rebuilt on the next compute-scores.
     const wasAuto = existing.aiExcludeSource === "AUTO" || existing.aiExcludeSource === "SYSTEM";
     const updated = await prisma.stock.update({
       where: { symbol },
       data: {
         aiEnabled: true,
         excludeReason: null,
-        aiExcludeSource: wasAuto ? "MANUAL" : null,
-        aiExcludeRule: wasAuto ? existing.aiExcludeRule : null,
+        aiExcludeSource: "MANUAL",
+        aiExcludeRule: wasAuto ? existing.aiExcludeRule : "MANUAL_INCLUDE_WATCHLIST",
         aiExcludeUpdatedAt: now,
       },
       select: UNIVERSE_SELECT,

@@ -317,8 +317,12 @@ function AiUniverseControl({
     }
   }
 
-  // Manual-override warning: kept in the universe despite matching an auto rule.
-  const overrideWarning = aiEnabled && aiExcludeSource === "MANUAL" && !!aiExcludeRule;
+  // Manual pin markers. A watchlist include is a neutral "pinned" note; an override
+  // (kept despite an auto rule) is an amber warning.
+  const isWatchlistInclude =
+    aiEnabled && aiExcludeSource === "MANUAL" && aiExcludeRule === "MANUAL_INCLUDE_WATCHLIST";
+  const overrideWarning =
+    aiEnabled && aiExcludeSource === "MANUAL" && !!aiExcludeRule && !isWatchlistInclude;
   const hasProvenance = !!aiExcludeSource || !!aiExcludeRule || !!aiExcludeUpdatedAt;
   const updatedStr = aiExcludeUpdatedAt
     ? new Date(aiExcludeUpdatedAt).toLocaleString(lang === "en-US" ? "en-US" : lang === "ja-JP" ? "ja-JP" : "zh-CN")
@@ -403,6 +407,11 @@ function AiUniverseControl({
       {overrideWarning && (
         <div className="mt-2 text-[11px] text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5">
           ⚠ {t("universe.override_warning")}
+        </div>
+      )}
+      {isWatchlistInclude && (
+        <div className="mt-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+          ★ {t("universe.watchlist_note")}
         </div>
       )}
     </div>

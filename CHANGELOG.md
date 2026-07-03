@@ -2,6 +2,49 @@
 
 ---
 
+## [17.36.0] - 2026-07-03 — 紧急修复：恢复 8198.T 到 AI 评分池（受保护关注股）
+
+### 目标
+8198.T（マックスバリュ東海）是人工关注股，误被排除（T1 手动 LOW_GROWTH）。立即恢复并**永久保护**其
+不被 Universe Guard 移出。
+
+### 8198.T 目标状态（已达成）
+`aiEnabled=true` / `excludeReason=null` / `aiExcludeSource=MANUAL` / `aiExcludeRule='MANUAL_INCLUDE_WATCHLIST'` /
+`aiExcludeUpdatedAt=now()`。Guard 跳过所有 `source=MANUAL`，因此永不自动排除它。
+
+### 新增/变更（受保护「手动纳入」机制）
+- **Admin API**（`POST /api/admin/stocks/[symbol]/ai-universe` enable 路径）：手动加入现在**始终**写
+  `aiExcludeSource=MANUAL`——若原为 AUTO/SYSTEM 排除→保留原 rule 作 override 警告；否则写
+  `aiExcludeRule='MANUAL_INCLUDE_WATCHLIST'`（受保护关注股）。此前 clean-enable 写 source=null（会被 guard 重新评估），
+  现改为 MANUAL（受保护）。
+- **新 rule 码** `MANUAL_INCLUDE_WATCHLIST` + i18n `universe.rule.MANUAL_INCLUDE_WATCHLIST` /
+  `universe.watchlist_note`（三语）。
+- **详情页**：区分 watchlist 纳入（绿色 ★「人工关注股，自动排除规则不会将其移出」）与 override 警告（琥珀色）。
+- **`/api/indicators` + `/stocks`**：手动纳入的关注股（enabled + rule=MANUAL_INCLUDE_WATCHLIST）即使评分未进
+  top-500 也**追加到列表并带真实指标**（`isWatchlist:true` + ★ 徽章），保证「可在 /stocks 搜索到」。
+- **rerank 永久修复**：`rerank-top500.ts` Step 8 upsert 前 `deleteMany` 当日 DR 中不在本次 top-N 集合的行
+  （历史 DR 不动），根治「re-run/universe 变动留下 stale DR 重复 gptRank」——本次复现 8 条已按此清理。
+
+### 重建执行（生产，按序）
+恢复 8198.T → `compute-scores`（3071 enabled，8198.T 获评分 adaptiveScore=40/AVOID/rank2266）→
+`rerank:top500`（500 DR）→ 日志精确清理 8 条 enabled stale DR（508→500）→ 删今日 StrategyRec 重生成 →
+`health:data`。
+
+### 验证（生产实测，全绿）
+- **8198.T**：aiEnabled=true ✓；有 StockScore（adaptiveScore=40，rsi 33.33，close 3130）✓；
+  `/api/stocks?q=8198` 找到 ✓；`/api/indicators` 现含 8198.T（isWatchlist:true）→ **/stocks 可搜到** ✓；
+  `/stocks/8198.T` HTTP 200 ✓；参与评分/排名（marketRank=2266）/推荐（在池，未进 top-500 属评分所致）✓。
+- **Guard 再跑一次**：skipped(MANUAL)=1、newly=0 → **8198.T 未被排除** ✓。
+- **Health**：`health:data` exit 0 → **CRITICAL=0**；Enabled **3071** / Excluded **648**。
+- **DR 一致性**：今日 500 行、excluded 0、gptRank 1..500 连续无重复。
+- `tsc`/`build` exit 0；无新增硬编码 CJK UI。
+
+### 部署
+`app/api/*`、`app/stocks/*`、`scripts/rerank-top500.ts`、`lib/i18n/*`；build + rsync .next+lib+scripts +
+`pm2 restart tohoshou-web`（未改 cron-scheduler.ts，未重启 cron）。
+
+---
+
 ## [17.35.0] - 2026-07-03 — P2-T0 Universe 重建（Rebuild After Universe Guard）
 
 ### 目标

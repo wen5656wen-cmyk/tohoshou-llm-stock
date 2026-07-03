@@ -1433,8 +1433,10 @@ const enUS: Messages = {
   "universe.rule.PREFERRED_NAME": "Preferred name match",
   "universe.rule.DATA_QUALITY": "Insufficient data",
   "universe.rule.LOW_TURNOVER": "Low avg turnover",
+  "universe.rule.MANUAL_INCLUDE_WATCHLIST": "Manual include (watchlist)",
   "universe.updated_label": "Updated",
   "universe.override_warning": "Manually kept (matches an auto-exclude rule)",
+  "universe.watchlist_note": "Watchlist stock — auto-exclude rules will not remove it",
 };
 
 export default enUS;

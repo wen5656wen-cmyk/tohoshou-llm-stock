@@ -660,6 +660,18 @@ async function main() {
 
     // Fetch summaryZh from freshly upserted GPTScore
     const symbols = scored.map((s) => s.symbol);
+
+    // Today's DailyRecommendation is a full snapshot of the current top-N. Purge any
+    // rows for symbols NOT in this run's set before upserting, so a re-run (or a
+    // universe change that drops a stock out of the top-N) never leaves stale rows
+    // with duplicate/orphaned gptRank. Only TODAY's date — historical DR is immutable.
+    const drPurged = await prisma.dailyRecommendation.deleteMany({
+      where: { date: today, symbol: { notIn: symbols } },
+    });
+    if (drPurged.count > 0) {
+      console.log(`  🧹 purged ${drPurged.count} stale DailyRecommendation row(s) for ${today.toISOString().slice(0, 10)}`);
+    }
+
     const gptRows = await prisma.gPTScore.findMany({
       where: { symbol: { in: symbols } },
       select: { symbol: true, summaryZh: true },

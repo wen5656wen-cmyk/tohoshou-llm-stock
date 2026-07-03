@@ -1433,8 +1433,10 @@ const zhCN: Messages = {
   "universe.rule.PREFERRED_NAME": "优先股名称匹配",
   "universe.rule.DATA_QUALITY": "数据质量不足",
   "universe.rule.LOW_TURNOVER": "日均成交额过低",
+  "universe.rule.MANUAL_INCLUDE_WATCHLIST": "手动纳入（关注股）",
   "universe.updated_label": "更新时间",
   "universe.override_warning": "已手动保留（该股票命中自动排除规则）",
+  "universe.watchlist_note": "人工关注股，自动排除规则不会将其移出",
 };
 
 export default zhCN;

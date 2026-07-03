@@ -1433,8 +1433,10 @@ const jaJP: Messages = {
   "universe.rule.PREFERRED_NAME": "優先株 名称一致",
   "universe.rule.DATA_QUALITY": "データ品質不足",
   "universe.rule.LOW_TURNOVER": "1日平均売買代金が低い",
+  "universe.rule.MANUAL_INCLUDE_WATCHLIST": "手動組入（ウォッチ銘柄）",
   "universe.updated_label": "更新日時",
   "universe.override_warning": "手動で保持（自動除外ルールに該当）",
+  "universe.watchlist_note": "ウォッチ銘柄。自動除外ルールでは除外されません",
 };
 
 export default jaJP;

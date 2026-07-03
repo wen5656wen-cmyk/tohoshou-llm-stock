@@ -1,9 +1,20 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T0 Universe 重建完成后更新）
-> **版本：** v17.35.0（P2-T0 Universe 重建；生产 health CRITICAL=0，Enabled 3070/Excluded 649，DR 500 全 aiEnabled=true rank 连续）
+> **最后更新：** 2026-07-03（恢复 8198.T 关注股后更新）
+> **版本：** v17.36.0（紧急修复恢复 8198.T 为受保护关注股；health CRITICAL=0，Enabled 3071/Excluded 648）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
+
+## ⭐ 最新版本速览（v17.36.0 — 2026-07-03）
+
+**紧急修复：恢复 8198.T 到 AI 评分池（受保护关注股）**
+- 8198.T 状态：`aiEnabled=true / source=MANUAL / rule=MANUAL_INCLUDE_WATCHLIST / excludeReason=null`。Guard 跳过 source=MANUAL → 永不排除。
+- **Admin enable 升级**：手动加入始终写 source=MANUAL（受保护）；原 AUTO/SYSTEM→保留 rule 作 override 警告，否则 rule=MANUAL_INCLUDE_WATCHLIST。
+- **/api/indicators + /stocks**：watchlist 纳入股即使未进 top-500 也追加到列表（isWatchlist + ★），保证 /stocks 可搜到。
+- **rerank 永久修复**：Step 8 upsert 前删当日不在 top-N 的 DR 行（根治 re-run stale DR 重复 gptRank）。
+- 验证：health CRITICAL=0；Enabled 3071/Excluded 648；8198.T 有 StockScore(adp40/rank2266)、/api/stocks 搜到、/api/indicators 含、guard 再跑 skipped(MANUAL)=1 不排除；DR 500 连续无重复。
+
+## ⭐ 上一版本速览（v17.35.0 — 2026-07-03）
 
 ## ⭐ 最新版本速览（v17.35.0 — 2026-07-03）
 
