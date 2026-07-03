@@ -2,6 +2,44 @@
 
 ---
 
+## [17.44.0] - 2026-07-03 — P2-T5.1 AI 研究中心「综合」老板驾驶舱（Boss Dashboard）
+
+### 目标
+升级 AI 研究中心「综合」Tab 为**老板驾驶舱**（第一屏无滚动看全局）；后 6 个 Tab 不变；**仅 UI/只读聚合，
+不改任何评分/推荐/Portfolio/Alpha/Fusion 算法**。原「综合」研究分析内容保留在驾驶舱下方。
+
+### 聚合 API（`GET /api/admin/research-overview`，只读）
+一次返回全部驾驶舱数据：市场状态 / AI评分 / Universe / Alpha / Fusion / 今日摘要 / 研究结论 / 系统健康 / 时间线。
+
+### Boss Dashboard（`components/research/BossDashboard.tsx`，深色驾驶舱，与首页一致）
+- **① 当前市场**：🟢牛市/🟡震荡/🔴熊市 + Trend Score / Breadth / Volatility / 最近更新（读 MarketRegime 最新）。
+- **② AI评分状态**：Strong Buy / Buy / Hold / Watch / Avoid（读 StockScore recommendationV2，与 AI选股首页一致）。
+- **③ Alpha状态**：AlphaScore 已计算数 / 最新时间 / 当前 Shadow。
+- **④ Fusion状态**：Production Running / Alpha Shadow / Fusion Research / Paper Running｜Stopped（Paper 由最新 pick 时效判定）。
+- **⑤ 今日摘要**：今日市场 / Production SB·Buy（今日 DailyRecommendation）/ Alpha 已评分数 / Fusion 研究模式 /
+  Shadow 30·90·180 日跑赢·落后（读 AlphaBacktestResult Top20·20d）。
+- **⑥ 系统健康**：Health / CRITICAL / WARNING / Cron / DB / API（读最新 `data-health-guard-*.json`）。
+- **Universe**：总/启用/排除/自动排除/人工排除/数据质量/低流动性。
+- **研究结论**（自动读取 Fusion/Backtest 结果生成）：如「✓ Alpha 短周期表现优秀 / ✓ Production 中长期更稳定 /
+  ✓ 当前建议：继续 Shadow，暂不正式融合」。
+- **今日时间线**：05:00 Universe Guard → 07:30 Compute Score → 08:45 Alpha Factors → 09:00 Analytics →
+  09:15 Alpha Score → 09:30 Backtest → 09:45 Fusion → 10:00 Paper → 11:30 Midday → 18:00 News → 22:00 Night，
+  标记 ✅已完成/⏳等待/❌失败（依产物 computedAt 是否为今日 + 当前 JST 时刻）。
+- 布局：3 列网格，①-⑥ 首屏无滚动；驾驶舱置于「综合」Tab 顶部，原研究分析内容保留在下方。
+
+### 验证（生产实测）
+- `tsc`/`build` exit 0；部署（仅 rsync .next + `pm2 restart tohoshou-web`；无 schema/lib/scripts/cron 变更）；
+  `health:data` exit 0 → **CRITICAL=0**。
+- `/api/admin/research-overview` 实测：regime BULL(trend0.2/breadth69.25%/vol19.84%)；AI评分 SB2/Buy21/Hold391/Watch1494/Avoid1161；
+  Universe 3719/3070/649/AUTO645/MANUAL1/数据质量3/低流动性639；Alpha 3058已评分/Shadow；Fusion Prod Running/Alpha Shadow/Fusion Research/Paper Running；
+  今日摘要 Shadow 30日跑赢/90·180日落后；结论 3 行自动生成；health CRITICAL0/WARNING4/cron·db·api green；时间线 9/11 done。
+- `/admin/research` HTTP 200；**纯 UI，生产推荐/评分/Portfolio 完全不变**。
+
+### 部署
+build → rsync `.next` → `pm2 restart tohoshou-web`（未改 schema/cron，未重启 cron）。
+
+---
+
 ## [17.43.0] - 2026-07-03 — P2-T5 AI 研究中心（Research Center）整合
 
 ### 目标

@@ -1,11 +1,18 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T5 AI 研究中心整合）
-> **版本：** v17.43.0（P2-T5 AI 研究中心 Tab 整合；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T5.1 综合页 Boss Dashboard）
+> **版本：** v17.44.0（P2-T5.1 AI研究中心综合页老板驾驶舱；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.43.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.44.0 — 2026-07-03）
+
+**P2-T5.1 AI研究中心「综合」老板驾驶舱（Boss Dashboard）**
+- 升级综合 Tab 为老板驾驶舱(第一屏无滚动),后6 Tab 不变,原研究分析保留在下方。纯 UI/只读聚合,不改任何算法。
+- **聚合 API `/api/admin/research-overview`**(只读)一次返回全部。**`components/research/BossDashboard.tsx`**(深色,与首页一致):①当前市场(🟢牛🟡震🔴熊+Trend/Breadth/Vol,读MarketRegime)②AI评分(SB/Buy/Hold/Watch/Avoid,与AI选股一致)③Alpha状态(已计算数/最新/Shadow)④Fusion状态(Prod Running/Alpha Shadow/Fusion Research/Paper Running-Stopped)⑤今日摘要(市场/Prod SB·Buy/Alpha数/研究模式/Shadow 30·90·180日跑赢·落后)⑥系统健康(Health/CRITICAL/WARNING/Cron/DB/API,读health报告)+Universe(总/启用/排除/自动/人工/数据质量/低流动)+研究结论(自动读Backtest生成:Alpha短周期优/Production中长期稳/建议继续Shadow)+今日时间线(05:00~22:00 11节点✅⏳❌)。
+- 验证:tsc/build exit0;health CRITICAL=0;API 实测全区块正确(BULL/SB2 Buy21/Universe/Alpha3058/Shadow 30跑赢90·180落后/结论/时间线9-11 done);/admin/research 200;**纯UI生产完全不变**。仅rsync .next+重启web(无schema/cron)。deployment #97。
+
+## ⭐ 上一版本速览（v17.43.0 — 2026-07-03）
 
 **P2-T5 AI 研究中心（Research Center）整合**
 - 现有「研究分析」`/admin/research` 升级为「AI 研究中心」,7 个中文 Tab:①综合(原内容原样保留,含内部5子tab)②Alpha因子(原/alpha)③因子分析(/alpha/report)④Alpha评分（影子评分）(/alpha/score)⑤Alpha回测(/alpha/backtest)⑥市场状态(/market-regime)⑦融合策略研究(/fusion/report)。Tab 切换不跳页。
