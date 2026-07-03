@@ -2,6 +2,60 @@
 
 ---
 
+## [17.38.0] - 2026-07-03 — P2-T1 Alpha Engine 2.0（Phase 1.5：Alpha Analytics，只读统计）
+
+### 目标
+建立 Alpha 因子分析系统，统计每个因子的历史有效性（IC / 胜率 / 前瞻收益 / 分位分析）。
+**只读分析层**，禁止修改 AI Score / Adaptive Score / Universe / GPT Rank / Daily Recommendation / Portfolio。
+
+### 关键方法
+AlphaFactor 表目前仅 1 天数据、无历史。因子是价格的确定性函数——分析引擎**从 DailyPrice 历史按 as-of
+日期重算因子 + 前瞻收益**，做真正的因子回测（385,144 个 stock×date 观测，as-of 2025-11-25 … 2026-06-08）。
+
+### Analytics 模块（`lib/alpha/analytics/`，各模块独立纯函数）
+- `forward-return.ts` — 前瞻收益 `forwardReturnPct(bars,k,h)` + TOPIX `pctChange` + `excess`。
+- `information-coefficient.ts` — `pearson`（IC）+ `spearman`（Rank IC，含 tie 平均秩）。
+- `rank-analysis.ts` — `quantileReturns` Top/Bottom 20% 收益 + 多空 spread。
+- `factor-performance.ts` — `mean` / `winRate` / `std` / `sharpe`。
+- `report.ts` — `buildFactorReport()` 编排 + `starRating()`（按 |Rank IC| 1–5 星：≥0.05★5 / ≥0.035★4 /
+  ≥0.02★3 / ≥0.01★2 / else★1；Effective/Moderate/Weak）；winRate = **因子 Top 20% 分位的上涨胜率**（因子专属）。
+
+### 统计周期 & 因子
+- 周期 **7 / 30 / 90 / 180 天**（默认 30）。因子：RelativeStrength / ATR / VolumeRatio / AverageTurnover /
+  Distance52WeekHigh / VolumeExpansion（各取代表标量 rs20 / atrPct / volumeRatio20 / averageTurnover20 /
+  distanceTo52WeekHigh / volumeExpansionDays）。
+- 每因子输出：样本数 / 平均前瞻收益(5·10·20日) / 胜率 / 平均超额收益(vs TOPIX) / IC / Rank IC /
+  Top20% · Bottom20% 收益 / Sharpe（简化：逐 as-of 多空 spread 的 mean/std）/ 星级评分。
+
+### 数据库 · 脚本 · Cron
+- 新表 `AlphaFactorReport`（period×factor，24 行；严格附加，不被生产消费）。
+- `scripts/compute-alpha-analytics.ts`（**绝不读写 StockScore/DR/Portfolio/GPTScore**；一次扫描算 180 天窗口，
+  按 asOfIdx 派生短周期；DRY_RUN 支持）；`package.json` 加 `compute-alpha-analytics(:dry)`。cron **09:00 JST**。
+
+### API · 页面 · Dashboard · CSV
+- `GET /api/alpha/report?period=30|90|…`（默认 30）。
+- `/alpha/report` 管理员报告页：每因子卡片（★★★★★ Effective / ★★★☆☆ Moderate / ★☆☆☆☆ Weak）+ IC / 胜率 /
+  平均收益 / Top20% / Bottom20% + 周期切换 + **CSV 导出**。
+- SystemDashboard 新增管理员入口「⚡ Alpha Factors」「★ Alpha Analytics」。
+
+### 验证（生产实测）
+- **生产结果完全不变（指纹逐字段吻合 BASELINE）**：Σ adaptiveScore **146778 = 146778**、lastComputedAt 未变
+  （compute-scores 未跑）、StrongBuy 2 / Buy 21 / Hold 391 / Watch 1494 / Avoid 1161 全一致、DR today 500、
+  Portfolio #11 / 9 持仓一致。新增 AlphaFactorReport 24 行（AlphaFactor 仍 3069）。
+- 引擎实跑 **385,144 观测 / 44.8s**；`health:data` exit 0 → **CRITICAL=0**；cron 重启加载 09:00 slot（14:47 JST 窗口外）。
+- `tsc`/`build` exit 0（无 CJK UI）；Alpha report API/页面 HTTP 200。
+- 示例（30d）：Distance52WeekHigh ★5（RankIC 0.147，Top20 +0.18% / Bot20 −4.64%，Sharpe 1.91）、
+  ATR ★5（RankIC −0.142，低波动异象）、AverageTurnover ★5（RankIC 0.068，胜率 51.2%）、RelativeStrength ★3、
+  VolumeExpansion ★2、VolumeRatio ★1。
+
+### 部署
+db push（AlphaFactorReport）+ generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web`（×2，第二次加载含
+AlphaFactorReport 的新 Prisma client）+ `tohoshou-cron`（新 09:00 slot，14:47 JST 窗口外）。
+
+> **Phase 2 必须建立在本 Analytics 的统计结果之上，禁止凭经验修改任何评分权重。**
+
+---
+
 ## [17.37.0] - 2026-07-03 — P2-T1 Alpha Engine 2.0（Phase 1：Alpha Factors，纯新增数据层）
 
 ### 目标

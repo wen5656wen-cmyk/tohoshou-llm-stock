@@ -1370,3 +1370,31 @@ model AlphaFactor {
   @@index([symbol])
   @@map("alpha_factors")
 }
+
+// ── Alpha Analytics — Phase 1.5 (P2-T1) ──────────────────────────────────────
+// Per-factor historical effectiveness stats. Read-only analytics over DailyPrice-derived
+// factor history + forward returns. NEVER consumed by production scoring/recommendation.
+model AlphaFactorReport {
+  id           Int       @id @default(autoincrement())
+  period       Int       // lookback window in days: 7 | 30 | 90 | 180
+  factor       String    // RelativeStrength | ATR | VolumeRatio | AverageTurnover | Distance52WeekHigh | VolumeExpansion
+  sampleCount  Int       @default(0)
+  meanFwdRet5  Float?
+  meanFwdRet10 Float?
+  meanFwdRet20 Float?
+  winRate      Float? // % of fwd20 > 0
+  meanExcess   Float? // mean(fwd20 − TOPIX fwd20)
+  ic           Float? // Pearson(factor, fwd20)
+  rankIc       Float? // Spearman(factor, fwd20)
+  top20Ret     Float?
+  bottom20Ret  Float?
+  sharpe       Float?
+  rating       Int       @default(1) // 1–5 stars
+  ratingLabel  String    @default("Weak")
+  asOfLatest   DateTime? @db.Date
+  computedAt   DateTime  @default(now())
+
+  @@unique([period, factor])
+  @@index([period])
+  @@map("alpha_factor_reports")
+}

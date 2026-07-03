@@ -193,6 +193,14 @@ cron.schedule("45 8 * * *", async () => {
   await runAsync("compute-alpha-factors.ts", "Alpha Factors");
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:00 JST — Alpha Analytics（P2-T1 Phase 1.5）────────────────────────────
+// Alpha 因子の履歴有効性統計（IC / 勝率 / 前向きリターン / 分位）を AlphaFactorReport へ。
+// 読み取り専用分析。StockScore/推荐/Portfolio には一切触れない。約 15min timeout。
+cron.schedule("0 9 * * *", async () => {
+  log("INFO", "⏰ 09:00 触发：Alpha Analytics（Phase 1.5 統計）");
+  await runAsync("compute-alpha-analytics.ts", "Alpha Analytics", 15 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：

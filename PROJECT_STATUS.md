@@ -1,11 +1,23 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T1 Alpha Engine Phase 1 上线）
-> **版本：** v17.37.0（P2-T1 Alpha Factors 数据层；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T1 Alpha Engine Phase 1.5 Analytics 上线）
+> **版本：** v17.38.0（P2-T1 Alpha Analytics；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.37.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.38.0 — 2026-07-03）
+
+**P2-T1 Alpha Engine 2.0 — Phase 1.5（Alpha Analytics，只读因子有效性统计）**
+- **方法**：因子是价格确定性函数，从 DailyPrice 历史按 as-of 日期重算因子+前瞻收益做因子回测（385,144 观测，as-of 2025-11-25…2026-06-08）。
+- **`lib/alpha/analytics/`**（各独立）：forward-return、information-coefficient(IC/Rank IC)、rank-analysis(Top/Bottom 20%)、factor-performance(mean/win/std/sharpe)、report(编排+星级 by |RankIC|)。
+- **周期 7/30/90/180（默认30）**；6 因子×每因子：样本数/前瞻收益(5·10·20日)/胜率(top20%)/超额收益/IC/Rank IC/Top20%·Bottom20%/Sharpe/★1-5。
+- **新表 AlphaFactorReport(24行)**；`compute-alpha-analytics.ts`(绝不读写 StockScore/DR/Portfolio)；cron **09:00 JST**。
+- **API** `/api/alpha/report?period=`；**页面 `/alpha/report`**(因子卡+星级+周期切换+CSV 导出)；Dashboard 管理员入口。
+- **生产完全不变(指纹吻合)**：ΣadaptiveScore146778、SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR500、Portfolio#11/9、compute-scores 未跑；health CRITICAL=0。
+- 示例30d：Dist52wHigh★5(RankIC0.147/Sharpe1.91)、ATR★5(-0.142低波动异象)、AvgTurnover★5(0.068/win51.2%)、RS★3、VolExp★2、VolRatio★1。
+- **Phase 2 必须建立在 Analytics 统计之上，禁止凭经验改评分权重。**
+
+## ⭐ 上一版本速览（v17.37.0 — 2026-07-03）
 
 **P2-T1 Alpha Engine 2.0 — Phase 1（Alpha Factors，纯新增数据层）**
 - **`lib/alpha/`**（每因子独立互不耦合）：relative-strength(RS5/20/60 vs TOPIX)、atr(ATR14/ATR%)、new-high(Dist52wHigh/Low)、liquidity(AvgTurnover20)、volume-ratio(VolR5/20/VolExpDays)、event-factor(Buyback/DividendRaise/GuidanceRaise/TDnet — Phase1 仅接口返 null)、index(编排)。
