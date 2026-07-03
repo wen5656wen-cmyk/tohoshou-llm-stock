@@ -43,6 +43,7 @@ export async function GET() {
     backtestRows,
     newsSync,
     fusionRatioRows,
+    v3Latest,
   ] = await Promise.all([
     prisma.marketRegime.findFirst({ orderBy: { date: "desc" } }),
     rc("STRONG_BUY"), rc("BUY"), rc("HOLD"), rc("WATCH"), rc("AVOID"),
@@ -65,6 +66,7 @@ export async function GET() {
     prisma.alphaBacktestResult.findMany({ where: { topN: 20, holdDays: 20 }, select: { period: true, strategy: true, cumReturn: true, sharpe: true } }),
     prisma.syncJob.findFirst({ where: { source: "news", status: "SUCCESS" }, orderBy: { startedAt: "desc" }, select: { startedAt: true, finishedAt: true } }),
     prisma.regimeFusionResult.findMany({ select: { regime: true, bestAlphaWeight: true } }),
+    prisma.adaptiveScoreV3Shadow.findFirst({ orderBy: { computedAt: "desc" }, select: { computedAt: true } }),
   ]);
 
   const prodSB = drGroups.find((g) => g.recommendation === "STRONG_BUY")?._count.recommendation ?? 0;
@@ -106,6 +108,7 @@ export async function GET() {
     { key: "backtest", name: "Alpha回测", updatedAt: fmtJst(backtestLatest?.computedAt), status: modColor(backtestLatest?.computedAt) },
     { key: "regime", name: "市场状态", updatedAt: fmtJst(regime?.computedAt), status: modColor(regime?.computedAt) },
     { key: "fusion", name: "融合策略", updatedAt: fmtJst(fusionLatest?.computedAt), status: modColor(fusionLatest?.computedAt) },
+    { key: "v3", name: "V3动态评分", updatedAt: fmtJst(v3Latest?.computedAt), status: modColor(v3Latest?.computedAt) },
     { key: "news", name: "新闻", updatedAt: fmtJst(newsAt), status: newsWaiting ? "waiting" : modColor(newsAt) },
   ];
   const redMods = moduleUpdates.filter((m) => m.status === "red");

@@ -8,6 +8,7 @@ import { AlphaScorePanel } from "@/components/research/AlphaScorePanel";
 import { AlphaBacktestPanel } from "@/components/research/AlphaBacktestPanel";
 import { MarketRegimePanel } from "@/components/research/MarketRegimePanel";
 import { FusionReportPanel } from "@/components/research/FusionReportPanel";
+import { ScoreV3Panel } from "@/components/research/ScoreV3Panel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -112,6 +113,7 @@ const CENTER_TABS: { key: string; label: string }[] = [
   { key: "backtest",  label: "Alpha策略回测" },
   { key: "regime",    label: "市场状态" },
   { key: "fusion",    label: "AI融合策略研究" },
+  { key: "v3",        label: "V3动态评分" },
 ];
 
 export default function ResearchCenterPage() {
@@ -153,6 +155,7 @@ export default function ResearchCenterPage() {
       {tab === "backtest"  && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaBacktestPanel /></div>}
       {tab === "regime"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><MarketRegimePanel /></div>}
       {tab === "fusion"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><FusionReportPanel /></div>}
+      {tab === "v3"        && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><ScoreV3Panel /></div>}
     </div>
   );
 }

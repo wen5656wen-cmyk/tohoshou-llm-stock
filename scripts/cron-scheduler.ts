@@ -233,6 +233,15 @@ cron.schedule("0 10 * * *", async () => {
   await runAsync("fusion-paper-trade.ts", "Fusion Paper Trading", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 10:15 JST — Adaptive Score V3 Pro Shadow（P3-T1）──────────────────────────
+// 动态权重 + 风险层 + 市场状态门控，只写 AdaptiveScoreV3Shadow。
+// READ-ONLY：不改 StockScore / DailyRecommendation / GPT Rank / Portfolio。
+cron.schedule("15 10 * * *", async () => {
+  log("INFO", "⏰ 10:15 触发：Adaptive Score V3 Shadow（P3-T1）");
+  await runAsync("compute-score-v3-shadow.ts", "Adaptive Score V3 Shadow", 10 * 60 * 1000);
+  await runAsync("backtest-score-v3.ts", "Adaptive Score V3 Backtest", 15 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：

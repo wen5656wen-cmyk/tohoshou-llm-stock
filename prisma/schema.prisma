@@ -7,50 +7,50 @@ datasource db {
 }
 
 model Stock {
-  id            Int          @id @default(autoincrement())
-  symbol        String       @unique
-  name          String
-  nameZh        String?
-  nameEn        String?
-  market        String       @default("TSE")
-  price         Float        @default(0)
-  change        Float?
-  changeRate    Float?
-  marketCap     Float?       // 億円
-  per           Float?
-  pbr           Float?
-  roe           Float?
-  roa           Float?
-  dividend      Float?       // %
-  sector        String?
-  industry      String?
-  scaleCategory String?      // LARGE | MID | SMALL
-  description   String?
-  website       String?
-  employees     Int?
-  aiScore       Int?         // 0-100
-  eps           Float?
-  bps           Float?
-  high52w       Float?
-  low52w        Float?
-  volume        Float?
-  avgVolume     Float?
-  beta          Float?
-  lastSyncAt    DateTime?
+  id                 Int       @id @default(autoincrement())
+  symbol             String    @unique
+  name               String
+  nameZh             String?
+  nameEn             String?
+  market             String    @default("TSE")
+  price              Float     @default(0)
+  change             Float?
+  changeRate         Float?
+  marketCap          Float? // 億円
+  per                Float?
+  pbr                Float?
+  roe                Float?
+  roa                Float?
+  dividend           Float? // %
+  sector             String?
+  industry           String?
+  scaleCategory      String? // LARGE | MID | SMALL
+  description        String?
+  website            String?
+  employees          Int?
+  aiScore            Int? // 0-100
+  eps                Float?
+  bps                Float?
+  high52w            Float?
+  low52w             Float?
+  volume             Float?
+  avgVolume          Float?
+  beta               Float?
+  lastSyncAt         DateTime?
   // V12.3 Rule 4 Phase 2: Hard Block fields (populated by external data sync; default = active)
-  isDelisted    Boolean  @default(false)  // true = delisted from exchange
-  isSuspended   Boolean  @default(false)  // true = trading suspended
-  tradingStatus String?                   // ACTIVE | SUSPENDED | HALTED
-  listingStatus String?                   // LISTED | DELISTED
+  isDelisted         Boolean   @default(false) // true = delisted from exchange
+  isSuspended        Boolean   @default(false) // true = trading suspended
+  tradingStatus      String? // ACTIVE | SUSPENDED | HALTED
+  listingStatus      String? // LISTED | DELISTED
   // P1-T1 AI Universe Filter: maintainable stock pool for AI scoring
-  aiEnabled     Boolean  @default(true)    // false = excluded from all AI scoring flows
-  excludeReason String?                    // reason code when aiEnabled=false (LOW_LIQUIDITY|LOW_GROWTH|POOR_DATA|ETF|ETN|REIT|PREFERRED|DELISTED|SUSPENDED|MANUAL|OTHER)
+  aiEnabled          Boolean   @default(true) // false = excluded from all AI scoring flows
+  excludeReason      String? // reason code when aiEnabled=false (LOW_LIQUIDITY|LOW_GROWTH|POOR_DATA|ETF|ETN|REIT|PREFERRED|DELISTED|SUSPENDED|MANUAL|OTHER)
   // P1-T2 AI Universe Guard: automatic exclusion provenance
-  aiExcludeSource    String?               // MANUAL | AUTO | SYSTEM — who set the current state (null=clean enabled)
-  aiExcludeRule      String?               // matched rule code (also warning marker when aiEnabled=true & source=MANUAL)
-  aiExcludeUpdatedAt DateTime?             // last universe-state change (manual or auto)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  aiExcludeSource    String? // MANUAL | AUTO | SYSTEM — who set the current state (null=clean enabled)
+  aiExcludeRule      String? // matched rule code (also warning marker when aiEnabled=true & source=MANUAL)
+  aiExcludeUpdatedAt DateTime? // last universe-state change (manual or auto)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   financials  Financial[]
   news        News[]
@@ -87,16 +87,16 @@ model Financial {
 }
 
 model DailyPrice {
-  id       Int      @id @default(autoincrement())
-  symbol   String
-  date     DateTime @db.Date
-  open     Float
-  high     Float
-  low      Float
-  close    Float
-  volume   Float
-  adjClose Float?
-  source   String   @default("yahoo") // yahoo | jquants
+  id        Int      @id @default(autoincrement())
+  symbol    String
+  date      DateTime @db.Date
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float
+  adjClose  Float?
+  source    String   @default("yahoo") // yahoo | jquants
   createdAt DateTime @default(now())
 
   @@unique([symbol, date])
@@ -108,9 +108,9 @@ model Dividend {
   symbol      String
   year        Int
   quarter     Int?
-  dividend    Float     // 一株配当
-  yieldRate   Float?    // 配当利回り %
-  payoutRatio Float?    // 配当性向 %
+  dividend    Float // 一株配当
+  yieldRate   Float? // 配当利回り %
+  payoutRatio Float? // 配当性向 %
   exDivDate   DateTime? @db.Date
   payDate     DateTime? @db.Date
   source      String    @default("yahoo")
@@ -127,9 +127,9 @@ model Disclosure {
   symbol      String
   title       String
   publishedAt DateTime
-  category    String   // EARNINGS | FORECAST_REVISION | BUYBACK | DIVIDEND | EQUITY | MATERIAL | OTHER
+  category    String // EARNINGS | FORECAST_REVISION | BUYBACK | DIVIDEND | EQUITY | MATERIAL | OTHER
   summary     String?  @db.Text
-  sentiment   String?  // POSITIVE | NEGATIVE | NEUTRAL
+  sentiment   String? // POSITIVE | NEGATIVE | NEUTRAL
   url         String   @unique
   importance  Int      @default(0)
   rawData     Json?
@@ -141,21 +141,21 @@ model Disclosure {
 }
 
 model News {
-  id                     Int      @id @default(autoincrement())
-  stockId                Int?
-  stock                  Stock?   @relation(fields: [stockId], references: [id])
-  title                  String
-  content                String?  @db.Text
-  summary                String?  @db.Text
-  source                 String
-  url                    String   @unique
-  publishedAt            DateTime
-  sentiment              String?
-  importance             Int      @default(0)
-  category               String   @default("OTHER")
-  relatedSymbolConfidence Int     @default(0)
-  tradeEffectiveDate     DateTime? @db.Date  // V12.0: first trading day on which this news can be used
-  createdAt              DateTime @default(now())
+  id                      Int       @id @default(autoincrement())
+  stockId                 Int?
+  stock                   Stock?    @relation(fields: [stockId], references: [id])
+  title                   String
+  content                 String?   @db.Text
+  summary                 String?   @db.Text
+  source                  String
+  url                     String    @unique
+  publishedAt             DateTime
+  sentiment               String?
+  importance              Int       @default(0)
+  category                String    @default("OTHER")
+  relatedSymbolConfidence Int       @default(0)
+  tradeEffectiveDate      DateTime? @db.Date // V12.0: first trading day on which this news can be used
+  createdAt               DateTime  @default(now())
 
   @@index([stockId])
   @@index([publishedAt(sort: Desc)])
@@ -180,101 +180,101 @@ model Portfolio {
 }
 
 model SyncLog {
-  id        Int      @id @default(autoincrement())
-  source    String   // jquants | yahoo | tdnet
-  status    String   // SUCCESS | ERROR | PARTIAL
-  message   String?
-  itemCount Int      @default(0)
+  id         Int      @id @default(autoincrement())
+  source     String // jquants | yahoo | tdnet
+  status     String // SUCCESS | ERROR | PARTIAL
+  message    String?
+  itemCount  Int      @default(0)
   durationMs Int?
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([source, createdAt(sort: Desc)])
 }
 
 // Pre-computed screener scores (materialized via scripts/compute-scores.ts)
 model StockScore {
-  symbol             String    @id
-  name               String
-  nameZh             String?
-  market             String?
-  sector             String?
-  industry           String?
-  scaleCategory      String?
-  computedAt         DateTime
-  priceCount         Int       @default(0)
-  latestDate         String?
-  latestClose        Float?
-  return5d           Float?
-  return20d          Float?
-  return60d          Float?
-  rsi14              Float?
-  macd               Float?
-  macdSignal         Float?
-  macdHist           Float?
-  maTrend            String?
-  macdSignalLabel    String?
+  symbol                   String    @id
+  name                     String
+  nameZh                   String?
+  market                   String?
+  sector                   String?
+  industry                 String?
+  scaleCategory            String?
+  computedAt               DateTime
+  priceCount               Int       @default(0)
+  latestDate               String?
+  latestClose              Float?
+  return5d                 Float?
+  return20d                Float?
+  return60d                Float?
+  rsi14                    Float?
+  macd                     Float?
+  macdSignal               Float?
+  macdHist                 Float?
+  maTrend                  String?
+  macdSignalLabel          String?
   // V2 5-dimension scores (sum = totalScore 0-100)
-  technicalScore     Int?      // 0-30
-  fundamentalScore   Int?      // 0-25
-  moneyFlowScore     Int?      // 0-20 (proxy until InstitutionalFlow data available)
-  newsSentimentScore Int?      // 0-15
-  globalTrendScore   Int?      // 0-10
+  technicalScore           Int? // 0-30
+  fundamentalScore         Int? // 0-25
+  moneyFlowScore           Int? // 0-20 (proxy until InstitutionalFlow data available)
+  newsSentimentScore       Int? // 0-15
+  globalTrendScore         Int? // 0-10
   // Legacy (kept for DB compat, same as moneyFlowScore)
-  riskScore          Int?
-  totalScore         Int?
-  recommendation     String?
-  starsLabel         String?
-  summaryReason      String?
-  newsSummary        String?   @db.Text
+  riskScore                Int?
+  totalScore               Int?
+  recommendation           String?
+  starsLabel               String?
+  summaryReason            String?
+  newsSummary              String?   @db.Text
   // V3.1: data source transparency (REAL | PARTIAL | FALLBACK)
-  moneyFlowSource    String?   // "jpx" | "jpx_file" | "v2_proxy" | "synthetic"
-  globalTrendSource  String?   // "yahoo" | "v2_default"
-  scoreSource        String?   // "REAL" | "PARTIAL" | "FALLBACK"
+  moneyFlowSource          String? // "jpx" | "jpx_file" | "v2_proxy" | "synthetic"
+  globalTrendSource        String? // "yahoo" | "v2_default"
+  scoreSource              String? // "REAL" | "PARTIAL" | "FALLBACK"
   // V7.5: dynamic scoring
-  rawScore           Float?    // original fixed-weight score (= totalScore pre-v7.5)
-  adaptiveScore      Float?    // dynamic-weight score using stockStyle weights (0-100)
-  stockStyle         String?   // VALUE_DEFENSIVE | GROWTH_MOMENTUM | QUALITY_COMPOUNDER | SPECULATIVE_MOMENTUM | CYCLICAL_EXPORTER | DOMESTIC_DEFENSIVE
-  highRiskFlag       Boolean   @default(false)
-  fxSensitivity      String?   // EXPORT_POSITIVE | DOMESTIC_NEUTRAL | IMPORT_SENSITIVE | FX_NEUTRAL
-  catalystScore      Float?    // 0-10, based on recent Disclosure events
+  rawScore                 Float? // original fixed-weight score (= totalScore pre-v7.5)
+  adaptiveScore            Float? // dynamic-weight score using stockStyle weights (0-100)
+  stockStyle               String? // VALUE_DEFENSIVE | GROWTH_MOMENTUM | QUALITY_COMPOUNDER | SPECULATIVE_MOMENTUM | CYCLICAL_EXPORTER | DOMESTIC_DEFENSIVE
+  highRiskFlag             Boolean   @default(false)
+  fxSensitivity            String? // EXPORT_POSITIVE | DOMESTIC_NEUTRAL | IMPORT_SENSITIVE | FX_NEUTRAL
+  catalystScore            Float? // 0-10, based on recent Disclosure events
   // V7.7: relative ranking + dual-threshold recommendation
-  percentileRank     Float?    // 1-100 (lower = better: 1=top 1%, 50=median, 100=bottom)
-  marketRank         Int?      // absolute rank by adaptiveScore (1=best in market)
-  recommendationV2   String?   // STRONG_BUY | BUY | HOLD | WATCH | AVOID (dual-threshold)
-  recommendationReason String? // human-readable reason for V2 rating
+  percentileRank           Float? // 1-100 (lower = better: 1=top 1%, 50=median, 100=bottom)
+  marketRank               Int? // absolute rank by adaptiveScore (1=best in market)
+  recommendationV2         String? // STRONG_BUY | BUY | HOLD | WATCH | AVOID (dual-threshold)
+  recommendationReason     String? // human-readable reason for V2 rating
   // V7.7: opportunity scoring
-  opportunityScore   Float?    // 0-100 composite opportunity metric
-  opportunityRank    Int?      // rank by opportunityScore (1=best)
-  opportunityLabel   String?   // STEADY | HIGH_RISK_SPECULATIVE
+  opportunityScore         Float? // 0-100 composite opportunity metric
+  opportunityRank          Int? // rank by opportunityScore (1=best)
+  opportunityLabel         String? // STEADY | HIGH_RISK_SPECULATIVE
   // V7.8: dividend & short selling
-  dividendScore      Int?      // 0-10 dividend quality score
-  shortSellingSource String?   // "jpx_real" | "fallback"
+  dividendScore            Int? // 0-10 dividend quality score
+  shortSellingSource       String? // "jpx_real" | "fallback"
   // V8.3 P2: AI Action trading decision layer
-  tradingAction      String?   // BUY_NOW | WAIT_PULLBACK | HOLD | TAKE_PROFIT | SELL | AVOID
-  positionSizePct    Float?    // recommended position size %
-  entryLow           Float?    // entry price lower bound
-  entryHigh          Float?    // entry price upper bound
-  stopLoss           Float?    // stop-loss price
-  target1            Float?    // first target price
-  target2            Float?    // second target price
-  actionRiskLevel    String?   // LOW | MEDIUM | HIGH | EXTREME
-  actionReasons      Json?     // string[]
-  actionWarnings     Json?     // string[]
+  tradingAction            String? // BUY_NOW | WAIT_PULLBACK | HOLD | TAKE_PROFIT | SELL | AVOID
+  positionSizePct          Float? // recommended position size %
+  entryLow                 Float? // entry price lower bound
+  entryHigh                Float? // entry price upper bound
+  stopLoss                 Float? // stop-loss price
+  target1                  Float? // first target price
+  target2                  Float? // second target price
+  actionRiskLevel          String? // LOW | MEDIUM | HIGH | EXTREME
+  actionReasons            Json? // string[]
+  actionWarnings           Json? // string[]
   // V12.0: Decision Engine Safety Rules
-  ruleConfidence     Float?    // 0-100: how complete are the rule inputs
-  newsConfidence     Float?    // 0-100: news data quality/recency
-  industryConfidence Float?    // 0-100: sector/industry data completeness
-  modelConfidence    Float?    // 0-100: TOHOSHOU model confidence (0 = disabled)
-  overallConfidence  Float?    // 0-100: weighted overall confidence
-  riskOverride       String?   @default("NONE") // NONE | SOFT_BLOCK | HARD_BLOCK
+  ruleConfidence           Float? // 0-100: how complete are the rule inputs
+  newsConfidence           Float? // 0-100: news data quality/recency
+  industryConfidence       Float? // 0-100: sector/industry data completeness
+  modelConfidence          Float? // 0-100: TOHOSHOU model confidence (0 = disabled)
+  overallConfidence        Float? // 0-100: weighted overall confidence
+  riskOverride             String?   @default("NONE") // NONE | SOFT_BLOCK | HARD_BLOCK
   ruleEngineVersion        String? // e.g. "v1.0"
   globalEventEngineVersion String? // e.g. "v0.1"
   llmModelVersion          String? // e.g. "gpt-4o-mini"
   tohoshouModelVersion     String? // e.g. "disabled"
   scoringSchemaVersion     String? // e.g. "v1.0"
-  shadowModelScore         Float?  // TOHOSHOU shadow score (not used in production)
+  shadowModelScore         Float? // TOHOSHOU shadow score (not used in production)
   shadowRecommendation     String? // TOHOSHOU shadow recommendation
-  shadowRank               Int?    // TOHOSHOU shadow rank
+  shadowRank               Int? // TOHOSHOU shadow rank
   shadowGeneratedAt        DateTime? // when shadow score was generated
 
   @@index([totalScore(sort: Desc)])
@@ -288,14 +288,14 @@ model StockScore {
 
 // V7.8: Daily short selling ratio (JPX market-wide data)
 model ShortSellingRatio {
-  id               Int      @id @default(autoincrement())
-  date             DateTime @db.Date
-  market           String   @default("ALL") // ALL (TSE total) or market code
-  shortSellRatio   Float?   // short sell / total trading value (%)
-  shortSellValue   Float?   // short selling value (百万円)
-  totalTradingValue Float?  // total market trading value (百万円)
-  source           String   @default("FALLBACK") // jpx_real | FALLBACK
-  createdAt        DateTime @default(now())
+  id                Int      @id @default(autoincrement())
+  date              DateTime @db.Date
+  market            String   @default("ALL") // ALL (TSE total) or market code
+  shortSellRatio    Float? // short sell / total trading value (%)
+  shortSellValue    Float? // short selling value (百万円)
+  totalTradingValue Float? // total market trading value (百万円)
+  source            String   @default("FALLBACK") // jpx_real | FALLBACK
+  createdAt         DateTime @default(now())
 
   @@unique([date, market])
   @@index([date(sort: Desc)])
@@ -304,13 +304,13 @@ model ShortSellingRatio {
 // Market-wide investor type weekly trading flow (TSE/JPX 投資部門別売買動向)
 model InstitutionalFlow {
   id           Int      @id @default(autoincrement())
-  date         DateTime @db.Date          // week-ending Friday
-  investorType String                      // foreigners | trust | corp | individual | dealer
-  market       String   @default("ALL")   // ALL | PRIME | STANDARD | GROWTH
-  buyAmount    Float?                      // 買い（億円）
-  sellAmount   Float?                      // 売り（億円）
-  netAmount    Float?                      // 差引き = buy - sell（正=買越, 負=売越）
-  source       String   @default("jpx")   // jpx | synthetic
+  date         DateTime @db.Date // week-ending Friday
+  investorType String // foreigners | trust | corp | individual | dealer
+  market       String   @default("ALL") // ALL | PRIME | STANDARD | GROWTH
+  buyAmount    Float? // 買い（億円）
+  sellAmount   Float? // 売り（億円）
+  netAmount    Float? // 差引き = buy - sell（正=買越, 負=売越）
+  source       String   @default("jpx") // jpx | synthetic
   createdAt    DateTime @default(now())
 
   @@unique([date, investorType, market])
@@ -319,28 +319,28 @@ model InstitutionalFlow {
 
 // Global market snapshot (for globalTrendScore)
 model GlobalMarket {
-  id            Int      @id @default(autoincrement())
-  date          DateTime @db.Date @unique
+  id           Int      @id @default(autoincrement())
+  date         DateTime @unique @db.Date
   // US market
-  nasdaq        Float?   // NASDAQ Composite close
-  nasdaqChange  Float?   // 1-day % change
-  sp500         Float?   // S&P 500 close
-  vix           Float?   // VIX fear index level
+  nasdaq       Float? // NASDAQ Composite close
+  nasdaqChange Float? // 1-day % change
+  sp500        Float? // S&P 500 close
+  vix          Float? // VIX fear index level
   // Japan
-  nikkei        Float?   // Nikkei 225 close
-  nikkeiChange  Float?   // 1-day % change
-  topix         Float?   // TOPIX close (or ETF proxy)
-  topixChange   Float?   // 1-day % change
+  nikkei       Float? // Nikkei 225 close
+  nikkeiChange Float? // 1-day % change
+  topix        Float? // TOPIX close (or ETF proxy)
+  topixChange  Float? // 1-day % change
   // FX
-  usdjpy        Float?   // USD/JPY spot
+  usdjpy       Float? // USD/JPY spot
   // Legacy macro fields
-  sox           Float?
-  cpi           Float?
-  fedRate       Float?
+  sox          Float?
+  cpi          Float?
+  fedRate      Float?
   // Computed score
-  score         Int?     // global trend score 0-10
-  source        String   @default("yahoo") // yahoo | manual
-  createdAt     DateTime @default(now())
+  score        Int? // global trend score 0-10
+  source       String   @default("yahoo") // yahoo | manual
+  createdAt    DateTime @default(now())
 
   @@index([date(sort: Desc)])
 }
@@ -369,9 +369,9 @@ model RealtimeMarket {
   price        Float?
   changePct    Float?
   volume       Float?
-  volumeRatio  Float?   // today's volume / avg10d volume
-  turnoverRate Float?   // volume / sharesOutstanding * 100
-  marketCap    Float?   // 億円
+  volumeRatio  Float? // today's volume / avg10d volume
+  turnoverRate Float? // volume / sharesOutstanding * 100
+  marketCap    Float? // 億円
   rsi14        Float?
   ma5          Float?
   ma20         Float?
@@ -406,11 +406,11 @@ model SyncJob {
 model AITheme {
   id               Int      @id @default(autoincrement())
   symbol           String
-  theme            String   // 14 fine-grained categories
-  subTheme         String?  // subdivision label
-  role             String?  // company role in supply chain
-  supplyChainLayer String?  // UPSTREAM | MIDSTREAM | DOWNSTREAM | INFRASTRUCTURE | APPLICATION
-  importanceScore  Int      @default(5)  // 1-10
+  theme            String // 14 fine-grained categories
+  subTheme         String? // subdivision label
+  role             String? // company role in supply chain
+  supplyChainLayer String? // UPSTREAM | MIDSTREAM | DOWNSTREAM | INFRASTRUCTURE | APPLICATION
+  importanceScore  Int      @default(5) // 1-10
   reason           String?  @db.Text
   riskNote         String?  @db.Text
   isCore           Boolean  @default(false)
@@ -427,46 +427,46 @@ model AITheme {
 
 // V9 P1: GPT Top500 Rerank — finalScore = gptScore (pure GPT, no weighting)
 model GPTScore {
-  symbol      String    @id
-  model       String    @default("gpt-4o-mini")
+  symbol String @id
+  model  String @default("gpt-4o-mini")
 
-  ruleScore   Float
-  gptScore    Float
-  finalScore  Float     // = gptScore (V9 P1: pure GPT score, no weighting)
+  ruleScore  Float
+  gptScore   Float
+  finalScore Float // = gptScore (V9 P1: pure GPT score, no weighting)
 
   // V9 P1 rerank fields
-  gptRating   String?   // STRONG_BUY | BUY | HOLD | WATCH | AVOID (from finalScore+percentileRank)
-  gptRank     Int?      // rank within Top500 (1 = best, 500 = last in pool)
+  gptRating String? // STRONG_BUY | BUY | HOLD | WATCH | AVOID (from finalScore+percentileRank)
+  gptRank   Int? // rank within Top500 (1 = best, 500 = last in pool)
 
   // 7 GPT sub-dimension scores (0-100, null if not yet scored)
-  businessQuality  Int?
-  growthScore      Int?
-  industryScore    Int?
-  moatScore        Int?
-  valuationScore   Int?
-  catalystScore    Int?
-  riskScore        Int?
+  businessQuality Int?
+  growthScore     Int?
+  industryScore   Int?
+  moatScore       Int?
+  valuationScore  Int?
+  catalystScore   Int?
+  riskScore       Int?
 
-  confidence  String    // LOW | MEDIUM | HIGH
-  action      String    // POSITIVE | NEUTRAL | NEGATIVE
+  confidence String // LOW | MEDIUM | HIGH
+  action     String // POSITIVE | NEUTRAL | NEGATIVE
 
-  summaryZh   String    @db.Text
-  summaryJa   String    @db.Text
-  summaryEn   String    @db.Text
+  summaryZh String @db.Text
+  summaryJa String @db.Text
+  summaryEn String @db.Text
 
-  thesisZh    String    @db.Text
-  thesisJa    String    @db.Text
-  thesisEn    String    @db.Text
+  thesisZh String @db.Text
+  thesisJa String @db.Text
+  thesisEn String @db.Text
 
-  strengths   Json      // string[]
-  risks       Json      // string[]
-  catalysts   Json      // string[]
+  strengths Json // string[]
+  risks     Json // string[]
+  catalysts Json // string[]
 
-  timeHorizon String    // 1-3M | 3-6M | 6-12M
+  timeHorizon String // 1-3M | 3-6M | 6-12M
 
-  inputHash   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  inputHash String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([finalScore(sort: Desc)])
   @@index([gptRank])
@@ -476,35 +476,35 @@ model GPTScore {
 
 // Daily Top500 snapshot for backtest (v10.0 Backtest MVP)
 model DailyRecommendation {
-  id              Int      @id @default(autoincrement())
-  date            DateTime @db.Date          // JST date of recommendation
-  symbol          String
-  gptRank         Int                        // 1-500
-  finalScore      Float
-  adaptiveScore   Float
-  gptScore        Float
-  gptRating       String?
-  buyPrice        Float?                     // StockScore.latestClose at rec time (reference only)
-  recommendation  String?                    // StockScore.recommendationV2 at rec time (STRONG_BUY|BUY|HOLD|WATCH|AVOID)
-  summaryZh       String?  @db.Text
+  id                       Int       @id @default(autoincrement())
+  date                     DateTime  @db.Date // JST date of recommendation
+  symbol                   String
+  gptRank                  Int // 1-500
+  finalScore               Float
+  adaptiveScore            Float
+  gptScore                 Float
+  gptRating                String?
+  buyPrice                 Float? // StockScore.latestClose at rec time (reference only)
+  recommendation           String? // StockScore.recommendationV2 at rec time (STRONG_BUY|BUY|HOLD|WATCH|AVOID)
+  summaryZh                String?   @db.Text
   // v10.1: accurate entry/exit pricing
-  entryDate       DateTime? @db.Date          // first trading day after rec date
-  entryPrice      Float?                      // raw open price on entryDate
-  entryPriceType  String?                     // "NEXT_OPEN" | "NEXT_OPEN_FALLBACK"
-  exitDate7d      DateTime? @db.Date          // 7th trading day after entryDate
-  exitDate30d     DateTime? @db.Date          // 30th trading day after entryDate
-  exitDate90d     DateTime? @db.Date          // 90th trading day after entryDate
-  priceSource     String?                     // "ADJUSTED" (adjClose) | "RAW" (close)
-  price7d         Float?                      // adjClose??close at exitDate7d
-  price30d        Float?                      // adjClose??close at exitDate30d
-  price90d        Float?                      // adjClose??close at exitDate90d
-  return7d        Float?                      // (price7d - entryPrice) / entryPrice * 100
-  return30d       Float?                      // (price30d - entryPrice) / entryPrice * 100
-  return90d       Float?                      // (price90d - entryPrice) / entryPrice * 100
-  filledAt        DateTime?                   // when price fills were last attempted
-  createdAt       DateTime @default(now())
+  entryDate                DateTime? @db.Date // first trading day after rec date
+  entryPrice               Float? // raw open price on entryDate
+  entryPriceType           String? // "NEXT_OPEN" | "NEXT_OPEN_FALLBACK"
+  exitDate7d               DateTime? @db.Date // 7th trading day after entryDate
+  exitDate30d              DateTime? @db.Date // 30th trading day after entryDate
+  exitDate90d              DateTime? @db.Date // 90th trading day after entryDate
+  priceSource              String? // "ADJUSTED" (adjClose) | "RAW" (close)
+  price7d                  Float? // adjClose??close at exitDate7d
+  price30d                 Float? // adjClose??close at exitDate30d
+  price90d                 Float? // adjClose??close at exitDate90d
+  return7d                 Float? // (price7d - entryPrice) / entryPrice * 100
+  return30d                Float? // (price30d - entryPrice) / entryPrice * 100
+  return90d                Float? // (price90d - entryPrice) / entryPrice * 100
+  filledAt                 DateTime? // when price fills were last attempted
+  createdAt                DateTime  @default(now())
   // V12.0: Decision Engine Safety Rules
-  overallConfidence        Float?  // snapshot of overallConfidence at rec time
+  overallConfidence        Float? // snapshot of overallConfidence at rec time
   riskOverride             String? // snapshot of riskOverride at rec time
   ruleEngineVersion        String? // engine version used for this rec
   globalEventEngineVersion String?
@@ -513,50 +513,50 @@ model DailyRecommendation {
   // v13.3: Architecture v2.3 — version tracking
   // NOTE: return7d/return30d/return90d/exitDate*/price* below are DEPRECATED.
   // BacktestPositionResult is the source of truth for per-symbol backtest data.
-  versionSnapshotId String?
-  modelVersion      String?
-  scoreVersion      String?
-  schemaVersion     String?
-  pipelineRunId     String?
+  versionSnapshotId        String?
+  modelVersion             String?
+  scoreVersion             String?
+  schemaVersion            String?
+  pipelineRunId            String?
   // v13.4: Architecture v2.3 — feat_* immutable feature snapshot (Step 2)
   // Written ONCE at creation time. NEVER updated. Never backfilled. See ARCHITECTURE.md §6.
-  feat_sector            String?   // Stock.sector
-  feat_industry          String?   // Stock.industry (via StockScore)
-  feat_marketCap         Float?    // Stock.marketCap (億円)
-  feat_per               Float?    // Stock.per
-  feat_pbr               Float?    // Stock.pbr
-  feat_roe               Float?    // Stock.roe (%)
-  feat_dividendYield     Float?    // Stock.dividend (%)
-  feat_adaptiveScore     Float?    // StockScore.adaptiveScore
-  feat_technicalScore    Int?      // StockScore.technicalScore (0-30)
-  feat_fundamentalScore  Int?      // StockScore.fundamentalScore (0-25)
-  feat_moneyFlowScore    Int?      // StockScore.moneyFlowScore (0-20)
-  feat_newsSentimentScore Int?     // StockScore.newsSentimentScore (0-15)
-  feat_globalTrendScore  Int?      // StockScore.globalTrendScore (0-10)
-  feat_percentileRank    Float?    // StockScore.percentileRank (1-100)
-  feat_marketRank        Int?      // StockScore.marketRank (1=best)
-  feat_stockStyle        String?   // StockScore.stockStyle
-  feat_highRiskFlag      Boolean?  // StockScore.highRiskFlag
-  feat_rsi14             Float?    // StockScore.rsi14
-  feat_maTrend           String?   // StockScore.maTrend
-  feat_ma20              Float?    // 20-day MA of adjClose from DailyPrice
-  feat_ma60              Float?    // 60-day MA of adjClose from DailyPrice
-  feat_return5d_pre      Float?    // StockScore.return5d at rec time
-  feat_return20d_pre     Float?    // StockScore.return20d at rec time
-  feat_return60d_pre     Float?    // StockScore.return60d at rec time
-  feat_volatility20d     Float?    // Annualized vol % (last 20 DailyPrice log-returns)
-  feat_vix               Float?    // GlobalMarket.vix at rec date
-  feat_usdjpy            Float?    // GlobalMarket.usdjpy at rec date
-  feat_topixReturn5d     Float?    // TOPIX 5-trading-day return %
-  feat_topixReturn20d    Float?    // TOPIX 20-trading-day return %
-  feat_marketTemperature Int?      // GlobalMarket.score (0-10)
+  feat_sector              String? // Stock.sector
+  feat_industry            String? // Stock.industry (via StockScore)
+  feat_marketCap           Float? // Stock.marketCap (億円)
+  feat_per                 Float? // Stock.per
+  feat_pbr                 Float? // Stock.pbr
+  feat_roe                 Float? // Stock.roe (%)
+  feat_dividendYield       Float? // Stock.dividend (%)
+  feat_adaptiveScore       Float? // StockScore.adaptiveScore
+  feat_technicalScore      Int? // StockScore.technicalScore (0-30)
+  feat_fundamentalScore    Int? // StockScore.fundamentalScore (0-25)
+  feat_moneyFlowScore      Int? // StockScore.moneyFlowScore (0-20)
+  feat_newsSentimentScore  Int? // StockScore.newsSentimentScore (0-15)
+  feat_globalTrendScore    Int? // StockScore.globalTrendScore (0-10)
+  feat_percentileRank      Float? // StockScore.percentileRank (1-100)
+  feat_marketRank          Int? // StockScore.marketRank (1=best)
+  feat_stockStyle          String? // StockScore.stockStyle
+  feat_highRiskFlag        Boolean? // StockScore.highRiskFlag
+  feat_rsi14               Float? // StockScore.rsi14
+  feat_maTrend             String? // StockScore.maTrend
+  feat_ma20                Float? // 20-day MA of adjClose from DailyPrice
+  feat_ma60                Float? // 60-day MA of adjClose from DailyPrice
+  feat_return5d_pre        Float? // StockScore.return5d at rec time
+  feat_return20d_pre       Float? // StockScore.return20d at rec time
+  feat_return60d_pre       Float? // StockScore.return60d at rec time
+  feat_volatility20d       Float? // Annualized vol % (last 20 DailyPrice log-returns)
+  feat_vix                 Float? // GlobalMarket.vix at rec date
+  feat_usdjpy              Float? // GlobalMarket.usdjpy at rec date
+  feat_topixReturn5d       Float? // TOPIX 5-trading-day return %
+  feat_topixReturn20d      Float? // TOPIX 20-trading-day return %
+  feat_marketTemperature   Int? // GlobalMarket.score (0-10)
 
   // v15.0: Three-strategy classification (written at rec time, updated on each run)
-  strategyType         String?   // DAY | SWING | POSITION (null = legacy before v15.0)
-  strategyConfidence   Float?    // 0-100
-  targetReturnPct      Float?    // 3.0 | 8.0 | 20.0
-  stopLossPct          Float?    // -2.0 | -4.0 | -8.0
-  maxHoldingDays       Int?      // 1 | 10 | 60
+  strategyType       String? // DAY | SWING | POSITION (null = legacy before v15.0)
+  strategyConfidence Float? // 0-100
+  targetReturnPct    Float? // 3.0 | 8.0 | 20.0
+  stopLossPct        Float? // -2.0 | -4.0 | -8.0
+  maxHoldingDays     Int? // 1 | 10 | 60
 
   @@unique([date, symbol])
   @@index([date(sort: Desc)])
@@ -570,13 +570,13 @@ model DailyRecommendation {
 model BacktestResult {
   id                    Int      @id @default(autoincrement())
   date                  DateTime @db.Date
-  horizon               String                   // "7d" | "30d" | "90d"
+  horizon               String // "7d" | "30d" | "90d"
   totalRecommendations  Int
-  filled                Int                      // stocks with valid price data
-  winners               Int                      // return > 0
-  losers                Int                      // return <= 0
-  winRate               Float?                   // winners / filled * 100
-  avgReturn             Float?                   // mean return of filled
+  filled                Int // stocks with valid price data
+  winners               Int // return > 0
+  losers                Int // return <= 0
+  winRate               Float? // winners / filled * 100
+  avgReturn             Float? // mean return of filled
   medianReturn          Float?
   bestReturn            Float?
   worstReturn           Float?
@@ -584,12 +584,12 @@ model BacktestResult {
   worstSymbol           String?
   computedAt            DateTime @default(now())
   // v10.1: portfolio size + benchmark
-  portfolioSize         String   @default("ALL")  // "ALL" | "TOP5" | "TOP10" | "TOP20"
+  portfolioSize         String   @default("ALL") // "ALL" | "TOP5" | "TOP10" | "TOP20"
   benchmarkNikkeiReturn Float?
   benchmarkTopixReturn  Float?
   excessVsNikkei        Float?
   excessVsTopix         Float?
-  maxDrawdown           Float?   // simplified: worstReturn within portfolio
+  maxDrawdown           Float? // simplified: worstReturn within portfolio
 
   @@unique([date, horizon, portfolioSize])
   @@index([date(sort: Desc)])
@@ -602,8 +602,8 @@ model BacktestError {
   id            Int      @id @default(autoincrement())
   symbol        String
   recommendDate DateTime @db.Date
-  horizon       String?              // "7d" | "30d" | "90d" | null (entry-level error)
-  reason        String               // "NO_DAILY_PRICE" | "NO_ENTRY_PRICE" | "NO_EXIT_PRICE"
+  horizon       String? // "7d" | "30d" | "90d" | null (entry-level error)
+  reason        String // "NO_DAILY_PRICE" | "NO_ENTRY_PRICE" | "NO_EXIT_PRICE"
   createdAt     DateTime @default(now())
 
   @@unique([symbol, recommendDate, horizon, reason])
@@ -615,15 +615,15 @@ model BacktestError {
 
 // v13.3: Architecture v2.3 — version snapshot registry
 model VersionSnapshot {
-  id               String    @id                   // "YYYYMMDD-vX.Y", e.g., "20260626-v7.7"
-  modelVersion     String                           // RULE_ENGINE_VERSION
-  scoreVersion     String                           // SCORING_SCHEMA_VERSION
-  schemaVersion    String                           // CURRENT_SCHEMA_VERSION (feat_* schema)
+  id               String    @id // "YYYYMMDD-vX.Y", e.g., "20260626-v7.7"
+  modelVersion     String // RULE_ENGINE_VERSION
+  scoreVersion     String // SCORING_SCHEMA_VERSION
+  schemaVersion    String // CURRENT_SCHEMA_VERSION (feat_* schema)
   ruleEngineVer    String
   scoringSchemaVer String
   llmModelVer      String
   startDate        DateTime  @db.Date
-  endDate          DateTime? @db.Date               // null = currently active
+  endDate          DateTime? @db.Date // null = currently active
   isBaseline       Boolean   @default(false)
   changeLog        String?   @db.Text
   experimentId     String?
@@ -641,15 +641,15 @@ model ExperimentRegistry {
   startDate         DateTime  @db.Date
   endDate           DateTime? @db.Date
   hypothesis        String    @db.Text
-  changes           String    @db.Text              // JSON
+  changes           String    @db.Text // JSON
   targetMetric      String
   targetThreshold   Float?
-  status            String                          // PLANNED | RUNNING | COMPLETED | ABANDONED
+  status            String // PLANNED | RUNNING | COMPLETED | ABANDONED
   resultSummary     String?   @db.Text
   winRateDelta7d    Float?
   winRateDelta30d   Float?
   alphaDelta30d     Float?
-  decision          String?                         // ADOPTED | REJECTED | PENDING
+  decision          String? // ADOPTED | REJECTED | PENDING
   decisionReason    String?   @db.Text
   decisionDate      DateTime? @db.Date
   nextExperimentId  String?
@@ -664,23 +664,23 @@ model ExperimentRegistry {
 // v13.3: Architecture v2.3 — per-symbol per-horizon backtest source of truth
 // DailyRecommendation.return7d/30d/90d/exitDate*/price* are DEPRECATED; read from here instead.
 model BacktestPositionResult {
-  id              Int      @id @default(autoincrement())
-  recDate         DateTime @db.Date                // recommendation cohort date
-  symbol          String
-  horizon         String                           // "1d"|"3d"|"5d"|"7d"|"10d"|"20d"|"30d"|"60d"|"90d"
+  id      Int      @id @default(autoincrement())
+  recDate DateTime @db.Date // recommendation cohort date
+  symbol  String
+  horizon String // "1d"|"3d"|"5d"|"7d"|"10d"|"20d"|"30d"|"60d"|"90d"
 
-  entryDate       DateTime? @db.Date
-  entryPrice      Float?
-  exitDate        DateTime? @db.Date
-  exitPrice       Float?
-  returnPct       Float?
-  winFlag         Boolean?
+  entryDate  DateTime? @db.Date
+  entryPrice Float?
+  exitDate   DateTime? @db.Date
+  exitPrice  Float?
+  returnPct  Float?
+  winFlag    Boolean?
 
-  benchmarkReturn Float?                           // TOPIX accumulated return for same period
-  alphaVsTopix    Float?                           // returnPct - benchmarkReturn
+  benchmarkReturn Float? // TOPIX accumulated return for same period
+  alphaVsTopix    Float? // returnPct - benchmarkReturn
 
-  priceSource     String?                          // "ADJUSTED" | "RAW"
-  errorReason     String?                          // "NO_ENTRY_PRICE" | "NO_EXIT_PRICE" | null
+  priceSource String? // "ADJUSTED" | "RAW"
+  errorReason String? // "NO_ENTRY_PRICE" | "NO_EXIT_PRICE" | null
 
   modelVersion      String?
   scoreVersion      String?
@@ -688,7 +688,7 @@ model BacktestPositionResult {
   versionSnapshotId String?
   pipelineRunId     String?
 
-  computedAt      DateTime @default(now())
+  computedAt DateTime @default(now())
 
   @@unique([recDate, symbol, horizon])
   @@index([recDate(sort: Desc)])
@@ -703,23 +703,23 @@ model BacktestPositionResult {
 
 // v15.0: Strategy-based backtest results (DAY/SWING/POSITION simulation with stop-loss/take-profit)
 model StrategyBacktestResult {
-  id            Int      @id @default(autoincrement())
-  recDate       DateTime @db.Date                // recommendation cohort date
-  symbol        String
-  strategyType  String                           // DAY | SWING | POSITION
+  id           Int      @id @default(autoincrement())
+  recDate      DateTime @db.Date // recommendation cohort date
+  symbol       String
+  strategyType String // DAY | SWING | POSITION
 
-  entryDate     DateTime? @db.Date
-  entryPrice    Float?
-  exitDate      DateTime? @db.Date
-  exitPrice     Float?
-  exitReason    String?   // TAKE_PROFIT | STOP_LOSS | TIME_EXIT | OPEN | INSUFFICIENT_DATA
-  holdingDays   Int?
-  returnPct     Float?
-  alphaPct      Float?                           // returnPct - benchmarkReturn
-  isWin         Boolean?
-  benchmarkReturn Float?                         // TOPIX accumulated return for same period
+  entryDate       DateTime? @db.Date
+  entryPrice      Float?
+  exitDate        DateTime? @db.Date
+  exitPrice       Float?
+  exitReason      String? // TAKE_PROFIT | STOP_LOSS | TIME_EXIT | OPEN | INSUFFICIENT_DATA
+  holdingDays     Int?
+  returnPct       Float?
+  alphaPct        Float? // returnPct - benchmarkReturn
+  isWin           Boolean?
+  benchmarkReturn Float? // TOPIX accumulated return for same period
 
-  computedAt    DateTime @default(now())
+  computedAt DateTime @default(now())
 
   @@unique([recDate, symbol, strategyType])
   @@index([recDate(sort: Desc)])
@@ -736,16 +736,16 @@ model DeploymentLog {
   id              Int      @id @default(autoincrement())
   commitHash      String
   summary         String
-  modifiedFiles   Json     // string[]
-  buildStatus     String   @default("SKIP")   // PASS | FAIL | SKIP
-  healthStatus    String   @default("SKIP")   // PASS | WARNING | FAIL | SKIP
-  apiStatus       String   @default("SKIP")   // PASS | FAIL | SKIP
-  pageStatus      String   @default("SKIP")   // PASS | FAIL | SKIP
-  databaseStatus  String   @default("SKIP")   // PASS | FAIL | SKIP
-  pm2Status       String   @default("SKIP")   // PASS | FAIL | SKIP
+  modifiedFiles   Json // string[]
+  buildStatus     String   @default("SKIP") // PASS | FAIL | SKIP
+  healthStatus    String   @default("SKIP") // PASS | WARNING | FAIL | SKIP
+  apiStatus       String   @default("SKIP") // PASS | FAIL | SKIP
+  pageStatus      String   @default("SKIP") // PASS | FAIL | SKIP
+  databaseStatus  String   @default("SKIP") // PASS | FAIL | SKIP
+  pm2Status       String   @default("SKIP") // PASS | FAIL | SKIP
   productionReady Boolean  @default(false)
-  warnings        Json     @default("[]")     // string[]
-  blockingIssues  Json     @default("[]")     // string[]
+  warnings        Json     @default("[]") // string[]
+  blockingIssues  Json     @default("[]") // string[]
   operator        String   @default("Claude")
   deployedAt      DateTime @default(now())
   createdAt       DateTime @default(now())
@@ -756,19 +756,19 @@ model DeploymentLog {
 
 // V12.5: Daily AI Portfolio Snapshots — each day builds an independent ¥100M cohort
 model PortfolioSnapshot {
-  id                       Int      @id @default(autoincrement())
-  snapshotDate             DateTime @db.Date @unique
+  id                       Int       @id @default(autoincrement())
+  snapshotDate             DateTime  @unique @db.Date
   name                     String
-  initialCapital           Float    @default(100000000)
-  cash                     Float    // remaining cash after investment (fixed at creation)
-  investedAmount           Float    // sum(entryPrice × shares) — fixed
+  initialCapital           Float     @default(100000000)
+  cash                     Float // remaining cash after investment (fixed at creation)
+  investedAmount           Float // sum(entryPrice × shares) — fixed
   positionCount            Int
   sourceRecommendationDate DateTime? @db.Date
-  status                   String   @default("LIVE") // LIVE | COMPLETED | ARCHIVED
+  status                   String    @default("LIVE") // LIVE | COMPLETED | ARCHIVED
   completedAt              DateTime?
-  benchmarkTopixEntry      Float?   // TOPIX price at snapshot creation time
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  benchmarkTopixEntry      Float? // TOPIX price at snapshot creation time
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   positions PortfolioSnapshotPosition[]
 
@@ -778,29 +778,29 @@ model PortfolioSnapshot {
 }
 
 model PortfolioSnapshotPosition {
-  id             Int               @id @default(autoincrement())
-  snapshotId     Int
-  snapshot       PortfolioSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  symbol         String
-  name           String
-  nameZh         String?
-  entryPrice     Float             // fixed at snapshot creation — never changes
-  shares         Float             // fixed, always multiple of 100
-  entryAmount    Float             // entryPrice × shares (fixed)
-  gptRank        Int?
-  aiScore        Float?
-  action         String?           // gptRating at snapshot time
-  recommendation String?           // recommendationV2 at snapshot time
+  id                    Int               @id @default(autoincrement())
+  snapshotId            Int
+  snapshot              PortfolioSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  symbol                String
+  name                  String
+  nameZh                String?
+  entryPrice            Float // fixed at snapshot creation — never changes
+  shares                Float // fixed, always multiple of 100
+  entryAmount           Float // entryPrice × shares (fixed)
+  gptRank               Int?
+  aiScore               Float?
+  action                String? // gptRating at snapshot time
+  recommendation        String? // recommendationV2 at snapshot time
   // v17.1: 3:4:3 strategy allocation
-  strategyType          String?   // DAY | SWING | POSITION | null (null = legacy)
-  allocationWeight      Float?    // position's fraction of total portfolio (e.g. 0.10)
-  strategyAllocationPct Float?    // strategy bucket's target fraction (0.30/0.40/0.30)
+  strategyType          String? // DAY | SWING | POSITION | null (null = legacy)
+  allocationWeight      Float? // position's fraction of total portfolio (e.g. 0.10)
+  strategyAllocationPct Float? // strategy bucket's target fraction (0.30/0.40/0.30)
   strategyConfidence    Float?
   targetReturnPct       Float?
   stopLossPct           Float?
   maxHoldingDays        Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@index([snapshotId])
   @@index([symbol])
@@ -812,7 +812,7 @@ model PortfolioSnapshotPosition {
 model AISignalDailyStat {
   id                  Int      @id @default(autoincrement())
   tradeDate           DateTime @db.Date
-  actionType          String   // STRONG_BUY | BUY | ALL_BUY
+  actionType          String // STRONG_BUY | BUY | ALL_BUY
   recommendationCount Int
   // Today stats
   validTodayCount     Int      @default(0)
@@ -824,10 +824,10 @@ model AISignalDailyStat {
   bestTodayReturnPct  Float?
   worstTodayReturnPct Float?
   // Today distribution buckets (today thresholds: ±3%)
-  bigUpTodayCount     Int      @default(0)   // ret >= +3%
-  smallUpTodayCount   Int      @default(0)   // 0 < ret < 3%
-  smallDownTodayCount Int      @default(0)   // -3% < ret < 0%
-  bigDownTodayCount   Int      @default(0)   // ret <= -3%
+  bigUpTodayCount     Int      @default(0) // ret >= +3%
+  smallUpTodayCount   Int      @default(0) // 0 < ret < 3%
+  smallDownTodayCount Int      @default(0) // -3% < ret < 0%
+  bigDownTodayCount   Int      @default(0) // ret <= -3%
   // 7-day stats
   valid7dCount        Int      @default(0)
   win7dCount          Int      @default(0)
@@ -838,10 +838,10 @@ model AISignalDailyStat {
   best7dReturnPct     Float?
   worst7dReturnPct    Float?
   // 7-day distribution buckets (7d thresholds: ±5%)
-  bigUp7dCount        Int      @default(0)   // ret >= +5%
-  smallUp7dCount      Int      @default(0)   // 0 < ret < 5%
-  smallDown7dCount    Int      @default(0)   // -5% < ret < 0%
-  bigDown7dCount      Int      @default(0)   // ret <= -5%
+  bigUp7dCount        Int      @default(0) // ret >= +5%
+  smallUp7dCount      Int      @default(0) // 0 < ret < 5%
+  smallDown7dCount    Int      @default(0) // -5% < ret < 0%
+  bigDown7dCount      Int      @default(0) // ret <= -5%
   // Cohort: unique symbol dedup (per-day = same as regular; cross-day cohort future)
   uniqueSymbolCount   Int      @default(0)
   uniqueWinCount      Int      @default(0)
@@ -877,8 +877,8 @@ model SimPosition {
   symbol      String
   name        String
   nameZh      String?
-  avgCost     Float        // weighted average cost per share
-  shares      Int          // must be multiple of 100
+  avgCost     Float // weighted average cost per share
+  shares      Int // must be multiple of 100
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -893,11 +893,11 @@ model SimTrade {
   symbol      String
   name        String
   nameZh      String?
-  action      String       // BUY | SELL
+  action      String // BUY | SELL
   shares      Int
-  price       Float        // execution price
-  amount      Float        // price × shares
-  realizedPnl Float?       // set on SELL: (price - avgCost) × shares
+  price       Float // execution price
+  amount      Float // price × shares
+  realizedPnl Float? // set on SELL: (price - avgCost) × shares
   createdAt   DateTime     @default(now())
 
   @@index([portfolioId, createdAt(sort: Desc)])
@@ -947,26 +947,26 @@ enum StrategyExitReason {
 
 // Each trading day's ranked candidates per strategy
 model StrategyRecommendation {
-  id                   Int          @id @default(autoincrement())
-  strategyType         StrategyType
-  tradeDate            DateTime     @db.Date
-  symbol               String
-  rank                 Int
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  tradeDate    DateTime     @db.Date
+  symbol       String
+  rank         Int
 
-  aiScore              Float?
-  technicalScore       Float?
-  fundamentalScore     Float?
-  newsScore            Float?
-  moneyFlowScore       Float?
-  riskScore            Float?
-  finalScore           Float?
-  isTop10              Boolean      @default(false)
+  aiScore          Float?
+  technicalScore   Float?
+  fundamentalScore Float?
+  newsScore        Float?
+  moneyFlowScore   Float?
+  riskScore        Float?
+  finalScore       Float?
+  isTop10          Boolean @default(false)
 
-  recommendationReason String?      @db.Text
-  sourceScoreDate      DateTime?    @db.Date
+  recommendationReason String?   @db.Text
+  sourceScoreDate      DateTime? @db.Date
 
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([strategyType, tradeDate, symbol])
   @@index([strategyType, tradeDate, rank])
@@ -978,21 +978,21 @@ model StrategyRecommendation {
 
 // Swing/Long open and closed positions (Day Trade goes straight to StrategyTradeResult)
 model StrategyPosition {
-  id             Int                    @id @default(autoincrement())
-  strategyType   StrategyType
-  symbol         String
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  symbol       String
 
-  entryDate      DateTime               @db.Date
-  entryPrice     Float
-  entryRank      Int?
-  entryScore     Float?
+  entryDate  DateTime @db.Date
+  entryPrice Float
+  entryRank  Int?
+  entryScore Float?
 
-  currentDate    DateTime?              @db.Date
-  currentPrice   Float?
+  currentDate  DateTime? @db.Date
+  currentPrice Float?
 
-  exitDate       DateTime?              @db.Date
-  exitPrice      Float?
-  exitReason     StrategyExitReason?
+  exitDate   DateTime?           @db.Date
+  exitPrice  Float?
+  exitReason StrategyExitReason?
 
   status         StrategyPositionStatus @default(OPEN)
   holdingDays    Int?
@@ -1005,8 +1005,8 @@ model StrategyPosition {
   topixReturnPct Float?
   alpha          Float?
 
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([strategyType, symbol, entryDate])
   @@index([strategyType, status])
@@ -1018,17 +1018,17 @@ model StrategyPosition {
 
 // Completed trades — primary record for Day Trade, secondary for Swing/Long
 model StrategyTradeResult {
-  id             Int                 @id @default(autoincrement())
-  strategyType   StrategyType
-  tradeDate      DateTime            @db.Date
-  symbol         String
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  tradeDate    DateTime     @db.Date
+  symbol       String
 
-  entryDate      DateTime?           @db.Date
-  entryPrice     Float?
-  exitDate       DateTime?           @db.Date
-  exitPrice      Float?
+  entryDate  DateTime? @db.Date
+  entryPrice Float?
+  exitDate   DateTime? @db.Date
+  exitPrice  Float?
 
-  quantity       Int                 @default(0)
+  quantity       Int    @default(0)
   investedAmount Float?
   exitValue      Float?
 
@@ -1038,12 +1038,12 @@ model StrategyTradeResult {
   alpha          Float?
   win            Boolean?
 
-  holdingDays    Int?
-  exitReason     StrategyExitReason?
-  status         StrategyTradeStatus @default(WAITING_OPEN)
+  holdingDays Int?
+  exitReason  StrategyExitReason?
+  status      StrategyTradeStatus @default(WAITING_OPEN)
 
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([strategyType, tradeDate, symbol])
   @@index([strategyType, tradeDate])
@@ -1053,25 +1053,25 @@ model StrategyTradeResult {
 
 // Daily performance snapshot per strategy — CREATE-only, immutable
 model StrategySnapshot {
-  id                  Int          @id @default(autoincrement())
-  strategyType        StrategyType
-  snapshotDate        DateTime     @db.Date
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  snapshotDate DateTime     @db.Date
 
-  totalValue          Float?
-  cash                Float?
-  investedValue       Float?
+  totalValue    Float?
+  cash          Float?
+  investedValue Float?
 
   dailyReturnPct      Float?
   cumulativeReturnPct Float?
   topixReturnPct      Float?
   alpha               Float?
 
-  winRate             Float?
-  openPositions       Int?
-  closedTrades        Int?
+  winRate       Float?
+  openPositions Int?
+  closedTrades  Int?
 
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([strategyType, snapshotDate])
   @@index([strategyType, snapshotDate])
@@ -1080,9 +1080,9 @@ model StrategySnapshot {
 
 // Capital pool change log — each row records one capital event
 model StrategyCapitalLog {
-  id             Int          @id @default(autoincrement())
-  strategyType   StrategyType
-  logDate        DateTime     @db.Date
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  logDate      DateTime     @db.Date
 
   cashBefore     Float
   cashAfter      Float
@@ -1091,10 +1091,10 @@ model StrategyCapitalLog {
   totalBefore    Float
   totalAfter     Float
 
-  changeAmount   Float?
-  changeReason   String?
+  changeAmount Float?
+  changeReason String?
 
-  createdAt      DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([strategyType, logDate])
   @@map("strategy_capital_logs")
@@ -1102,14 +1102,14 @@ model StrategyCapitalLog {
 
 // Per-strategy per-horizon backtest aggregation
 model StrategyBacktestSummary {
-  id              Int          @id @default(autoincrement())
-  strategyType    StrategyType
-  horizon         String
-  asOfDate        DateTime     @db.Date
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  horizon      String
+  asOfDate     DateTime     @db.Date
 
-  sampleCount     Int          @default(0)
-  filledCount     Int          @default(0)
-  fillRate        Float?
+  sampleCount Int    @default(0)
+  filledCount Int    @default(0)
+  fillRate    Float?
 
   winRate         Float?
   lossRate        Float?
@@ -1124,8 +1124,8 @@ model StrategyBacktestSummary {
   maxDrawdown     Float?
   sharpeRatio     Float?
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([strategyType, horizon, asOfDate])
   @@index([strategyType, horizon])
@@ -1135,28 +1135,28 @@ model StrategyBacktestSummary {
 
 // Per-strategy daily learning report (Phase 5)
 model StrategyLearningReport {
-  id              Int          @id @default(autoincrement())
-  strategyType    StrategyType
-  reportDate      DateTime     @db.Date
+  id           Int          @id @default(autoincrement())
+  strategyType StrategyType
+  reportDate   DateTime     @db.Date
 
-  sampleCount     Int          @default(0)
-  fillRate        Float?
-  winRate         Float?
-  avgReturnPct    Float?
-  alpha           Float?
-  maxDrawdown     Float?
+  sampleCount  Int    @default(0)
+  fillRate     Float?
+  winRate      Float?
+  avgReturnPct Float?
+  alpha        Float?
+  maxDrawdown  Float?
 
   predictionScore Float?
   stabilityScore  Float?
   confidenceScore Float?
   integrityScore  Float?
 
-  grade           String?      // A+, A, B, C, D
-  recommendation  String?      // READY, PARTIAL, NOT_READY
-  summary         String?
+  grade          String? // A+, A, B, C, D
+  recommendation String? // READY, PARTIAL, NOT_READY
+  summary        String?
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([strategyType, reportDate])
   @@index([strategyType])
@@ -1166,20 +1166,20 @@ model StrategyLearningReport {
 
 // Unified cross-strategy learning summary with weighted integrity score (Phase 5)
 model StrategyLearningSummary {
-  id              Int      @id @default(autoincrement())
-  reportDate      DateTime @db.Date @unique
+  id         Int      @id @default(autoincrement())
+  reportDate DateTime @unique @db.Date
 
-  dayIntegrity    Float?
-  swingIntegrity  Float?
-  longIntegrity   Float?
-  integrityScore  Float?   // weighted: DAY×30% + SWING×40% + LONG×30%
+  dayIntegrity   Float?
+  swingIntegrity Float?
+  longIntegrity  Float?
+  integrityScore Float? // weighted: DAY×30% + SWING×40% + LONG×30%
 
-  grade           String?  // A+, A, B, C, D
-  recommendation  String?  // READY, PARTIAL, NOT_READY
-  summary         String?
+  grade          String? // A+, A, B, C, D
+  recommendation String? // READY, PARTIAL, NOT_READY
+  summary        String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("strategy_learning_summaries")
 }
@@ -1187,34 +1187,34 @@ model StrategyLearningSummary {
 // Trading Architecture V1 — Daily validation record (T1 Stabilization)
 model StrategyDailyValidation {
   id             Int      @id @default(autoincrement())
-  validationDate DateTime @db.Date @unique
+  validationDate DateTime @unique @db.Date
 
   // Check 1-3: Recommendations generated today
-  dayRecOk      Boolean @default(false)
-  swingRecOk    Boolean @default(false)
-  longRecOk     Boolean @default(false)
+  dayRecOk   Boolean @default(false)
+  swingRecOk Boolean @default(false)
+  longRecOk  Boolean @default(false)
 
   // Check 4: Strategy scripts produced capital/position data
-  strategyOk    Boolean @default(false)
+  strategyOk Boolean @default(false)
 
   // Check 5: Capital pool is being tracked
-  snapshotOk    Boolean @default(false)
+  snapshotOk Boolean @default(false)
 
   // Check 6: At least one trade result recorded
   tradeResultOk Boolean @default(false)
 
   // Check 7: Backtest updated today
-  backtestOk    Boolean @default(false)
+  backtestOk Boolean @default(false)
 
   // Check 8: Learning updated today
-  learningOk    Boolean @default(false)
+  learningOk Boolean @default(false)
 
   // Check 9: All time-critical checks pass (derived health indicator)
-  healthOk      Boolean @default(false)
+  healthOk Boolean @default(false)
 
   // Overall
-  allPass       Boolean @default(false)
-  failCount     Int     @default(0)
+  allPass        Boolean @default(false)
+  failCount      Int     @default(0)
   incidentReport String? @db.Text
 
   // Cumulative stats at time of validation
@@ -1248,29 +1248,31 @@ model StrategyDailyValidation {
 
 model PaperAccount {
   id             Int      @id @default(autoincrement())
-  mode           String   @default("paper")     // paper | live
+  mode           String   @default("paper") // paper | live
   initialCapital Float    @default(10000000)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
   @@map("paper_accounts")
 }
 
 model PaperOrder {
-  id            Int          @id @default(autoincrement())
-  accountId     Int
-  strategyType  StrategyType
-  symbol        String
-  side          String       // BUY | SELL
-  orderDate     DateTime     @db.Date
-  requestedQty  Int
-  filledQty     Int          @default(0)
-  limitPrice    Float?       // null = market
-  status        String       @default("PENDING") // PENDING | FILLED | PARTIAL | CANCELLED | REJECTED
-  rejectReason  String?      // LOT_SIZE_TOO_SMALL | INSUFFICIENT_CASH | ...
-  sourceType    String       // STRATEGY_TRADE_RESULT | STRATEGY_POSITION
-  sourceId      Int          // id of the mirrored source row (idempotency)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id           Int          @id @default(autoincrement())
+  accountId    Int
+  strategyType StrategyType
+  symbol       String
+  side         String // BUY | SELL
+  orderDate    DateTime     @db.Date
+  requestedQty Int
+  filledQty    Int          @default(0)
+  limitPrice   Float? // null = market
+  status       String       @default("PENDING") // PENDING | FILLED | PARTIAL | CANCELLED | REJECTED
+  rejectReason String? // LOT_SIZE_TOO_SMALL | INSUFFICIENT_CASH | ...
+  sourceType   String // STRATEGY_TRADE_RESULT | STRATEGY_POSITION
+  sourceId     Int // id of the mirrored source row (idempotency)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
   @@unique([accountId, strategyType, symbol, side, orderDate, sourceId])
   @@index([accountId, orderDate])
   @@index([strategyType, orderDate])
@@ -1283,13 +1285,14 @@ model PaperExecution {
   orderId      Int
   strategyType StrategyType
   symbol       String
-  side         String       // BUY | SELL
+  side         String // BUY | SELL
   execDate     DateTime     @db.Date
   price        Float
   quantity     Int
-  amount       Float        // price * quantity
-  priceBasis   String       // OPEN | CLOSE
+  amount       Float // price * quantity
+  priceBasis   String // OPEN | CLOSE
   createdAt    DateTime     @default(now())
+
   @@index([accountId, execDate])
   @@index([orderId])
   @@map("paper_executions")
@@ -1311,9 +1314,10 @@ model PaperPosition {
   exitPrice      Float?
   returnPct      Float?
   returnAmount   Float?
-  sourceId       Int          // mirrored StrategyTradeResult/StrategyPosition id
+  sourceId       Int // mirrored StrategyTradeResult/StrategyPosition id
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+
   @@index([accountId, strategyType, status])
   @@index([symbol])
   @@map("paper_positions")
@@ -1330,6 +1334,7 @@ model PaperCashLog {
   reason       String
   orderId      Int?
   createdAt    DateTime     @default(now())
+
   @@index([accountId, strategyType, logDate])
   @@map("paper_cash_logs")
 }
@@ -1376,8 +1381,8 @@ model AlphaFactor {
 // factor history + forward returns. NEVER consumed by production scoring/recommendation.
 model AlphaFactorReport {
   id           Int       @id @default(autoincrement())
-  period       Int       // lookback window in days: 7 | 30 | 90 | 180
-  factor       String    // RelativeStrength | ATR | VolumeRatio | AverageTurnover | Distance52WeekHigh | VolumeExpansion
+  period       Int // lookback window in days: 7 | 30 | 90 | 180
+  factor       String // RelativeStrength | ATR | VolumeRatio | AverageTurnover | Distance52WeekHigh | VolumeExpansion
   sampleCount  Int       @default(0)
   meanFwdRet5  Float?
   meanFwdRet10 Float?
@@ -1406,11 +1411,11 @@ model AlphaScore {
   id              Int      @id @default(autoincrement())
   symbol          String
   date            DateTime @db.Date
-  alphaScore      Float    // 0–100 (50 = universe average)
-  composite       Float    // raw weighted-z composite
-  factorBreakdown Json     // [{factor,value,z,direction,weight,contribution}]
-  rank            Int      // 1 = best
-  percentile      Float    // 0–100 (higher = better)
+  alphaScore      Float // 0–100 (50 = universe average)
+  composite       Float // raw weighted-z composite
+  factorBreakdown Json // [{factor,value,z,direction,weight,contribution}]
+  rank            Int // 1 = best
+  percentile      Float // 0–100 (higher = better)
   computedAt      DateTime @default(now())
 
   @@unique([symbol, date])
@@ -1423,12 +1428,12 @@ model AlphaScore {
 // Read-only; never affects production scoring/recommendation.
 model AlphaBacktestResult {
   id               Int       @id @default(autoincrement())
-  period           Int       // 30 | 90 | 180 (day window)
-  strategy         String    // PRODUCTION | ALPHA
-  topN             Int       // 10 | 20 | 50
-  holdDays         Int       // 5 | 10 | 20
+  period           Int // 30 | 90 | 180 (day window)
+  strategy         String // PRODUCTION | ALPHA
+  topN             Int // 10 | 20 | 50
+  holdDays         Int // 5 | 10 | 20
   cumReturn        Float?
-  alpha            Float?    // annualized excess vs equal-weight market
+  alpha            Float? // annualized excess vs equal-weight market
   sharpe           Float?
   maxDrawdown      Float?
   winRate          Float?
@@ -1448,15 +1453,15 @@ model AlphaBacktestResult {
 model MarketRegime {
   id          Int      @id @default(autoincrement())
   date        DateTime @unique @db.Date
-  regime      String   // BULL | SIDEWAYS | BEAR
+  regime      String // BULL | SIDEWAYS | BEAR
   regimeScore Float?
   trendScore  Float?
   ma20        Float?
   ma60        Float?
   ma120       Float?
   topixClose  Float?
-  breadth     Float?   // % above MA20
-  volatility  Float?   // annualized %
+  breadth     Float? // % above MA20
+  volatility  Float? // annualized %
   computedAt  DateTime @default(now())
 
   @@index([date])
@@ -1465,28 +1470,28 @@ model MarketRegime {
 
 // Per-regime Production vs Alpha stats + data-searched optimal fusion ratio.
 model RegimeFusionResult {
-  id                Int       @id @default(autoincrement())
-  regime            String    @unique // BULL | SIDEWAYS | BEAR
-  nDays             Int       @default(0)
-  topN              Int       @default(20)
-  holdDays          Int       @default(20)
-  prodCumReturn     Float?
-  prodSharpe        Float?
-  prodWinRate       Float?
-  prodMaxDrawdown   Float?
-  alphaCumReturn    Float?
-  alphaSharpe       Float?
-  alphaWinRate      Float?
-  alphaMaxDrawdown  Float?
-  bestAlphaWeight   Float?    // 0..1 — fused = w·alpha + (1-w)·production
-  fusedCumReturn    Float?
-  fusedSharpe       Float?
-  fusedWinRate      Float?
-  fusedMaxDrawdown  Float?
-  objective         String    @default("SHARPE")
-  gridJson          Json?     // [{ w, sharpe, cumReturn }]
-  asOfLatest        DateTime? @db.Date
-  computedAt        DateTime  @default(now())
+  id               Int       @id @default(autoincrement())
+  regime           String    @unique // BULL | SIDEWAYS | BEAR
+  nDays            Int       @default(0)
+  topN             Int       @default(20)
+  holdDays         Int       @default(20)
+  prodCumReturn    Float?
+  prodSharpe       Float?
+  prodWinRate      Float?
+  prodMaxDrawdown  Float?
+  alphaCumReturn   Float?
+  alphaSharpe      Float?
+  alphaWinRate     Float?
+  alphaMaxDrawdown Float?
+  bestAlphaWeight  Float? // 0..1 — fused = w·alpha + (1-w)·production
+  fusedCumReturn   Float?
+  fusedSharpe      Float?
+  fusedWinRate     Float?
+  fusedMaxDrawdown Float?
+  objective        String    @default("SHARPE")
+  gridJson         Json? // [{ w, sharpe, cumReturn }]
+  asOfLatest       DateTime? @db.Date
+  computedAt       DateTime  @default(now())
 
   @@map("regime_fusion_results")
 }
@@ -1498,8 +1503,8 @@ model RegimeFusionResult {
 model FusionPaperPick {
   id         Int      @id @default(autoincrement())
   entryDate  DateTime @db.Date
-  strategy   String   // PRODUCTION | ALPHA | FUSION
-  topN       Int      // 10 | 20
+  strategy   String // PRODUCTION | ALPHA | FUSION
+  topN       Int // 10 | 20
   symbol     String
   rank       Int
   entryClose Float?
@@ -1508,11 +1513,37 @@ model FusionPaperPick {
   ret5d      Float?
   ret10d     Float?
   ret20d     Float?
-  regime     String?  // regime at entry (fusion context)
+  regime     String? // regime at entry (fusion context)
   computedAt DateTime @default(now())
 
   @@unique([entryDate, strategy, topN, symbol])
   @@index([entryDate, strategy])
   @@index([strategy, topN])
   @@map("fusion_paper_picks")
+}
+
+// ── Adaptive Score V3 Pro（P3-T1，Shadow-only 动态评分引擎）──────────────────
+// 只写 Shadow 表；不改 StockScore / DailyRecommendation / Portfolio / GPT Rank。
+model AdaptiveScoreV3Shadow {
+  id                  Int      @id @default(autoincrement())
+  symbol              String
+  date                DateTime @db.Date
+  scoreV3             Float // 0–100 加权动态复合分（已含风险扣分）
+  rawScore            Float // 风险扣分前的加权分
+  riskAdjustment      Float // -15..0
+  rank                Int // 1 = best（本 date 内）
+  percentile          Float // 0–100（higher = better）
+  rating              String // STRONG_BUY | BUY | HOLD | WATCH | AVOID
+  regime              String // 当日 MarketRegime（门控用，不加分）
+  weightsJson         Json // 今日动态权重 { technical, fundamental, alpha, news, flow }
+  factorBreakdownJson Json // 各维度 sub-score + 贡献
+  riskAdjustmentJson  Json // 风险扣分明细
+  explanation         String // 中文解释
+  scoreVersion        String   @default("v3.0")
+  computedAt          DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@index([date, rank])
+  @@index([date, scoreV3])
+  @@map("adaptive_score_v3_shadow")
 }

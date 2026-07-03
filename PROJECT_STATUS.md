@@ -1,11 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T7 UI统一 + P2-T8 数据更新时间中心）
-> **版本：** v17.46.0（P2-T7/T8 AI研究中心 UI统一+数据更新时间中心 仅前端；基线 `v2.0.0-universe-stable` 生产完全不变）
+> **最后更新：** 2026-07-03（P3-T1 Adaptive Score V3 Pro 动态评分引擎 Shadow）
+> **版本：** v17.47.0（P3-T1 V3 Pro 动态评分 Shadow-only；基线 `v2.0.0-universe-stable` 生产完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.46.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.47.0 — 2026-07-03）
+
+**P3-T1 Adaptive Score V3 Pro（动态评分引擎，Shadow-only，不影响生产）**
+- 解决 V2「全球/资金/新闻区分度低」：动态权重替代固定权重，先 Shadow 验证。**全球维度移除**（V2 中对排名零贡献）、**资金改用个股级数据**（AlphaFactor 量比/放量/流动性，弃市场级 InstitutionalFlow）、**新闻无事件不给常数分**。
+- 引擎 `lib/scoring-v3/`（6模块）：regime-gate（状态门控，不加分只调权重+风险倍率）/ factor-quality（覆盖率·区分度·新鲜度·RankIC→低质量自动降权）/ dynamic-weight（min·max·归一化·单日±5%限幅）/ risk-adjustment（-15..0）/ score-v3（7维主引擎）/ explain（中文解释）。`lib/scoring-engine.ts` Feature Flag `SCORING_ENGINE=v2|v3`（默认v2，一键回滚，本阶段生产不读取）。
+- 新表 `AdaptiveScoreV3Shadow`；`scripts/compute-score-v3-shadow.ts`（只写Shadow，3069只/BULL/动态权重技术41.4·基本面18.3·Alpha22.6·新闻7.5·资金10.2%）；`scripts/backtest-score-v3.ts`（V2/Alpha/Fusion/V3 对比→reports/score-v3-backtest.json，Top20/20日：180日 V3 45.55%≈V2 44.82%略优、30日 V3 -3.59% 比 V2 -4.61% 抗跌）；cron 10:15 每日跑。
+- API `/api/scoring-v3/shadow` + `/api/scoring-v3/backtest`；AI研究中心新增 Tab「V3动态评分」（动态权重/回测对比/排名/风险扣分/V2对比/中文解释/CSV）；数据更新中心加 V3。
+- 验收：**V2 完全不变**（StockScore SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR 500、GPT/Portfolio 未动）；V3 Shadow 3069/Backtest 108 正常；tsc/build exit0；health CRITICAL=0；tab 200。deployment #100，commit 见 CHANGELOG。
+- **周一决策点**：据 V3 Shadow 连续验证 + Backtest 决定是否 `SCORING_ENGINE=v3`（需人工确认+一键回滚）。
+
+## ⭐ 上一版本速览（v17.46.0 — 2026-07-03）
 
 **P2-T7 UI/UX 统一 + P2-T8 数据更新时间中心（仅前端，不改算法/DB/API返回值/Cron）**
 - **统一 Tab 标题**：综合驾驶舱/Alpha因子库/因子分析/影子评分（Alpha）/Alpha策略回测/市场状态/AI融合策略研究。

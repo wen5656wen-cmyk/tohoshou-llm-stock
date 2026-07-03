@@ -2,6 +2,44 @@
 
 ---
 
+## [17.47.0] - 2026-07-03 — P3-T1 Adaptive Score V3 Pro（动态评分引擎，Shadow-only）
+
+### 目标
+建立顶级动态评分引擎，解决 V2「全球/资金/新闻维度区分度低」问题（详见 v17.46 数据审计）。用动态权重替代
+固定权重，先 Shadow 验证，**完全不影响生产**。周一前据 V3 Shadow + Backtest 决定是否切 `SCORING_ENGINE=v3`。
+
+### 引擎（`lib/scoring-v3/`，6 模块）
+- **regime-gate.ts**：市场状态门控。Regime 不直接加分，只提供每状态基准权重 + 风险倍率（BULL 轻 0.6 / SIDEWAYS 1.0 / BEAR 重 1.4）。
+- **factor-quality.ts**：因子质量评估（覆盖率/区分度/新鲜度/RankIC → q∈[0,1]）+ 横截面百分位。**低区分度/低覆盖维度自动降权**。
+- **dynamic-weight.ts**：动态权重（base × quality → min/max 上下限 → 归一化 100% → 单日±5%限幅）。
+- **risk-adjustment.ts**：风险层 [-15,0]（高波动/低流动/财报缺失/数据差；信用制限仅轻扣不排除）。
+- **score-v3.ts**：7 维主引擎（技术/基本面/Alpha/新闻事件/个股资金流动性/风险/市场状态门控）。新闻**无事件不给默认常数分**；
+  资金**只用个股级数据**（AlphaFactor 量比/放量/流动性，弃市场级 InstitutionalFlow）；**全球维度彻底移除**（V2 中它对排名零贡献）。
+- **explain.ts**：每股中文解释（评分/评级/各维度贡献/风险扣分/结论）。
+- **lib/scoring-engine.ts**：Feature Flag `SCORING_ENGINE=v2|v3`（默认 v2，一键回滚；本阶段生产链路不读取，仅就绪开关）。
+
+### 数据 + 脚本
+- 新表 **`AdaptiveScoreV3Shadow`**（symbol/date/scoreV3/rawScore/riskAdjustment/rank/percentile/rating/regime/weightsJson/factorBreakdownJson/riskAdjustmentJson/explanation）。
+- **`scripts/compute-score-v3-shadow.ts`**：只写 Shadow 表；实测 3069 只，BULL，动态权重 技术41.4%/基本面18.3%/Alpha22.6%/新闻7.5%/资金10.2%。
+- **`scripts/backtest-score-v3.ts`**：重建 V2/Alpha/Fusion/V3 对比（30/90/180 × Top10/20/50 × 持有5/10/20 + 换手率），写 `reports/score-v3-backtest.json`。
+  实测 Top20/20日：180日 V3 45.55% ≈ V2 44.82%（略优）、30日 V3 −3.59% 比 V2 −4.61% 抗跌。
+- **cron 10:15 JST** 每日自动跑 V3 Shadow + Backtest。
+
+### API + UI
+- `GET /api/scoring-v3/shadow`（V3 评分 + 今日动态权重 + 维度覆盖率 + V2 对比）、`GET /api/scoring-v3/backtest`（回测 JSON）。
+- AI研究中心新增 Tab **「V3动态评分」**：今日动态权重 / 回测对比 / V3 排名 / 风险扣分 / V2 对比 / 每股中文解释 / 导出CSV。
+- 数据更新时间中心新增 V3 模块。
+
+### 验收（生产实测）
+- **V2 生产完全不变**：StockScore SB2/BUY21/HOLD391/WATCH1494/AVOID1161（指纹一致）、DailyRecommendation 今日 500 条、GPT Rank/Portfolio 未动。
+- V3 Shadow 独立表 3069 条正常生成；V3 Backtest 108 行正常生成；AI研究中心 Tab HTTP 200。
+- `tsc`/`build` exit 0；`health:data` **CRITICAL=0**；自动部署（schema db push + rsync .next/lib/scripts + 重启 web/cron，19:05 JST 安全窗口）。
+
+### 禁止事项遵守
+未替换生产评分、未改 V2 StockScore/DailyRecommendation/Portfolio/GPT Rank、未删旧评分、未手设固定权重（权重由质量+状态动态导出）。
+
+---
+
 ## [17.46.0] - 2026-07-03 — P2-T7 UI/UX 统一优化 + P2-T8 数据更新时间中心（仅前端）
 
 ### 目标
