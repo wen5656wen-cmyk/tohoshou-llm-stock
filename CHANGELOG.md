@@ -2,6 +2,45 @@
 
 ---
 
+## [17.48.0] - 2026-07-03 — P3-T3 V3 Calibration Engine（评分标定引擎，Shadow-only）
+
+### 目标
+解决 P3-T2 评审的 P0 阻断项——V3 用固定阈值(75/65/55/45)导致 STRONG_BUY 155只(5.1%)过宽。改为**每日按分布 +
+市场状态动态生成阈值**，并新增 Confidence / Data Quality / 评级解释 / Production Readiness Gate。仍 Shadow，
+`SCORING_ENGINE=v2` 不变，绝不接管生产。
+
+### 标定引擎（`lib/scoring-v3/calibration/`，6 模块）
+- **distribution.ts**：当日分数分布 + 分位数。
+- **threshold.ts**：动态阈值。目标桶 SB~Top1% / BUY~Top5% / HOLD~Top25% / WATCH~Top60% / AVOID剩余；
+  BULL 略宽(SB1.5%)、BEAR 更严(SB0.5%)；每天从分布重算分数切点。
+- **confidence.ts**：Confidence 0–100（维度覆盖35% + 新鲜度15% + 基本面20% + Alpha12% + 新闻8% + 低风险10%）。
+- **quality.ts**：各维度覆盖率 + 综合数据质量分。
+- **rating.ts**：「为什么是 Strong Buy」解释（进入前X% + 各维度贡献占比 + 风险 + Confidence）。
+- **calibration.ts**：编排 + Production Readiness Gate（9 维加权 0–100，≥90 才可评估上线）。
+- **`lib/scoring-engine.ts`**：新增 Feature Flag `V3_CALIBRATION`（默认 **ON**，off 回退固定阈值）。
+
+### 数据 + 集成
+- `AdaptiveScoreV3Shadow` 加 `confidence` / `qualityScore` / `calibrated`；新表 **`AdaptiveScoreV3Calibration`**（每日阈值/分布/Confidence/Quality/SB统计/Readiness/历史）。
+- `compute-score-v3-shadow.ts` 集成标定：动态阈值评级 + 每股 Confidence/Quality + 写标定报告表；cron 10:15 每日自动跑。
+
+### 效果（生产实测）
+- **STRONG_BUY 155 → 47（5.1% → 1.53%）** —— P0 阻断项已修复，SB 回到可操作区间。动态阈值 SB≥84.4/BUY≥79.0/HOLD≥61.8/WATCH≥42.8。
+- 评级分布(标定后)：SB47 / BUY138 / HOLD644 / WATCH1074 / AVOID1166（命中目标桶）。
+- Confidence 均值 84.3（高3056/中1/低12）；Data Quality 94.8%；SB 平均 Confidence 85.1%、低流动 5。
+- **Production Readiness = 76.8 / Grade B（未达 90，暂缓上线）** —— 评级标定已修复，剩余缺口为「前向证据不足」（仅 1–2 日 Shadow，需累积 ≥1 周）。
+
+### API + UI
+- `GET /api/scoring-v3/calibration`（标定报告 + 历史）；`/shadow` 增 Confidence/Quality/calibrated。
+- AI研究中心新增 Tab **「V3 Calibration」**：Readiness Gate / 动态阈值 / 评级分布 / Confidence分布 / Data Quality / SB统计 / 市值分布 / 历史 / CSV。ScoreV3Panel 增 Confidence 列。
+
+### 验收
+- **V2 生产完全不变**：StockScore SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR 今日 500、GPT/Portfolio 未动。
+- `tsc`/`build` exit 0；`health:data` **CRITICAL=0**；标定/Confidence/Quality/报告均正常；自动部署（schema db push + rsync .next/lib + 重启 web）。
+- 回测（scoreV3 排名未变，标定仅相对评级）Top10/20/50 收益与 P3-T1 一致，`reports/score-v3-backtest.json` 有效。
+- **禁止事项遵守**：未改 Production/StockScore/Portfolio/DR/GPT/Compute Chain，未切 `SCORING_ENGINE=v3`。
+
+---
+
 ## [17.47.0] - 2026-07-03 — P3-T1 Adaptive Score V3 Pro（动态评分引擎，Shadow-only）
 
 ### 目标

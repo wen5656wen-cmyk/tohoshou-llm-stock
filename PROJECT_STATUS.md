@@ -1,11 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P3-T1 Adaptive Score V3 Pro 动态评分引擎 Shadow）
-> **版本：** v17.47.0（P3-T1 V3 Pro 动态评分 Shadow-only；基线 `v2.0.0-universe-stable` 生产完全不变）
+> **最后更新：** 2026-07-03（P3-T3 V3 Calibration Engine 评分标定 Shadow）
+> **版本：** v17.48.0（P3-T3 V3 标定引擎 Shadow-only；基线 `v2.0.0-universe-stable` 生产完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.47.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.48.0 — 2026-07-03）
+
+**P3-T3 V3 Calibration Engine（评分标定，Shadow-only，生产零改动）**
+- 修复 P3-T2 P0 阻断项：V3 固定阈值致 STRONG_BUY 155只(5.1%)过宽 → 改**每日按分布+市场状态动态阈值**。
+- `lib/scoring-v3/calibration/`(6模块)：distribution(分布/分位)/threshold(动态阈值,目标桶 SB~1%·BUY~5%·HOLD~25%·WATCH~60%,BULL宽BEAR严)/confidence(0–100可信度)/quality(维度覆盖+综合质量)/rating(为什么是某评级)/calibration(编排+Readiness Gate)。`lib/scoring-engine.ts` Feature Flag `V3_CALIBRATION`(默认ON)。
+- `AdaptiveScoreV3Shadow` 加 confidence/qualityScore/calibrated；新表 `AdaptiveScoreV3Calibration`(每日阈值/分布/Confidence/Quality/SB统计/Readiness/历史)。compute 集成标定,cron 10:15 每日跑。
+- **实测:SB 155→47(5.1%→1.53%)修复**;阈值 SB≥84.4;Confidence均值84.3(高3056/中1/低12);Quality 94.8%;**Readiness 76.8/Grade B(未达90暂缓,剩余缺口=前向证据仅1-2日需累积1周)**。
+- API `/api/scoring-v3/calibration`+`/shadow`增Confidence;AI研究中心新增Tab「V3 Calibration」(Readiness Gate/阈值/分布/Confidence/Quality/SB统计/历史/CSV)。
+- 验收:**V2完全不变**(SB2/BUY21/HOLD391/WATCH1494/AVOID1161,DR500,GPT/Portfolio未动);tsc/build exit0;health CRITICAL=0;未切v3。deployment #101,commit见CHANGELOG。**Readiness 未达90→暂缓上线,继续Shadow累积前向证据。**
+
+## ⭐ 上一版本速览（v17.47.0 — 2026-07-03）
 
 **P3-T1 Adaptive Score V3 Pro（动态评分引擎，Shadow-only，不影响生产）**
 - 解决 V2「全球/资金/新闻区分度低」：动态权重替代固定权重，先 Shadow 验证。**全球维度移除**（V2 中对排名零贡献）、**资金改用个股级数据**（AlphaFactor 量比/放量/流动性，弃市场级 InstitutionalFlow）、**新闻无事件不给常数分**。

@@ -11,6 +11,8 @@ import { regimeBaseWeights, regimeRiskMultiplier, type DimWeights } from "../lib
 import { assessDimension, type DimKey, type FactorQuality } from "../lib/scoring-v3/factor-quality";
 import { computeDynamicWeights } from "../lib/scoring-v3/dynamic-weight";
 import { computeV3, type V3StockInput } from "../lib/scoring-v3/score-v3";
+import { calibrate, type CalibItem } from "../lib/scoring-v3/calibration/calibration";
+import { isV3CalibrationOn } from "../lib/scoring-engine";
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -19,9 +21,10 @@ async function main() {
   console.log("🚀 Adaptive Score V3 Pro — Shadow 计算");
 
   // 1. 启用股票池
-  const enabled = await prisma.stock.findMany({ where: { aiEnabled: true }, select: { id: true, symbol: true } });
+  const enabled = await prisma.stock.findMany({ where: { aiEnabled: true }, select: { id: true, symbol: true, marketCap: true } });
   const enabledSet = new Set(enabled.map((s) => s.symbol));
   const idToSym = new Map(enabled.map((s) => [s.id, s.symbol]));
+  const mcapMap = new Map(enabled.map((s) => [s.symbol, s.marketCap]));
   console.log(`   启用股票: ${enabled.length}`);
 
   // 2. StockScore（技术/基本面/新闻/priceCount）
@@ -102,25 +105,61 @@ async function main() {
   // 12. 计算 V3
   const results = computeV3(inputs, weights, regime, regimeRiskMultiplier(regime));
 
-  // 13. 写 Shadow 表
+  // 12b. 标定（P3-T3）：动态阈值评级 + Confidence + Quality + Readiness Gate
+  const calOn = isV3CalibrationOn();
+  const inMap = new Map(inputs.map((s) => [s.symbol, s]));
+  const daysShadow = ((await prisma.adaptiveScoreV3Shadow.findMany({ distinct: ["date"], select: { date: true } })).length) + 1;
+  const calItems: CalibItem[] = results.map((r) => {
+    const s = inMap.get(r.symbol)!;
+    return { symbol: r.symbol, scoreV3: r.scoreV3, percentile: r.percentile, subScores: r.subScores as any, contributions: r.contributions as any, riskAdjustment: r.riskAdjustment, hasFundamental: s.hasFinancial, hasAlpha: s.alphaScore != null, sector: s.sector, marketCap: mcapMap.get(r.symbol) ?? null, turnover: s.averageTurnover20 };
+  });
+  const { perStock: calStocks, report: calReport } = calibrate(calItems, regime, daysShadow);
+  const calMap = new Map(calStocks.map((c) => [c.symbol, c]));
+  console.log(`   标定(V3_CALIBRATION=${calOn ? "ON" : "OFF"}): SB阈值=${calReport.thresholds.cutoffs.sb.toFixed(1)} · Readiness=${calReport.readiness} (${calReport.readinessGrade})`);
+
+  // 13. 写 Shadow 表（calOn 时用标定评级 + Confidence/Quality）
   const dataDate = afLatest?.date ?? regimeRow?.date ?? new Date();
   await prisma.adaptiveScoreV3Shadow.deleteMany({ where: { date: dataDate } });
   const CHUNK = 500;
   for (let i = 0; i < results.length; i += CHUNK) {
-    const batch = results.slice(i, i + CHUNK).map((r) => ({
-      symbol: r.symbol, date: dataDate, scoreV3: r.scoreV3, rawScore: r.rawScore,
-      riskAdjustment: r.riskAdjustment, rank: r.rank, percentile: r.percentile, rating: r.rating, regime,
-      weightsJson: weights as object,
-      factorBreakdownJson: { subScores: r.subScores, contributions: r.contributions, effectiveWeights: r.effectiveWeights } as object,
-      riskAdjustmentJson: r.risk as object,
-      explanation: r.explanation,
-    }));
+    const batch = results.slice(i, i + CHUNK).map((r) => {
+      const cal = calMap.get(r.symbol);
+      const rating = calOn && cal ? cal.rating : r.rating;
+      const explanation = calOn && cal ? `${cal.calibReason}\n${r.explanation}` : r.explanation;
+      return {
+        symbol: r.symbol, date: dataDate, scoreV3: r.scoreV3, rawScore: r.rawScore,
+        riskAdjustment: r.riskAdjustment, rank: r.rank, percentile: r.percentile, rating, regime,
+        weightsJson: weights as object,
+        factorBreakdownJson: { subScores: r.subScores, contributions: r.contributions, effectiveWeights: r.effectiveWeights } as object,
+        riskAdjustmentJson: r.risk as object,
+        explanation,
+        confidence: cal?.confidence ?? 0, qualityScore: cal?.qualityScore ?? 0, calibrated: calOn,
+      };
+    });
     await prisma.adaptiveScoreV3Shadow.createMany({ data: batch });
   }
 
-  const dist: Record<string, number> = {};
-  for (const r of results) dist[r.rating] = (dist[r.rating] ?? 0) + 1;
-  console.log(`   评级分布:`, ["STRONG_BUY", "BUY", "HOLD", "WATCH", "AVOID"].map((k) => `${k}:${dist[k] ?? 0}`).join(" "));
+  // 13b. 写 Calibration 报告表
+  await prisma.adaptiveScoreV3Calibration.upsert({
+    where: { date: dataDate },
+    create: {
+      date: dataDate, regime,
+      thresholdsJson: calReport.thresholds as object, ratingDistJson: calReport.ratingDist as object,
+      confidenceStatsJson: calReport.confidenceStats as object, qualityJson: { coverage: calReport.quality, overall: calReport.qualityOverall } as object,
+      sectorJson: calReport.sector as object, marketCapJson: calReport.marketCap as object, sbStatsJson: calReport.sbStats as object,
+      readiness: calReport.readiness, readinessGrade: calReport.readinessGrade,
+    },
+    update: {
+      regime, thresholdsJson: calReport.thresholds as object, ratingDistJson: calReport.ratingDist as object,
+      confidenceStatsJson: calReport.confidenceStats as object, qualityJson: { coverage: calReport.quality, overall: calReport.qualityOverall } as object,
+      sectorJson: calReport.sector as object, marketCapJson: calReport.marketCap as object, sbStatsJson: calReport.sbStats as object,
+      readiness: calReport.readiness, readinessGrade: calReport.readinessGrade, computedAt: new Date(),
+    },
+  });
+
+  const dist: Record<string, number> = calOn ? calReport.ratingDist : {};
+  if (!calOn) for (const r of results) dist[r.rating] = (dist[r.rating] ?? 0) + 1;
+  console.log(`   评级分布(${calOn ? "标定后" : "固定阈值"}):`, ["STRONG_BUY", "BUY", "HOLD", "WATCH", "AVOID"].map((k) => `${k}:${dist[k] ?? 0}`).join(" "));
   console.log(`✅ 写入 ${results.length} 条 (date=${dataDate.toISOString().slice(0, 10)}) 用时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 

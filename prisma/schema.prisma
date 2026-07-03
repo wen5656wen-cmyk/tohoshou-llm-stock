@@ -1539,6 +1539,9 @@ model AdaptiveScoreV3Shadow {
   factorBreakdownJson Json // 各维度 sub-score + 贡献
   riskAdjustmentJson  Json // 风险扣分明细
   explanation         String // 中文解释
+  confidence          Float    @default(0) // 0–100 可信度
+  qualityScore        Float    @default(0) // 0–100 数据质量
+  calibrated          Boolean  @default(false)
   scoreVersion        String   @default("v3.0")
   computedAt          DateTime @default(now())
 
@@ -1546,4 +1549,23 @@ model AdaptiveScoreV3Shadow {
   @@index([date, rank])
   @@index([date, scoreV3])
   @@map("adaptive_score_v3_shadow")
+}
+
+// ── V3 Calibration（P3-T3，每日动态阈值/分布/Confidence/Quality 报告）──────────
+model AdaptiveScoreV3Calibration {
+  id                  Int      @id @default(autoincrement())
+  date                DateTime @unique @db.Date
+  regime              String
+  thresholdsJson      Json // 各评级 scoreV3 分数切点 + 目标分位
+  ratingDistJson      Json // 校准后评级分布
+  confidenceStatsJson Json // mean/median/p25/p75 + 分桶
+  qualityJson         Json // 各维度覆盖率
+  sectorJson          Json // STRONG_BUY 行业分布
+  marketCapJson       Json // STRONG_BUY 市值分布
+  sbStatsJson         Json // STRONG_BUY 统计
+  readiness           Float    @default(0)
+  readinessGrade      String   @default("D")
+  computedAt          DateTime @default(now())
+
+  @@map("adaptive_score_v3_calibration")
 }

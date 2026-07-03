@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const all = await prisma.adaptiveScoreV3Shadow.findMany({
     where: { date: latest.date },
     orderBy: { rank: "asc" },
-    select: { symbol: true, scoreV3: true, rawScore: true, riskAdjustment: true, rank: true, percentile: true, rating: true, factorBreakdownJson: true, explanation: true },
+    select: { symbol: true, scoreV3: true, rawScore: true, riskAdjustment: true, rank: true, percentile: true, rating: true, confidence: true, qualityScore: true, calibrated: true, factorBreakdownJson: true, explanation: true },
   });
 
   // 评级分布 + 各维度覆盖率（数据质量）
@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
     return {
       symbol: r.symbol, name: s?.name ?? r.symbol, nameZh: s?.nameZh ?? null,
       scoreV3: r.scoreV3, rawScore: r.rawScore, riskAdjustment: r.riskAdjustment, rank: r.rank, percentile: r.percentile, rating: r.rating,
+      confidence: r.confidence, qualityScore: r.qualityScore, calibrated: r.calibrated,
       subScores: bd?.subScores ?? null, contributions: bd?.contributions ?? null, effectiveWeights: bd?.effectiveWeights ?? null,
       explanation: r.explanation,
       v2AdaptiveScore: s?.adaptiveScore ?? null, v2PercentileRank: s?.percentileRank ?? null, v2Rec: s?.recommendationV2 ?? null,

@@ -17,3 +17,10 @@ export function getScoringEngine(): ScoringEngine {
 export function isV3Active(): boolean {
   return getScoringEngine() === "v3";
 }
+
+// V3_CALIBRATION（默认 ON）：是否对 V3 Shadow 应用动态标定（阈值/Confidence/Quality）。
+// 关闭（V3_CALIBRATION=off）则回退到 V3 固定阈值评级。仅影响 Shadow，不影响生产。
+export function isV3CalibrationOn(): boolean {
+  const v = (process.env.V3_CALIBRATION ?? "on").toLowerCase();
+  return !(v === "off" || v === "0" || v === "false");
+}
