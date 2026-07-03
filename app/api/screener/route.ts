@@ -101,7 +101,45 @@ export async function GET(req: NextRequest) {
     select: { symbol: true, nameEn: true },
   });
   const screenerNameEnMap = new Map(stockNamesEn.map((s) => [s.symbol, s.nameEn ?? null]));
-  const enrichedScores = scores.map((s) => ({ ...s, nameEn: screenerNameEnMap.get(s.symbol) ?? null }));
+  const enrichedScores: Array<Record<string, unknown>> =
+    scores.map((s) => ({ ...s, nameEn: screenerNameEnMap.get(s.symbol) ?? null, isWatchlist: false }));
+
+  // Pin manual watchlist includes (aiExcludeRule=MANUAL_INCLUDE_WATCHLIST) into the
+  // default list so they're always visible even when their score keeps them out of the
+  // top-N. On a text search the normal where-clause already surfaces them, so only pad
+  // the unfiltered default view.
+  const isDefaultView = !q && !recV2 && !rec && !style && minScore === 0;
+  if (isDefaultView) {
+    const present = new Set(scoreSymbols);
+    const watchStocks = await prisma.stock.findMany({
+      where: { aiEnabled: true, aiExcludeSource: "MANUAL", aiExcludeRule: "MANUAL_INCLUDE_WATCHLIST" },
+      select: { symbol: true, nameEn: true },
+    });
+    const watchOutside = watchStocks.filter((w) => !present.has(w.symbol));
+    if (watchOutside.length) {
+      const wNameEn = new Map(watchOutside.map((w) => [w.symbol, w.nameEn ?? null]));
+      const wScores = await prisma.stockScore.findMany({
+        where: { symbol: { in: watchOutside.map((w) => w.symbol) }, priceCount: { gte: 20 } },
+        select: {
+          symbol: true, name: true, nameZh: true, market: true, sector: true, industry: true,
+          latestDate: true, latestClose: true, return5d: true, return20d: true,
+          rsi14: true, maTrend: true, macdSignalLabel: true,
+          technicalScore: true, fundamentalScore: true, moneyFlowScore: true,
+          newsSentimentScore: true, globalTrendScore: true,
+          totalScore: true, recommendation: true, summaryReason: true, scoreSource: true,
+          rawScore: true, adaptiveScore: true, stockStyle: true,
+          highRiskFlag: true, fxSensitivity: true, catalystScore: true,
+          percentileRank: true, marketRank: true,
+          recommendationV2: true, recommendationReason: true,
+          opportunityScore: true, opportunityRank: true, opportunityLabel: true,
+          tradingAction: true, positionSizePct: true, actionRiskLevel: true,
+        },
+      });
+      for (const s of wScores) {
+        enrichedScores.push({ ...s, nameEn: wNameEn.get(s.symbol) ?? null, isWatchlist: true });
+      }
+    }
+  }
 
   return NextResponse.json({
     stats: {

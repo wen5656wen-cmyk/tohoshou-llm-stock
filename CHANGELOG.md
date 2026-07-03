@@ -2,6 +2,25 @@
 
 ---
 
+## [17.36.1] - 2026-07-03 — 修复：关注股在「AI选股」(/screener) 页可见
+
+### 问题
+v17.36.0 让 8198.T 在 `/stocks`（TOP500 股票）可见，但用户反馈「AI选股 仍然没有」。**「AI选股」实为
+`/screener` 页**（`nav.aiScreener`/`screener.title`），走 `/api/screener`（默认 top-N by finalScore），
+而 8198.T adaptiveScore=40/AVOID/rank2266 不在 top-N，故默认列表缺失（搜索「8198」本已可返回）。
+
+### 修复
+- **`/api/screener`**：默认视图（无 q/评级/风格/minScore 过滤）追加 watchlist 纳入股
+  （aiEnabled=true + aiExcludeSource=MANUAL + aiExcludeRule=MANUAL_INCLUDE_WATCHLIST）——即使评分未进 top-N
+  也带真实 StockScore 数据置入结果（`isWatchlist:true`）；搜索时原 where 子句已覆盖，不重复追加。
+- **`/screener` 前端**：`Score` 增 `isWatchlist`；卡片名称前显示 ★（title 提示「手动纳入（关注股）」）。
+
+### 验证（生产）
+- `/api/screener`（默认）含 8198.T（isWatchlist:true, adp40/AVOID）；`/api/screener?q=8198` 仍返回；
+  recFilter 默认 ALL（客户端）→ 列表可见；`tsc`/`build` exit 0；`pm2 restart tohoshou-web`。
+
+---
+
 ## [17.36.0] - 2026-07-03 — 紧急修复：恢复 8198.T 到 AI 评分池（受保护关注股）
 
 ### 目标

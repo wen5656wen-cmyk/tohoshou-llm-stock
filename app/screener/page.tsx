@@ -31,6 +31,7 @@ type Score = {
   opportunityLabel: string | null;
   tradingAction?: string | null;
   positionSizePct?: number | null;
+  isWatchlist?: boolean;
 };
 
 type Stats = {
@@ -336,6 +337,7 @@ export default function ScreenerPage() {
                 <div className="flex items-baseline gap-1 min-w-0">
                   <span className="text-[9px] text-slate-300 tabular-nums font-mono shrink-0">#{idx + 1}</span>
                   {s.highRiskFlag && <span className="text-[10px] text-red-400 shrink-0">⚠</span>}
+                  {s.isWatchlist && <span className="text-[11px] text-amber-500 shrink-0" title={t("universe.rule.MANUAL_INCLUDE_WATCHLIST")}>★</span>}
                   <span className="text-[13px] font-bold text-slate-900 group-hover:text-blue-600 truncate leading-snug">
                     {getPrimaryName(s, lang)}
                   </span>
