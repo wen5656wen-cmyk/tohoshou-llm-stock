@@ -1,11 +1,19 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T5.1 综合页 Boss Dashboard）
-> **版本：** v17.44.0（P2-T5.1 AI研究中心综合页老板驾驶舱；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T6 AI研究中心全面汉化）
+> **版本：** v17.45.0（P2-T6 AI研究中心 6 panel 全面汉化 UI Only；基线 `v2.0.0-universe-stable` 生产完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.44.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.45.0 — 2026-07-03）
+
+**P2-T6 AI研究中心全面汉化（UI Only）**
+- 7 个 Tab 全部页面/按钮/表头/统计项/提示文案统一中文,保留缩写 ATR/RS/IC/Rank IC/RSI/TOPIX/CSV。**仅改前端显示文案**,禁改算法/DB/Prisma/Cron/API 返回值。
+- 6 个 `components/research/*Panel.tsx` 汉化(综合 Tab 已中文):Alpha因子(表头相对强弱/波动率%/距离52周…)、因子分析(有效/一般/较弱/胜率/未来收益/夏普/前后20%)、Alpha评分(百分位/主要贡献因子/AI综合评分/AI评级/推荐排名/推荐等级/影子评分说明)、Alpha回测(正式评分/影子评分/融合比较/累计收益/年化/夏普/最大回撤/样本数)、市场状态(当前市场状态/趋势/市场宽度/波动率/牛市震荡熊市)、融合策略研究(最佳融合比例/最佳融合方案/不同权重夏普)。所有 Loading/Empty/Placeholder 中文,CSV 按钮统一「导出CSV」。
+- **纯显示层**:对 API 枚举值(ratingLabel/factor/regime/View)加 display 映射翻译(RATING_ZH/FACTOR_ZH/RZH/VLABEL),**不改 API 返回值**;实测 API 仍返回英文原值(factor:ATR/ratingLabel:Effective)。字体颜色布局功能不变。
+- 验证:tsc/build exit0;health CRITICAL=0;6 tab+6 API 全200;**API 返回值不变**;功能100%一致。仅rsync .next+重启web(无schema/cron)。deployment #98,commit 见 CHANGELOG。
+
+## ⭐ 上一版本速览（v17.44.0 — 2026-07-03）
 
 **P2-T5.1 AI研究中心「综合」老板驾驶舱（Boss Dashboard）**
 - 升级综合 Tab 为老板驾驶舱(第一屏无滚动),后6 Tab 不变,原研究分析保留在下方。纯 UI/只读聚合,不改任何算法。

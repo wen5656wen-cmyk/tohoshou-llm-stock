@@ -18,8 +18,8 @@ type Weight = { factor: string; direction: number; weight: number };
 type Resp = { date: string | null; computedAt: string | null; total: number; weights: Weight[]; rows: Row[] };
 
 const FSHORT: Record<string, string> = {
-  RelativeStrength: "RS", ATR: "ATR", VolumeRatio: "VolR",
-  AverageTurnover: "Turn", Distance52WeekHigh: "52wH", VolumeExpansion: "VolExp",
+  RelativeStrength: "RS", ATR: "ATR", VolumeRatio: "量比",
+  AverageTurnover: "成交额", Distance52WeekHigh: "52周高", VolumeExpansion: "放量",
 };
 
 function fx(v: number | null, d = 1) { return v == null ? "—" : v.toFixed(d); }
@@ -75,15 +75,15 @@ export function AlphaScorePanel() {
       <div className="mb-3">
         <h1 className="text-2xl font-bold text-slate-900">Alpha评分（影子评分）</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Phase 2A · analytics-weighted composite · <span className="text-amber-600 font-medium">SHADOW — not connected to AI Score</span> ·{" "}
-          {loading ? "loading…" : error ? `error: ${error}` : `date ${data?.date ?? "—"} · ${rows.length} rows`}
+          第 2A 阶段 · 分析加权复合评分 · <span className="text-amber-600 font-medium">影子评分（仅研究，不参与正式评分）</span> ·{" "}
+          {loading ? "加载中…" : error ? `错误：${error}` : `日期 ${data?.date ?? "—"} · ${rows.length} 条`}
         </p>
       </div>
 
       {/* Weights */}
       {data?.weights?.length ? (
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-4 text-xs flex flex-wrap gap-x-5 gap-y-1">
-          <span className="text-slate-400 font-medium">Weights:</span>
+          <span className="text-slate-400 font-medium">因子权重：</span>
           {data.weights.map((w) => (
             <span key={w.factor} className="tabular-nums">
               {FSHORT[w.factor] ?? w.factor}
@@ -95,15 +95,15 @@ export function AlphaScorePanel() {
       ) : null}
 
       <div className="flex gap-2 mb-4">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search symbol / name…"
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索股票代码/名称…"
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <button onClick={exportCsv} disabled={!rows.length}
-          className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg font-medium">Export CSV</button>
+          className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg font-medium">导出CSV</button>
       </div>
 
       {error ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-          Failed ({error}). Run <code className="font-mono">npm run compute-alpha-score</code>.
+          加载失败（{error}）。请运行 <code className="font-mono">npm run compute-alpha-score</code>。
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
@@ -111,19 +111,19 @@ export function AlphaScorePanel() {
             <thead className="sticky top-0 bg-slate-50 z-10">
               <tr className="text-left text-slate-500 border-b border-slate-200">
                 <th className="px-3 py-2 font-medium text-right">#</th>
-                <th className="px-3 py-2 font-medium">Stock</th>
-                <th className="px-3 py-2 font-medium text-right">AlphaScore</th>
-                <th className="px-3 py-2 font-medium text-right">Pct</th>
-                <th className="px-3 py-2 font-medium">Top factor contributions</th>
-                <th className="px-3 py-2 font-medium text-right">AI Score</th>
-                <th className="px-3 py-2 font-medium text-center">AI Rec</th>
-                <th className="px-3 py-2 font-medium text-right">DR Rank</th>
-                <th className="px-3 py-2 font-medium text-center">DR Rec</th>
+                <th className="px-3 py-2 font-medium">股票</th>
+                <th className="px-3 py-2 font-medium text-right">Alpha评分</th>
+                <th className="px-3 py-2 font-medium text-right">百分位</th>
+                <th className="px-3 py-2 font-medium">主要贡献因子</th>
+                <th className="px-3 py-2 font-medium text-right">AI综合评分</th>
+                <th className="px-3 py-2 font-medium text-center">AI评级</th>
+                <th className="px-3 py-2 font-medium text-right">推荐排名</th>
+                <th className="px-3 py-2 font-medium text-center">推荐等级</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-3 py-10 text-center text-slate-400">loading…</td></tr>
+                <tr><td colSpan={9} className="px-3 py-10 text-center text-slate-400">加载中…</td></tr>
               ) : rows.map((r) => (
                 <tr key={r.symbol} className="border-b border-slate-50 hover:bg-blue-50/30">
                   <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{r.rank}</td>

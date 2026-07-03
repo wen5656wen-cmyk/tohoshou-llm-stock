@@ -32,17 +32,17 @@ type NumKey =
   | "averageTurnover20" | "volumeRatio5" | "volumeRatio20" | "volumeExpansionDays";
 
 const COLS: { key: NumKey; label: string; fmt: (v: number | null) => string }[] = [
-  { key: "rs5",  label: "RS5",  fmt: (v) => pct(v) },
-  { key: "rs20", label: "RS20", fmt: (v) => pct(v) },
-  { key: "rs60", label: "RS60", fmt: (v) => pct(v) },
+  { key: "rs5",  label: "相对强弱5日",  fmt: (v) => pct(v) },
+  { key: "rs20", label: "相对强弱20日", fmt: (v) => pct(v) },
+  { key: "rs60", label: "相对强弱60日", fmt: (v) => pct(v) },
   { key: "atr14", label: "ATR14", fmt: (v) => num(v) },
-  { key: "atrPct", label: "ATR%", fmt: (v) => pct(v) },
-  { key: "distanceTo52WeekHigh", label: "Dist 52wH", fmt: (v) => pct(v) },
-  { key: "distanceTo52WeekLow",  label: "Dist 52wL", fmt: (v) => pct(v) },
-  { key: "averageTurnover20", label: "AvgTurnover20", fmt: (v) => turnover(v) },
-  { key: "volumeRatio5",  label: "VolR5",  fmt: (v) => num(v) },
-  { key: "volumeRatio20", label: "VolR20", fmt: (v) => num(v) },
-  { key: "volumeExpansionDays", label: "VolExpDays", fmt: (v) => (v == null ? "—" : String(v)) },
+  { key: "atrPct", label: "波动率%", fmt: (v) => pct(v) },
+  { key: "distanceTo52WeekHigh", label: "距离52周最高点", fmt: (v) => pct(v) },
+  { key: "distanceTo52WeekLow",  label: "距离52周最低点", fmt: (v) => pct(v) },
+  { key: "averageTurnover20", label: "20日平均成交额", fmt: (v) => turnover(v) },
+  { key: "volumeRatio5",  label: "5日量比",  fmt: (v) => num(v) },
+  { key: "volumeRatio20", label: "20日量比", fmt: (v) => num(v) },
+  { key: "volumeExpansionDays", label: "放量天数", fmt: (v) => (v == null ? "—" : String(v)) },
 ];
 
 function pct(v: number | null) { return v == null ? "—" : `${v.toFixed(2)}%`; }
@@ -120,9 +120,9 @@ export function AlphaFactorsPanel() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-slate-900">Alpha因子</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Alpha Engine 2.0 · Phase 1 (data layer only, admin) ·{" "}
-          {loading ? "loading…" : error ? `error: ${error}` :
-            `date ${data?.date ?? "—"} · ${rows.length} rows · computed ${data?.computedAt?.slice(0, 16).replace("T", " ") ?? "—"}`}
+          Alpha 因子 · 第一阶段数据层（管理员）·{" "}
+          {loading ? "加载中…" : error ? `错误：${error}` :
+            `日期 ${data?.date ?? "—"} · ${rows.length} 条 · 计算时间 ${data?.computedAt?.slice(0, 16).replace("T", " ") ?? "—"}`}
         </p>
       </div>
 
@@ -130,7 +130,7 @@ export function AlphaFactorsPanel() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search symbol / name…"
+          placeholder="搜索股票代码/名称…"
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
@@ -138,21 +138,21 @@ export function AlphaFactorsPanel() {
           disabled={!rows.length}
           className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg font-medium"
         >
-          Export CSV
+          导出CSV
         </button>
       </div>
 
       {error ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-          Failed to load ({error}). Run <code className="font-mono">npm run compute-alpha-factors</code> to populate.
+          加载失败（{error}）。请运行 <code className="font-mono">npm run compute-alpha-factors</code> 生成数据。
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-slate-50 z-10">
               <tr className="text-left text-slate-500 border-b border-slate-200">
-                <th className="px-3 py-2 font-medium">Symbol</th>
-                <th className="px-3 py-2 font-medium">Name</th>
+                <th className="px-3 py-2 font-medium">股票代码</th>
+                <th className="px-3 py-2 font-medium">股票名称</th>
                 {COLS.map((c) => (
                   <th
                     key={c.key}
@@ -162,12 +162,12 @@ export function AlphaFactorsPanel() {
                     {c.label}{sortKey === c.key ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
                   </th>
                 ))}
-                <th className="px-3 py-2 font-medium text-center">Events</th>
+                <th className="px-3 py-2 font-medium text-center">事件</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={COLS.length + 3} className="px-3 py-10 text-center text-slate-400">loading…</td></tr>
+                <tr><td colSpan={COLS.length + 3} className="px-3 py-10 text-center text-slate-400">加载中…</td></tr>
               ) : rows.map((r) => (
                 <tr key={r.symbol} className="border-b border-slate-50 hover:bg-blue-50/30">
                   <td className="px-3 py-1.5 font-mono">

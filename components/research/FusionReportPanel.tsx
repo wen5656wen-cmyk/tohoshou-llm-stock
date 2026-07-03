@@ -16,6 +16,8 @@ type RegimeRow = {
 type Resp = { computedAt: string | null; asOfLatest: string | null; objective: string; note: string; regimes: RegimeRow[] };
 
 const RCOLOR: Record<string, string> = { BULL: "#16a34a", SIDEWAYS: "#d97706", BEAR: "#dc2626" };
+const RZH: Record<string, string> = { BULL: "牛市", SIDEWAYS: "震荡市", BEAR: "熊市" };
+const FR_NOTE = "融合 = w·影子评分 + (1-w)·正式评分（两者截面标准化）。最优 w 由历史按市场状态搜索得出（前20 · 持有20日，最大化夏普比率）。由 DailyPrice 重建，正式推荐不受影响。";
 function pct(v: number | null) { return v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`; }
 function num(v: number | null, d = 2) { return v == null ? "—" : v.toFixed(d); }
 function col(v: number | null) { return v == null ? "#94a3b8" : v > 0 ? "#16a34a" : v < 0 ? "#dc2626" : "#334155"; }
@@ -47,15 +49,15 @@ export function FusionReportPanel() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">融合策略研究</h1>
           <p className="text-sm text-slate-500 mt-1">
-            P2-T3 · optimal Production/Alpha fusion per regime · <span className="text-amber-600 font-medium">research-only — production unaffected</span> ·{" "}
-            {loading ? "loading…" : error ? `error: ${error}` : `as-of ${data?.asOfLatest ?? "—"} · objective ${data?.objective}`}
+            第 2 阶段 · 各市场状态下正式评分/影子评分最优融合 · <span className="text-amber-600 font-medium">仅研究 — 正式推荐不受影响</span> ·{" "}
+            {loading ? "加载中…" : error ? `错误：${error}` : `数据日期 ${data?.asOfLatest ?? "—"} · 优化目标 夏普比率`}
           </p>
         </div>
-        <button onClick={exportCsv} disabled={!data?.regimes.length} className="text-sm px-4 py-2 rounded-lg font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">Export CSV</button>
+        <button onClick={exportCsv} disabled={!data?.regimes.length} className="text-sm px-4 py-2 rounded-lg font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">导出CSV</button>
       </div>
 
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Failed ({error}). Run <code className="font-mono">npm run research-fusion</code>.</div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">加载失败（{error}）。请运行 <code className="font-mono">npm run research-fusion</code>。</div>
       ) : (
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))" }}>
           {(loading ? [] : data!.regimes).map((r) => {
@@ -66,15 +68,15 @@ export function FusionReportPanel() {
             return (
               <div key={r.regime} className="bg-white rounded-2xl border shadow-sm p-4" style={{ borderColor: RCOLOR[r.regime] }}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-lg font-bold" style={{ color: RCOLOR[r.regime] }}>{r.regime}</span>
-                  <span className="text-[11px] text-slate-400">{r.nDays} days · Top20 · 20d</span>
+                  <span className="text-lg font-bold" style={{ color: RCOLOR[r.regime] }}>{RZH[r.regime] ?? r.regime}</span>
+                  <span className="text-[11px] text-slate-400">{r.nDays} 天 · 前20 · 20日</span>
                 </div>
 
                 {/* Optimal fusion ratio */}
                 <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 mb-3">
-                  <div className="text-[11px] text-slate-400">Optimal fusion (Production / Alpha)</div>
+                  <div className="text-[11px] text-slate-400">最佳融合比例（正式 / 影子）</div>
                   <div className="text-xl font-bold text-slate-900">{r.ratio ?? "—"}</div>
-                  <div className="text-[10px] text-slate-400">w(alpha) = {num(r.bestAlphaWeight, 2)} · searched, not manual</div>
+                  <div className="text-[10px] text-slate-400">影子权重 = {num(r.bestAlphaWeight, 2)} · 历史搜索，非人工</div>
                 </div>
 
                 {/* Strategy comparison */}
@@ -82,14 +84,14 @@ export function FusionReportPanel() {
                   <thead>
                     <tr className="text-slate-400 border-b border-slate-100">
                       <th className="text-left py-1 font-medium"></th>
-                      <th className="text-right py-1 font-medium">Cum</th>
-                      <th className="text-right py-1 font-medium">Sharpe</th>
-                      <th className="text-right py-1 font-medium">Win</th>
-                      <th className="text-right py-1 font-medium">MaxDD</th>
+                      <th className="text-right py-1 font-medium">累计收益</th>
+                      <th className="text-right py-1 font-medium">夏普比率</th>
+                      <th className="text-right py-1 font-medium">胜率</th>
+                      <th className="text-right py-1 font-medium">最大回撤</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {([["Production", r.production], ["Alpha", r.alpha], ["Best Fused", r.fused]] as const).map(([label, s]) => (
+                    {([["正式评分", r.production], ["影子评分", r.alpha], ["最佳融合方案", r.fused]] as const).map(([label, s]) => (
                       <tr key={label} className="border-b border-slate-50">
                         <td className="py-1 text-slate-600 font-medium">{label}</td>
                         <td className="py-1 text-right tabular-nums" style={{ color: col(s.cumReturn) }}>{pct(s.cumReturn)}</td>
@@ -102,7 +104,7 @@ export function FusionReportPanel() {
                 </table>
 
                 {/* Grid: Sharpe by w */}
-                <div className="text-[10px] text-slate-400 mb-1">Sharpe by w(alpha) 0→1</div>
+                <div className="text-[10px] text-slate-400 mb-1">不同权重下的夏普比率（影子权重 0→1）</div>
                 <div className="flex items-end gap-[2px] h-14">
                   {grid.map((g) => {
                     const h = g.sharpe == null ? 0 : Math.max(2, ((g.sharpe - minS) / (maxS - minS || 1)) * 100);
@@ -110,13 +112,13 @@ export function FusionReportPanel() {
                     return <div key={g.w} title={`w=${g.w} sharpe=${num(g.sharpe)}`} style={{ flex: 1, height: `${h}%`, background: isBest ? RCOLOR[r.regime] : "#cbd5e1" }} className="rounded-t" />;
                   })}
                 </div>
-                <div className="flex justify-between text-[9px] text-slate-300 mt-0.5"><span>0</span><span>w(alpha)</span><span>1</span></div>
+                <div className="flex justify-between text-[9px] text-slate-300 mt-0.5"><span>0</span><span>影子权重</span><span>1</span></div>
               </div>
             );
           })}
         </div>
       )}
-      {data?.note ? <p className="text-[11px] text-slate-400 mt-4">{data.note}</p> : null}
+      {data?.note ? <p className="text-[11px] text-slate-400 mt-4">{FR_NOTE}</p> : null}
     </div>
   );
 }

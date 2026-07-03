@@ -20,6 +20,8 @@ const PERIODS = [30, 90, 180];
 const TOPN = [10, 20, 50];
 const HOLD = [5, 10, 20];
 type View = "PRODUCTION" | "SHADOW" | "OVERLAY";
+const VLABEL: Record<View, string> = { PRODUCTION: "正式评分", SHADOW: "影子评分", OVERLAY: "融合比较" };
+const BT_NOTE = "两套评分均由 DailyPrice 历史重建。正式评分＝动量核心 z(20日收益)+z(60日收益)；影子评分＝分析加权 6 因子复合。重叠日采样，累计收益/回撤按非重叠 H 日再平衡计算。正式推荐不受影响。";
 
 function pct(v: number | null) { return v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`; }
 function num(v: number | null, d = 2) { return v == null ? "—" : v.toFixed(d); }
@@ -75,56 +77,56 @@ export function AlphaBacktestPanel() {
       <div className="mb-3">
         <h1 className="text-2xl font-bold text-slate-900">Alpha回测</h1>
         <p className="text-sm text-slate-500 mt-1">
-          P2-T2 · Production vs Alpha · <span className="text-amber-600 font-medium">reconstructed backtest — production recommendations unaffected</span> ·{" "}
-          {loading ? "loading…" : error ? `error: ${error}` : `period ${data?.period}d · as-of ${data?.asOfLatest ?? "—"}`}
+          第 2 阶段 · 正式评分 vs 影子评分 · <span className="text-amber-600 font-medium">重建回测 — 正式推荐不受影响</span> ·{" "}
+          {loading ? "加载中…" : error ? `错误：${error}` : `回测周期 ${data?.period}日 · 数据日期 ${data?.asOfLatest ?? "—"}`}
         </p>
       </div>
 
       {/* Headline (Top20, hold 20d) */}
       {data?.headline ? (
         <div className="grid grid-cols-3 gap-3 mb-4" style={{ maxWidth: 560 }}>
-          <HeadCard label="Production" val={data.headline.production} sub="Top20 · 20d" color="#475569" />
-          <HeadCard label="Shadow (Alpha)" val={data.headline.shadow} sub="Top20 · 20d" color="#2563eb" />
-          <HeadCard label="Alpha (Δ)" val={data.headline.alpha} sub="Shadow − Production" color={col(data.headline.alpha)} />
+          <HeadCard label="正式评分" val={data.headline.production} sub="前20 · 20日" color="#475569" />
+          <HeadCard label="影子评分(Alpha)" val={data.headline.shadow} sub="前20 · 20日" color="#2563eb" />
+          <HeadCard label="Alpha(差值)" val={data.headline.alpha} sub="影子 − 正式" color={col(data.headline.alpha)} />
         </div>
       ) : null}
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         {PERIODS.map((p) => (
-          <button key={p} onClick={() => setPeriod(p)} className={`text-sm px-3 py-1.5 rounded-lg font-medium border ${period === p ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>{p}d</button>
+          <button key={p} onClick={() => setPeriod(p)} className={`text-sm px-3 py-1.5 rounded-lg font-medium border ${period === p ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>{p}日</button>
         ))}
         <span className="mx-2 text-slate-300">|</span>
         {(["PRODUCTION", "SHADOW", "OVERLAY"] as View[]).map((v) => (
-          <button key={v} onClick={() => setView(v)} className={`text-sm px-3 py-1.5 rounded-lg font-medium border ${view === v ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>{v.charAt(0) + v.slice(1).toLowerCase()}</button>
+          <button key={v} onClick={() => setView(v)} className={`text-sm px-3 py-1.5 rounded-lg font-medium border ${view === v ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>{VLABEL[v]}</button>
         ))}
-        <button onClick={exportCsv} disabled={!data?.cells.length} className="ml-auto text-sm px-4 py-1.5 rounded-lg font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">Export CSV</button>
+        <button onClick={exportCsv} disabled={!data?.cells.length} className="ml-auto text-sm px-4 py-1.5 rounded-lg font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">导出CSV</button>
       </div>
 
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">Failed ({error}). Run <code className="font-mono">npm run backtest-shadow</code>.</div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">加载失败（{error}）。请运行 <code className="font-mono">npm run backtest-shadow</code>。</div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-auto">
           <table className="w-full text-xs">
             <thead className="bg-slate-50">
               <tr className="text-left text-slate-500 border-b border-slate-200">
-                <th className="px-3 py-2 font-medium">Config</th>
-                <th className="px-3 py-2 font-medium">Strategy</th>
-                <th className="px-3 py-2 font-medium text-right">Cum Return</th>
-                <th className="px-3 py-2 font-medium text-right">Alpha (ann.)</th>
-                <th className="px-3 py-2 font-medium text-right">Annualized</th>
-                <th className="px-3 py-2 font-medium text-right">Sharpe</th>
-                <th className="px-3 py-2 font-medium text-right">Max DD</th>
-                <th className="px-3 py-2 font-medium text-right">Win Rate</th>
-                <th className="px-3 py-2 font-medium text-right">n</th>
+                <th className="px-3 py-2 font-medium">组合配置</th>
+                <th className="px-3 py-2 font-medium">策略</th>
+                <th className="px-3 py-2 font-medium text-right">累计收益</th>
+                <th className="px-3 py-2 font-medium text-right">Alpha年化</th>
+                <th className="px-3 py-2 font-medium text-right">年化收益</th>
+                <th className="px-3 py-2 font-medium text-right">夏普比率</th>
+                <th className="px-3 py-2 font-medium text-right">最大回撤</th>
+                <th className="px-3 py-2 font-medium text-right">胜率</th>
+                <th className="px-3 py-2 font-medium text-right">样本数</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-3 py-10 text-center text-slate-400">loading…</td></tr>
+                <tr><td colSpan={9} className="px-3 py-10 text-center text-slate-400">加载中…</td></tr>
               ) : bodyRows.map((c, i) => (
                 <tr key={`${c.topN}-${c.holdDays}-${c.strategy}`} className={`border-b border-slate-50 ${c.strategy === "ALPHA" ? "bg-blue-50/20" : ""}`}>
-                  <td className="px-3 py-1.5 font-mono text-slate-500">{isFirstOfConfig(i) ? `Top${c.topN} · ${c.holdDays}d` : ""}</td>
-                  <td className="px-3 py-1.5 font-medium" style={{ color: c.strategy === "ALPHA" ? "#2563eb" : "#475569" }}>{c.strategy === "ALPHA" ? "Alpha" : "Production"}</td>
+                  <td className="px-3 py-1.5 font-mono text-slate-500">{isFirstOfConfig(i) ? `前${c.topN} · ${c.holdDays}日` : ""}</td>
+                  <td className="px-3 py-1.5 font-medium" style={{ color: c.strategy === "ALPHA" ? "#2563eb" : "#475569" }}>{c.strategy === "ALPHA" ? "影子评分" : "正式评分"}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums font-semibold" style={{ color: col(c.cumReturn) }}>{pct(c.cumReturn)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums" style={{ color: col(c.alpha) }}>{pct(c.alpha)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums" style={{ color: col(c.annualizedReturn) }}>{pct(c.annualizedReturn)}</td>
@@ -138,7 +140,7 @@ export function AlphaBacktestPanel() {
           </table>
         </div>
       )}
-      {data?.note ? <p className="text-[11px] text-slate-400 mt-3">{data.note}</p> : null}
+      {data?.note ? <p className="text-[11px] text-slate-400 mt-3">{BT_NOTE}</p> : null}
     </div>
   );
 }

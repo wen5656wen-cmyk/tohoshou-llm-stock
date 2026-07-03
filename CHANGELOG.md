@@ -2,6 +2,37 @@
 
 ---
 
+## [17.45.0] - 2026-07-03 — P2-T6 AI 研究中心全面汉化（UI Only）
+
+### 目标
+AI 研究中心 7 个 Tab 全部页面/按钮/表头/统计项/提示文案统一为中文。**仅改前端显示文案**，禁止修改任何
+算法/数据库/Prisma/Cron/API 返回值/评分/回测/融合逻辑。保留国际通用缩写（ATR/RS/IC/Rank IC/RSI/TOPIX/CSV）。
+
+### 汉化范围（6 个 panel，综合 Tab 已中文）
+- **Alpha因子**：表头 相对强弱5/20/60日、波动率%、距离52周最高/最低点、20日平均成交额、5/20日量比、放量天数；股票代码/股票名称/事件。
+- **因子分析**：有效/一般/较弱、胜率、平均超额收益、未来5/10/20日收益、夏普比率、前20%/后20%；因子名中文（相对强弱/波动率/量比…）。
+- **Alpha评分**：Alpha评分、百分位、主要贡献因子、AI综合评分、AI评级、推荐排名、推荐等级、因子权重、「影子评分（仅研究，不参与正式评分）」。
+- **Alpha回测**：正式评分/影子评分/融合比较、组合配置/策略/累计收益/Alpha年化/年化收益/夏普比率/最大回撤/胜率/样本数。
+- **市场状态**：当前市场状态、趋势、市场宽度、波动率、市场状态时间轴、牛市/震荡市/熊市、日期/状态/评分。
+- **融合策略研究**：最佳融合比例、最佳融合方案、累计收益/夏普比率/胜率/最大回撤、不同权重下的夏普比率。
+- 所有 副标题/Tooltip/Placeholder/Empty/Loading/No Data 文案改中文；所有 CSV 导出按钮统一为「导出CSV」；搜索框「搜索股票代码/名称…」。
+
+### 实现（纯前端显示层）
+- 对来自 API 的枚举/数据值（如 `ratingLabel` Effective、`factor` ATR、`regime` BULL、View PRODUCTION）**在显示层加映射翻译**
+  （`RATING_ZH`/`FACTOR_ZH`/`RZH`/`VLABEL` 等），**不修改 API 返回值本身**；英文说明性 `note` 以固定中文文案展示。
+- 字体/颜色/布局完全不变；表格排序/搜索/导出/切换等功能逻辑一字未动。
+
+### 验证（生产实测）
+- `tsc`/`build` exit 0；部署（仅 rsync .next + `pm2 restart tohoshou-web`；无 schema/lib/scripts/cron 变更）；
+  `health:data` exit 0 → **CRITICAL=0**。
+- 6 个 Tab 路由 + 6 个研究 API 全部 HTTP 200；**API 返回值保持英文原值不变**（实测 `/api/alpha/report` 仍返回 `factor:"ATR"`、`ratingLabel:"Effective"`，仅前端翻译）。
+- 页面功能 100% 保持一致；无任何算法/数据库/API 变化。
+
+### 部署
+build → rsync `.next` → `pm2 restart tohoshou-web`（未改 schema/cron，未重启 cron）。
+
+---
+
 ## [17.44.0] - 2026-07-03 — P2-T5.1 AI 研究中心「综合」老板驾驶舱（Boss Dashboard）
 
 ### 目标
