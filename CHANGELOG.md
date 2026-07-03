@@ -2,6 +2,50 @@
 
 ---
 
+## [17.42.0] - 2026-07-03 — P2-T4 Fusion Paper Trading（三策略前向纸面交易）
+
+### 目标
+用真实未来行情跑 2–4 周纸面交易，对比：① **Production**（当前正式推荐）② **AlphaScore** 推荐
+③ **Regime Fusion** 推荐。**不改正式推荐**；每日生成三套 Top10/Top20，记录未来 1/3/5/10/20 日收益；
+Dashboard 实时对比；2–4 周后再决定是否接入正式评分。
+
+### 三套策略（`scripts/fusion-paper-trade.ts`，READ-ONLY，绝不改官方推荐/StockScore/Portfolio）
+- **PRODUCTION** = 真实官方 `DailyRecommendation` Top 按 gptRank（只读消费，非重建）。
+- **ALPHA** = AlphaScore 复合分（截面 z-composite 重建）Top。
+- **FUSION** = regime 自适应 `w·Alpha + (1-w)·Production`，w = 当日 Market Regime 的**已搜索最优权重**（RegimeFusionResult）。
+- 每 entry 日记录 entryClose + 未来 1/3/5/10/20 日真实收益（`FusionPaperPick`）；**幂等**，cron 每日跑：
+  长周期收益随未来行情逐日填充，新交易日自动追加 → 累积 2–4 周。
+
+### Bootstrap
+初始 entry dates = `DailyRecommendation` 已有且已有收盘价的 11 个交易日（2026-06-20…07-02），
+即刻获得真实 Production 推荐 + 部分已实现前瞻收益（1/3/5d 已填充，10/20d 待未来行情）。
+
+### 数据库 · Cron
+- 新表 `FusionPaperPick`（entryDate×strategy×topN×symbol，rank/entryClose/ret1·3·5·10·20d/regime；严格附加）。cron **10:00 JST**。
+
+### API · 页面 · Dashboard · CSV
+- `GET /api/fusion/paper?topN=10|20`：三策略×各周期 平均收益/胜率/样本数 + 最新持仓 + 运行天数。
+- `/fusion/paper` 管理员 Dashboard：Top10/20 切换 + 三策略平均前瞻收益对比表（1/3/5/10/20d，含胜率）+ 最新三套持仓 + CSV。
+- SystemDashboard 入口新增「◎ Fusion Paper Trading」。
+
+### 验证（生产实测）
+- **生产推荐 100% 一致（指纹逐字段吻合 BASELINE）**：Σ adaptiveScore **146778 = 146778**、lastComputedAt 未变、
+  StrongBuy 2 / Buy 21 / Hold 391 / Watch 1494 / Avoid 1161、DR today 500、Portfolio #11 / 9 —— 全一致。
+- 纸面交易正常：**810 pick-rows / 11 entry dates（9 usable）/ 15.2s**；`health:data` exit 0 → **CRITICAL=0**；
+  cron 重启加载 10:00 slot（15:58 JST 窗口外）；6 个 alpha slots（08:45/09:00/09:15/09:30/09:45/10:00）。
+- `tsc`/`build` exit 0（无 CJK UI）；Paper API/页面 HTTP 200。
+
+### 早期观察（样本小、周期短，待累积）
+Top20 平均前瞻收益：5d Production −3.28%（胜率 53.6%）/ Alpha −1.33% / **Fusion −0.80%（最优）**；1d/3d 三者接近；
+10d/20d 尚无数据（entry 日距今 <10 交易日），将随未来 2–4 周行情逐日填充。**待累积充分后再决定是否接入正式评分。**
+
+### 部署
+db push（FusionPaperPick）+ generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web` + `tohoshou-cron`（10:00 slot，15:58 JST 窗口外）。
+
+> **READ-ONLY**：纸面交易全程不改官方推荐；接入与否留待 2–4 周纸面结果。
+
+---
+
 ## [17.41.0] - 2026-07-03 — P2-T3 Adaptive Fusion Engine（Market Regime Research）
 
 ### 目标

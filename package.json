@@ -87,7 +87,9 @@
     "backtest-shadow": "npx tsx scripts/backtest-shadow.ts",
     "backtest-shadow:dry": "DRY_RUN=1 npx tsx scripts/backtest-shadow.ts",
     "research-fusion": "npx tsx scripts/research-fusion.ts",
-    "research-fusion:dry": "DRY_RUN=1 npx tsx scripts/research-fusion.ts"
+    "research-fusion:dry": "DRY_RUN=1 npx tsx scripts/research-fusion.ts",
+    "fusion-paper-trade": "npx tsx scripts/fusion-paper-trade.ts",
+    "fusion-paper-trade:dry": "DRY_RUN=1 npx tsx scripts/fusion-paper-trade.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

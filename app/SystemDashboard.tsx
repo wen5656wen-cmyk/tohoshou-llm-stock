@@ -362,6 +362,15 @@ export function SystemDashboard({
               ⚗ Fusion Report
             </Link>
           </div>
+          <div style={{ marginTop: 8 }}>
+            <Link href="/fusion/paper" style={{
+              display: "block", textAlign: "center", padding: "8px 4px",
+              background: "#0a0a0a", border: "1px solid #334155", borderRadius: 6,
+              color: "#f0abfc", fontSize: 11, textDecoration: "none",
+            }}>
+              ◎ Fusion Paper Trading (Production vs Alpha vs Fusion)
+            </Link>
+          </div>
         </Section>
 
         {/* Col 2: Health Score Breakdown */}

@@ -1,11 +1,20 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T3 Adaptive Fusion — Market Regime Research）
-> **版本：** v17.41.0（P2-T3 Market Regime + 融合研究；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T4 Fusion Paper Trading）
+> **版本：** v17.42.0（P2-T4 三策略前向纸面交易；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.41.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.42.0 — 2026-07-03）
+
+**P2-T4 Fusion Paper Trading（三策略前向纸面交易，只读，不改正式推荐）**
+- **三策略**：PRODUCTION(真实 DailyRecommendation Top by gptRank,只读消费)、ALPHA(AlphaScore 复合分重建 Top)、FUSION(regime 自适应 w·Alpha+(1-w)·Prod,w=当日 regime 已搜索最优权重)。
+- **`scripts/fusion-paper-trade.ts`**(绝不改官方推荐/StockScore/Portfolio):每 entry 日生成三套 Top10/20,记录 entryClose+未来 1/3/5/10/20 日真实收益,幂等,cron **10:00 JST** 每日跑累积。Bootstrap:初始 entry=DailyRec 已有收盘的 11 天(06-20~07-02)。
+- **新表 FusionPaperPick**;**API `/api/fusion/paper`**(三策略×周期 均收益/胜率/n+最新持仓);**页面 `/fusion/paper`**(Top10/20 切换+对比表+持仓+CSV);Dashboard ◎入口。
+- **生产100%一致(指纹吻合)**：ΣadaptiveScore146778、SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR500、Portfolio#11/9、compute-scores未跑;health CRITICAL=0;6个alpha slots(08:45/09:00/09:15/09:30/09:45/10:00);810 pick-rows/11 entry dates。
+- **早期观察(样本小周期短)**:Top20 5d Production−3.28%(win53.6%)/Alpha−1.33%/**Fusion−0.80%最优**;10/20d 待未来2-4周累积。**待累积充分后再决定是否接入正式评分。**
+
+## ⭐ 上一版本速览（v17.41.0 — 2026-07-03）
 
 **P2-T3 Adaptive Fusion Engine（Market Regime Research，只读研究）**
 - **`lib/market-regime/`**（各独立）：trend(TOPIX MA20/60/120→trendScore)、volatility(实现波动率年化%)、breadth(%高于MA20)、regime(0.55·trend+0.45·breadth,高波动risk-off→BULL/SIDEWAYS/BEAR)。

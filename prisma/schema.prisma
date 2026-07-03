@@ -1490,3 +1490,29 @@ model RegimeFusionResult {
 
   @@map("regime_fusion_results")
 }
+
+// ── Fusion Paper Trading — P2-T4 ─────────────────────────────────────────────
+// Forward paper trading: Production (real DailyRecommendation) vs AlphaScore vs Regime
+// Fusion. Records daily Top10/Top20 picks + realized forward returns. READ-ONLY: the
+// official recommendation / scoring / Portfolio are never modified.
+model FusionPaperPick {
+  id         Int      @id @default(autoincrement())
+  entryDate  DateTime @db.Date
+  strategy   String   // PRODUCTION | ALPHA | FUSION
+  topN       Int      // 10 | 20
+  symbol     String
+  rank       Int
+  entryClose Float?
+  ret1d      Float?
+  ret3d      Float?
+  ret5d      Float?
+  ret10d     Float?
+  ret20d     Float?
+  regime     String?  // regime at entry (fusion context)
+  computedAt DateTime @default(now())
+
+  @@unique([entryDate, strategy, topN, symbol])
+  @@index([entryDate, strategy])
+  @@index([strategy, topN])
+  @@map("fusion_paper_picks")
+}

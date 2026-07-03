@@ -225,6 +225,14 @@ cron.schedule("45 9 * * *", async () => {
   await runAsync("research-fusion.ts", "Adaptive Fusion Research", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────
+// Production(公式推薦) / AlphaScore / Regime Fusion の3戦略で日次 Top10/20 を生成し、
+// 未来 1/3/5/10/20 日リターンを蓄積（2–4週）。READ-ONLY：公式推薦は変更しない。
+cron.schedule("0 10 * * *", async () => {
+  log("INFO", "⏰ 10:00 触发：Fusion Paper Trading（P2-T4 ペーパー）");
+  await runAsync("fusion-paper-trade.ts", "Fusion Paper Trading", 15 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：
