@@ -1,11 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T6 AI研究中心全面汉化）
-> **版本：** v17.45.0（P2-T6 AI研究中心 6 panel 全面汉化 UI Only；基线 `v2.0.0-universe-stable` 生产完全不变）
+> **最后更新：** 2026-07-03（P2-T7 UI统一 + P2-T8 数据更新时间中心）
+> **版本：** v17.46.0（P2-T7/T8 AI研究中心 UI统一+数据更新时间中心 仅前端；基线 `v2.0.0-universe-stable` 生产完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.45.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.46.0 — 2026-07-03）
+
+**P2-T7 UI/UX 统一 + P2-T8 数据更新时间中心（仅前端，不改算法/DB/API返回值/Cron）**
+- **统一 Tab 标题**：综合驾驶舱/Alpha因子库/因子分析/影子评分（Alpha）/Alpha策略回测/市场状态/AI融合策略研究。
+- **统一页头 `components/research/PanelHeader.tsx`**：标题+中文说明+阶段/数据日期/计算时间/股票数量/数据状态+右侧「最后更新：YYYY-MM-DD HH:mm·正常/偏旧/超时」;移除 Phase/Admin/computed/date/as-of/shadow;时间统一 JST YYYY-MM-DD HH:mm。
+- **术语 Tooltip**(TERM_TIPS):ATR/IC/Rank IC/夏普比率/Alpha/市场宽度/波动率/RS/量比。统一按钮/表格/颜色规范。
+- **综合驾驶舱新增**:①数据更新时间卡(9模块 Universe/AI综合评分/Alpha因子/因子分析/影子评分/Alpha回测/市场状态/融合策略/新闻,自动读 computedAt,状态色<24h绿/24-48h黄/>48h红,新闻18:00前显示等待今日更新)②顶部提示(今日研究数据全部最新/X超48h未更新)③当前推荐策略(BULL/SIDEWAYS/BEAR 最优融合比例+正式推荐仍100%正式评分说明)。
+- **聚合API `/api/admin/research-overview` 新增** moduleUpdates/dataHint/recommendedStrategy(全读产物 computedAt,不手写)。
+- 验证:tsc/build exit0;health CRITICAL=0;research-overview 实测9模块全绿/dataHint全最新/推荐策略正确;6tab 200;API返回值不变;功能100%一致。仅rsync .next+重启web。deployment #99,commit 见 CHANGELOG。
+
+## ⭐ 上一版本速览（v17.45.0 — 2026-07-03）
 
 **P2-T6 AI研究中心全面汉化（UI Only）**
 - 7 个 Tab 全部页面/按钮/表头/统计项/提示文案统一中文,保留缩写 ATR/RS/IC/Rank IC/RSI/TOPIX/CSV。**仅改前端显示文案**,禁改算法/DB/Prisma/Cron/API 返回值。

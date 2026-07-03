@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { PanelHeader, TERM_TIPS } from "./PanelHeader";
 
 // Alpha Engine 2.0 — Phase 1 debug console (admin). Technical/English labels only;
 // factor names (RS5/ATR14/…) are technical identifiers. Data layer only — this page
@@ -117,14 +118,9 @@ export function AlphaFactorsPanel() {
 
   return (
     <div className="p-6 max-w-[1400px]">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Alpha因子</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Alpha 因子 · 第一阶段数据层（管理员）·{" "}
-          {loading ? "加载中…" : error ? `错误：${error}` :
-            `日期 ${data?.date ?? "—"} · ${rows.length} 条 · 计算时间 ${data?.computedAt?.slice(0, 16).replace("T", " ") ?? "—"}`}
-        </p>
-      </div>
+      <PanelHeader title="Alpha因子库" desc="用于展示 Alpha 引擎计算使用的底层技术因子。" phase="P2-T1"
+        dataDate={data?.date} computedAt={data?.computedAt} stockCount={rows.length}
+        statusText="研究模式（不会影响正式AI推荐）" loading={loading} error={error} />
 
       <div className="flex gap-2 mb-4 flex-wrap">
         <input
@@ -157,6 +153,7 @@ export function AlphaFactorsPanel() {
                   <th
                     key={c.key}
                     onClick={() => toggleSort(c.key)}
+                    title={TERM_TIPS[c.label]}
                     className="px-3 py-2 font-medium text-right cursor-pointer hover:text-slate-800 whitespace-nowrap"
                   >
                     {c.label}{sortKey === c.key ? (sortDir === "desc" ? " ↓" : " ↑") : ""}

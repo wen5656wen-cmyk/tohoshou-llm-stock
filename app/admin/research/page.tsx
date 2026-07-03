@@ -105,13 +105,13 @@ const HORIZONS = ["1d", "3d", "5d", "7d", "10d", "20d", "30d", "60d", "90d"] as 
 
 // ── AI 研究中心：顶层 Tab 壳（综合 = 原研究分析，其余为 Alpha/Fusion 研究工具）──
 const CENTER_TABS: { key: string; label: string }[] = [
-  { key: "overview",  label: "综合" },
-  { key: "factors",   label: "Alpha因子" },
+  { key: "overview",  label: "综合驾驶舱" },
+  { key: "factors",   label: "Alpha因子库" },
   { key: "analytics", label: "因子分析" },
-  { key: "score",     label: "Alpha评分（影子评分）" },
-  { key: "backtest",  label: "Alpha回测" },
+  { key: "score",     label: "影子评分（Alpha）" },
+  { key: "backtest",  label: "Alpha策略回测" },
   { key: "regime",    label: "市场状态" },
-  { key: "fusion",    label: "融合策略研究" },
+  { key: "fusion",    label: "AI融合策略研究" },
 ];
 
 export default function ResearchCenterPage() {

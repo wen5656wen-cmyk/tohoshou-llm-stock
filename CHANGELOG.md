@@ -2,6 +2,45 @@
 
 ---
 
+## [17.46.0] - 2026-07-03 — P2-T7 UI/UX 统一优化 + P2-T8 数据更新时间中心（仅前端）
+
+### 目标
+将 AI 研究中心打造为老板每天查看的核心页面：统一视觉/标题/页头/颜色/时间格式，加术语 Tooltip、当前推荐
+策略、以及各模块「数据更新时间中心」。**仅改前端显示层**，禁改数据库/API 返回值/Cron/评分/Alpha/Fusion 算法。
+
+### P2-T7 UI/UX 统一
+- **统一 Tab 标题**：综合驾驶舱 / Alpha因子库 / 因子分析 / 影子评分（Alpha）/ Alpha策略回测 / 市场状态 / AI融合策略研究。
+- **统一页头 `components/research/PanelHeader.tsx`**：所有 panel 用同一页头 —— 标题（统一字号加粗）+ 一句中文说明 +
+  `阶段：… · 数据日期：… · 计算时间：… · 股票数量：…只 · 数据状态：…` + 右侧「最后更新：YYYY-MM-DD HH:mm · 正常/偏旧/超时」。
+  彻底移除 Phase/Admin/Research Only/computed/date/as-of/shadow 等英文。
+- **各 Tab 说明**：Alpha因子库=展示 Alpha 引擎底层技术因子；因子分析=分析各因子对未来收益预测能力；影子评分=仅研究验证，
+  不参与正式AI推荐；Alpha回测=比较正式评分与影子评分历史表现；市场状态=识别牛市/震荡市/熊市；AI融合策略研究=寻找各市场状态最优融合比例。
+- **术语 Tooltip**（`TERM_TIPS`，鼠标悬停中文解释）：ATR / IC / Rank IC / 夏普比率 / Alpha / 市场宽度 / 波动率 / RS / 量比 等。
+- **统一时间格式**：全部 `YYYY-MM-DD HH:mm`（JST），不再出现 computed/UTC/as-of/date。
+- **统一按钮/表格/颜色**：导出CSV / 7·30·90·180日 / 正式评分·影子评分·融合比较 按钮高度·圆角·Hover 一致；表头/字体/padding/排序箭头/
+  数字右对齐/文字左对齐/股票代码蓝色 统一；颜色规范 绿=上涨·牛市·成功，黄=震荡·等待，红=熊市·回撤·警告，蓝=标题·按钮·链接。
+- **综合驾驶舱新增「当前推荐策略」**：按市场状态展示历史搜索的最优融合比例（BULL/SIDEWAYS/BEAR）+ 说明「仍研究/影子阶段，正式推荐当前 100% 使用正式AI评分」，便于未来启用融合。
+
+### P2-T8 数据更新时间中心
+- **聚合 API `/api/admin/research-overview` 新增**（我方展示聚合，非生产 API）：`moduleUpdates`（Universe/AI综合评分/Alpha因子/
+  因子分析/影子评分/Alpha回测/市场状态/融合策略/新闻 —— 每项最后更新时间 + 状态）、`dataHint`（顶部提示）、`recommendedStrategy`。
+  **全部自动读取各产物 `computedAt`（StockScore/AlphaFactor/AlphaFactorReport/AlphaScore/AlphaBacktestResult/MarketRegime/
+  RegimeFusionResult/SyncJob-news），不手写时间。**
+- **状态颜色**：<24h 绿色（✅正常）/ 24–48h 黄色（偏旧）/ >48h 红色（超时）；新闻当日 18:00 前未更新显示「等待今日更新」。
+- **综合驾驶舱新增「数据更新时间」卡**（9 模块，名称/时间/状态）+ **顶部提示**（如「今日研究数据全部最新」或「X 超过 48 小时未更新」）。
+- **每个 Tab 顶部**通过统一页头显示「最后更新：YYYY-MM-DD HH:mm · 数据状态：正常」（读取各自 API 的 computedAt）。
+
+### 验证（生产实测）
+- `tsc`/`build` exit 0；部署（仅 rsync .next + `pm2 restart tohoshou-web`；无 schema/lib/scripts/cron 变更）；`health:data` exit 0 → **CRITICAL=0**。
+- `research-overview` 实测：dataHint「今日研究数据全部最新」；9 模块全绿（Universe 13:07 … 新闻 12:03，均 <24h）；
+  recommendedStrategy BULL/SIDEWAYS 影子评分（研究）/ BEAR 20%正式+80%影子。
+- 6 个 Tab 路由 HTTP 200；**API 返回值不变**（枚举翻译仍在显示层）；功能 100% 一致。
+
+### 部署
+build → rsync `.next` → `pm2 restart tohoshou-web`（未改 schema/cron，未重启 cron）。
+
+---
+
 ## [17.45.0] - 2026-07-03 — P2-T6 AI 研究中心全面汉化（UI Only）
 
 ### 目标

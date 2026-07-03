@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { PanelHeader } from "./PanelHeader";
 
 // Alpha Score — Phase 2A Shadow Mode (admin). SHADOW ONLY: not connected to production
 // AI Score. English/technical labels.
@@ -72,13 +73,9 @@ export function AlphaScorePanel() {
 
   return (
     <div className="p-6 max-w-[1400px]">
-      <div className="mb-3">
-        <h1 className="text-2xl font-bold text-slate-900">Alpha评分（影子评分）</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          第 2A 阶段 · 分析加权复合评分 · <span className="text-amber-600 font-medium">影子评分（仅研究，不参与正式评分）</span> ·{" "}
-          {loading ? "加载中…" : error ? `错误：${error}` : `日期 ${data?.date ?? "—"} · ${rows.length} 条`}
-        </p>
-      </div>
+      <PanelHeader title="影子评分（Alpha）" desc="仅用于研究验证，不参与正式AI推荐。" phase="P2-T2A"
+        dataDate={data?.date} computedAt={data?.computedAt} stockCount={rows.length}
+        statusText="影子评分（不参与正式AI推荐）" loading={loading} error={error} />
 
       {/* Weights */}
       {data?.weights?.length ? (

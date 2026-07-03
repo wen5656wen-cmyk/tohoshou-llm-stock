@@ -14,6 +14,9 @@ type Data = {
   todaySummary: { market: string | null; prodSB: number; prodBuy: number; alphaScored: number; fusionMode: string; shadow: { d30: string | null; d90: string | null; d180: string | null } };
   conclusion: string[];
   health: { critical: number | null; warning: number | null; status: string | null; cron: string; db: string; api: string };
+  moduleUpdates: { key: string; name: string; updatedAt: string | null; status: string }[];
+  dataHint: string;
+  recommendedStrategy: { BULL: string | null; SIDEWAYS: string | null; BEAR: string | null; note: string };
   timeline: { time: string; label: string; status: string }[];
   computedAt: string;
 };
@@ -46,6 +49,8 @@ function Kv({ k, v, color }: { k: string; v: React.ReactNode; color?: string }) 
 }
 function statusDot(s: string) { return s === "done" ? C.green : s === "missed" ? C.red : "#475569"; }
 function statusIcon(s: string) { return s === "done" ? "✅" : s === "missed" ? "❌" : "⏳"; }
+function modColor(s: string) { return s === "green" ? C.green : s === "yellow" ? C.yellow : s === "waiting" ? "#94a3b8" : C.red; }
+function modText(s: string) { return s === "green" ? "✅ 正常" : s === "yellow" ? "🟡 偏旧" : s === "waiting" ? "等待今日更新" : "❌ 超时"; }
 
 export function BossDashboard() {
   const [d, setD] = useState<Data | null>(null);
@@ -66,7 +71,19 @@ export function BossDashboard() {
 
   return (
     <div style={{ background: "#0a0a0a", padding: "12px 16px", ...mono }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#eee", marginBottom: 10 }}>📊 综合驾驶舱 <span style={{ fontSize: 10, color: C.muted, marginLeft: 8 }}>更新 {tsShort(d.computedAt)}</span></div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#eee", marginBottom: 8 }}>📊 综合驾驶舱 <span style={{ fontSize: 10, color: C.muted, marginLeft: 8 }}>更新 {tsShort(d.computedAt)}</span></div>
+
+      {/* 顶部数据状态提示 */}
+      {d.dataHint ? (
+        <div style={{
+          marginBottom: 10, padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+          border: `1px solid ${d.dataHint.includes("最新") ? C.green : C.yellow}44`,
+          background: d.dataHint.includes("最新") ? "#052e16" : "#3a2e05",
+          color: d.dataHint.includes("最新") ? C.green : C.yellow,
+        }}>
+          {d.dataHint.includes("最新") ? "🟢" : "🟡"} {d.dataHint}
+        </div>
+      ) : null}
 
       {/* 第一屏：6 大区（3 列网格） */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
@@ -144,6 +161,30 @@ export function BossDashboard() {
           {d.conclusion.map((line, i) => (
             <div key={i} style={{ fontSize: 12, color: line.includes("建议") ? C.blue : C.green, padding: "2px 0", fontWeight: 600 }}>{line}</div>
           ))}
+        </Card>
+      </div>
+
+      {/* 当前推荐策略 + 数据更新时间 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10, marginBottom: 10 }}>
+        <Card title="当前推荐策略（融合研究）">
+          {(["BULL", "SIDEWAYS", "BEAR"] as const).map((r) => (
+            <Kv key={r} k={REGIME_META[r].label} v={d.recommendedStrategy[r] ?? "—"} color={REGIME_META[r].color} />
+          ))}
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{d.recommendedStrategy.note}</div>
+        </Card>
+
+        <Card title="数据更新时间">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px" }}>
+            {d.moduleUpdates.map((m) => (
+              <div key={m.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, padding: "1.5px 0" }}>
+                <span style={{ color: C.muted }}>{m.name}</span>
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ color: C.text, fontVariantNumeric: "tabular-nums" }}>{m.updatedAt ?? "—"}</span>
+                  <span style={{ color: modColor(m.status), fontSize: 10, minWidth: 56, textAlign: "right" }}>{modText(m.status)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
 

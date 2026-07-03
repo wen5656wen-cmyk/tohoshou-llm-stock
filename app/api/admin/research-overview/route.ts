@@ -41,6 +41,8 @@ export async function GET() {
     scoreLatest,
     drGroups,
     backtestRows,
+    newsSync,
+    fusionRatioRows,
   ] = await Promise.all([
     prisma.marketRegime.findFirst({ orderBy: { date: "desc" } }),
     rc("STRONG_BUY"), rc("BUY"), rc("HOLD"), rc("WATCH"), rc("AVOID"),
@@ -61,6 +63,8 @@ export async function GET() {
     prisma.stockScore.findFirst({ orderBy: { computedAt: "desc" }, select: { computedAt: true } }),
     prisma.dailyRecommendation.groupBy({ by: ["recommendation"], where: { date: todayStart, recommendation: { in: ["STRONG_BUY", "BUY"] } }, _count: { recommendation: true } }),
     prisma.alphaBacktestResult.findMany({ where: { topN: 20, holdDays: 20 }, select: { period: true, strategy: true, cumReturn: true, sharpe: true } }),
+    prisma.syncJob.findFirst({ where: { source: "news", status: "SUCCESS" }, orderBy: { startedAt: "desc" }, select: { startedAt: true, finishedAt: true } }),
+    prisma.regimeFusionResult.findMany({ select: { regime: true, bestAlphaWeight: true } }),
   ]);
 
   const prodSB = drGroups.find((g) => g.recommendation === "STRONG_BUY")?._count.recommendation ?? 0;
@@ -86,6 +90,36 @@ export async function GET() {
     (paperLatest?.computedAt != null && Date.now() - paperLatest.computedAt.getTime() < 2 * 86400000);
 
   const health = readHealth();
+
+  // ── 模块数据更新时间中心（P2-T8，仅读取现有产物 computedAt）──
+  const fmtJst = (dt: Date | null | undefined): string | null => (dt ? new Date(dt.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ") : null);
+  const ageH = (dt: Date | null | undefined): number | null => (dt ? (Date.now() - dt.getTime()) / 3600000 : null);
+  const modColor = (dt: Date | null | undefined): "green" | "yellow" | "red" => { const h = ageH(dt); return h == null ? "red" : h < 24 ? "green" : h < 48 ? "yellow" : "red"; };
+  const newsAt = newsSync?.finishedAt ?? newsSync?.startedAt ?? null;
+  const newsWaiting = !isToday(newsAt, todayYmd) && nowMin < 18 * 60; // 今日 18:00 前尚未更新
+  const moduleUpdates = [
+    { key: "universe", name: "Universe", updatedAt: fmtJst(scoreLatest?.computedAt), status: modColor(scoreLatest?.computedAt) },
+    { key: "score", name: "AI综合评分", updatedAt: fmtJst(scoreLatest?.computedAt), status: modColor(scoreLatest?.computedAt) },
+    { key: "alphaFactor", name: "Alpha因子", updatedAt: fmtJst(alphaFactorLatest?.computedAt), status: modColor(alphaFactorLatest?.computedAt) },
+    { key: "analytics", name: "因子分析", updatedAt: fmtJst(analyticsLatest?.computedAt), status: modColor(analyticsLatest?.computedAt) },
+    { key: "alphaScore", name: "影子评分", updatedAt: fmtJst(alphaScoreLatest?.computedAt), status: modColor(alphaScoreLatest?.computedAt) },
+    { key: "backtest", name: "Alpha回测", updatedAt: fmtJst(backtestLatest?.computedAt), status: modColor(backtestLatest?.computedAt) },
+    { key: "regime", name: "市场状态", updatedAt: fmtJst(regime?.computedAt), status: modColor(regime?.computedAt) },
+    { key: "fusion", name: "融合策略", updatedAt: fmtJst(fusionLatest?.computedAt), status: modColor(fusionLatest?.computedAt) },
+    { key: "news", name: "新闻", updatedAt: fmtJst(newsAt), status: newsWaiting ? "waiting" : modColor(newsAt) },
+  ];
+  const redMods = moduleUpdates.filter((m) => m.status === "red");
+  const dataHint = redMods.length ? `${redMods.map((m) => m.name).join("、")} 超过 48 小时未更新` : (moduleUpdates.some((m) => m.status === "yellow") ? "部分模块超过 24 小时未更新" : "今日研究数据全部最新");
+
+  // ── 当前推荐策略（P2-T7，读取融合研究搜索结果）──
+  const fw = new Map(fusionRatioRows.map((r) => [r.regime, r.bestAlphaWeight ?? 0]));
+  const stratText = (w: number): string => { const prod = Math.round((1 - w) * 100), alpha = Math.round(w * 100); return alpha === 0 ? "正式AI评分" : prod === 0 ? "影子评分（研究）" : `${prod}%正式评分 + ${alpha}%影子评分`; };
+  const recommendedStrategy = {
+    BULL: fw.has("BULL") ? stratText(fw.get("BULL")!) : null,
+    SIDEWAYS: fw.has("SIDEWAYS") ? stratText(fw.get("SIDEWAYS")!) : null,
+    BEAR: fw.has("BEAR") ? stratText(fw.get("BEAR")!) : null,
+    note: "以上为历史搜索得出的最优融合比例（仍处研究/影子阶段）；正式推荐当前 100% 使用正式AI评分。",
+  };
 
   // Timeline (JST). status: done if artifact fresh today; else past→missed, future→waiting.
   const T = (h: number, m: number) => h * 60 + m;
@@ -113,6 +147,9 @@ export async function GET() {
     todaySummary: { market: regime?.regime ?? null, prodSB, prodBuy, alphaScored: alphaScoreCount, fusionMode: "研究模式", shadow },
     conclusion,
     health: { critical: health.critical, warning: health.warning, status: health.status, cron: "green", db: "green", api: "green" },
+    moduleUpdates,
+    dataHint,
+    recommendedStrategy,
     timeline,
     computedAt: new Date().toISOString(),
   });

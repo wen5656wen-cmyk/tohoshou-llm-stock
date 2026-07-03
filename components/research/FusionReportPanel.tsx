@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PanelHeader } from "./PanelHeader";
 
 // Adaptive Fusion Report (P2-T3) — per-regime Production vs Alpha + data-searched optimal
 // fusion ratio (admin, research-only). English labels.
@@ -45,14 +46,11 @@ export function FusionReportPanel() {
 
   return (
     <div className="p-6 max-w-6xl">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">融合策略研究</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            第 2 阶段 · 各市场状态下正式评分/影子评分最优融合 · <span className="text-amber-600 font-medium">仅研究 — 正式推荐不受影响</span> ·{" "}
-            {loading ? "加载中…" : error ? `错误：${error}` : `数据日期 ${data?.asOfLatest ?? "—"} · 优化目标 夏普比率`}
-          </p>
-        </div>
+      <PanelHeader title="AI融合策略研究" desc="寻找不同市场状态下最优评分融合比例。" phase="P2-T3"
+        dataDate={data?.asOfLatest} computedAt={data?.computedAt}
+        statusText="研究模式（不参与正式AI推荐）" loading={loading} error={error} />
+      <div className="flex items-center justify-between mb-4">
+        <span />
         <button onClick={exportCsv} disabled={!data?.regimes.length} className="text-sm px-4 py-2 rounded-lg font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">导出CSV</button>
       </div>
 

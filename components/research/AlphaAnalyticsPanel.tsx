@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PanelHeader, TERM_TIPS } from "./PanelHeader";
 
 // Alpha Analytics — factor effectiveness report (admin). English/technical labels only.
 
@@ -81,14 +82,9 @@ export function AlphaAnalyticsPanel() {
 
   return (
     <div className="p-6 max-w-6xl">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">因子分析</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          第 1.5 阶段 · IC / 胜率 / 未来收益 / 分位差（管理员）·{" "}
-          {loading ? "加载中…" : error ? `错误：${error}` :
-            `回测周期 ${data?.period}日 · 数据日期 ${data?.asOfLatest ?? "—"} · 计算时间 ${data?.computedAt?.slice(0, 16).replace("T", " ") ?? "—"}`}
-        </p>
-      </div>
+      <PanelHeader title="因子分析" desc="分析各因子对未来收益预测能力。" phase="P2-T1.5"
+        dataDate={data?.asOfLatest} computedAt={data?.computedAt}
+        statusText="研究模式（不参与正式AI推荐）" loading={loading} error={error} />
 
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         {PERIODS.map((p) => (
@@ -155,7 +151,7 @@ export function AlphaAnalyticsPanel() {
 function Metric({ label, val, accent }: { label: string; val: string; accent?: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-slate-400">{label}</span>
+      <span className="text-slate-400" title={TERM_TIPS[label]}>{label}</span>
       <span className="font-semibold tabular-nums" style={{ color: accent ?? "#334155" }}>{val}</span>
     </div>
   );

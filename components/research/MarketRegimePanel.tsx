@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PanelHeader, TERM_TIPS } from "./PanelHeader";
 
 // Market Regime (P2-T3) — Bull/Sideways/Bear timeline (admin). English labels. Research-only.
 
@@ -48,11 +49,9 @@ export function MarketRegimePanel() {
 
   return (
     <div className="p-6 max-w-5xl">
-      <h1 className="text-2xl font-bold text-slate-900">市场状态</h1>
-      <p className="text-sm text-slate-500 mt-1 mb-4">
-        第 2 阶段 · TOPIX 均线组合 + 市场宽度 + 波动率 · 仅研究 ·{" "}
-        {loading ? "加载中…" : error ? `错误：${error}` : `${data?.timeline.length} 天 · 计算时间 ${data?.computedAt?.slice(0, 16).replace("T", " ") ?? "—"}`}
-      </p>
+      <PanelHeader title="市场状态" desc="识别当前牛市、震荡市或熊市。" phase="P2-T3"
+        dataDate={data?.current?.date} computedAt={data?.computedAt}
+        statusText="仅研究（不影响正式AI推荐）" loading={loading} error={error} />
 
       {data?.current ? (
         <div className="flex flex-wrap gap-3 mb-5">
@@ -91,9 +90,9 @@ export function MarketRegimePanel() {
               <th className="px-3 py-2 font-medium">日期</th>
               <th className="px-3 py-2 font-medium">状态</th>
               <th className="px-3 py-2 font-medium text-right">评分</th>
-              <th className="px-3 py-2 font-medium text-right">趋势</th>
-              <th className="px-3 py-2 font-medium text-right">市场宽度</th>
-              <th className="px-3 py-2 font-medium text-right">波动率</th>
+              <th className="px-3 py-2 font-medium text-right" title={TERM_TIPS["趋势"]}>趋势</th>
+              <th className="px-3 py-2 font-medium text-right" title={TERM_TIPS["市场宽度"]}>市场宽度</th>
+              <th className="px-3 py-2 font-medium text-right" title={TERM_TIPS["波动率"]}>波动率</th>
               <th className="px-3 py-2 font-medium text-right">TOPIX</th>
             </tr>
           </thead>

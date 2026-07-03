@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PanelHeader } from "./PanelHeader";
 
 // Alpha Shadow Backtest (P2-T2) — Production vs Alpha validation (admin). English labels.
 // Both scores reconstructed from DailyPrice; production recommendations are NOT affected.
@@ -74,13 +75,9 @@ export function AlphaBacktestPanel() {
 
   return (
     <div className="p-6 max-w-6xl">
-      <div className="mb-3">
-        <h1 className="text-2xl font-bold text-slate-900">Alpha回测</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          第 2 阶段 · 正式评分 vs 影子评分 · <span className="text-amber-600 font-medium">重建回测 — 正式推荐不受影响</span> ·{" "}
-          {loading ? "加载中…" : error ? `错误：${error}` : `回测周期 ${data?.period}日 · 数据日期 ${data?.asOfLatest ?? "—"}`}
-        </p>
-      </div>
+      <PanelHeader title="Alpha策略回测" desc="比较正式评分与影子评分历史表现。" phase="P2-T2"
+        dataDate={data?.asOfLatest} computedAt={data?.computedAt}
+        statusText="重建回测（正式推荐不受影响）" loading={loading} error={error} />
 
       {/* Headline (Top20, hold 20d) */}
       {data?.headline ? (
