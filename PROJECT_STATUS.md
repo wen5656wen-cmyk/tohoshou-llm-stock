@@ -1,11 +1,18 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T4 Fusion Paper Trading）
-> **版本：** v17.42.0（P2-T4 三策略前向纸面交易；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T5 AI 研究中心整合）
+> **版本：** v17.43.0（P2-T5 AI 研究中心 Tab 整合；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.42.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.43.0 — 2026-07-03）
+
+**P2-T5 AI 研究中心（Research Center）整合**
+- 现有「研究分析」`/admin/research` 升级为「AI 研究中心」,7 个中文 Tab:①综合(原内容原样保留,含内部5子tab)②Alpha因子(原/alpha)③因子分析(/alpha/report)④Alpha评分（影子评分）(/alpha/score)⑤Alpha回测(/alpha/backtest)⑥市场状态(/market-regime)⑦融合策略研究(/fusion/report)。Tab 切换不跳页。
+- 6 原页逻辑抽为 `components/research/*Panel.tsx`(中文 H1);研究页原组件改名 `OverviewTab`+新增顶层 `ResearchCenterPage` Tab 壳(读 ?tab= via window.location);6 原页改 client 重定向到 `/admin/research?tab=<key>`(消除孤立页);SystemDashboard 6 入口改指 research?tab(/fusion/paper 独立保留)。
+- 验证:tsc/build exit0;health CRITICAL=0;/admin/research 200 + 7 中文 tab 渲染;6 重定向路由+API 均 200;**纯 UI 重组,生产推荐/评分/Portfolio 完全不变**。仅 rsync .next+重启 web(无 schema/cron 变更)。deployment #96,commit 见 CHANGELOG。
+
+## ⭐ 上一版本速览（v17.42.0 — 2026-07-03）
 
 **P2-T4 Fusion Paper Trading（三策略前向纸面交易，只读，不改正式推荐）**
 - **三策略**：PRODUCTION(真实 DailyRecommendation Top by gptRank,只读消费)、ALPHA(AlphaScore 复合分重建 Top)、FUSION(regime 自适应 w·Alpha+(1-w)·Prod,w=当日 regime 已搜索最优权重)。

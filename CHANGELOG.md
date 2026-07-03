@@ -2,6 +2,44 @@
 
 ---
 
+## [17.43.0] - 2026-07-03 — P2-T5 AI 研究中心（Research Center）整合
+
+### 目标
+不新增左侧菜单，直接把现有「研究分析」(`/admin/research`) 升级为 **「AI 研究中心」**，将所有 Alpha/Fusion
+研究工具以 **Tab 切换**内嵌（不跳页、统一入口、标题全中文），并消除孤立页面。
+
+### Tab 结构（顶层 Tab 壳，7 个）
+| Tab | 标题 | 内容来源 |
+|---|---|---|
+| 1 | **综合** | 原「研究分析」全部内容（回测可信度/特征覆盖率/最佳·最弱因子/分析说明 + 内部 5 子 Tab）**原样保留，未删** |
+| 2 | **Alpha因子** | 原 `/alpha` |
+| 3 | **因子分析** | 原 `/alpha/report` |
+| 4 | **Alpha评分（影子评分）** | 原 `/alpha/score` |
+| 5 | **Alpha回测** | 原 `/alpha/backtest` |
+| 6 | **市场状态** | 原 `/market-regime` |
+| 7 | **融合策略研究** | 原 `/fusion/report` |
+
+### 实现
+- 6 个原页逻辑抽取为 `components/research/*Panel.tsx`（`AlphaFactorsPanel`/`AlphaAnalyticsPanel`/`AlphaScorePanel`/
+  `AlphaBacktestPanel`/`MarketRegimePanel`/`FusionReportPanel`），H1 标题改为中文。
+- `/admin/research/page.tsx` 重构：原页组件改名 `OverviewTab`（内容不动）+ 新增顶层 `ResearchCenterPage`
+  Tab 壳（读 `?tab=` 初始定位，`window.location` 避开 useSearchParams Suspense 约束）；6 Tab 内嵌对应 Panel。
+- **消除孤立页面**：`/alpha`、`/alpha/report`、`/alpha/score`、`/alpha/backtest`、`/market-regime`、`/fusion/report`
+  改为 client 重定向到 `/admin/research?tab=<key>`（保留深链接、不再是孤立页）。
+- SystemDashboard 六个入口链接改指 `/admin/research?tab=<key>`（`/fusion/paper` 纸面交易不在本次 6 Tab 内，保持独立）。
+
+### 验证（生产实测）
+- `tsc --noEmit` exit 0；`npm run build` exit 0（Compiled successfully）。
+- 部署（仅 rsync .next + `pm2 restart tohoshou-web`；无 schema/lib/scripts/cron 变更）；`health:data` exit 0 → **CRITICAL=0**。
+- `/admin/research` HTTP 200，7 个中文 Tab 全部渲染（综合/Alpha因子/因子分析/Alpha评分/Alpha回测/市场状态/融合策略研究）；
+  6 个重定向路由 + `/fusion/paper` 均 HTTP 200；`/api/alpha`·`/api/regime`·`/api/fusion/report`·`/api/fusion/paper` 均 200。
+- **生产推荐完全不变**：本次为纯 UI 重组，未触碰任何评分/推荐/Portfolio 数据。
+
+### 部署
+build → rsync `.next` → `pm2 restart tohoshou-web`（未改 schema/cron，未重启 cron）。
+
+---
+
 ## [17.42.0] - 2026-07-03 — P2-T4 Fusion Paper Trading（三策略前向纸面交易）
 
 ### 目标

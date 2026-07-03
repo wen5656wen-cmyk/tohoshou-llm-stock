@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { AlphaFactorsPanel } from "@/components/research/AlphaFactorsPanel";
+import { AlphaAnalyticsPanel } from "@/components/research/AlphaAnalyticsPanel";
+import { AlphaScorePanel } from "@/components/research/AlphaScorePanel";
+import { AlphaBacktestPanel } from "@/components/research/AlphaBacktestPanel";
+import { MarketRegimePanel } from "@/components/research/MarketRegimePanel";
+import { FusionReportPanel } from "@/components/research/FusionReportPanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,7 +102,61 @@ const HORIZONS = ["1d", "3d", "5d", "7d", "10d", "20d", "30d", "60d", "90d"] as 
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function ResearchPage() {
+// ── AI 研究中心：顶层 Tab 壳（综合 = 原研究分析，其余为 Alpha/Fusion 研究工具）──
+const CENTER_TABS: { key: string; label: string }[] = [
+  { key: "overview",  label: "综合" },
+  { key: "factors",   label: "Alpha因子" },
+  { key: "analytics", label: "因子分析" },
+  { key: "score",     label: "Alpha评分（影子评分）" },
+  { key: "backtest",  label: "Alpha回测" },
+  { key: "regime",    label: "市场状态" },
+  { key: "fusion",    label: "融合策略研究" },
+];
+
+export default function ResearchCenterPage() {
+  const [tab, setTab] = useState("overview");
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("tab");
+    if (q && CENTER_TABS.some((t) => t.key === q)) setTab(q);
+  }, []);
+
+  return (
+    <div style={{ background: "#0a0a0a", minHeight: "100vh" }}>
+      {/* 顶部导航栏 */}
+      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "#0a0a0a", borderBottom: "1px solid #222", padding: "10px 16px" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#eee", marginBottom: 8, fontFamily: "monospace" }}>AI 研究中心</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {CENTER_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 6, cursor: "pointer",
+                fontFamily: "monospace",
+                border: tab === t.key ? "1px solid #3b82f6" : "1px solid #222",
+                background: tab === t.key ? "#1e3a5f" : "#111",
+                color: tab === t.key ? "#93c5fd" : "#888",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab 内容（不跳页，全部内嵌） */}
+      {tab === "overview"  && <OverviewTab />}
+      {tab === "factors"   && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaFactorsPanel /></div>}
+      {tab === "analytics" && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaAnalyticsPanel /></div>}
+      {tab === "score"     && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaScorePanel /></div>}
+      {tab === "backtest"  && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaBacktestPanel /></div>}
+      {tab === "regime"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><MarketRegimePanel /></div>}
+      {tab === "fusion"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><FusionReportPanel /></div>}
+    </div>
+  );
+}
+
+function OverviewTab() {
   const [data,     setData]     = useState<ResearchData | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);

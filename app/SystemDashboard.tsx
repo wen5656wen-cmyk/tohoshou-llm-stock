@@ -315,21 +315,21 @@ export function SystemDashboard({
           </div>
           {/* Alpha Engine 2.0 — admin entries (P2-T1) */}
           <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            <Link href="/alpha" style={{
+            <Link href="/admin/research?tab=factors" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#818cf8", fontSize: 11, textDecoration: "none",
             }}>
               ⚡ Factors
             </Link>
-            <Link href="/alpha/report" style={{
+            <Link href="/admin/research?tab=analytics" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#818cf8", fontSize: 11, textDecoration: "none",
             }}>
               ★ Analytics
             </Link>
-            <Link href="/alpha/score" style={{
+            <Link href="/admin/research?tab=score" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#a5b4fc", fontSize: 11, textDecoration: "none",
@@ -338,7 +338,7 @@ export function SystemDashboard({
             </Link>
           </div>
           <div style={{ marginTop: 8 }}>
-            <Link href="/alpha/backtest" style={{
+            <Link href="/admin/research?tab=backtest" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#6ee7b7", fontSize: 11, textDecoration: "none",
@@ -347,14 +347,14 @@ export function SystemDashboard({
             </Link>
           </div>
           <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <Link href="/market-regime" style={{
+            <Link href="/admin/research?tab=regime" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#fbbf24", fontSize: 11, textDecoration: "none",
             }}>
               ◱ Market Regime
             </Link>
-            <Link href="/fusion/report" style={{
+            <Link href="/admin/research?tab=fusion" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#fbbf24", fontSize: 11, textDecoration: "none",
