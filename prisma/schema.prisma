@@ -44,7 +44,11 @@ model Stock {
   listingStatus String?                   // LISTED | DELISTED
   // P1-T1 AI Universe Filter: maintainable stock pool for AI scoring
   aiEnabled     Boolean  @default(true)    // false = excluded from all AI scoring flows
-  excludeReason String?                    // reason code when aiEnabled=false (LOW_LIQUIDITY|LOW_GROWTH|POOR_DATA|ETF|REIT|PREFERRED|DELISTED|MANUAL|OTHER)
+  excludeReason String?                    // reason code when aiEnabled=false (LOW_LIQUIDITY|LOW_GROWTH|POOR_DATA|ETF|ETN|REIT|PREFERRED|DELISTED|SUSPENDED|MANUAL|OTHER)
+  // P1-T2 AI Universe Guard: automatic exclusion provenance
+  aiExcludeSource    String?               // MANUAL | AUTO | SYSTEM — who set the current state (null=clean enabled)
+  aiExcludeRule      String?               // matched rule code (also warning marker when aiEnabled=true & source=MANUAL)
+  aiExcludeUpdatedAt DateTime?             // last universe-state change (manual or auto)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 

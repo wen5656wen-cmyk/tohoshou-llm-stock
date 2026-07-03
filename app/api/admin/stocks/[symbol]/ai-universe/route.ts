@@ -13,6 +13,11 @@ function isAuthorized(req: NextRequest): boolean {
   return headerToken === envToken || queryToken === envToken;
 }
 
+const UNIVERSE_SELECT = {
+  symbol: true, name: true, aiEnabled: true, excludeReason: true,
+  aiExcludeSource: true, aiExcludeRule: true, aiExcludeUpdatedAt: true,
+} as const;
+
 // GET current AI-universe state for a symbol
 export async function GET(
   req: NextRequest,
@@ -22,7 +27,7 @@ export async function GET(
   const symbol = decodeURIComponent(raw);
   const stock = await prisma.stock.findUnique({
     where: { symbol },
-    select: { symbol: true, name: true, aiEnabled: true, excludeReason: true },
+    select: UNIVERSE_SELECT,
   });
   if (!stock) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(stock);
@@ -58,21 +63,33 @@ export async function POST(
 
   const existing = await prisma.stock.findUnique({
     where: { symbol },
-    select: { symbol: true },
+    select: { symbol: true, aiExcludeSource: true, aiExcludeRule: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const now = new Date();
+
   if (body.aiEnabled) {
-    // Re-enable → clear reason; StockScore rebuilt on next compute-scores.
+    // Manual add. If the stock was AUTO/SYSTEM-excluded, this is a manual OVERRIDE:
+    // keep source=MANUAL + the matched rule as a warning so the auto guard won't
+    // re-exclude it, and the UI can flag "kept despite an auto rule". Otherwise it's
+    // a clean enable (clears all provenance). StockScore rebuilt next compute-scores.
+    const wasAuto = existing.aiExcludeSource === "AUTO" || existing.aiExcludeSource === "SYSTEM";
     const updated = await prisma.stock.update({
       where: { symbol },
-      data: { aiEnabled: true, excludeReason: null },
-      select: { symbol: true, name: true, aiEnabled: true, excludeReason: true },
+      data: {
+        aiEnabled: true,
+        excludeReason: null,
+        aiExcludeSource: wasAuto ? "MANUAL" : null,
+        aiExcludeRule: wasAuto ? existing.aiExcludeRule : null,
+        aiExcludeUpdatedAt: now,
+      },
+      select: UNIVERSE_SELECT,
     });
-    return NextResponse.json({ ok: true, purgedScore: false, stock: updated });
+    return NextResponse.json({ ok: true, purgedScore: false, override: wasAuto, stock: updated });
   }
 
-  // Disable → require a valid reason code (default MANUAL).
+  // Manual disable → MANUAL source, require a valid reason code (default MANUAL).
   const reason = isValidExcludeReason(body.excludeReason)
     ? body.excludeReason
     : "MANUAL";
@@ -80,11 +97,17 @@ export async function POST(
   const [updated, purged] = await prisma.$transaction([
     prisma.stock.update({
       where: { symbol },
-      data: { aiEnabled: false, excludeReason: reason },
-      select: { symbol: true, name: true, aiEnabled: true, excludeReason: true },
+      data: {
+        aiEnabled: false,
+        excludeReason: reason,
+        aiExcludeSource: "MANUAL",
+        aiExcludeRule: null,
+        aiExcludeUpdatedAt: now,
+      },
+      select: UNIVERSE_SELECT,
     }),
     prisma.stockScore.deleteMany({ where: { symbol } }),
   ]);
 
-  return NextResponse.json({ ok: true, purgedScore: purged.count > 0, stock: updated });
+  return NextResponse.json({ ok: true, purgedScore: purged.count > 0, override: false, stock: updated });
 }

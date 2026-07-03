@@ -170,6 +170,15 @@ cron.schedule("15 7 * * 1", async () => {
   await runAsync("fetch-jquants-investor-types.ts", "J-Quants 機構資金流向（バックアップ）");
 }, { timezone: "Asia/Tokyo" });
 
+// ── 05:00 JST — AI Universe Guard（P1-T2）─────────────────────────────────────
+// 自動排除規則（ETF/ETN/REIT/優先株/上場廃止/長期停牌/低流動性/データ品質不足）を評価。
+// compute-scores（07:30 pipeline）の前に走らせ、除外フラグを確定 → 当日の評分が
+// それを反映する。手動（MANUAL）は絶対に触らない（手動優先, LOCKED）。
+cron.schedule("0 5 * * *", async () => {
+  log("INFO", "⏰ 05:00 触发：AI Universe Guard（自動排除評価）");
+  await runAsync("update-ai-universe.ts", "AI Universe Guard");
+}, { timezone: "Asia/Tokyo" });
+
 // ── 05:30 JST — グローバル市場データ取得 ────────────────────────────────────
 cron.schedule("30 5 * * *", async () => {
   log("INFO", "⏰ 05:30 触发：グローバル市場取得");

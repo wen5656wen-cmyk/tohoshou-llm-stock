@@ -87,10 +87,19 @@ async function main() {
 
   console.log(`  Stocks: ${stockTotal}  Scores: ${scoreTotal}  Latest price: ${latestPriceDate}\n`);
 
-  // ── P1-T1 AI Universe Filter: universe size / enabled / excluded ──────────
-  const [enabledCount, excludedCount] = await Promise.all([
+  // ── P1-T1/T2 AI Universe Filter + Guard: size / enabled / excluded / provenance ──
+  const [
+    enabledCount, excludedCount,
+    autoExcludedCount, manualExcludedCount, systemExcludedCount,
+    lowLiquidityCount, dataQualityCount,
+  ] = await Promise.all([
     prisma.stock.count({ where: { aiEnabled: true } }),
     prisma.stock.count({ where: { aiEnabled: false } }),
+    prisma.stock.count({ where: { aiEnabled: false, aiExcludeSource: "AUTO" } }),
+    prisma.stock.count({ where: { aiEnabled: false, aiExcludeSource: "MANUAL" } }),
+    prisma.stock.count({ where: { aiEnabled: false, aiExcludeSource: "SYSTEM" } }),
+    prisma.stock.count({ where: { aiEnabled: false, excludeReason: "LOW_LIQUIDITY" } }),
+    prisma.stock.count({ where: { aiEnabled: false, excludeReason: "POOR_DATA" } }),
   ]);
   add({
     id: "ai_universe_size", level: "INFO", name: "AI Universe Size (total stocks)",
@@ -104,6 +113,26 @@ async function main() {
   add({
     id: "ai_universe_excluded", level: "INFO", name: "AI Universe Excluded Stocks",
     value: excludedCount, pass: true,
+  });
+  add({
+    id: "ai_universe_auto_excluded", level: "INFO", name: "AI Universe AUTO Excluded",
+    value: autoExcludedCount, pass: true,
+  });
+  add({
+    id: "ai_universe_manual_excluded", level: "INFO", name: "AI Universe MANUAL Excluded",
+    value: manualExcludedCount, pass: true,
+  });
+  add({
+    id: "ai_universe_system_excluded", level: "INFO", name: "AI Universe SYSTEM Excluded",
+    value: systemExcludedCount, pass: true,
+  });
+  add({
+    id: "ai_universe_low_liquidity", level: "INFO", name: "AI Universe Low-Liquidity Excluded",
+    value: lowLiquidityCount, pass: true,
+  });
+  add({
+    id: "ai_universe_data_quality", level: "INFO", name: "AI Universe Data-Quality Excluded",
+    value: dataQualityCount, pass: true,
   });
 
   // ── CHECK 1: adjClose coverage ────────────────────────────────────────────

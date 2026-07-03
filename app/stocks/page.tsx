@@ -32,6 +32,7 @@ type StockRow = {
   finCount: number;
   aiEnabled: boolean;
   excludeReason: string | null;
+  aiExcludeSource: string | null;
 };
 
 type SortKey = "latestClose" | "return5d" | "return20d" | "return60d" | "rsi14";
@@ -336,9 +337,16 @@ export default function StocksPage() {
                             <div className="text-[11px] text-[#64748b] font-mono">
                               {s.symbol}
                               {!s.aiEnabled && (
-                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-sans align-middle">
-                                  {t(`universe.reason.${s.excludeReason ?? "OTHER"}` as MessageKey)}
-                                </span>
+                                <>
+                                  <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-sans align-middle">
+                                    {t(`universe.reason.${s.excludeReason ?? "OTHER"}` as MessageKey)}
+                                  </span>
+                                  {s.aiExcludeSource && (
+                                    <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-sans align-middle">
+                                      {t(`universe.source.${s.aiExcludeSource}` as MessageKey)}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </Link>

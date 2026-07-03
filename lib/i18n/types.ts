@@ -1418,11 +1418,29 @@ export type Messages = {
   "universe.reason.LOW_GROWTH": string;
   "universe.reason.POOR_DATA": string;
   "universe.reason.ETF": string;
+  "universe.reason.ETN": string;
   "universe.reason.REIT": string;
   "universe.reason.PREFERRED": string;
   "universe.reason.DELISTED": string;
+  "universe.reason.SUSPENDED": string;
   "universe.reason.MANUAL": string;
   "universe.reason.OTHER": string;
+  // P1-T2 provenance
+  "universe.source_label": string;
+  "universe.source.MANUAL": string;
+  "universe.source.AUTO": string;
+  "universe.source.SYSTEM": string;
+  "universe.rule_label": string;
+  "universe.rule.DELISTED_FLAG": string;
+  "universe.rule.SUSPENDED_FLAG": string;
+  "universe.rule.ETF_NAME": string;
+  "universe.rule.ETN_NAME": string;
+  "universe.rule.REIT_NAME": string;
+  "universe.rule.PREFERRED_NAME": string;
+  "universe.rule.DATA_QUALITY": string;
+  "universe.rule.LOW_TURNOVER": string;
+  "universe.updated_label": string;
+  "universe.override_warning": string;
 };
 
 export type MessageKey = keyof Messages;

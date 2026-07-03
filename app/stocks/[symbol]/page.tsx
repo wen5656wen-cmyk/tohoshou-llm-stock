@@ -21,6 +21,7 @@ type StockInfo = {
   sector: string | null; industry: string | null; market: string | null;
   high52w: number | null; low52w: number | null;
   aiEnabled?: boolean; excludeReason?: string | null;
+  aiExcludeSource?: string | null; aiExcludeRule?: string | null; aiExcludeUpdatedAt?: string | null;
 };
 
 type ScoreData = {
@@ -263,14 +264,28 @@ function AiUniverseControl({
   symbol,
   aiEnabled,
   excludeReason,
+  aiExcludeSource,
+  aiExcludeRule,
+  aiExcludeUpdatedAt,
   onUpdate,
   t,
+  lang,
 }: {
   symbol: string;
   aiEnabled: boolean;
   excludeReason: string | null;
-  onUpdate: (aiEnabled: boolean, excludeReason: string | null) => void;
+  aiExcludeSource: string | null;
+  aiExcludeRule: string | null;
+  aiExcludeUpdatedAt: string | null;
+  onUpdate: (
+    aiEnabled: boolean,
+    excludeReason: string | null,
+    aiExcludeSource: string | null,
+    aiExcludeRule: string | null,
+    aiExcludeUpdatedAt: string | null
+  ) => void;
   t: (k: MessageKey) => string;
+  lang: string;
 }) {
   const [saving, setSaving] = useState(false);
   const [reasonSel, setReasonSel] = useState<string>(excludeReason ?? "LOW_GROWTH");
@@ -287,7 +302,14 @@ function AiUniverseControl({
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
-      onUpdate(json.stock.aiEnabled, json.stock.excludeReason ?? null);
+      const st = json.stock;
+      onUpdate(
+        st.aiEnabled,
+        st.excludeReason ?? null,
+        st.aiExcludeSource ?? null,
+        st.aiExcludeRule ?? null,
+        st.aiExcludeUpdatedAt ?? null
+      );
     } catch {
       // no-op; button re-enables so the operator can retry
     } finally {
@@ -295,10 +317,19 @@ function AiUniverseControl({
     }
   }
 
+  // Manual-override warning: kept in the universe despite matching an auto rule.
+  const overrideWarning = aiEnabled && aiExcludeSource === "MANUAL" && !!aiExcludeRule;
+  const hasProvenance = !!aiExcludeSource || !!aiExcludeRule || !!aiExcludeUpdatedAt;
+  const updatedStr = aiExcludeUpdatedAt
+    ? new Date(aiExcludeUpdatedAt).toLocaleString(lang === "en-US" ? "en-US" : lang === "ja-JP" ? "ja-JP" : "zh-CN")
+    : null;
+
   return (
     <div
       className={`rounded-2xl border shadow-sm p-4 ${
-        aiEnabled ? "bg-white border-slate-200" : "bg-amber-50 border-amber-200"
+        aiEnabled
+          ? overrideWarning ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"
+          : "bg-amber-50 border-amber-200"
       }`}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -345,6 +376,35 @@ function AiUniverseControl({
           </button>
         )}
       </div>
+
+      {/* Provenance: source / matched rule / updated time (P1-T2) */}
+      {hasProvenance && (
+        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-500">
+          {aiExcludeSource && (
+            <span>
+              {t("universe.source_label")}：
+              <span className="font-medium text-slate-700">{t(`universe.source.${aiExcludeSource}` as MessageKey)}</span>
+            </span>
+          )}
+          {aiExcludeRule && (
+            <span>
+              {t("universe.rule_label")}：
+              <span className="font-medium text-slate-700">{t(`universe.rule.${aiExcludeRule}` as MessageKey)}</span>
+            </span>
+          )}
+          {updatedStr && (
+            <span>
+              {t("universe.updated_label")}：
+              <span className="font-medium text-slate-700 tabular-nums">{updatedStr}</span>
+            </span>
+          )}
+        </div>
+      )}
+      {overrideWarning && (
+        <div className="mt-2 text-[11px] text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5">
+          ⚠ {t("universe.override_warning")}
+        </div>
+      )}
     </div>
   );
 }
@@ -572,10 +632,18 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         symbol={stock.symbol}
         aiEnabled={stock.aiEnabled ?? true}
         excludeReason={stock.excludeReason ?? null}
-        onUpdate={(aiEnabled, excludeReason) =>
-          setData((prev) => (prev ? { ...prev, stock: { ...prev.stock, aiEnabled, excludeReason } } : prev))
+        aiExcludeSource={stock.aiExcludeSource ?? null}
+        aiExcludeRule={stock.aiExcludeRule ?? null}
+        aiExcludeUpdatedAt={stock.aiExcludeUpdatedAt ?? null}
+        onUpdate={(aiEnabled, excludeReason, aiExcludeSource, aiExcludeRule, aiExcludeUpdatedAt) =>
+          setData((prev) =>
+            prev
+              ? { ...prev, stock: { ...prev.stock, aiEnabled, excludeReason, aiExcludeSource, aiExcludeRule, aiExcludeUpdatedAt } }
+              : prev
+          )
         }
         t={t}
+        lang={lang}
       />
 
       {/* ── ① Hero ───────────────────────────────────────────────────────── */}

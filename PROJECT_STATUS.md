@@ -1,11 +1,22 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P1-T1 AI 评分股票池 Universe Filter 上线后更新）
-> **版本：** v17.33.0（P1-T1 AI 评分股票池 Universe Filter；生产 health CRITICAL=0，Size 3719/Enabled 3718/Excluded 1）
+> **最后更新：** 2026-07-03（P1-T2 AI Universe Guard 自动排除上线后更新）
+> **版本：** v17.34.0（P1-T2 AI Universe Guard；生产 health CRITICAL=0，Size 3719/Enabled 3070/Excluded 649）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.33.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.34.0 — 2026-07-03）
+
+**P1-T2 AI Universe Guard（自动排除规则）**：`scripts/update-ai-universe.ts` 定期识别不适合 AI 评分的股票。
+- **新字段**：`Stock.aiExcludeSource`(MANUAL/AUTO/SYSTEM) / `aiExcludeRule`(命中规则,兼作覆盖 warning) / `aiExcludeUpdatedAt`。
+- **规则**：DELISTED/SUSPENDED(SYSTEM)、ETF/ETN/REIT/PREFERRED 名称匹配、DATA_QUALITY(近30日bar<10)、LOW_TURNOVER(近30日日均成交额<¥5M) — 均 AUTO。规则在 `lib/ai-universe.ts classifyAutoExclude`。
+- **手动优先(LOCKED)**：`source=MANUAL` 永不被 guard 触碰；手动 re-enable AUTO 股票→`override:true`+保留 rule 作 warning，guard 跳过；AUTO/SYSTEM 排除自愈(不再命中→自动 re-enable)。
+- **即时生效**：新排除者 `$transaction` 内 purge StockScore（同 T1）；cron 05:00 JST(compute-scores 前)。
+- **生产结果**：648 自动排除(639 低流动性/3 退市/3 REIT/3 数据质量)，Enabled 3070。
+- **阈值可调**：`AI_UNIVERSE_MIN_TURNOVER_JPY`(默认¥5M) / `AI_UNIVERSE_MIN_BARS_30D`(默认10)。
+- ⚠️ **待办**：`cron-scheduler.ts` 已加 05:00 slot，但需在 14:00 JST 后 `pm2 restart tohoshou-cron --update-env` 激活自动触发（本次因 rerank 窗口未重启 cron）。
+
+## ⭐ 上一版本速览（v17.33.0 — 2026-07-03）
 
 **P1-T1 AI 评分股票池（Universe Filter）**：`Stock.aiEnabled`(默认 true)+`excludeReason`(原因代码) 建立可维护股票池。
 - **中枢过滤**：`compute-scores.ts` 仅处理 `aiEnabled=true`，并清理被排除股票残留 StockScore；下游 rerank/gpt/ai-scores/sync-news/strategy-recs/portfolio/backtest 读 StockScore 自动继承，零改动。

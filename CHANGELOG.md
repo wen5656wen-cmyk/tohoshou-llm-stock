@@ -2,6 +2,69 @@
 
 ---
 
+## [17.34.0] - 2026-07-03 — P1-T2 AI Universe 自动排除规则（Universe Guard）
+
+### 目标
+在 T1 手动开关基础上，新增**定期自动 Universe Guard**，识别不适合参与 AI 评分的股票并自动排除，
+手动决策拥有绝对优先级。
+
+### Schema（`prisma db push` 生产已应用，纯增量）
+`Stock` 新增 3 字段（排除溯源）：`aiExcludeSource String?`（MANUAL/AUTO/SYSTEM）、
+`aiExcludeRule String?`（命中规则代码，同时兼作「手动覆盖」warning 标记）、`aiExcludeUpdatedAt DateTime?`。
+
+### 自动排除规则（`lib/ai-universe.ts` `classifyAutoExclude`，first-match-wins）
+1. **DELISTED_FLAG**（SYSTEM）：`isDelisted || listingStatus=DELISTED` → 已退市/整理
+2. **SUSPENDED_FLAG**（SYSTEM）：`isSuspended || tradingStatus∈{SUSPENDED,HALTED}` → 长期停牌/监理
+3. **ETF_NAME / ETN_NAME / REIT_NAME / PREFERRED_NAME**（AUTO）：名称/行业启发式匹配
+   （ETF：`ETF/上場投信/上場投資信託`；ETN：`ETN/上場投資証券`；REIT：`リート/REIT/投資法人`|sector=REIT；优先股：`優先出資証券/優先株`）
+4. **DATA_QUALITY**（AUTO）：近30日 DailyPrice bar 数 `< AI_UNIVERSE_MIN_BARS_30D`（默认10）
+5. **LOW_TURNOVER**（AUTO）：近30日日均成交额 `avg(volume)×avg(close) < AI_UNIVERSE_MIN_TURNOVER_JPY`（默认¥5,000,000）
+- 新增 reason 码：`ETN`、`SUSPENDED`（EXCLUDE_REASON_CODES 扩展）。
+
+### 手动优先级（LOCKED）
+- `aiExcludeSource==='MANUAL'` 的股票 guard **绝不触碰**：手动排除不可被自动恢复。
+- **手动加入覆盖自动排除但保留 warning**：admin re-enable 一个 AUTO/SYSTEM 排除的股票时，
+  API 返回 `override:true`，写 `aiEnabled=true, aiExcludeSource='MANUAL', aiExcludeRule=<原规则>`（保留为 warning），
+  guard 因 source=MANUAL 而跳过、不再排除；详情页显示「⚠ 已手动保留（命中自动排除规则）」。
+- **自动排除自愈**：AUTO/SYSTEM 排除的股票当不再命中任何规则时，guard 自动 re-enable（StockScore 由次日 compute-scores 重建）。
+- 兼容处理：T1 遗留的 `aiExcludeSource=null` 手动排除（8198.T）已 backfill 为 MANUAL，避免被 guard 误管。
+
+### 新增脚本 `scripts/update-ai-universe.ts`
+扫描全部 Stock；近30日 DailyPrice `groupBy(symbol)` 聚合 turnover+bar 数（单查询，~11万行，高效）；
+按规则分类；新排除者在 `$transaction` 内 `aiEnabled=false`+溯源字段+**即时 purge StockScore**（同 T1 合约，
+7 条评分流程立即继承）；DRY_RUN=1 预览；`by reason/source` 计数与示例。`package.json` 加
+`update-ai-universe` / `:dry`。**cron**：`cron-scheduler.ts` 加 05:00 JST slot（compute-scores 前，排除当日生效）。
+
+### 后台（详情页）
+`AiUniverseControl` 卡在 T1 基础上新增 provenance 明细：**当前状态 / 排除来源（人工·自动·系统）/
+命中规则 / 更新时间**，以及手动覆盖 warning。`GET /intelligence` 的 `stock` 增返
+`aiExcludeSource/aiExcludeRule/aiExcludeUpdatedAt`；`/api/indicators` 已排除行增 `aiExcludeSource`，
+列表在原因徽章旁显示来源标签。
+
+### Health（`data-health-guard.ts`）
+新增 4 项 INFO：**AUTO Excluded / MANUAL Excluded / Low-Liquidity Excluded / Data-Quality Excluded**
+（另加 SYSTEM Excluded）。
+
+### i18n
+`universe.*` 三语补齐：新 reason（ETN/SUSPENDED）+ `source_label`/`source.*`(3) + `rule_label`/`rule.*`(8) +
+`updated_label` + `override_warning`。
+
+### 验证（生产实测，2026-07-03）
+- `tsc --noEmit` exit 0；`npm run build` exit 0；修改 TSX 无新增硬编码 CJK。
+- 生产 `prisma db push` 成功；DRY_RUN 预览后实跑：**648 自动排除**（LOW_LIQUIDITY 639 / DELISTED 3 /
+  REIT 3 / POOR_DATA 3；AUTO 645 / SYSTEM 3），648 StockScore 即时 purge。
+- **幂等**：二次运行 newly=0、skipped(MANUAL)=1；**手动优先**：re-enable 1380.T→`override:true`、
+  source=MANUAL、rule=LOW_TURNOVER 保留，guard 三次运行 skipped(MANUAL)=2 不再排除（测试后已恢复其 AUTO 排除）。
+- `health:data` on prod exit 0 → **CRITICAL=0**；Universe Size 3719 / Enabled 3070 / Excluded 649
+  （AUTO 645 / MANUAL 1 / SYSTEM 3 / Low-Liquidity 639 / Data-Quality 3，计数自洽）。
+- 页面 HTTP 200（/、/stocks、/stocks/1380.T、/stocks/8198.T）；`/api/indicators` 1149 行（500+649），
+  excluded 携带 source；`/intelligence` 1380.T 返 AUTO/LOW_TURNOVER/updatedAt。
+- 部署：scp schema + db push + generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web`。
+  **cron-scheduler.ts 已改（05:00 slot）但因当前处于 07:30–14:00 JST rerank 窗口，`pm2 restart tohoshou-cron`
+  推迟至窗口后执行**（guard 已手动生效、排除由 compute-scores 每日强制维持，延迟无害）。
+
+---
+
 ## [17.33.0] - 2026-07-03 — P1-T1 AI 评分股票池（Universe Filter）
 
 ### 目标

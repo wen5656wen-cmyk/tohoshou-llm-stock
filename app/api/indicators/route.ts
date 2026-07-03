@@ -76,6 +76,7 @@ export async function GET() {
     finCount: 0,
     aiEnabled: true,
     excludeReason: null as string | null,
+    aiExcludeSource: null as string | null,
   }));
 
   // Excluded stocks carry no StockScore — surface them (with null indicators) so the
@@ -84,7 +85,7 @@ export async function GET() {
     where: { aiEnabled: false },
     select: {
       symbol: true, name: true, nameZh: true, nameEn: true, sector: true, market: true,
-      price: true, excludeReason: true,
+      price: true, excludeReason: true, aiExcludeSource: true,
     },
     orderBy: { symbol: "asc" },
   });
@@ -116,6 +117,7 @@ export async function GET() {
     finCount: 0,
     aiEnabled: false,
     excludeReason: s.excludeReason ?? "OTHER",
+    aiExcludeSource: s.aiExcludeSource ?? null,
   }));
 
   return NextResponse.json([...scoredRows, ...excludedRows]);
