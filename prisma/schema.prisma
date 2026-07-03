@@ -1441,3 +1441,52 @@ model AlphaBacktestResult {
   @@index([period])
   @@map("alpha_backtest_results")
 }
+
+// ── Market Regime — P2-T3 Adaptive Fusion Research ───────────────────────────
+// Per-day Bull/Sideways/Bear classification (TOPIX MA stack + breadth + volatility).
+// Research-only; never affects production scoring/recommendation.
+model MarketRegime {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @unique @db.Date
+  regime      String   // BULL | SIDEWAYS | BEAR
+  regimeScore Float?
+  trendScore  Float?
+  ma20        Float?
+  ma60        Float?
+  ma120       Float?
+  topixClose  Float?
+  breadth     Float?   // % above MA20
+  volatility  Float?   // annualized %
+  computedAt  DateTime @default(now())
+
+  @@index([date])
+  @@map("market_regimes")
+}
+
+// Per-regime Production vs Alpha stats + data-searched optimal fusion ratio.
+model RegimeFusionResult {
+  id                Int       @id @default(autoincrement())
+  regime            String    @unique // BULL | SIDEWAYS | BEAR
+  nDays             Int       @default(0)
+  topN              Int       @default(20)
+  holdDays          Int       @default(20)
+  prodCumReturn     Float?
+  prodSharpe        Float?
+  prodWinRate       Float?
+  prodMaxDrawdown   Float?
+  alphaCumReturn    Float?
+  alphaSharpe       Float?
+  alphaWinRate      Float?
+  alphaMaxDrawdown  Float?
+  bestAlphaWeight   Float?    // 0..1 — fused = w·alpha + (1-w)·production
+  fusedCumReturn    Float?
+  fusedSharpe       Float?
+  fusedWinRate      Float?
+  fusedMaxDrawdown  Float?
+  objective         String    @default("SHARPE")
+  gridJson          Json?     // [{ w, sharpe, cumReturn }]
+  asOfLatest        DateTime? @db.Date
+  computedAt        DateTime  @default(now())
+
+  @@map("regime_fusion_results")
+}

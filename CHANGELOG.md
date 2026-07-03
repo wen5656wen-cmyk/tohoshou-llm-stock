@@ -2,6 +2,57 @@
 
 ---
 
+## [17.41.0] - 2026-07-03 — P2-T3 Adaptive Fusion Engine（Market Regime Research）
+
+### 目标
+建立 Market Regime（市场状态）识别系统，**从历史数据搜索**不同市场环境下 Production Score 与 Alpha Score
+的最佳融合比例（**禁止人工指定**）。仍为**只读研究**，禁止修改
+AI Score / Adaptive Score / GPT Rank / Daily Recommendation / Portfolio。
+
+### Market Regime 模块（`lib/market-regime/`，各独立纯函数）
+- `trend.ts` — `classifyTrend(topixDesc)`：TOPIX MA20/MA60/MA120 五条件对齐 → trendScore ∈ [-1,1] + MA 值。
+- `volatility.ts` — `computeVolatility(topixDesc)`：TOPIX 20 日实现波动率（年化 %）。
+- `breadth.ts` — `computeBreadth(above,total)`：% 高于 MA20（宽度）。
+- `regime.ts` — `classifyRegime({trend,breadth,vol})`：`0.55·trend + 0.45·breadth`（高波动 risk-off 微调）→
+  **BULL / SIDEWAYS / BEAR**（阈值 ±0.25；分类规则固定，非融合比例）。
+
+### 历史分类 & 融合搜索（`scripts/research-fusion.ts`，READ-ONLY，绝不读写生产表）
+- 每日（149 天，含最近未评估的 20 天供「当前状态」）分类 → `MarketRegime`；分布 BULL 62 / SIDEWAYS 22 / BEAR 65，当前 **BULL**。
+- 从 DailyPrice 重建 Alpha/Production 组合（Top20 · 持有 20d），按 regime 分组，**网格搜索** w∈{0,0.1,…,1}
+  的融合 `fused = w·Alpha + (1-w)·Production`（两者截面标准化），**目标 = Sharpe** → 每 regime 最优 w → `RegimeFusionResult`。
+
+### 数据库 · Cron
+- 新表 `MarketRegime`（每日 regime + trend/breadth/vol/MA）+ `RegimeFusionResult`（每 regime Production/Alpha/最优融合 stats + gridJson）。cron **09:45 JST**。
+
+### API · 页面 · Dashboard · CSV
+- `GET /api/regime`（时间线 + 当前状态 + 分布）；`GET /api/fusion/report`（每 regime 对比 + 最优比例 + 网格）。
+- `/market-regime`（当前状态卡 + 分布 + 颜色时间线带 + 明细 + CSV）；`/fusion/report`（每 regime 卡：Production/Alpha/Best-Fused + 最优 prod/alpha 比例 + Sharpe-by-w 网格图 + CSV）。
+- SystemDashboard 入口新增「◱ Market Regime」「⚗ Fusion Report」。
+
+### 验证（生产实测）
+- **生产推荐 100% 一致（指纹逐字段吻合 BASELINE）**：Σ adaptiveScore **146778 = 146778**、lastComputedAt 未变、
+  StrongBuy 2 / Buy 21 / Hold 391 / Watch 1494 / Avoid 1161、DR today 500、Portfolio #11 / 9 —— 全一致。
+- 研究正常：MarketRegime **149 行** / RegimeFusionResult **3 行**（35.5s）；`health:data` exit 0 → **CRITICAL=0**；
+  cron 重启加载 09:45 slot（15:45 JST 窗口外）；5 个 alpha slots（08:45/09:00/09:15/09:30/09:45）。
+- `tsc`/`build` exit 0（无 CJK UI）；4 个 Regime/Fusion API/页面 HTTP 200。
+
+### 关键发现（数据搜索，非人工，目标 Sharpe）
+| Regime | 最优 prod/alpha | Production (Sharpe/cum) | Alpha | Best-Fused |
+|---|---|---|---|---|
+| BULL | 0/100 | 1.73 / +21.4% | 2.25 / +12.1% | =Alpha |
+| SIDEWAYS | 0/100 | 0.68 / +2.3% | 1.24 / +1.3% | =Alpha |
+| BEAR | **20/80** | 1.53 / +16.6% | 1.86 / +10.2% | **Sharpe 3.24 / +23.7%** |
+- **BEAR 状态出现融合协同**：20% Production + 80% Alpha 的 Sharpe（3.24）显著高于两者单独（1.53 / 1.86）。
+- 以 Sharpe 为目标时 Alpha 风险调整后更优（故多偏 alpha-heavy）；若以累计收益为目标则动量占优（见 P2-T2）。
+- **数据窗口（2025-11…2026-06）为强上行，无持续熊市**：「BEAR」日多为高波动回调后反弹，须注意样本局限。
+
+### 部署
+db push（MarketRegime + RegimeFusionResult）+ generate；rsync .next+lib+scripts；`pm2 restart tohoshou-web` + `tohoshou-cron`（09:45 slot，15:45 JST 窗口外）。
+
+> **Phase 2B（正式融合）必须建立在本研究的搜索结果之上，禁止凭经验设定融合比例。**
+
+---
+
 ## [17.40.0] - 2026-07-03 — P2-T2 Shadow Validation Engine（Alpha Shadow Backtest）
 
 ### 目标

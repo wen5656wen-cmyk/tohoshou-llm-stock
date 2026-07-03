@@ -1,11 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P2-T2 Alpha Shadow Validation Backtest）
-> **版本：** v17.40.0（P2-T2 Shadow Backtest；基线 `v2.0.0-universe-stable` 生产结果完全不变）
+> **最后更新：** 2026-07-03（P2-T3 Adaptive Fusion — Market Regime Research）
+> **版本：** v17.41.0（P2-T3 Market Regime + 融合研究；基线 `v2.0.0-universe-stable` 生产结果完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.40.0 — 2026-07-03）
+## ⭐ 最新版本速览（v17.41.0 — 2026-07-03）
+
+**P2-T3 Adaptive Fusion Engine（Market Regime Research，只读研究）**
+- **`lib/market-regime/`**（各独立）：trend(TOPIX MA20/60/120→trendScore)、volatility(实现波动率年化%)、breadth(%高于MA20)、regime(0.55·trend+0.45·breadth,高波动risk-off→BULL/SIDEWAYS/BEAR)。
+- **`scripts/research-fusion.ts`**（绝不读写生产表）：每日分类→MarketRegime(149行,分布BULL62/SIDE22/BEAR65,当前BULL);从DailyPrice重建Alpha/Prod组合按regime分组,**网格搜索w∈{0..1}最优融合(目标Sharpe)**→RegimeFusionResult(3行)。cron **09:45 JST**。
+- **API** `/api/regime`+`/api/fusion/report`;**页面** `/market-regime`(时间线/分布/CSV)+`/fusion/report`(每regime Prod/Alpha/Best-Fused+最优比例+网格/CSV);Dashboard ◱⚗入口。
+- **生产100%一致(指纹吻合)**：ΣadaptiveScore146778、SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR500、Portfolio#11/9、compute-scores未跑;health CRITICAL=0;5个alpha slots(08:45/09:00/09:15/09:30/09:45)。
+- **关键发现(数据搜索,目标Sharpe)**：BULL 0/100(Prod1.73/Alpha2.25)、SIDEWAYS 0/100、**BEAR 20/80(融合Sharpe3.24>Prod1.53>Alpha1.86,协同增效)**。窗口(25-11~26-06)强上行无持续熊市,「BEAR」多为高波动回调。
+- **Phase 2B正式融合必须建于本研究搜索结果之上,禁止凭经验设融合比例。**
+
+## ⭐ 上一版本速览（v17.40.0 — 2026-07-03）
 
 **P2-T2 Shadow Validation Engine（Alpha Shadow Backtest，只读验证）**
 - **方法**：DailyRecommendation 仅12天无前瞻数据、production 分数不可历史重建→**两分数均从 DailyPrice 重建**：AlphaScore(Analytics 加权6因子 z-composite) vs Production(动量核心 z(ret20)+z(ret60),透明标注)。每as-of日截面z→排名→Top10/20/50等权→持有5/10/20日→前瞻收益(385,144观测)。

@@ -346,6 +346,22 @@ export function SystemDashboard({
               ⚖ Shadow Backtest (Production vs Alpha)
             </Link>
           </div>
+          <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <Link href="/market-regime" style={{
+              display: "block", textAlign: "center", padding: "8px 4px",
+              background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
+              color: "#fbbf24", fontSize: 11, textDecoration: "none",
+            }}>
+              ◱ Market Regime
+            </Link>
+            <Link href="/fusion/report" style={{
+              display: "block", textAlign: "center", padding: "8px 4px",
+              background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
+              color: "#fbbf24", fontSize: 11, textDecoration: "none",
+            }}>
+              ⚗ Fusion Report
+            </Link>
+          </div>
         </Section>
 
         {/* Col 2: Health Score Breakdown */}

@@ -217,6 +217,14 @@ cron.schedule("30 9 * * *", async () => {
   await runAsync("backtest-shadow.ts", "Alpha Shadow Backtest", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:45 JST — Adaptive Fusion Research（P2-T3）─────────────────────────────
+// Market Regime 分類（Bull/Sideways/Bear）+ レジーム別の最適融合比率を履歴探索。
+// READ-ONLY：本番のスコア/推薦/Portfolio には一切影響しない。約 15min timeout。
+cron.schedule("45 9 * * *", async () => {
+  log("INFO", "⏰ 09:45 触发：Adaptive Fusion Research（P2-T3 レジーム研究）");
+  await runAsync("research-fusion.ts", "Adaptive Fusion Research", 15 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：
