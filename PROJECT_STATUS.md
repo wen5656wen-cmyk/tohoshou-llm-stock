@@ -1,7 +1,7 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（恢复 8198.T 关注股后更新）
-> **版本：** v17.36.0（紧急修复恢复 8198.T 为受保护关注股；health CRITICAL=0，Enabled 3071/Excluded 648）
+> **最后更新：** 2026-07-03（修正 Universe：恢复 8198.T / 改排除 8918.T）
+> **版本：** v17.36.2（恢复 8198.T 为普通股、排除 8918.T(MANUAL_EXCLUDED)；health CRITICAL=0，Enabled 3070/Excluded 649）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 

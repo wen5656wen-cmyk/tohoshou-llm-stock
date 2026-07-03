@@ -1424,6 +1424,7 @@ export type Messages = {
   "universe.reason.DELISTED": string;
   "universe.reason.SUSPENDED": string;
   "universe.reason.MANUAL": string;
+  "universe.reason.MANUAL_EXCLUDED": string;
   "universe.reason.OTHER": string;
   // P1-T2 provenance
   "universe.source_label": string;
@@ -1440,6 +1441,7 @@ export type Messages = {
   "universe.rule.DATA_QUALITY": string;
   "universe.rule.LOW_TURNOVER": string;
   "universe.rule.MANUAL_INCLUDE_WATCHLIST": string;
+  "universe.rule.MANUAL_EXCLUDED": string;
   "universe.updated_label": string;
   "universe.watchlist_note": string;
   "universe.override_warning": string;

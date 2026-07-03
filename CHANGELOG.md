@@ -2,6 +2,35 @@
 
 ---
 
+## [17.36.2] - 2026-07-03 — 修正 Universe 配置：恢复 8198.T，改排除 8918.T
+
+### 原因
+之前误将 8198.T（マックスバリュ東海）设为排除，实际应排除 8918.T（ランド）。
+
+### 变更
+- **8198.T** 完全恢复为普通参与股：`aiEnabled=true`，清除 `excludeReason/aiExcludeSource/aiExcludeRule`
+  （全 null，非 watchlist 置顶）。turnover ¥70.8M≥5M、bars22≥10 → Universe Guard 评估后**不会**再排除它。
+- **8918.T** 排除（精确状态）：`aiEnabled=false / aiExcludeSource=MANUAL / excludeReason=MANUAL_EXCLUDED /
+  aiExcludeRule=MANUAL_EXCLUDED / aiExcludeUpdatedAt=now()`；清理其 StockScore(+GPTScore+当日DR，各1，
+  8918 原为 STRONG_BUY/top-10 持仓)。
+- **新代码 `MANUAL_EXCLUDED`**：加入 `EXCLUDE_REASON_CODES` + i18n `universe.reason.MANUAL_EXCLUDED` /
+  `universe.rule.MANUAL_EXCLUDED`（三语），使显式人工排除状态可正确显示。
+
+### 重建（生产按序）
+数据更新 → `compute-scores`（3070 enabled，8198 重新评分 adp40/rank2304）→ `rerank:top500`
+（500 DR；**rerank 永久修复自动 🧹 purged 7 stale DR**，无需手动清理）→ 删今日 StrategyRec 重生成
+（LONG 3→2，8918 移除）→ `create-portfolio-snapshot --force`（#11，9 持仓，8918 移除）→ `health:data`。
+
+### 验证（生产实测，全绿）
+- **8198.T**：aiEnabled=true、provenance 全 null、有 StockScore(adp40/rank2304) → 已恢复参与评分/排名 ✓。
+- **8918.T**：精确排除状态 ✓；StockScore=0 / GPTScore=0 / 今日DR=0 / 今日StrategyRec=0 / portfolio#11=0
+  → 完全不参与评分·排名·推荐 ✓。
+- **Guard 再跑**：skipped(MANUAL)=1（8918）、newly=0 → 8918 保持排除、8198 未被误排 ✓。
+- DR 今日 500、excluded 0、rank 1..500 连续；`health:data` exit 0 → **CRITICAL=0**（Enabled 3070 / Excluded 649）。
+- `tsc`/`build` exit 0；部署 .next+lib、`pm2 restart tohoshou-web`（未改 cron）。
+
+---
+
 ## [17.36.1] - 2026-07-03 — 修复：关注股在「AI选股」(/screener) 页可见
 
 ### 问题

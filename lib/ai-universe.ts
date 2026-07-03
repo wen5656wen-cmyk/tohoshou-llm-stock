@@ -19,6 +19,7 @@ export const EXCLUDE_REASON_CODES = [
   "DELISTED",      // 已退市 / 整理
   "SUSPENDED",     // 长期停牌 / 监理
   "MANUAL",        // 人工排除
+  "MANUAL_EXCLUDED", // 人工排除（显式标记，配对 aiExcludeRule='MANUAL_EXCLUDED'）
   "OTHER",         // 其它
 ] as const;
 
