@@ -1,9 +1,19 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P1-T2 AI Universe Guard 自动排除上线后更新）
-> **版本：** v17.34.0（P1-T2 AI Universe Guard；生产 health CRITICAL=0，Size 3719/Enabled 3070/Excluded 649）
+> **最后更新：** 2026-07-03（P2-T0 Universe 重建完成后更新）
+> **版本：** v17.35.0（P2-T0 Universe 重建；生产 health CRITICAL=0，Enabled 3070/Excluded 649，DR 500 全 aiEnabled=true rank 连续）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
+
+## ⭐ 最新版本速览（v17.35.0 — 2026-07-03）
+
+**P2-T0 Universe 重建（Rebuild After Universe Guard）**：T1/T2 改变 universe 后全量重建评分/排名/推荐。
+- **修复 BUG**：今晨 rerank 早于 guard 排除→今日 DR 含 92 / GPTScore 含 193 / StrategyRec 含 17 已排除股票。根因：股票离开 universe 时当日 DR+GPTScore 未清理。**修复**：`compute-scores.ts` 排除 purge 块新增删 excluded 的全部 GPTScore + 当日 DR（历史 DR 不动）。
+- **重建**：compute-scores → rerank:top500(49min,500 DR) → 修复后重跑 compute-scores(清 193 GPT+92 DR) → portfolio snapshot#10 → strategy recs 重生成。
+- **验证全绿**：health CRITICAL=0；Enabled 3070/Excluded 649；StockScore excludedWithScore=0；DR 500 excluded=0 rank 1..500 连续；GPTScore excluded=0；Portfolio 8 持仓 excluded=0；StrategyRec excluded=0；Dashboard 强烈推荐3/推荐21 刷新；API/页面 200。
+- 仅 scripts/compute-scores.ts 变更，rsync 生效，无需重启 web/cron。
+
+## ⭐ 上一版本速览（v17.34.0 — 2026-07-03）
 
 ## ⭐ 最新版本速览（v17.34.0 — 2026-07-03）
 

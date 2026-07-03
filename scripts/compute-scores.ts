@@ -191,7 +191,22 @@ async function main() {
     const purged = await prisma.stockScore.deleteMany({
       where: { symbol: { in: excludedSymbols } },
     });
-    console.log(`AI Universe: ${excludedSymbols.length} excluded stock(s), purged ${purged.count} stale StockScore row(s)\n`);
+    // Also drop excluded stocks from the ranking/recommendation artifacts so no
+    // aiEnabled=false stock survives in GPT rank or today's DailyRecommendation.
+    // Historical DailyRecommendation rows (prior dates) are immutable backtest source
+    // (ARCHITECTURE.md §6) — never delete them; only purge TODAY's snapshot.
+    const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
+    const todayJst = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
+    const gptPurged = await prisma.gPTScore.deleteMany({
+      where: { symbol: { in: excludedSymbols } },
+    });
+    const drPurged = await prisma.dailyRecommendation.deleteMany({
+      where: { date: todayJst, symbol: { in: excludedSymbols } },
+    });
+    console.log(
+      `AI Universe: ${excludedSymbols.length} excluded stock(s) — purged ${purged.count} StockScore, ` +
+      `${gptPurged.count} GPTScore, ${drPurged.count} today's DailyRecommendation row(s)\n`
+    );
   }
 
   // ── Pass 1: 逐只股票计算评分（仅 aiEnabled=true）──────────────────────────

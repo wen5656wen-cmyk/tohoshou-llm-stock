@@ -2,6 +2,47 @@
 
 ---
 
+## [17.35.0] - 2026-07-03 — P2-T0 Universe 重建（Rebuild After Universe Guard）
+
+### 目标
+P1-T1/T2 改变了 AI Universe（3070 Enabled / 649 Excluded）后，今晨（07:56 JST）流水线产出的
+StockScore/GPTScore/DailyRecommendation/StrategyRecommendation 仍基于旧 universe（含已排除股票），
+需全量重建使所有评分/排名/推荐与新 universe 一致。
+
+### 发现并修复的 BUG（根因）
+今晨 rerank 早于 09:54 JST 的 guard 排除运行，导致：今日 DailyRecommendation 含 **92 条**已排除股票、
+GPTScore 含 **193 条**已排除股票、StrategyRecommendation 含 **17 条**（3 isTop10）——即 aiEnabled=false
+股票仍出现在排名/推荐中。**根因**：股票离开 universe 时其当日 DR + GPTScore 未被清理（rerank 按
+(date,symbol) upsert 不删旧行）。**修复**：扩展 `compute-scores.ts` 既有「排除股票 purge」块——在删除
+excluded StockScore 的同时，`deleteMany` 删除 excluded 的 **全部 GPTScore** + **当日** DailyRecommendation
+（历史 DR 为回测不可变源 ARCHITECTURE §6，永不删除）。此后每日 07:30 compute-scores 自动保持三者一致。
+
+### 重建执行（生产，严格按序）
+1. `compute-scores`（clean StockScore over 3070 + Pass2 重排 percentileRank/marketRank；含新 purge 逻辑）
+2. `rerank:top500`（GPT 排名 + 今日 DailyRecommendation top-500，49min，saved 500/500）
+3. 修复后重跑 `compute-scores` → 清理 193 GPTScore + 92 今日 DR（0 StockScore 已净）
+4. `create-portfolio-snapshot --force`（snapshot #10，8 持仓，源自干净 DR）
+5. `generate-strategy-recommendations`（删今日 204 旧行后重生成 → DAY/SWING/LONG Top100 over 干净 StockScore）
+
+### 验证（生产实测，全绿）
+- **Health**：`health:data` exit 0 → **CRITICAL=0**。
+- **Universe**：Enabled **3070** / Excluded **649**（Size 3719）✓。
+- **StockScore**：3069 行（3070 enabled 中 1 只价格数据不足未评分，正常），**excludedWithScore=0** ✓。
+- **GPT Rank / DailyRecommendation**：今日 DR **500 行**，excluded **0**，gptRank **1..500 连续无重复**，全部 aiEnabled=true ✓。
+- **GPTScore**：excluded **0** ✓。
+- **Portfolio Candidate**：snapshot #10，8 持仓，excludedPositions **0** ✓。
+- **StrategyRecommendation**：今日 203 行，excluded **0** ✓。
+- **Dashboard**（`/`）：强烈推荐 **3** / 推荐 **21** / 合计 24 / AI评分池排除 649 —— 全部刷新一致
+  （DR recCounts：STRONG_BUY 3 / BUY 21 / HOLD 391 / WATCH 85）。
+- **API/页面 HTTP 200**：`/api/indicators`、`/api/stocks/[symbol]/intelligence`、`/`（dashboard）、
+  `/screener`、`/strategy`、`/api/ai-scores`。（注：项目**无** `/api/dashboard` 路由，dashboard 为 `app/page.tsx` 服务端组件即 `/`。）
+
+### 代码变更 & 部署
+仅 `scripts/compute-scores.ts`（新增 GPTScore + 当日 DR 的 excluded purge）。`tsc`/`build` exit 0；
+rsync `scripts/` 到生产并重跑生效；无 app/ 变更、无需重启 web/cron。
+
+---
+
 ## [17.34.0] - 2026-07-03 — P1-T2 AI Universe 自动排除规则（Universe Guard）
 
 ### 目标
