@@ -1,9 +1,24 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（修正 Universe：恢复 8198.T / 改排除 8918.T）
-> **版本：** v17.36.2（恢复 8198.T 为普通股、排除 8918.T(MANUAL_EXCLUDED)；health CRITICAL=0，Enabled 3070/Excluded 649）
+> **最后更新：** 2026-07-03（P2-T0 封版 / Production Baseline）
+> **版本：** v17.36.2 🔒 **FROZEN** — Git Tag `v2.0.0-universe-stable`（commit d066e12，deployment #88）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
+
+## 🔒 P2-T0 封版基线（2026-07-03 Production Baseline）
+
+**基线文档：** [docs/BASELINE_2026-07-03.md](docs/BASELINE_2026-07-03.md) · **Git Tag：** `v2.0.0-universe-stable`
+
+| 里程碑 | 状态 |
+|--------|------|
+| P1-T1 Universe Filter（aiEnabled/excludeReason + 手动开关 + 评分流程过滤）| ✅ |
+| P1-T2 Universe Guard（自动排除规则 + 手动优先 + provenance）| ✅ |
+| P2-T0 Data Rebuild（全量重建评分/排名/推荐，与新 universe 一致）| ✅ |
+| Cron Guard Active（05:00 JST `update-ai-universe` 已注册并激活）| ✅ |
+
+**基线数据：** Universe 3719（Enabled **3070** / Excluded **649**：AUTO 645 / MANUAL 1 / SYSTEM 3）·
+评级分布 StrongBuy 2 / Buy 21 / Hold 391 / Watch 1494 / Avoid 1161（scored 3069）· DR today 500 ·
+Health **CRITICAL=0** · 下一基线：P2-T1。
 
 ## ⭐ 最新版本速览（v17.36.0 — 2026-07-03）
 

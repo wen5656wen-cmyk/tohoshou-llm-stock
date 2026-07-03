@@ -2,6 +2,41 @@
 
 ---
 
+## [🔒 FREEZE] v2.0.0-universe-stable - 2026-07-03 — Production Baseline（P2-T0 收官）
+
+**版本冻结 / Version Freeze**：以 v17.36.2（commit `d066e12`，deployment #88）为 **P2-T1 的生产基线**。
+Git Tag `v2.0.0-universe-stable`。基线文档见 `docs/BASELINE_2026-07-03.md`。
+
+### 里程碑（全部完成）
+- ✅ **P1-T1 Universe Filter** — `Stock.aiEnabled`/`excludeReason`；后台加入/移出；评分流程仅处理 aiEnabled=true。
+- ✅ **P1-T2 Universe Guard** — `scripts/update-ai-universe.ts` 自动排除（ETF/ETN/REIT/优先股/退市/停牌/低流动性/数据质量）；
+  `aiExcludeSource(MANUAL/AUTO/SYSTEM)`/`aiExcludeRule`；手动优先（MANUAL 永不被自动触碰，覆盖保留 warning，AUTO 自愈）。
+- ✅ **P2-T0 Data Rebuild** — 全量重建 StockScore/GPTScore/DailyRecommendation/StrategyRecommendation/Portfolio，
+  与新 universe 一致；根因修复 compute-scores/rerank 清理离开 universe 股票的当日 DR+GPTScore。
+- ✅ **Cron Guard Active** — `cron-scheduler.ts` 05:00 JST `update-ai-universe` 已注册；2026-07-03 14:04 JST 重启 cron 激活。
+
+### Production Baseline 数据（2026-07-03，lastComputedAt 2026-07-03T04:07:45Z）
+| 指标 | 值 |
+|------|-----|
+| Universe Size | 3719 |
+| Enabled | 3070 |
+| Excluded | 649（AUTO 645 / MANUAL 1 / SYSTEM 3；Low-Liquidity 639 / Data-Quality 3） |
+| Scored（StockScore, priceCount≥20） | 3069 |
+| **Strong Buy** | 2 |
+| **Buy** | 21 |
+| **Hold** | 391 |
+| **Watch** | 1494 |
+| **Avoid** | 1161 |
+| Bull Rate | 0.7% ·  Market Temp: COLD |
+| DailyRecommendation today | 500（excluded 0，gptRank 1..500 连续） |
+| Health | **CRITICAL=0** |
+| Manual Watchlist / Exclude | 8918.T 排除（MANUAL_EXCLUDED）；无 watchlist 置顶（8198.T 已恢复普通股） |
+
+### Known Issues
+None（无阻断项；P1-T1/T2/T0 全部遗留待办已清零，cron 05:00 Guard 已激活）。
+
+---
+
 ## [17.36.2] - 2026-07-03 — 修正 Universe 配置：恢复 8198.T，改排除 8918.T
 
 ### 原因
