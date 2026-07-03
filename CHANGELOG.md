@@ -2,6 +2,19 @@
 
 ---
 
+## [17.48.1] - 2026-07-03 — P3-T3.1 V3 历史回放（只读，前向证据）
+
+补 P3-T3 唯一缺口「前向证据不足」：不等一周，用历史回放生成前向收益证据。
+- **`scripts/replay-score-v3.ts`**（只读）：最近 20 交易日（2026-05-25→06-19）逐日按 as-of 严格重建
+  PRODUCTION/ALPHA/FUSION/V3（价格核心），算 Top10/20/50 的 T+1/3/5/10 前向收益，60,984 观测。
+- **结果：V3 vs V2 在 12 格（TopN×横期）中 11 胜 1 负**；Top20 V3−V2 spread T+1 +0.03 / T+3 +0.23 / T+5 +0.60 / T+10 +0.69，随横期扩大。
+- **诚实说明**：窗口为回撤期，V3 靠「少亏」赢（V3 Top20 T+10 −3.94% vs V2 −4.63%），Alpha 此期最优（+0.35%）；仅单一 regime、价格核心口径。
+- Readiness「前向证据」维度 ~48 → ~72 ⇒ **Readiness 76.8 → 约 82（Grade B），仍未达 90**（需上行窗口 + 实盘 Shadow）。
+- 报告：`docs/V3_HISTORICAL_REPLAY_2026-07-03.md`。
+- 验收：Build PASS、Health CRITICAL=0、**V2 指纹完全不变**（SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR 500）；未改 StockScore/DR/Portfolio/GPT，未切 SCORING_ENGINE。
+
+---
+
 ## [17.48.0] - 2026-07-03 — P3-T3 V3 Calibration Engine（评分标定引擎，Shadow-only）
 
 ### 目标
