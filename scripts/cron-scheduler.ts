@@ -242,6 +242,18 @@ cron.schedule("15 10 * * *", async () => {
   await runAsync("backtest-score-v3.ts", "Adaptive Score V3 Backtest", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 10:35 JST — V3 历史回放（P3-T4 Freeze：每日累计前向证据）──────────────────
+cron.schedule("35 10 * * *", async () => {
+  log("INFO", "⏰ 10:35 触发：V3 历史回放（P3-T4 Freeze 前向累计）");
+  await runAsync("replay-score-v3.ts", "V3 Historical Replay", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+// ── 金曜 16:45 JST — V3 Freeze 到期最终评审（P3-T4）────────────────────────────
+cron.schedule("45 16 * * 5", async () => {
+  log("INFO", "⏰ 金曜16:45 触发：V3 Freeze 最终评审生成（P3-T4）");
+  await runAsync("gen-v3-final-review.ts", "V3 Final Production Review", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 06:00 JST — 株価同期（fire-and-forget，子进程，不阻塞事件循环）──────────
 //
 // 关键修复（P1-Cron）：

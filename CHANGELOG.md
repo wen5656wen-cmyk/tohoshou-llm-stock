@@ -2,6 +2,38 @@
 
 ---
 
+## [17.49.0] - 2026-07-03 — P3-T4 V3 Shadow Freeze（冻结验证期开始）🔒
+
+### 🔒 V3 Shadow Freeze v1 开始
+- **冻结版本：** Adaptive Score V3 · **冻结 Commit：** `ca95896` · **Freeze Date：** 2026-07-03 · **到期评审：** 2026-07-10（下周五）
+- 从本次部署起冻结 V3 Shadow 一周，**停止一切算法修改，仅自动收集真实前向证据**。
+
+### 冻结期禁止修改（直到 2026-07-10）
+Dynamic Weight / Calibration / Threshold / Risk / Confidence / Quality / Explain / ScoreV3 / Alpha / Market Regime /
+Feature Flag / Backtest / Shadow Logic —— 禁止改任何评分逻辑/权重/阈值/算法。`SCORING_ENGINE=v2` 保持，切换须人工确认。
+
+### 自动化（Cron 全部继续运行，不停止）
+- **每日 10:15** compute-score-v3-shadow + backtest（Shadow/Calibration 自动累计）。
+- **新增 每日 10:35** `replay-score-v3.ts` → 累计 T+1/3/5/10 前向收益，写 `reports/score-v3-replay.json`。
+- **新增 金曜 16:45** `gen-v3-final-review.ts` → 到期自动生成 `docs/V3_FINAL_PRODUCTION_REVIEW.md`（Grade A/B/C/D 判定）。
+- Universe / AI Score V2 / Alpha / Analytics / Research 等 Cron 全部照常。
+
+### Freeze Monitor（AI研究中心新增 Tab「V3 Freeze Monitor」）
+- `lib/scoring-v3/freeze.ts`（冻结常量）+ `GET /api/scoring-v3/freeze` + `components/research/FreezeMonitorPanel.tsx`。
+- 显示：Freeze 版本/进度（第 N/7 天）/ Shadow 累计天数 / Readiness+Grade / 冻结权重 / 最新前向收益 V2vsV3 / 每日 Readiness 历史 / 是否达上线条件。
+
+### 当前状态（实测）
+- 第 1/7 天；Shadow 累计 1 日；Readiness 76.8（B）；Replay 20 日 V3 vs V2 胜 11/12（T+10 spread +0.69）；gate 未达标（<90）。
+
+### 验收
+- Build PASS；Health CRITICAL=0；**Production 完全不变**（StockScore SB2/BUY21/HOLD391/WATCH1494/AVOID1161、DR 500、GPT/Portfolio 未动）。
+- Freeze 状态建立成功；每日自动累计 Shadow + Replay；Freeze Monitor 页面正常；cron 已重启注册新槽位。
+- 未改 StockScore/DR/Portfolio/GPT/Compute Chain/Production；未切 SCORING_ENGINE=v3。
+
+> **V3 已进入 Freeze。预计 2026-07-10（下周五）进行最终上线评审。在此之前禁止修改评分算法。**
+
+---
+
 ## [17.48.1] - 2026-07-03 — P3-T3.1 V3 历史回放（只读，前向证据）
 
 补 P3-T3 唯一缺口「前向证据不足」：不等一周，用历史回放生成前向收益证据。

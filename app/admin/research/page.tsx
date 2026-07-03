@@ -10,6 +10,7 @@ import { MarketRegimePanel } from "@/components/research/MarketRegimePanel";
 import { FusionReportPanel } from "@/components/research/FusionReportPanel";
 import { ScoreV3Panel } from "@/components/research/ScoreV3Panel";
 import { CalibrationPanel } from "@/components/research/CalibrationPanel";
+import { FreezeMonitorPanel } from "@/components/research/FreezeMonitorPanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ const CENTER_TABS: { key: string; label: string }[] = [
   { key: "fusion",    label: "AI融合策略研究" },
   { key: "v3",        label: "V3动态评分" },
   { key: "calibration", label: "V3 Calibration" },
+  { key: "freeze", label: "V3 Freeze Monitor" },
 ];
 
 export default function ResearchCenterPage() {
@@ -159,6 +161,7 @@ export default function ResearchCenterPage() {
       {tab === "fusion"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><FusionReportPanel /></div>}
       {tab === "v3"        && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><ScoreV3Panel /></div>}
       {tab === "calibration" && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><CalibrationPanel /></div>}
+      {tab === "freeze"      && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><FreezeMonitorPanel /></div>}
     </div>
   );
 }

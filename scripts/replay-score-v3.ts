@@ -11,6 +11,8 @@
  * Usage: npx tsx scripts/replay-score-v3.ts [--days=20]
  */
 import "dotenv/config";
+import * as fs from "fs";
+import * as path from "path";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { computeAllAlphaFactors, type Bar } from "../lib/alpha";
@@ -134,6 +136,11 @@ async function main() {
     agg, spread, verdict: { v3Win, v3Lose, cells, v3Better: v3Win > v3Lose },
     daily: daily.map((d) => ({ date: d.date, top20: Object.fromEntries(STRATS.map((s) => [s, Object.fromEntries(HORIZONS.map((h) => [h, d.ret[s][20][h]]))])) })),
   };
+  // 写 reports（供 Freeze Monitor / API 读取）
+  try {
+    const dir = path.join(process.cwd(), "reports"); if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "score-v3-replay.json"), JSON.stringify(report, null, 2));
+  } catch { /* best-effort */ }
   console.log(JSON.stringify(report));
   console.error(`✅ 完成 ${((Date.now() - t0) / 1000).toFixed(1)}s — V3 vs V2: 胜 ${v3Win}/${cells}`);
 }

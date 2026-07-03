@@ -1,11 +1,26 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P3-T3 V3 Calibration Engine 评分标定 Shadow）
-> **版本：** v17.48.0（P3-T3 V3 标定引擎 Shadow-only；基线 `v2.0.0-universe-stable` 生产完全不变）
+> **最后更新：** 2026-07-03（P3-T4 V3 Shadow Freeze 冻结验证期开始 🔒）
+> **版本：** v17.49.0（🔒 V3 Shadow Freeze v1，冻结至 2026-07-10；基线 `v2.0.0-universe-stable` 生产完全不变）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
 > **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
 
-## ⭐ 最新版本速览（v17.48.0 — 2026-07-03）
+## 🔒 V3 Shadow Freeze v1（进行中）
+- **冻结开始 2026-07-03，到期评审 2026-07-10（下周五）。冻结 Commit `ca95896`。**
+- **冻结期禁止修改评分算法**：Dynamic Weight / Calibration / Threshold / Risk / Confidence / Quality / Explain / ScoreV3 / Alpha / Market Regime / Feature Flag / Backtest / Shadow Logic。`SCORING_ENGINE=v2` 保持，切换须人工确认。
+- 自动累计：每日 10:15 Shadow+Calibration、10:35 Replay（前向 T+1/3/5/10）、金曜 16:45 自动生成 `docs/V3_FINAL_PRODUCTION_REVIEW.md`。
+- 监控：AI研究中心 Tab「V3 Freeze Monitor」。当前第 1/7 天、Readiness 76.8(B)、Replay V3胜11/12、gate 未达 90。
+
+## ⭐ 最新版本速览（v17.49.0 — 2026-07-03）
+
+**P3-T4 V3 Shadow Freeze（冻结验证期，无算法改动，仅建冻结状态+监控+自动累计）**
+- `lib/scoring-v3/freeze.ts`(冻结常量:version/commit/start 2026-07-03/end 2026-07-10/targetReadiness 90)+`freezeDay/isFreezeOver`。
+- Cron 新增:每日10:35 `replay-score-v3.ts`(写reports/score-v3-replay.json,累计前向)、金曜16:45 `gen-v3-final-review.ts`(生成docs/V3_FINAL_PRODUCTION_REVIEW.md,Grade A/B/C/D)。`replay-score-v3.ts`改为额外写reports JSON。
+- API `/api/scoring-v3/freeze`+`components/research/FreezeMonitorPanel.tsx`+Tab「V3 Freeze Monitor」(Freeze版本/进度第N/7天/Shadow累计/Readiness+Grade/冻结权重/最新前向V2vsV3/每日历史/上线条件)。
+- 实测:第1/7天、Shadow累计1日、Readiness76.8 B、Replay 20日V3胜11/12 T+10 spread+0.69、gate false。
+- 验收:**V2完全不变**(SB2/BUY21/HOLD391/WATCH1494/AVOID1161,DR500,GPT/Portfolio未动)、tsc/build exit0、health CRITICAL=0、cron已重启、未切v3。deployment #102,commit见CHANGELOG。
+
+## ⭐ 上一版本速览（v17.48.0 — 2026-07-03）
 
 **P3-T3 V3 Calibration Engine（评分标定，Shadow-only，生产零改动）**
 - 修复 P3-T2 P0 阻断项：V3 固定阈值致 STRONG_BUY 155只(5.1%)过宽 → 改**每日按分布+市场状态动态阈值**。
