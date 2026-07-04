@@ -2,6 +2,28 @@
 
 ---
 
+## [17.64.0] - 2026-07-04 — P3-T18 研究分析 → AI 研究中心 重构 + 版本中心 LLM 修正 🔬🧠
+
+### 研究分析 `/admin/research` → AI 研究中心（Research Center）
+overview 从密密麻麻的小数字 → **AI 研究中心**（AI 决策引擎大脑，深色 Bloomberg Terminal × BlackRock Aladdin × OpenAI Research，与 Mission Control/Strategy Center 统一视觉 #111315/#171A1F/#20242B/#2A3038）。**纯 UI**，未改 Prisma/DB/Cron/API/Adaptive/Shadow/Fusion/Learning/Strategy/Backtest/AI 算法/评分逻辑/Prompt；全部只读现有 `/api/admin/mission-control` + `/api/admin/research`。新组件 `components/research/center.tsx`（259 行），page overview 渲染切换为 `<ResearchCenter onTab={setTab}/>`（其余分析 tab 保留）。
+- **Hero**：AI 研究中心 · AI Engine·Adaptive Intelligence·Research Platform + 状态芯片（Research Running/adaptive-v3/Shadow Enabled/Fusion Enabled/Learning Running）。
+- **6 KPI**：Universe(3719) / AI评分(3068) / Research Confidence(dataConfidence) / Alpha Engine(adaptive-v3) / Fusion Engine(Enabled) / System Health(health status+C/W)。
+- **AI 决策流程**：Market→Universe→Feature→AI Score→Shadow→Fusion→Strategy→Recommendation→Learning（状态色）。
+- **AI 引擎 8 卡**：Adaptive/Shadow/Fusion/Learning/News/Institution/Macro/Paper（状态/版本/Confidence/详情按钮真实跳转或 Coming Soon）。
+- **研究洞察 Today's Insight**：市场/AI/新闻/机构/推荐（真实数据，机构流向无数据→N/A 不伪造）。
+- **AI 模块关系图**：adaptive-v3→Shadow→Fusion→Strategy→Portfolio→Learning→Adaptive v4(Coming Soon)。
+- **Research Timeline**（todayPipeline 今日流水线）+ **Engine Matrix**（8 引擎 × Version/Status/Confidence/Update/Health）+ **Future Roadmap**（Adaptive V4/Institution AI/Portfolio AI/Macro/Risk/Factor Lab Coming Soon）。
+- 删除密集小数字/重复统计/开发者字段。
+
+### 版本中心 LLM 模型修正（用户反馈）
+v17.63.0 升级 gpt-5.5 后，版本中心「LLM 模型」仍显示 gpt-4o-mini —— 因该字段来自 DB `VersionSnapshot.llmModelVer` 历史快照值。已将**当前运行快照**（`20260626-v7.7`，endDate null）`llmModelVer` 更新为 `gpt-5.5`；legacy-baseline 保留 `gpt-4o-mini`（历史准确，其确用 4o-mini）。仅改当前快照 1 字段，不动算法/逻辑。
+
+### 验收
+Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；/admin/research 200；版本中心当前版本 LLM=gpt-5.5；数据全真（N/A/Coming Soon 不伪造）。V3 Freeze 不受影响。
+- 修改：新增 `components/research/center.tsx`、`app/admin/research/page.tsx`（overview 渲染）、DB 当前快照 llmModelVer（不提交）。
+
+---
+
 ## [17.63.0] - 2026-07-04 — OpenAI 模型升级 GPT-4o-mini → GPT-5.5 🧠⬆️
 
 将所有 OpenAI GPT 推理从 `gpt-4o-mini` 升级为 `gpt-5.5`（解析为 `gpt-5.5-2026-04-23`）。仅升级模型 + gpt-5.5 强制的最小参数适配，**未改任何 Prompt / JSON Schema / response_format / 评分算法 / 权重 / adaptive-v3 / Shadow / Fusion / Learning / Strategy / Explain / API / DB / Prisma / UI / Cron 调度**。

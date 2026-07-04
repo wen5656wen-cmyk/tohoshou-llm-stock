@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { BossDashboard } from "@/components/research/BossDashboard";
+import { ResearchCenter } from "@/components/research/center";
 import { AlphaFactorsPanel } from "@/components/research/AlphaFactorsPanel";
 import { AlphaAnalyticsPanel } from "@/components/research/AlphaAnalyticsPanel";
 import { AlphaScorePanel } from "@/components/research/AlphaScorePanel";
@@ -152,7 +152,7 @@ export default function ResearchCenterPage() {
       </div>
 
       {/* Tab 内容（不跳页，全部内嵌） */}
-      {tab === "overview"  && <><BossDashboard /><OverviewTab /></>}
+      {tab === "overview"  && <ResearchCenter onTab={setTab} />}
       {tab === "factors"   && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaFactorsPanel /></div>}
       {tab === "analytics" && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaAnalyticsPanel /></div>}
       {tab === "score"     && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaScorePanel /></div>}
