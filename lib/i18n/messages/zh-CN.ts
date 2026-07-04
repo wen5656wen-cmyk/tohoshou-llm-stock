@@ -1467,6 +1467,21 @@ const zhCN: Messages = {
   "universe.updated_label": "更新时间",
   "universe.override_warning": "已手动保留（该股票命中自动排除规则）",
   "universe.watchlist_note": "人工关注股，自动排除规则不会将其移出",
+  // P5-T2 · Explain Engine
+  "explain.panel.title": "AI决策解释",
+  "explain.panel.summary": "综合结论",
+  "explain.panel.strengths": "核心优势",
+  "explain.panel.weaknesses": "主要弱点",
+  "explain.panel.risks": "风险提示",
+  "explain.panel.opportunities": "机会点",
+  "explain.panel.market": "市场环境",
+  "explain.panel.strategy": "建议策略",
+  "explain.panel.holding": "建议持有周期",
+  "explain.panel.confidence": "解释可信度",
+  "explain.panel.next": "后续关注",
+  "explain.panel.empty": "暂无AI解释",
+  "explain.panel.nodata": "暂无数据",
+  "explain.panel.provider_rule": "规则引擎",
 };
 
 export default zhCN;

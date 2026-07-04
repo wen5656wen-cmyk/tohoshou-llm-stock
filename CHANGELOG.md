@@ -2,6 +2,25 @@
 
 ---
 
+## [17.83.0] - 2026-07-05 — P5-T2 Explain Engine 全站接入 Phase 1（股票详情页）🧠📄
+
+将 P5-T1 统一 Explain Engine 接入 `/stocks/[symbol]` 股票详情页——Explain 从后台能力进入产品界面第一步。**仅展示层**，未改任何 AI 评分 / Adaptive / Shadow / Fusion / Strategy / Learning / Backtest / Paper / GPT Score / Recommendation / Ranking / DB / Prisma / Cron / Prompt / 业务逻辑。
+
+### 新增 `components/stock-detail/ExplainPanel.tsx`
+只读 `GET /api/explain/[symbol]?provider=rule`，Apple 白色 `dash-card` 风格展示 ExplainResult 全 10 字段：综合结论 / 核心优势(绿) / 主要弱点(橙) / 风险提示(红) / 机会点(紫) / 市场环境(蓝) / 建议策略 + 持有周期 / 解释可信度(绿·橙·红 by level) / 后续关注。含 **Loading**(骨架) / **Empty**(无评分→「暂无AI解释」) / **Error**(fetch 失败→「暂无AI解释」，不影响页面其它内容) / 空字段→「暂无数据」；禁止白屏。
+
+### 页面接入（并行，不删旧）
+右侧 AI 决策栏顶部插入 `<ExplainPanel>`（**优先展示**新引擎）；旧 `DecisionPanel` 于其下**并行保留**（不删旧 Explain 代码，第八部分）。图表/评分/财务/新闻/风险面板均不受影响。
+
+### i18n
+新增 14 个 `explain.panel.*` 三语键（zh/ja/en，避开既有 `explain.*` 命名空间冲突）；UI chrome 全走 `t()`（引擎内容为中文，为 P5-T1 规则引擎产出，i18n 化留待引擎升级）。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.1s）；Health ✅ CRITICAL=0；`/api/explain/[symbol]` ✅ PASS；股票详情 Explain UI ✅（截图 6525.T：持有/综合62/前5%/技术面强97%/风险红/机会紫/牛市低风险/HIGH 置信）；No API Regression ✅；No DB / No Logic Change ✅；Fallback ✅（Empty/Error→暂无AI解释）。
+- 新增 `components/stock-detail/ExplainPanel.tsx`；改 `app/stocks/[symbol]/page.tsx`、`lib/i18n/types.ts`、`lib/i18n/messages/{zh-CN,ja-JP,en-US}.ts`。
+
+---
+
 ## [17.82.0] - 2026-07-05 — P5-T1 Explain AI Engine（AI 决策解释引擎 V1）🧠💬
 
 建立全站唯一的 **AI 决策解释引擎**：在现有 AI 决策之上生成「为什么推荐 / 为什么不推荐 / 主要风险 / 未来关注」，让推荐**可解释**。**纯展示/派生层，只读现有评分数据，绝不重算**——未改 Adaptive / Shadow / Fusion / Learning / Strategy / GPT Score / Recommendation / Ranking / DB / Prisma / Cron / Backtest / Paper Trading；不影响任何评分。

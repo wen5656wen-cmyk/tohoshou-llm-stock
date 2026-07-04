@@ -1467,6 +1467,21 @@ const enUS: Messages = {
   "universe.updated_label": "Updated",
   "universe.override_warning": "Manually kept (matches an auto-exclude rule)",
   "universe.watchlist_note": "Watchlist stock — auto-exclude rules will not remove it",
+  // P5-T2 · Explain Engine
+  "explain.panel.title": "AI Decision Explanation",
+  "explain.panel.summary": "Overall Summary",
+  "explain.panel.strengths": "Key Strengths",
+  "explain.panel.weaknesses": "Key Weaknesses",
+  "explain.panel.risks": "Risks",
+  "explain.panel.opportunities": "Opportunities",
+  "explain.panel.market": "Market Context",
+  "explain.panel.strategy": "Recommended Strategy",
+  "explain.panel.holding": "Holding Period",
+  "explain.panel.confidence": "Confidence",
+  "explain.panel.next": "Next Observation",
+  "explain.panel.empty": "No AI explanation",
+  "explain.panel.nodata": "No data",
+  "explain.panel.provider_rule": "Rule Engine",
 };
 
 export default enUS;

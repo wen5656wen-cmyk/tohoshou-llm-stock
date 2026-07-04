@@ -9,6 +9,7 @@ import {
   type IntelData,
 } from "@/components/stock-detail/ui";
 import { Toolbar, Hero, MetricStrip, DecisionPanel, RiskPanel, CompanyPanel, AIScorePanel, FinancialsPanel, NewsPanel } from "@/components/stock-detail/panels";
+import { ExplainPanel } from "@/components/stock-detail/ExplainPanel";
 import { ChartTabs, CHART_PERIODS, type TabKey } from "@/components/stock-detail/ChartTabs";
 import type { PricePoint, Financial } from "@/components/stock-detail/ui";
 
@@ -152,6 +153,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           </div>
           <div className="lg:col-span-4 min-w-0">
             <div className="lg:sticky lg:top-4 space-y-3.5">
+              {/* P5-T2: 统一 Explain Engine（优先展示）；旧 DecisionPanel 并行保留于下方 */}
+              <ExplainPanel symbol={stock.symbol} />
               <DecisionPanel score={score} gpt={gpt} stratC={stratC} stratKey={stratKey} aiConclusion={aiConclusion} topReasons={topReasons} topRisks={topRisks} latestClose={latestClose} />
               <RiskPanel risk={riskAnalysis} />
               <CompanyPanel stock={stock} sectorComparison={sectorComparison} />

@@ -1473,6 +1473,21 @@ export type Messages = {
   "universe.updated_label": string;
   "universe.watchlist_note": string;
   "universe.override_warning": string;
+  // P5-T2 · Explain Engine 前端接入
+  "explain.panel.title": string;
+  "explain.panel.summary": string;
+  "explain.panel.strengths": string;
+  "explain.panel.weaknesses": string;
+  "explain.panel.risks": string;
+  "explain.panel.opportunities": string;
+  "explain.panel.market": string;
+  "explain.panel.strategy": string;
+  "explain.panel.holding": string;
+  "explain.panel.confidence": string;
+  "explain.panel.next": string;
+  "explain.panel.empty": string;
+  "explain.panel.nodata": string;
+  "explain.panel.provider_rule": string;
 };
 
 export type MessageKey = keyof Messages;

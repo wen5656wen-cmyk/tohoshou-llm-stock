@@ -1467,6 +1467,21 @@ const jaJP: Messages = {
   "universe.updated_label": "更新日時",
   "universe.override_warning": "手動で保持（自動除外ルールに該当）",
   "universe.watchlist_note": "ウォッチ銘柄。自動除外ルールでは除外されません",
+  // P5-T2 · Explain Engine
+  "explain.panel.title": "AI意思決定の説明",
+  "explain.panel.summary": "総合結論",
+  "explain.panel.strengths": "主な強み",
+  "explain.panel.weaknesses": "主な弱み",
+  "explain.panel.risks": "リスク",
+  "explain.panel.opportunities": "チャンス",
+  "explain.panel.market": "市場環境",
+  "explain.panel.strategy": "推奨戦略",
+  "explain.panel.holding": "推奨保有期間",
+  "explain.panel.confidence": "説明の信頼度",
+  "explain.panel.next": "今後の注目点",
+  "explain.panel.empty": "AI説明はありません",
+  "explain.panel.nodata": "データなし",
+  "explain.panel.provider_rule": "ルールエンジン",
 };
 
 export default jaJP;
