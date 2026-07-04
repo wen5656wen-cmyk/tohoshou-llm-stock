@@ -72,7 +72,7 @@ function ModuleCard({ name, icon, accent, rows, href, cta }: {
           {cta ?? "打开"} <ArrowUpRight size={14} />
         </Link>
       ) : (
-        <span className="inline-flex items-center justify-center h-9 mt-4 rounded-full text-[13px] font-semibold cursor-not-allowed" style={{ background: "#F4F4F6", color: C.faint }}>Coming Soon</span>
+        <span className="inline-flex items-center justify-center h-9 mt-4 rounded-full text-[13px] font-semibold cursor-not-allowed" style={{ background: "#F4F4F6", color: C.faint }}>敬请期待</span>
       )}
     </div>
   );
@@ -84,52 +84,52 @@ export default function AIResearchLabPage() {
   useEffect(() => { fetch("/api/health/status").then((r) => r.json()).then(setHealth).catch(() => {}); }, []);
 
   const healthScore = health ? Math.max(0, Math.min(100, 100 - health.criticalCount * 25 - health.warningCount * 3)) : null;
-  const lastUpdate = health?.auditAt ? new Date(new Date(health.auditAt).getTime() + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ") : "N/A";
+  const lastUpdate = health?.auditAt ? new Date(new Date(health.auditAt).getTime() + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ") : "暂无数据";
 
   const kpis = [
-    { label: "AI Engine", value: "Adaptive V3", sub: "Production · Shadow", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE },
-    { label: "Shadow", value: "Enabled", sub: "V2 vs V3 compare", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE },
-    { label: "Fusion", value: "Enabled", sub: "Market Regime", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT },
-    { label: "Learning", value: "Running", sub: "Daily reports", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT },
-    { label: "Paper Trading", value: "Research", sub: "Fusion paper", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.PAPER_TRADING },
-    { label: "Research Health", value: healthScore != null ? `${healthScore}` : "N/A", sub: health ? `${lastUpdate} JST` : "loading…", icon: <Activity size={18} />, accent: healthScore != null && health!.criticalCount === 0 ? C.green : C.amber, href: ROUTES.VERIFY },
+    { label: "AI 引擎", value: "Adaptive V3", sub: "正式 · 影子", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE },
+    { label: "影子评分", value: "已启用", sub: "V2 与 V3 对比", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE },
+    { label: "融合引擎", value: "已启用", sub: "市场状态", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT },
+    { label: "学习引擎", value: "运行中", sub: "每日报告", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT },
+    { label: "纸面交易", value: "研究", sub: "融合模拟盘", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.PAPER_TRADING },
+    { label: "研发健康度", value: healthScore != null ? `${healthScore}` : "暂无数据", sub: health ? `${lastUpdate} JST` : "加载中…", icon: <Activity size={18} />, accent: healthScore != null && health!.criticalCount === 0 ? C.green : C.amber, href: ROUTES.VERIFY },
   ];
 
   const modules = [
-    { name: "Adaptive Score", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE, cta: "查看评分",
-      rows: [{ k: "Version", v: "V3" }, { k: "Status", v: "Production", color: C.green }, { k: "Confidence", v: "N/A" }, { k: "Last Update", v: lastUpdate }] },
-    { name: "Shadow Engine", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE, cta: "影子对比",
-      rows: [{ k: "Status", v: "Running", color: C.green }, { k: "Current", v: "V3" }, { k: "Shadow Compare", v: "Ready", color: C.green }] },
-    { name: "Fusion Engine", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT, cta: "融合报告",
-      rows: [{ k: "Market Regime", v: "Enabled", color: C.green }, { k: "Current", v: "Production" }, { k: "Best Ratio", v: "Search-based" }] },
-    { name: "Learning Engine", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT, cta: "学习报告",
-      rows: [{ k: "Dataset", v: "N/A" }, { k: "Last Learn", v: "Daily 17:00 JST" }, { k: "Health", v: health && health.criticalCount === 0 ? "PASS" : "N/A", color: C.green }] },
-    { name: "Backtest", icon: <BarChart3 size={18} />, accent: "#0A84FF", href: ROUTES.BACKTEST, cta: "回测验证",
-      rows: [{ k: "History", v: "Available", color: C.green }, { k: "Results", v: "Daily update" }, { k: "Horizons", v: "1d / 7d / 30d / 90d" }] },
-    { name: "Paper Trading", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.PAPER_TRADING, cta: "纸面交易",
-      rows: [{ k: "Status", v: "Research", color: C.amber }, { k: "Mode", v: "Fusion paper" }, { k: "Product Module", v: "Coming Soon", color: C.faint }] },
+    { name: "Adaptive 评分", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE, cta: "查看评分",
+      rows: [{ k: "版本", v: "V3" }, { k: "状态", v: "正式", color: C.green }, { k: "可信度", v: "暂无数据" }, { k: "最近更新", v: lastUpdate }] },
+    { name: "影子引擎", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE, cta: "影子对比",
+      rows: [{ k: "状态", v: "运行中", color: C.green }, { k: "当前", v: "V3" }, { k: "影子对比", v: "已就绪", color: C.green }] },
+    { name: "融合引擎", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT, cta: "融合报告",
+      rows: [{ k: "市场状态", v: "已启用", color: C.green }, { k: "当前", v: "正式" }, { k: "最优比例", v: "历史搜索" }] },
+    { name: "学习引擎", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT, cta: "学习报告",
+      rows: [{ k: "数据集", v: "暂无数据" }, { k: "最近学习", v: "每日 17:00 JST" }, { k: "健康度", v: health && health.criticalCount === 0 ? "通过" : "暂无数据", color: C.green }] },
+    { name: "回测", icon: <BarChart3 size={18} />, accent: "#0A84FF", href: ROUTES.BACKTEST, cta: "回测验证",
+      rows: [{ k: "历史", v: "可用", color: C.green }, { k: "结果", v: "每日更新" }, { k: "周期", v: "1d / 7d / 30d / 90d" }] },
+    { name: "纸面交易", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.PAPER_TRADING, cta: "纸面交易",
+      rows: [{ k: "状态", v: "研究", color: C.amber }, { k: "模式", v: "融合模拟盘" }, { k: "产品化模块", v: "敬请期待", color: C.faint }] },
   ];
 
   const roadmap = [
-    { name: "Adaptive Score V3", status: "Production", done: true },
-    { name: "Shadow Engine", status: "Production", done: true },
-    { name: "Fusion Engine", status: "Production", done: true },
-    { name: "Learning Engine", status: "Production", done: true },
-    { name: "Paper Trading (Research)", status: "Running", done: true },
-    { name: "Paper Trading (Product)", status: "Next", done: false },
-    { name: "Portfolio Engine", status: "Next", done: false },
-    { name: "Adaptive Score V4", status: "Planning", done: false },
+    { name: "Adaptive 评分 V3", status: "正式", done: true },
+    { name: "影子引擎", status: "正式", done: true },
+    { name: "融合引擎", status: "正式", done: true },
+    { name: "学习引擎", status: "正式", done: true },
+    { name: "纸面交易（研究）", status: "运行中", done: true },
+    { name: "纸面交易（产品化）", status: "下一步", done: false },
+    { name: "组合引擎", status: "下一步", done: false },
+    { name: "Adaptive 评分 V4", status: "规划中", done: false },
   ];
 
   const notes = [
-    { v: "v17.57", t: "Strategy Intelligence Center", c: C.blue },
-    { v: "v17.56", t: "Mission Control · Verify · Sync", c: C.purple },
-    { v: "v17.55", t: "Apple Premium Stock Detail", c: C.green },
-    { v: "v17.54", t: "Dashboard Command Center", c: C.amber },
-    { v: "v17.4x", t: "Alpha Engine 2.0 (Factors → Fusion)", c: "#AF52DE" },
+    { v: "v17.57", t: "策略情报中心", c: C.blue },
+    { v: "v17.56", t: "控制中心 · 数据校验 · 同步", c: C.purple },
+    { v: "v17.55", t: "股票详情页精致化重构", c: C.green },
+    { v: "v17.54", t: "仪表盘指挥中心", c: C.amber },
+    { v: "v17.4x", t: "Alpha 引擎 2.0（因子 → 融合）", c: "#AF52DE" },
   ];
 
-  const future = ["Portfolio", "Paper Trading", "Factor Lab", "Adaptive V4", "AI Explain", "Institution Flow", "Macro Engine"];
+  const future = ["组合", "纸面交易", "因子实验室", "Adaptive V4", "AI 解释", "机构流向", "宏观引擎"];
 
   return (
     <div className="min-h-screen dash-font" style={{ background: C.bg }}>
@@ -140,14 +140,14 @@ export default function AIResearchLabPage() {
           <div>
             <div className="flex items-center gap-2.5">
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-2xl" style={{ background: `${C.blue}12`, color: C.blue }}><FlaskConical size={20} /></span>
-              <h1 className="text-[30px] lg:text-[34px] font-semibold tracking-[-0.02em]" style={{ color: C.ink }}>AI Research Lab</h1>
+              <h1 className="text-[30px] lg:text-[34px] font-semibold tracking-[-0.02em]" style={{ color: C.ink }}>AI 研发中心</h1>
             </div>
-            <p className="text-[14px] mt-2" style={{ color: C.faint }}>Research Center · AI Engine Development</p>
+            <p className="text-[14px] mt-2" style={{ color: C.faint }}>研发中心 · AI 引擎研发</p>
           </div>
           <div className="flex items-center gap-2.5">
-            <StatusPill label="Adaptive V3 · Production" color={C.blue} />
-            <StatusPill label={health ? (health.criticalCount === 0 ? "Healthy" : "Review") : "…"} color={health && health.criticalCount === 0 ? C.green : C.amber} />
-            <span className="text-[12px] tabular-nums hidden lg:inline" style={{ color: C.faint }}>Updated {lastUpdate} JST</span>
+            <StatusPill label="Adaptive V3 · 正式" color={C.blue} />
+            <StatusPill label={health ? (health.criticalCount === 0 ? "正常" : "待复核") : "…"} color={health && health.criticalCount === 0 ? C.green : C.amber} />
+            <span className="text-[12px] tabular-nums hidden lg:inline" style={{ color: C.faint }}>更新 {lastUpdate} JST</span>
           </div>
         </header>
 
@@ -157,7 +157,7 @@ export default function AIResearchLabPage() {
         </div>
 
         {/* Research Modules */}
-        <Section title="Research Modules" sub="AI 引擎研发模块 · 全部只读，跳转真实研究页">
+        <Section title="研发模块" sub="AI 引擎研发模块 · 全部只读，跳转真实研究页">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {modules.map((m) => <ModuleCard key={m.name} {...m} />)}
           </div>
@@ -166,7 +166,7 @@ export default function AIResearchLabPage() {
         {/* Roadmap + Notes */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
           <div className="lg:col-span-7">
-            <Section title="Research Roadmap" sub="研发路线 · 展示用，不影响系统行为">
+            <Section title="研发路线图" sub="研发路线 · 展示用，不影响系统行为">
               <div className="dash-card p-6">
                 {roadmap.map((r, i) => {
                   const color = r.done ? C.green : r.status === "Next" ? C.blue : C.faint;
@@ -190,7 +190,7 @@ export default function AIResearchLabPage() {
             </Section>
           </div>
           <div className="lg:col-span-5">
-            <Section title="Research Notes" sub="最近研发版本摘要">
+            <Section title="研发笔记" sub="最近研发版本摘要">
               <div className="dash-card p-2">
                 {notes.map((n, i) => (
                   <div key={n.v} className="flex items-center gap-3 px-4 py-3" style={i > 0 ? { borderTop: `1px solid ${C.line}` } : undefined}>
@@ -204,14 +204,14 @@ export default function AIResearchLabPage() {
         </div>
 
         {/* Future Roadmap */}
-        <Section title="Future Modules" sub="未来研发方向 · Coming Soon">
+        <Section title="未来模块" sub="未来研发方向 · 敬请期待">
           <div className="flex flex-wrap gap-3">
             {future.map((f) => (
               <div key={f} className="dash-card px-4 py-3 flex items-center gap-2.5">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl" style={{ background: "#F4F4F6", color: C.faint }}><Boxes size={16} /></span>
                 <div>
                   <div className="text-[13px] font-semibold" style={{ color: C.ink }}>{f}</div>
-                  <div className="text-[11px]" style={{ color: C.faint }}>Coming Soon</div>
+                  <div className="text-[11px]" style={{ color: C.faint }}>敬请期待</div>
                 </div>
               </div>
             ))}
@@ -219,7 +219,7 @@ export default function AIResearchLabPage() {
         </Section>
 
         <div className="flex items-center justify-center gap-1.5 text-[12px] pb-4" style={{ color: C.faint }}>
-          <TrendingUp size={13} /> AI Research Lab · TOHOSHOU AI Engine Development Hub
+          <TrendingUp size={13} /> AI 研发中心 · TOHOSHOU AI 引擎研发中枢
         </div>
       </div>
     </div>

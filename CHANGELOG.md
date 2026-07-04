@@ -2,6 +2,14 @@
 
 ---
 
+## [17.71.1] - 2026-07-05 — AI 研发中心（/admin/experiments）全页汉化 🈶
+
+将 AI Research Lab 研发中心页所有用户可见英文文案汉化为简体中文。**纯文案**，未改任何布局 / 组件 / 数据 / API / 逻辑（仍只读 `/api/health/status`）。标题 AI Research Lab→**AI 研发中心**、Research Center·AI Engine Development→研发中心·AI 引擎研发；6 KPI（AI 引擎 / 影子评分 / 融合引擎 / 学习引擎 / 纸面交易 / 研发健康度）；研发模块 6 卡全部 rows/值汉化（版本·状态·可信度·最近更新·市场状态·最优比例·历史搜索·每日更新·可用·通过·融合模拟盘 等）；Research Roadmap→研发路线图（正式/运行中/下一步/规划中）；Research Notes→研发笔记；Future Modules→未来模块（Coming Soon→敬请期待）；页脚汉化。保留技术/品牌词：Adaptive V3/V4、Alpha、V3、JST、TOHOSHOU、版本号、1d/7d/30d/90d。
+- 验收：Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；/admin/experiments 200。
+- 修改：`app/admin/experiments/page.tsx`。
+
+---
+
 ## [17.71.0] - 2026-07-05 — P3-T19.4 AI研究中心·V3组终章重构（V3动态评分 + V3校准中心 + V3冻结监控）🧊✅
 
 完成 AI 研究中心**最后一组 3 个面板**，至此全部 **9/9 子面板**统一为深色 Research Terminal。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Adaptive-v3 / Scoring / Calibration / Freeze / Shadow / Fusion / Learning / Strategy / Backtest / Prompt / 业务逻辑；三面板继续只读现有 `/api/scoring-v3/shadow` `/calibration` `/freeze`，**零假数据**，复用 `components/research/kit.tsx`。
