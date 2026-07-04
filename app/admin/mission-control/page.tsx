@@ -57,6 +57,24 @@ const stepColor: Record<StepStatus, string> = { SUCCESS: M.green, WAITING: M.amb
 const stepText: Record<StepStatus, string> = { SUCCESS: "成功", WAITING: "等待", FAILED: "失败", SKIPPED: "跳过" };
 const STRAT: Record<string, string> = { DAY_TRADE: "日内", SWING_TRADE: "波段", LONG_TRADE: "长线" };
 
+// 显示层翻译（不改 API 返回值）——运维审计项名称 / 阶段 / 原因文案
+const ISSUE_ZH: Record<string, string> = {
+  high52w_10x_price: "52周高点 > 股价×10（疑似异常）",
+  low52w_too_low: "52周低点 < 股价÷20（疑似异常）",
+  return20d_extreme: "20日收益 |>100%| 或 < -70%",
+  return60d_extreme: "60日收益极端值（>300% 或 < -90%）",
+  day_trade_result_recent_coverage: "日内交易结果近期覆盖",
+};
+function issueName(i: IssueDetail) { return ISSUE_ZH[i.id] ?? i.name; }
+function zhVal(v: string) {
+  return v
+    .replace(/genuine/gi, "真实").replace(/suspect/gi, "可疑")
+    .replace(/consecutive day\(s\) missing/gi, "天连续缺失").replace(/missing/gi, "缺失");
+}
+const PHASE_ZH: Record<string, string> = { "Phase 7 AI Strategy Optimization": "阶段7 · AI 策略优化" };
+function phaseZh(s: string) { return PHASE_ZH[s] ?? s.replace(/^Phase\s*(\d+)/i, "阶段$1"); }
+function reasonZh(s: string) { return s.replace(/^health:data\s+WARNING=/i, "数据健康检查 · 警告 ").replace(/^health:data\s+CRITICAL=/i, "数据健康检查 · 严重 "); }
+
 const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif";
 
 function fmtUptime(ms: number | null): string {
@@ -114,8 +132,8 @@ function AlertItem({ issue }: { issue: IssueDetail }) {
     <div style={{ borderRadius: 12, border: `1px solid ${M.border}`, background: M.cardHi, overflow: "hidden" }}>
       <button onClick={() => setOpen((o) => !o)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
         <span style={{ fontSize: 14, color }}>{issue.level === "CRITICAL" ? "✕" : "⚠"}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: M.ink, flex: 1 }}>{issue.name}</span>
-        <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{issue.value}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: M.ink, flex: 1 }}>{issueName(issue)}</span>
+        <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{zhVal(issue.value)}</span>
         <span style={{ fontSize: 10, color, fontWeight: 700 }}>{sevText[issue.level]}</span>
         <span style={{ color: M.faint, fontSize: 11, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </button>
@@ -179,7 +197,7 @@ export default function MissionControlPage() {
     { label: "股票行情", date: fresh.dailyPrice.lastCompletedDate ?? fresh.dailyPrice.latestDate, extra: `覆盖 ${fresh.dailyPrice.coveragePct}%`, sev: fresh.dailyPrice.status },
     { label: "综合评分", date: fresh.stockScore.latestDate, extra: `今日 ${fresh.stockScore.scoredTodayCount}`, sev: "NORMAL" as Severity },
     { label: "新闻资讯", date: fresh.news.latestAt ? fresh.news.latestAt.slice(0, 10) : null, extra: `今日 ${fresh.news.todayNewCount}`, sev: "NORMAL" as Severity },
-    { label: "全球指数", date: fresh.globalMarket.latestDate, extra: "Nikkei · VIX", sev: "NORMAL" as Severity },
+    { label: "全球指数", date: fresh.globalMarket.latestDate, extra: "日经 · VIX", sev: "NORMAL" as Severity },
   ];
   const strat = (["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const);
 
@@ -190,45 +208,45 @@ export default function MissionControlPage() {
         {/* ── Header ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>Mission Control</div>
-            <div style={{ fontSize: 12, color: M.faint, marginTop: 2 }}>TOHOSHOU AI 运维驾驶舱 · Trading Architecture {arch.version}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>控制中心</div>
+            <div style={{ fontSize: 12, color: M.faint, marginTop: 2 }}>TOHOSHOU AI 运维驾驶舱 · 交易架构 {arch.version}</div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Badge label={`${arch.version} · ${arch.status === "FROZEN" ? "FROZEN 🔒" : arch.status}`} color={M.blue} />
-            {version.scoreVersion && <span style={{ fontSize: 11, color: M.sub, fontFamily: "monospace" }}>score {version.scoreVersion}</span>}
+            <Badge label={`${arch.version} · ${arch.status === "FROZEN" ? "已冻结 🔒" : arch.status}`} color={M.blue} />
+            {version.scoreVersion && <span style={{ fontSize: 11, color: M.sub, fontFamily: "monospace" }}>评分 {version.scoreVersion}</span>}
             {version.versionSnapshotId && <span style={{ fontSize: 11, color: M.faint, fontFamily: "monospace" }}>#{version.versionSnapshotId}</span>}
             <button onClick={load} disabled={refreshing}
               style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: M.ink, background: M.card, border: `1px solid ${M.border}`, borderRadius: 999, padding: "7px 14px", cursor: "pointer" }}>
               <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span> 刷新
             </button>
             <div style={{ textAlign: "right", fontSize: 10, color: stale ? M.amber : M.faint, fontVariantNumeric: "tabular-nums" }}>
-              <div>Last Sync {lastRefresh?.toLocaleTimeString("zh-CN")}</div>
-              <div>自动 60s{stale ? " · ⚠ >5min" : ""}</div>
+              <div>上次同步 {lastRefresh?.toLocaleTimeString("zh-CN")}</div>
+              <div>自动 60s{stale ? " · ⚠ 超 5 分钟" : ""}</div>
             </div>
           </div>
         </div>
 
         {/* ── First screen: 4 Status Cards ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 26 }}>
-          <StatusCard title="Production" code="Mission Status" sev={productionStatus.status}
-            metric={`${productionStatus.passCount}`} metricUnit="checks pass"
+          <StatusCard title="生产状态" code="任务状态" sev={productionStatus.status}
+            metric={`${productionStatus.passCount}`} metricUnit="项通过"
             sub={`⚠ ${productionStatus.healthWarningCount} · ✕ ${productionStatus.healthCriticalCount}`}
-            footer={productionStatus.reasons[0] ?? "系统运行正常"} />
-          <StatusCard title="Trading Architecture" code={arch.version} sev={arch.status === "FROZEN" ? "NORMAL" : "WARNING"}
-            metric={arch.status === "FROZEN" ? "FROZEN" : arch.status} sub={arch.currentMode}
-            footer={`冻结 ${arch.frozenDate} · 下一步 ${arch.nextPhase}`} />
-          <StatusCard title="Pipeline" code="Today" sev={todayPipeline.failedCount > 0 ? "CRITICAL" : todayPipeline.allDoneToday ? "NORMAL" : "WARNING"}
-            metric={`${todayPipeline.completedSteps}/${todayPipeline.totalSteps}`} metricUnit="steps"
+            footer={productionStatus.reasons[0] ? reasonZh(productionStatus.reasons[0]) : "系统运行正常"} />
+          <StatusCard title="交易架构" code={arch.version} sev={arch.status === "FROZEN" ? "NORMAL" : "WARNING"}
+            metric={arch.status === "FROZEN" ? "已冻结" : arch.status} sub={arch.currentMode}
+            footer={`冻结 ${arch.frozenDate} · 下一步 ${phaseZh(arch.nextPhase)}`} />
+          <StatusCard title="数据流水线" code="今日" sev={todayPipeline.failedCount > 0 ? "CRITICAL" : todayPipeline.allDoneToday ? "NORMAL" : "WARNING"}
+            metric={`${todayPipeline.completedSteps}/${todayPipeline.totalSteps}`} metricUnit="步"
             pct={todayPipeline.completionPct} footer={todayPipeline.allDoneToday ? "全部完成 ✓" : `完成率 ${todayPipeline.completionPct}%`} />
-          <StatusCard title="Validation" code="Daily" sev={validation ? (validation.allPass ? "NORMAL" : "WARNING") : "WARNING"}
-            metric={validation ? `${9 - validation.failCount}/9` : "—"} metricUnit="pass"
+          <StatusCard title="每日校验" code="每日" sev={validation ? (validation.allPass ? "NORMAL" : "WARNING") : "WARNING"}
+            metric={validation ? `${9 - validation.failCount}/9` : "—"} metricUnit="通过"
             sub={validation ? `连续健康 ${validation.consecutiveHealthDays} 天` : "暂无验证"}
-            footer={validation ? `${validation.validationDate}${validation.phase7Ready ? " · Phase7 就绪" : ""}` : undefined} />
+            footer={validation ? `${validation.validationDate}${validation.phase7Ready ? " · 阶段7 就绪" : ""}` : undefined} />
         </div>
 
         {/* ── Pipeline Timeline (GitHub Actions style) ── */}
         <div style={{ marginBottom: 26 }}>
-          <SectionLabel>数据流水线 · Pipeline Timeline</SectionLabel>
+          <SectionLabel>数据流水线 · 时间线</SectionLabel>
           <DCard style={{ padding: "6px 18px" }}>
             {todayPipeline.steps.map((s, i) => {
               const c = stepColor[s.status];
@@ -258,14 +276,14 @@ export default function MissionControlPage() {
         {/* ── Warnings + Critical (two columns) ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 26 }} className="mc-2col">
           <div>
-            <SectionLabel>警告 · Warnings ({warningIssues.length})</SectionLabel>
-            {warningIssues.length === 0 ? <EmptyOk text="No Warnings · 无警告" /> : (
+            <SectionLabel>警告（{warningIssues.length}）</SectionLabel>
+            {warningIssues.length === 0 ? <EmptyOk text="无警告" /> : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{warningIssues.map((i) => <AlertItem key={i.id} issue={i} />)}</div>
             )}
           </div>
           <div>
-            <SectionLabel>严重 · Critical ({criticalIssues.length})</SectionLabel>
-            {criticalIssues.length === 0 ? <EmptyOk text="No Critical Issues · 无严重问题" /> : (
+            <SectionLabel>严重（{criticalIssues.length}）</SectionLabel>
+            {criticalIssues.length === 0 ? <EmptyOk text="无严重问题" /> : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{criticalIssues.map((i) => <AlertItem key={i.id} issue={i} />)}</div>
             )}
           </div>
@@ -273,7 +291,7 @@ export default function MissionControlPage() {
 
         {/* ── Data freshness ── */}
         <div style={{ marginBottom: 26 }}>
-          <SectionLabel>数据新鲜度 · Data Freshness</SectionLabel>
+          <SectionLabel>数据新鲜度</SectionLabel>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
             {freshCards.map((f) => (
               <DCard key={f.label} style={{ padding: 16 }}>
@@ -290,7 +308,7 @@ export default function MissionControlPage() {
         {/* ── Strategy + System ── */}
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }} className="mc-2col">
           <div>
-            <SectionLabel>三策略 · Trading Strategies</SectionLabel>
+            <SectionLabel>三策略</SectionLabel>
             <DCard style={{ padding: 18 }}>
               {strat.map((k, i) => {
                 const rec = strategyRecommendations[k];
@@ -312,7 +330,7 @@ export default function MissionControlPage() {
             </DCard>
           </div>
           <div>
-            <SectionLabel>系统进程 · System</SectionLabel>
+            <SectionLabel>系统进程</SectionLabel>
             <DCard style={{ padding: 18 }}>
               {[{ n: "tohoshou-web", p: pm2.web }, { n: "tohoshou-cron", p: pm2.cron }].map(({ n, p }) => (
                 <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: n === "tohoshou-web" ? `1px solid ${M.border}` : "none" }}>

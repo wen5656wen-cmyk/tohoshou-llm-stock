@@ -2,6 +2,14 @@
 
 ---
 
+## [17.71.2] - 2026-07-05 — 控制中心（/admin/mission-control）全页汉化 🈶
+
+将 Mission Control 控制中心页所有用户可见英文文案汉化为简体中文。**纯展示层**，未改任何布局 / 组件 / 数据 / API / 检测逻辑（仍只读 `/api/admin/mission-control` + 60s 自动刷新）。标题 Mission Control→**控制中心**、Trading Architecture→交易架构；4 状态卡（生产状态·任务状态 / 交易架构 / 数据流水线·今日 / 每日校验，单位 项通过·步·通过，`FROZEN`→已冻结）；区块标题（数据流水线·时间线 / 警告（N）/ 严重（N）/ 数据新鲜度 / 三策略 / 系统进程）；空状态（No Warnings→无警告、No Critical Issues→无严重问题）；Last Sync→上次同步、score→评分、Nikkei→日经、Phase7→阶段7。**API 返回的运维审计项经展示层映射汉化**（不改后端）：`ISSUE_ZH` 按 `issue.id` 映射 5 条健康检查名（52周高点>股价×10 等）、`zhVal` 处理 genuine/suspect/missing 值文案、`phaseZh` 处理 `nextPhase`、`reasonZh` 处理 `health:data WARNING=N`→数据健康检查·警告 N。保留技术/品牌词：TOHOSHOU、adaptive-v3、版本号、JST、VIX、pm2 进程名。
+- 验收：Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；/admin/mission-control 200；深色主题不变。
+- 修改：`app/admin/mission-control/page.tsx`。
+
+---
+
 ## [17.71.1] - 2026-07-05 — AI 研发中心（/admin/experiments）全页汉化 🈶
 
 将 AI Research Lab 研发中心页所有用户可见英文文案汉化为简体中文。**纯文案**，未改任何布局 / 组件 / 数据 / API / 逻辑（仍只读 `/api/health/status`）。标题 AI Research Lab→**AI 研发中心**、Research Center·AI Engine Development→研发中心·AI 引擎研发；6 KPI（AI 引擎 / 影子评分 / 融合引擎 / 学习引擎 / 纸面交易 / 研发健康度）；研发模块 6 卡全部 rows/值汉化（版本·状态·可信度·最近更新·市场状态·最优比例·历史搜索·每日更新·可用·通过·融合模拟盘 等）；Research Roadmap→研发路线图（正式/运行中/下一步/规划中）；Research Notes→研发笔记；Future Modules→未来模块（Coming Soon→敬请期待）；页脚汉化。保留技术/品牌词：Adaptive V3/V4、Alpha、V3、JST、TOHOSHOU、版本号、1d/7d/30d/90d。
