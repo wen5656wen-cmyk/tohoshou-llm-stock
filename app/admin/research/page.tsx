@@ -129,13 +129,13 @@ export default function ResearchCenterPage() {
   }, []);
 
   // 已升级为深色 Research Terminal 的面板（自带 max-w/间距，容器切深色底）
-  const DARK_TABS = new Set(["factors", "analytics", "regime", "fusion"]);
+  const DARK_TABS = new Set(["factors", "analytics", "regime", "fusion", "score", "backtest"]);
 
   const panels: Record<string, React.ReactNode> = {
     factors: <AlphaFactorsPanel onNavigate={setTab} />,
     analytics: <AlphaAnalyticsPanel onNavigate={setTab} />,
-    score: <AlphaScorePanel />,
-    backtest: <AlphaBacktestPanel />,
+    score: <AlphaScorePanel onNavigate={setTab} />,
+    backtest: <AlphaBacktestPanel onNavigate={setTab} />,
     regime: <MarketRegimePanel onNavigate={setTab} />,
     fusion: <FusionReportPanel onNavigate={setTab} />,
     v3: <ScoreV3Panel />,

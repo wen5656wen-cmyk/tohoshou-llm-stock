@@ -2,6 +2,25 @@
 
 ---
 
+## [17.70.0] - 2026-07-05 — P3-T19.3 AI研究中心·Shadow·Alpha 组深色重建（影子评分 + Alpha策略回测）👁️
+
+将 AI 研究中心【Shadow · Alpha】组两个子面板从浅色开发页升级为统一**深色 Research Terminal**。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Shadow 评分算法 / Alpha Score 计算 / Alpha 策略回测算法 / Adaptive / Fusion / Learning / Strategy / Backtest Engine / Prompt / 业务逻辑；两面板继续只读现有 `/api/alpha/score` 与 `/api/alpha/backtest`，**零假数据**，复用 `components/research/kit.tsx`。
+
+### 影子评分（Alpha）`AlphaScorePanel.tsx`（246 行）
+新增 `ShadowAlphaHero`（影子评分 · Shadow Alpha Scoring · 已启用 + 影子模式 badge · 当前模式影子(Shadow) · 数据日期 · 最近计算 · 「查看Alpha策略回测→」真实跳转）。6 KPI（Alpha评分覆盖 / Production覆盖 / 平均分差 / 高分歧数≥20 / 最大分差 / 影子健康度→**API 无字段暂无数据**）；**分歧 = `alphaScore − aiAdaptiveScore`（两个 API 已有字段的展示层相减，非新研究指标）**。Alpha 因子权重 chips（6 因子方向±/权重，API 原值）+ 影子评分观察 insight + Production vs Shadow 分歧分布（一致 <10 / 分歧 10-20 / 高分歧 ≥20 分档计数）+ **Top Divergence 表**（按 |分差| 降序，列 股票/正式评分/Alpha评分/差异±色/AI评级/主要贡献因子；高分歧 badge；股票行跳详情页；搜索+导出CSV；前 600 行上限）。
+
+### Alpha策略回测 `AlphaBacktestPanel.tsx`（247 行）
+新增 `AlphaBacktestHero`（Alpha Strategy Backtest · 已就绪 · 累计样本 · 成熟周期 30/90/180日 · 数据基准 · 「查看影子评分→」）+ period(30/90/180) + view(正式/影子/融合比较) 切换。6 KPI（影子收益 / 正式收益 / Alpha超额±色 / 影子胜率 / 影子夏普 / 数据基准，全来自 headline + 前20·20日代表配置，API 原值）+ 「Alpha 是否跑赢正式评分」结论卡（**据 headline.alpha 正负如实呈现，当前 90日 Alpha −5.93% 未跑赢即显示红色不隐藏**）+ **持有周期表现卡**（影子·前20，按 holdDays 5/10/20 展示——**本 API 周期维度为持有天数，非单日 horizon，如实标注不伪造 1D-90D**）+ 回测矩阵 dark ResearchTable（组合规模×持有周期，正绿负红，影子行蓝底）。
+
+### 导航接线
+`app/admin/research/page.tsx`：两面板传 `onNavigate={setTab}`（Hero CTA 真实切 tab，无 `href="#"`/空 onClick/console.log）；`DARK_TABS` 增加 `score`/`backtest`。ResearchNav 两级高亮（Tier1 Shadow·Alpha + Tier2 影子评分/Alpha策略回测）正确。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.6s）；Health ✅ CRITICAL=0（生产 ❌0 ⚠️5，允许推荐）；/admin/research 200；/api/alpha/score + /api/alpha/backtest 200 真实数据；1440 无横向溢出、表格内部横向滚动、max-w-[1600] 居中；中文化（Alpha/Shadow/Production/TOPIX/V3/AI 保留）；无 API/DB/逻辑改动；V3 Freeze 不受影响。
+- 修改：重写 `components/research/AlphaScorePanel.tsx`、`components/research/AlphaBacktestPanel.tsx`；`app/admin/research/page.tsx`（onNavigate + 深色容器）。
+
+---
+
 ## [17.69.0] - 2026-07-05 — P3-T19.2 AI研究中心·市场与融合组深色重建（Market Regime + Fusion Research）🛰️
 
 将 AI 研究中心【市场与融合】组两个子面板从浅色开发页升级为统一**深色 Research Terminal**（Bloomberg × Aladdin × OpenAI Research）。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Market Regime 判断逻辑 / Fusion 算法 / Adaptive / Shadow / Learning / Strategy / Backtest / Prompt / 业务逻辑；两面板继续只读现有 `/api/regime` 与 `/api/fusion/report`，**零假数据**，复用 `components/research/kit.tsx` 深色套件。
