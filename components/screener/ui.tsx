@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { finalScoreHex } from "@/lib/rec-config";
 import { ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "@/components/dashboard/icons";
 
@@ -8,6 +9,11 @@ export const C = {
   blue: "#007AFF", green: "#34C759", red: "#FF3B30", amber: "#FF9F0A",
   ink: "#1D1D1F", sub: "#6E6E73", faint: "#86868B", line: "#ECECEC",
 };
+
+// Unified z-index scale — Modal > Dropdown > Tooltip > Card.
+// Popovers render through a body Portal, so they always sit above page content
+// regardless of any ancestor stacking context (`.dash-in` transform) or overflow.
+export const Z = { CARD: 1, STICKY: 100, TOOLTIP: 9000, DROPDOWN: 9500, MODAL: 10000 } as const;
 
 // ── ScoreRing (Apple Activity Ring) ───────────────────────────────────────────
 export function ScoreRing({ score, size = 66, stroke = 6 }: { score: number | null; size?: number; stroke?: number }) {
@@ -53,21 +59,83 @@ export function Segmented<T extends string>({ options, value, onChange }: {
   );
 }
 
-// ── Dropdown (Apple) ──────────────────────────────────────────────────────────
+// ── Dropdown (Apple, Portal popover) ──────────────────────────────────────────
+// The menu renders into a body Portal at `position: fixed` coords derived from the
+// trigger's bounding box. This guarantees it paints above every card / header /
+// sidebar and is never clipped by an ancestor `overflow:hidden` or trapped inside
+// a `.dash-in` transform stacking context.
 export function Dropdown<T extends string>({ value, options, onChange, width = 150, icon }: {
   value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; width?: number; icon?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  const place = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const estH = Math.min(320, options.length * 34 + 12);
+    const spaceBelow = window.innerHeight - r.bottom;
+    // Flip above the trigger when there isn't room below and there is room above.
+    const top = spaceBelow < estH + 12 && r.top > estH + 12 ? r.top - 8 - estH : r.bottom + 8;
+    setPos({ top, left: r.left, width: r.width });
+  };
+
+  // Recompute position synchronously before paint whenever it opens.
+  useLayoutEffect(() => { if (open) place(); }, [open]);
+
+  // Keep aligned while open (scroll/resize); close on outside click / Escape.
   useEffect(() => {
-    function onDoc(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    if (!open) return;
+    const onScrollResize = () => place();
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("scroll", onScrollResize, true);
+    window.addEventListener("resize", onScrollResize);
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", onScrollResize, true);
+      window.removeEventListener("resize", onScrollResize);
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   const cur = options.find((o) => o.value === value) ?? options[0];
+
+  const menu = open && pos && mounted
+    ? createPortal(
+        <div
+          ref={menuRef}
+          className="rounded-2xl overflow-hidden dash-card py-1.5 overflow-y-auto"
+          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, maxHeight: 320, zIndex: Z.DROPDOWN, boxShadow: "0 16px 44px -12px rgba(0,0,0,0.26)" }}
+          role="listbox"
+        >
+          {options.map((o) => (
+            <button key={o.value} onClick={() => { onChange(o.value); setOpen(false); }}
+              role="option" aria-selected={o.value === value}
+              className="w-full text-left px-3.5 py-2 text-[13px] font-medium transition-colors"
+              style={{ background: o.value === value ? "#F4F4F6" : "transparent", color: o.value === value ? C.blue : C.ink }}>
+              {o.label}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )
+    : null;
+
   return (
-    <div ref={ref} className="relative" style={{ width }}>
-      <button onClick={() => setOpen((o) => !o)}
+    <div className="relative" style={{ width }}>
+      <button ref={btnRef} type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}
         className="w-full flex items-center justify-between gap-2 h-10 px-3.5 rounded-xl text-[13px] font-medium dash-int dash-card"
         style={{ color: C.ink }}>
         <span className="flex items-center gap-2 truncate">
@@ -76,18 +144,7 @@ export function Dropdown<T extends string>({ value, options, onChange, width = 1
         </span>
         <span style={{ color: C.faint, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}><ChevronDown size={15} /></span>
       </button>
-      {open && (
-        <div className="absolute z-50 mt-2 w-full rounded-2xl overflow-hidden dash-card py-1.5 max-h-[300px] overflow-y-auto"
-          style={{ boxShadow: "0 16px 40px -12px rgba(0,0,0,0.22)" }}>
-          {options.map((o) => (
-            <button key={o.value} onClick={() => { onChange(o.value); setOpen(false); }}
-              className="w-full text-left px-3.5 py-2 text-[13px] font-medium transition-colors"
-              style={{ background: o.value === value ? "#F4F4F6" : "transparent", color: o.value === value ? C.blue : C.ink }}>
-              {o.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {menu}
     </div>
   );
 }

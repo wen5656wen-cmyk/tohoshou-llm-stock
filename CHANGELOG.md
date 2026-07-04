@@ -2,6 +2,25 @@
 
 ---
 
+## [17.54.1] - 2026-07-04 — P0 修复：AI选股 Dropdown 层级被卡片遮挡 🐛
+
+### 根因
+`/screener` FilterBar 的 风格/市场/排序 下拉菜单被下方 Stock Card 遮挡。原因：菜单用 `absolute z-50` 定位在 FilterBar 内，而 FilterBar 外层 `.dash-in` 的 `transform`（animation `fill:both` 保留 `translateY(0)`）创建了**层叠上下文**，把 `z-50` 困在其中；DOM 中更靠后的卡片网格（同为 `.dash-in` 独立层叠上下文）绘制在其上 → 下拉被覆盖。（与 T7 SearchBox 同源。）
+
+### 修复（统一 Popover Portal）
+- `components/screener/ui.tsx` 的 `Dropdown` 改为 **body Portal**（`createPortal` → `document.body`），菜单以 `position: fixed` 按触发按钮 `getBoundingClientRect()` 定位，**逃离所有祖先 stacking context 与 `overflow:hidden` 裁切**，始终绘制在最上层。
+- **统一 z-index 规范** `Z = { CARD:1, STICKY:100, TOOLTIP:9000, DROPDOWN:9500, MODAL:10000 }`（Modal > Dropdown > Tooltip > Card），菜单用 `Z.DROPDOWN`。
+- 打开时 `useLayoutEffect` 同步定位；随 `scroll(capture)`/`resize` 重定位；外部点击 / `Escape` 关闭；下方空间不足时自动向上翻转；`role=listbox`/`option` a11y。
+
+### 覆盖检查
+`/screener` 三个筛选下拉（风格/市场/排序）共用同一 `Dropdown` → 全部修复；Segmented（rec 筛选）为内联非弹层、SearchBar 为内联输入无弹层，均无此问题；页面无 Date Picker / Context Menu。
+
+### 验收
+- Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；**实测展开风格下拉，菜单完整浮于股票卡之上，无遮挡/无裁切**；未改任何评分/筛选/排序/API/数据。
+- 修改：`components/screener/ui.tsx`。
+
+---
+
 ## [17.54.0] - 2026-07-04 — P3-T9 Dashboard Command Center（一屏 AI 工作台）重构 🎛️
 
 ### 定位转变
