@@ -2,11 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { PanelHeader, TERM_TIPS } from "./PanelHeader";
+import {
+  RM,
+  ResearchPanelShell,
+  ResearchHero,
+  ResearchButton,
+  ResearchKpiGrid,
+  ResearchKpiCard,
+  ResearchSection,
+  ResearchChip,
+  ResearchTable,
+  RTh,
+  RTd,
+  rowHoverClass,
+  ResearchLoadingState,
+  ResearchEmptyState,
+  ResearchErrorState,
+} from "./kit";
 
-// Alpha Engine 2.0 — Phase 1 debug console (admin). Technical/English labels only;
-// factor names (RS5/ATR14/…) are technical identifiers. Data layer only — this page
-// never touches AI Score / recommendations.
+// Alpha因子库 — Alpha Factor Library（AI 研究中心 · 因子研究组）。
+// 纯展示层：只读现有 /api/alpha，展示 Alpha 引擎底层技术因子的覆盖与明细。
+// 不改任何 API / 因子计算 / 评分逻辑。因子标识（RS5/ATR14/…）为技术名，不翻译。
 
 type AlphaRow = {
   symbol: string;
@@ -32,19 +48,22 @@ type NumKey =
   | "distanceTo52WeekHigh" | "distanceTo52WeekLow"
   | "averageTurnover20" | "volumeRatio5" | "volumeRatio20" | "volumeExpansionDays";
 
+// 库内量化因子清单（列 = 因子维度）。均为真实字段，非新算指标。
 const COLS: { key: NumKey; label: string; fmt: (v: number | null) => string }[] = [
-  { key: "rs5",  label: "相对强弱5日",  fmt: (v) => pct(v) },
-  { key: "rs20", label: "相对强弱20日", fmt: (v) => pct(v) },
-  { key: "rs60", label: "相对强弱60日", fmt: (v) => pct(v) },
-  { key: "atr14", label: "ATR14", fmt: (v) => num(v) },
-  { key: "atrPct", label: "波动率%", fmt: (v) => pct(v) },
-  { key: "distanceTo52WeekHigh", label: "距离52周最高点", fmt: (v) => pct(v) },
-  { key: "distanceTo52WeekLow",  label: "距离52周最低点", fmt: (v) => pct(v) },
-  { key: "averageTurnover20", label: "20日平均成交额", fmt: (v) => turnover(v) },
-  { key: "volumeRatio5",  label: "5日量比",  fmt: (v) => num(v) },
-  { key: "volumeRatio20", label: "20日量比", fmt: (v) => num(v) },
-  { key: "volumeExpansionDays", label: "放量天数", fmt: (v) => (v == null ? "—" : String(v)) },
+  { key: "rs5", label: "相对强弱5日 · RS5", fmt: (v) => pct(v) },
+  { key: "rs20", label: "相对强弱20日 · RS20", fmt: (v) => pct(v) },
+  { key: "rs60", label: "相对强弱60日 · RS60", fmt: (v) => pct(v) },
+  { key: "atr14", label: "波动幅度 · ATR14", fmt: (v) => num(v) },
+  { key: "atrPct", label: "波动率% · ATR%", fmt: (v) => pct(v) },
+  { key: "distanceTo52WeekHigh", label: "距52周高 · 52WH", fmt: (v) => pct(v) },
+  { key: "distanceTo52WeekLow", label: "距52周低 · 52WL", fmt: (v) => pct(v) },
+  { key: "averageTurnover20", label: "20日成交额 · TO20", fmt: (v) => turnover(v) },
+  { key: "volumeRatio5", label: "5日量比 · VR5", fmt: (v) => num(v) },
+  { key: "volumeRatio20", label: "20日量比 · VR20", fmt: (v) => num(v) },
+  { key: "volumeExpansionDays", label: "放量天数 · VED", fmt: (v) => (v == null ? "—" : String(v)) },
 ];
+// 事件因子（布尔）。
+const EVENT_FACTORS = ["回购 · Buyback", "增派息 · DividendRaise", "上调指引 · GuidanceRaise", "TDnet事件 · TDnetEvent"];
 
 function pct(v: number | null) { return v == null ? "—" : `${v.toFixed(2)}%`; }
 function num(v: number | null) { return v == null ? "—" : v.toFixed(2); }
@@ -55,7 +74,7 @@ function turnover(v: number | null) {
   return `¥${v.toFixed(0)}`;
 }
 
-export function AlphaFactorsPanel() {
+export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [data, setData] = useState<ApiResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +85,7 @@ export function AlphaFactorsPanel() {
   useEffect(() => {
     setLoading(true);
     fetch("/api/alpha?limit=5000")
-      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((d: ApiResp) => { setData(d); setLoading(false); })
       .catch((e: Error) => { setError(e.message); setLoading(false); });
   }, []);
@@ -116,74 +135,157 @@ export function AlphaFactorsPanel() {
     URL.revokeObjectURL(url);
   }
 
-  return (
-    <div className="p-6 max-w-[1400px]">
-      <PanelHeader title="Alpha因子库" desc="用于展示 Alpha 引擎计算使用的底层技术因子。" phase="P2-T1"
-        dataDate={data?.date} computedAt={data?.computedAt} stockCount={rows.length}
-        statusText="研究模式（不会影响正式AI推荐）" loading={loading} error={error} />
+  const totalStocks = data?.total ?? 0;
+  const hasData = !!data && totalStocks > 0;
+  const goAnalytics = onNavigate ? () => onNavigate("analytics") : undefined;
+  const goOverview = onNavigate ? () => onNavigate("overview") : undefined;
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="搜索股票代码/名称…"
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+  const hero = (
+    <ResearchHero
+      title="Alpha因子库"
+      titleEn="Factor Library"
+      subtitle="因子资产库 · 覆盖率 · 启用状态 · 研究健康度"
+      statusText={loading ? "运行中" : error ? "暂无数据" : hasData ? "已就绪" : "暂无数据"}
+      statusTone={loading ? "amber" : error || !hasData ? "neutral" : "green"}
+      metaLabel="最近更新"
+      metaValue={data?.computedAt ? new Date(data.computedAt).toLocaleString("zh-CN") : "暂无数据"}
+      action={<ResearchButton onClick={goAnalytics} disabled={!goAnalytics}>查看因子分析 →</ResearchButton>}
+    />
+  );
+
+  if (error) {
+    return (
+      <ResearchPanelShell>
+        {hero}
+        <ResearchErrorState
+          message={error}
+          hint={<>请运行 <code style={{ color: RM.sub }}>npm run compute-alpha-factors</code> 生成因子数据。</>}
+          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>}
         />
-        <button
-          onClick={exportCsv}
-          disabled={!rows.length}
-          className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg font-medium"
-        >
-          导出CSV
-        </button>
-      </div>
+      </ResearchPanelShell>
+    );
+  }
 
-      {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-          加载失败（{error}）。请运行 <code className="font-mono">npm run compute-alpha-factors</code> 生成数据。
+  if (loading) {
+    return (
+      <ResearchPanelShell>
+        {hero}
+        <ResearchLoadingState label="正在加载 Alpha 因子库…" />
+      </ResearchPanelShell>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <ResearchPanelShell>
+        {hero}
+        <ResearchEmptyState
+          title="暂无 Alpha 因子数据"
+          desc="当前因子库尚未生成或 API 暂无返回。"
+          actions={
+            <>
+              <ResearchButton variant="primary" onClick={goAnalytics} disabled={!goAnalytics}>查看因子分析</ResearchButton>
+              <ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>
+            </>
+          }
+        />
+      </ResearchPanelShell>
+    );
+  }
+
+  return (
+    <ResearchPanelShell>
+      {hero}
+
+      {/* KPI —— 全部为真实字段/结构派生，无字段处显示暂无数据 */}
+      <ResearchKpiGrid>
+        <ResearchKpiCard label="因子总数" value={COLS.length + EVENT_FACTORS.length} sub={`${COLS.length} 量化 · ${EVENT_FACTORS.length} 事件`} tone="blue" />
+        <ResearchKpiCard label="量化因子" value={COLS.length} sub="技术 / 量价维度" />
+        <ResearchKpiCard label="事件因子" value={EVENT_FACTORS.length} sub="回购 / 派息 / 指引 / TDnet" />
+        <ResearchKpiCard label="覆盖股票数" value={totalStocks.toLocaleString()} sub="最新交易日" tone="green" />
+        <ResearchKpiCard label="数据日期" value={<span className="text-[16px]">{data?.date ?? "暂无数据"}</span>} sub="因子快照" />
+        <ResearchKpiCard label="研究状态" value={<span className="text-[16px]">研究模式</span>} sub="不影响正式AI推荐" tone="amber" />
+      </ResearchKpiGrid>
+
+      {/* 因子清单（API 无官方分类字段 → 展示真实因子清单，不伪造分类） */}
+      <ResearchSection title="因子清单" desc="Alpha 引擎当前追踪的量化与事件因子（API 暂无官方分类字段）">
+        <div className="flex flex-wrap gap-2">
+          {COLS.map((c) => (
+            <ResearchChip key={c.key}>{c.label}</ResearchChip>
+          ))}
+          {EVENT_FACTORS.map((e) => (
+            <ResearchChip key={e} tone="amber">{e}</ResearchChip>
+          ))}
         </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-slate-50 z-10">
-              <tr className="text-left text-slate-500 border-b border-slate-200">
-                <th className="px-3 py-2 font-medium">股票代码</th>
-                <th className="px-3 py-2 font-medium">股票名称</th>
-                {COLS.map((c) => (
-                  <th
-                    key={c.key}
-                    onClick={() => toggleSort(c.key)}
-                    title={TERM_TIPS[c.label]}
-                    className="px-3 py-2 font-medium text-right cursor-pointer hover:text-slate-800 whitespace-nowrap"
-                  >
-                    {c.label}{sortKey === c.key ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                  </th>
-                ))}
-                <th className="px-3 py-2 font-medium text-center">事件</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={COLS.length + 3} className="px-3 py-10 text-center text-slate-400">加载中…</td></tr>
-              ) : rows.map((r) => (
-                <tr key={r.symbol} className="border-b border-slate-50 hover:bg-blue-50/30">
-                  <td className="px-3 py-1.5 font-mono">
-                    <Link href={`/stocks/${encodeURIComponent(r.symbol)}`} className="text-blue-600 hover:underline">{r.symbol}</Link>
-                  </td>
-                  <td className="px-3 py-1.5 text-slate-700 truncate max-w-[160px]">{r.nameZh ?? r.name}</td>
+        <div className="mt-3 text-[12px]" style={{ color: RM.faint }}>
+          暂无官方分类数据 · 因子有效性与重要度请见 <button onClick={goAnalytics} disabled={!goAnalytics} className="font-semibold disabled:opacity-40" style={{ color: RM.blue }}>因子分析</button>
+        </div>
+      </ResearchSection>
+
+      {/* 因子明细矩阵（每行 = 一只股票的因子值） */}
+      <ResearchSection
+        title="因子明细矩阵"
+        desc={`按股票展示底层因子值 · 共 ${rows.length.toLocaleString()} 行`}
+        right={
+          <div className="flex items-center gap-2">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="搜索代码 / 名称…"
+              className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none"
+              style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }}
+            />
+            <ResearchButton onClick={exportCsv} disabled={!rows.length}>导出CSV</ResearchButton>
+          </div>
+        }
+      >
+        {rows.length === 0 ? (
+          <ResearchEmptyState title="无匹配因子行" desc="尝试更换搜索关键词，或清空搜索框。" />
+        ) : (
+          <div style={{ maxHeight: "calc(100vh - 300px)", overflow: "auto" }}>
+            <ResearchTable minWidth={1180}>
+              <thead>
+                <tr>
+                  <RTh>股票代码</RTh>
+                  <RTh>股票名称</RTh>
                   {COLS.map((c) => (
-                    <td key={c.key} className="px-3 py-1.5 text-right tabular-nums text-slate-800">{c.fmt(r[c.key])}</td>
+                    <RTh key={c.key} align="right" sortable active={sortKey === c.key} dir={sortDir} onClick={() => toggleSort(c.key)}>
+                      {c.label}
+                    </RTh>
                   ))}
-                  <td className="px-3 py-1.5 text-center text-slate-400">
-                    {[r.buyback && "BB", r.dividendRaise && "DR", r.guidanceRaise && "GR", r.tdnetEvent && "TD"]
-                      .filter(Boolean).join(" ") || "—"}
-                  </td>
+                  <RTh align="center">事件</RTh>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {rows.slice(0, 600).map((r) => (
+                  <tr key={r.symbol} className={rowHoverClass}>
+                    <RTd mono>
+                      <Link href={`/stocks/${encodeURIComponent(r.symbol)}`} style={{ color: RM.blue }} className="hover:underline">
+                        {r.symbol}
+                      </Link>
+                    </RTd>
+                    <RTd color={RM.sub}>
+                      <span className="truncate inline-block max-w-[160px] align-bottom">{r.nameZh ?? r.name}</span>
+                    </RTd>
+                    {COLS.map((c) => (
+                      <RTd key={c.key} align="right" mono>{c.fmt(r[c.key])}</RTd>
+                    ))}
+                    <RTd align="center" color={RM.faint}>
+                      {[r.buyback && "BB", r.dividendRaise && "DR", r.guidanceRaise && "GR", r.tdnetEvent && "TD"]
+                        .filter(Boolean).join(" ") || "—"}
+                    </RTd>
+                  </tr>
+                ))}
+              </tbody>
+            </ResearchTable>
+            {rows.length > 600 && (
+              <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>
+                为保证渲染性能，仅展示前 600 行（共 {rows.length.toLocaleString()} 行）。完整数据请使用「导出CSV」。
+              </div>
+            )}
+          </div>
+        )}
+      </ResearchSection>
+    </ResearchPanelShell>
   );
 }

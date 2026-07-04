@@ -2,6 +2,28 @@
 
 ---
 
+## [17.68.0] - 2026-07-05 — P3-T19.1 AI研究中心·因子研究组深色重建（Alpha因子库 + 因子分析）🔬
+
+将 AI 研究中心【因子研究】组两个子面板从浅色/旧式开发页升级为统一**深色 Research Terminal** 风格。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Alpha 因子计算 / 因子分析逻辑 / 评分 / Shadow / Fusion / Learning / Strategy / Backtest / Prompt / 业务逻辑；两面板继续只读现有 `/api/alpha` 与 `/api/alpha/report`，**零假数据**。
+
+### 新增共享深色 UI 套件 `components/research/kit.tsx`（389 行）
+统一 M 调色板（bg #111315 / panel #15181D / card #171A1F / border #2A3038 / blue #0A84FF / green #34C759 / amber #FF9F0A / red #FF453A / muted #8B949E）。导出组件：`ResearchPanelShell / ResearchHero / ResearchStatusBadge / ResearchKpiGrid / ResearchKpiCard / ResearchSection / ResearchChip / ResearchTable + RTh/RTd / ResearchEmptyState / ResearchLoadingState / ResearchErrorState / ResearchInsightCard / ResearchButton / retColor`。两面板共享，**不复制 JSX**，单文件均 < 500 行。
+
+### Alpha因子库 `AlphaFactorsPanel.tsx`（291 行）
+Hero（Alpha因子库 · Factor Library · 已就绪/暂无数据状态 · 最近更新 · 「查看因子分析→」真实跳转）+ 6 KPI（因子总数 15 / 量化 11 / 事件 4 / 覆盖股票数 / 数据日期 / 研究状态，全为真实字段或结构派生）+ 因子清单 chips（**API 无官方分类字段 → 如实标注「暂无官方分类数据」，展示真实因子清单不伪造分类**）+ 因子明细矩阵（Bloomberg dark table，搜索 + 导出CSV + 排序 + 行 hover + 股票代码跳转，前 600 行渲染上限并明示）。空/错/载入三态齐备。
+
+### 因子分析 `AlphaAnalyticsPanel.tsx`（330 行）
+Hero（因子分析 · Factor Analysis · 「查看因子库→」真实跳转）+ 周期选择 7/30/90/180 + 6 KPI（分析因子数 / 平均重要度 / 稳定因子数 / 待观察因子 / 累计样本 / 最近分析，均为 API rating/sampleCount 字段的展示聚合）+ 研究洞察 3 卡（真实最佳/最弱因子 + 整体重要度）+ Top/Weak Factors 双列 + **相关性·稳定性（API 无该字段 → 如实「暂无相关性数据」）** + 完整因子分析表（IC/RankIC/胜率/超额/未来5-20日/前后20%/夏普/样本，正向绿负向红中性灰，低覆盖率 < 200 样本 Warning badge）。
+
+### 导航接线
+`app/admin/research/page.tsx`：两面板传入 `onNavigate={setTab}`（Hero CTA/空错态按钮真实切 tab，无 `href="#"`/空 onClick）；容器背景对 `factors`/`analytics` 两 tab 切深色 `#111315`（其余面板仍浅色）。ResearchNav 两级高亮（Tier1 因子研究 + Tier2 Alpha因子库/因子分析）正确。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 2.4s）；Health ✅ CRITICAL=0（生产 ❌0 ⚠️5，允许推荐）；/admin/research 200；/api/alpha + /api/alpha/report 200 真实数据；1440 完整可读无横向溢出、max-w-[1600] 居中；中文化（Alpha/Factor/IC/V3 等技术名保留）；无 API/DB/逻辑改动；V3 Freeze 不受影响。
+- 修改：新增 `components/research/kit.tsx`；重写 `components/research/AlphaFactorsPanel.tsx`、`components/research/AlphaAnalyticsPanel.tsx`；`app/admin/research/page.tsx`（onNavigate + 深色容器）。
+
+---
+
 ## [17.67.1] - 2026-07-05 — 指挥中心搜索去重 🔍
 
 修复用户反馈「指挥中心搜索重复」：首页（AI 指挥中心 `/`）同时出现两个搜索框——`CmdHeader` 顶部右上「搜索股票」全局 typeahead + `ScreenerHeader`「搜索代码/中文/日文/英文」列表过滤搜索。移除 `CmdHeader` 顶部重复的 `<SearchBox/>`（及 import），保留「AI选股」区的**功能性列表过滤搜索**（filters via `/api/screener?q=`）。顶部头部现仅剩 通知 + 账户 图标。纯 UI，未改任何逻辑/API；`SearchBox` 组件本身保留（未来可用）。

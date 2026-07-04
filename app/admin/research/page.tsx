@@ -128,9 +128,12 @@ export default function ResearchCenterPage() {
     if (q && CENTER_TABS.some((t) => t.key === q)) setTab(q);
   }, []);
 
+  // 因子研究组已升级为深色 Research Terminal 面板（自带 max-w/间距，容器切深色底）
+  const DARK_TABS = new Set(["factors", "analytics"]);
+
   const panels: Record<string, React.ReactNode> = {
-    factors: <AlphaFactorsPanel />,
-    analytics: <AlphaAnalyticsPanel />,
+    factors: <AlphaFactorsPanel onNavigate={setTab} />,
+    analytics: <AlphaAnalyticsPanel onNavigate={setTab} />,
     score: <AlphaScorePanel />,
     backtest: <AlphaBacktestPanel />,
     regime: <MarketRegimePanel />,
@@ -146,7 +149,7 @@ export default function ResearchCenterPage() {
       {tab === "overview" ? (
         <ResearchCenter onTab={setTab} />
       ) : (
-        <div style={{ background: "#F5F6F8", minHeight: "calc(100vh - 120px)" }}>
+        <div style={{ background: DARK_TABS.has(tab) ? "#111315" : "#F5F6F8", minHeight: "calc(100vh - 120px)" }}>
           <div className="mx-auto max-w-[1600px] px-5 lg:px-8 py-6">{panels[tab]}</div>
         </div>
       )}
