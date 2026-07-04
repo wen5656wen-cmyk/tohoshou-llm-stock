@@ -1,0 +1,138 @@
+name: Deploy (manual)
+
+# Manual-only production deploy. NOT triggered by push (production is under V3 Freeze;
+# deploys are human-initiated). Builds locally in CI, rsyncs artifacts to the server,
+# restarts tohoshou-web, and gates on the production health check.
+#
+# It NEVER: runs DB migrations, clears tables, recomputes scores, reruns recommendations,
+# changes env, executes cron scripts, or auto-restarts tohoshou-cron (guarded by input).
+# P4-T1 engineering governance (2026-07-05).
+
+on:
+  workflow_dispatch:
+    inputs:
+      restart_cron:
+        description: "Restart tohoshou-cron? (ONLY if scripts/cron-scheduler.ts changed; do NOT run 07:30–15:00 JST)"
+        type: boolean
+        default: false
+      install_deps:
+        description: "Run `npm ci` on the server? (only if package.json / lockfile changed)"
+        type: boolean
+        default: false
+      sync_prisma:
+        description: "Rsync prisma/ (schema). Migrations are NOT auto-applied."
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build → Rsync → Restart web → Health
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+      NEXT_TELEMETRY_DISABLED: "1"
+      REMOTE: "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
+      APP_PATH: "${{ secrets.REMOTE_APP_PATH }}"
+    steps:
+      - name: Checkout (need HEAD~1 for change detection)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (CI runner)
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      # ── Detect runtime/cron config changes for the guard ──────────────────────
+      - name: Detect config changes
+        id: changes
+        run: |
+          BASE=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          if [ -z "$BASE" ]; then CHANGED=""; else CHANGED=$(git diff --name-only HEAD~1 HEAD); fi
+          echo "$CHANGED" > /tmp/changed.txt
+          cron_changed=false
+          if echo "$CHANGED" | grep -qE 'scripts/cron-scheduler.ts|ecosystem.config.js|package.json'; then cron_changed=true; fi
+          echo "cron_changed=$cron_changed" >> "$GITHUB_OUTPUT"
+          if [ "$cron_changed" = "true" ]; then
+            echo "::warning title=Runtime/Cron config changed::Cron or runtime config changed (cron-scheduler.ts / ecosystem.config.js / package.json). Manual cron restart may be required — set restart_cron=true and deploy OUTSIDE 07:30–15:00 JST."
+          fi
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          PORT="${{ secrets.SSH_PORT }}"; PORT="${PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_OPTS=-i ~/.ssh/id_deploy -p ${PORT} -o StrictHostKeyChecking=accept-new" >> "$GITHUB_ENV"
+
+      - name: Rsync build artifacts + runtime code
+        run: |
+          SSHCMD="ssh $SSH_OPTS"
+          # .next is the built app; --delete-after keeps it in sync with the build output
+          rsync -az --delete-after -e "$SSHCMD" --exclude node_modules .next/ "$REMOTE:$APP_PATH/.next/"
+          rsync -az --delete-after -e "$SSHCMD" public/                      "$REMOTE:$APP_PATH/public/"
+          # lib/ + scripts/ are run directly by tohoshou-cron via tsx (NOT bundled in .next); no --delete
+          rsync -az -e "$SSHCMD" lib/     "$REMOTE:$APP_PATH/lib/"
+          rsync -az -e "$SSHCMD" scripts/ "$REMOTE:$APP_PATH/scripts/"
+          rsync -az -e "$SSHCMD" package.json package-lock.json ecosystem.config.js "$REMOTE:$APP_PATH/"
+
+      - name: Rsync prisma (schema only; migrations NOT applied)
+        if: ${{ inputs.sync_prisma }}
+        run: |
+          SSHCMD="ssh $SSH_OPTS"
+          rsync -az -e "$SSHCMD" prisma/schema.prisma "$REMOTE:$APP_PATH/prisma/"
+          echo "::notice::prisma/schema.prisma synced. Run migrations MANUALLY on the server if needed (this workflow never auto-migrates)."
+
+      - name: Install production deps on server (opt-in)
+        if: ${{ inputs.install_deps }}
+        run: |
+          ssh $SSH_OPTS "$REMOTE" "cd $APP_PATH && npm ci"
+
+      - name: Restart tohoshou-web
+        run: |
+          ssh $SSH_OPTS "$REMOTE" "cd $APP_PATH && pm2 restart tohoshou-web --update-env && pm2 save"
+
+      - name: Restart tohoshou-cron (guarded)
+        if: ${{ inputs.restart_cron }}
+        run: |
+          echo "restart_cron=true → restarting tohoshou-cron"
+          ssh $SSH_OPTS "$REMOTE" "cd $APP_PATH && pm2 restart tohoshou-cron --update-env && pm2 save"
+
+      - name: Cron restart reminder (when config changed but not restarted)
+        if: ${{ steps.changes.outputs.cron_changed == 'true' && !inputs.restart_cron }}
+        run: echo "::warning title=Cron NOT restarted::Runtime/cron config changed but restart_cron=false. tohoshou-cron keeps the OLD in-memory schedule until you re-run this workflow with restart_cron=true (outside 07:30–15:00 JST)."
+
+      - name: Verify PM2
+        run: ssh $SSH_OPTS "$REMOTE" "pm2 list"
+
+      - name: Production health check (gate on CRITICAL=0)
+        run: |
+          sleep 6
+          RESP=$(curl -s --max-time 20 https://aitohoshou.com/api/health/status || echo '{}')
+          CRIT=$(printf '%s' "$RESP" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log(j.criticalCount ?? j.critical ?? 'null')}catch{console.log('parse-error')}})")
+          WARN=$(printf '%s' "$RESP" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log(j.warningCount ?? j.warning ?? 'null')}catch{console.log('null')}})")
+          echo "health: criticalCount=$CRIT warningCount=$WARN"
+          if [ "$CRIT" = "0" ]; then
+            [ "$WARN" != "0" ] && echo "::warning::Health WARNING=$WARN (non-blocking)"
+            echo "✅ Deploy healthy (CRITICAL=0)"
+          else
+            echo "::error title=Health check failed::criticalCount=$CRIT (expected 0). Marking deploy failed."
+            exit 1
+          fi

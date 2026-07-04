@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "cron": "npx tsx scripts/cron-scheduler.ts",
     "sync-meta": "npx tsx scripts/sync-stock-meta.ts",
     "sync-prices-recent": "npx tsx scripts/sync-all-prices.ts",

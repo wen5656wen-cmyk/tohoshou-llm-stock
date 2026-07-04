@@ -1,0 +1,53 @@
+name: CI
+
+# Safety checks only — build + typecheck + lint.
+# Does NOT connect to the production database, does NOT run cron, does NOT deploy.
+# P4-T1 engineering governance (2026-07-05).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-check:
+    name: Build · Typecheck · Lint
+    runs-on: ubuntu-latest
+    # Dummy values so Next/Prisma can build without touching real infra.
+    # No production secrets are used in CI.
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+      NEXT_TELEMETRY_DISABLED: "1"
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate (client only, no DB connection)
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        # `lint` script exists (eslint). Non-blocking: report but do not fail the build
+        # on style-only findings during P4 bootstrap. Tighten to blocking later.
+        run: npm run lint || echo "::warning::Lint reported issues (non-blocking during P4 bootstrap)"
+
+      - name: Build (webpack, no DB / no cron / no deploy)
+        run: npm run build
