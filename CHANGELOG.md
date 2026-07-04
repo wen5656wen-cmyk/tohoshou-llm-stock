@@ -2,6 +2,31 @@
 
 ---
 
+## [17.75.0] - 2026-07-05 — P3-T25 策略中心（Strategy Center）UI V2 统一浅色 Dashboard ☀️
+
+将「策略中心」`/strategy` 从 Bloomberg 深色终端改为与首页 / AI选股 / 研究中心 / Mission Control 一致的 **Apple Dashboard 浅色**。**纯 UI**，未改任何 API / DB / Prisma / Cron / Strategy Logic / Adaptive / Shadow / Fusion / Learning / GPT / 业务逻辑（保留 overview fetch + StrategyTab/StabilizationTab/ReportsTab/ExplainDrawer + 表格/图表全部逻辑）。统一 token：bg `#F7F8FA`·card `#FFFFFF`·border `#E8EAED`·圆角·阴影 `0 8px 30px rgba(0,0,0,.05)`。
+
+### 双套深色系统一次性转浅色
+- **`SM` 内联调色板**（主渲染：Hero / 4 KPI MissionCard / 3 策略 StratPremiumCard / 资金分配 / SRing）深→浅；SRing 轨道 `#23272E`→`#E8EAED`、进度条底 `#0d0f12`→`#EEF0F4`；MissionCard + StratPremiumCard 加卡片阴影。
+- **Tailwind `slate-*` 深色类**（StrategyTab / StabilizationTab / ReportsTab / ExplainDrawer 及各 Section 表格）批量转浅色：`bg-slate-800/30→bg-white`、`border-slate-700/40→border-[#E8EAED]`、`text-slate-500→text-[#86868B]`、`text-slate-300→text-[#4B5563]`、`bg-slate-900→bg-white`、`ring-offset-[#0f172a]→ring-offset-white` 等（40+ token 有序替换，残留 slate token = 0）。
+
+### 布局（沿用现有结构，改浅色）
+Hero（Strategy Intelligence · 今日策略情报 · 3 策略状态 chip · 综合评分 Integrity 环）→ 4 KPI（Overall Score 蓝 / Execution 绿 / Stability 橙 / Learning 紫）→ 3 策略白卡（评分环 + 累计收益/胜率/Alpha + 持仓/推荐 + 状态 chip，选中彩色描边+光晕）→ 资金分配 Allocation Bar（浅色白卡）→ Tabs（日内/波段/长线/稳定化/报告）→ 策略推荐 Apple 白表（蓝色代码 + 查看原因）→ 最近成交/学习等级/回测统计白表（正绿负红）。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.3s）；Health ✅ CRITICAL=0；/strategy 200；响应式；无 API/DB/逻辑改动。**整个 TOHOSHOU AI 后台统一 Apple Dashboard，无黑白混搭。**
+- 修改：`app/strategy/page.tsx`。
+
+---
+
+## [17.74.0] - 2026-07-05 — P3-T24 PWA 桌面图标升级（股票 AI 专属 App Icon）🎨
+
+将「添加到桌面（PWA）」图标升级为股票 AI 专属图标（方案 A）。**仅图标 + Manifest**，未改 API/DB/UI/业务逻辑。**设计**：蓝色渐变 `#1677FF → #4DA3FF` + 白色上涨趋势线 + 三根 K 线 + AI 星光，极简 Apple/TradingView 风（无机器人/文字/复杂阴影）。**生成**（sharp 从矢量 SVG 光栅化）：`favicon.ico`（16/32/48 PNG-in-ICO）、`favicon-16x16.png`、`favicon-32x32.png`、`apple-touch-icon.png`(180)、`icon-192.png`、`icon-512.png`、`icon-1024.png`、`icon.svg`（矢量）。**新增** `public/manifest.webmanifest`（name/short_name/icons 192·512 `any maskable`/`theme_color #1677FF`/`background_color #F7F8FA`/display standalone）；`app/layout.tsx` metadata 接线（icons + manifest + apple-web-app）+ `viewport.themeColor`；覆盖 Next 约定 `app/favicon.ico`。
+- 验收：Build ✅；所有图标/manifest URL 200（正确 MIME）；HTML head 含 manifest + icon + apple-touch + theme-color；Chrome/Safari/Edge/iOS/Android/Mac Dock 添加到主屏显示新图标。
+- 修改：`public/*`（8 图标 + manifest）、`app/favicon.ico`、`app/layout.tsx`。
+
+---
+
 ## [17.73.0] - 2026-07-05 — P3-T23 Mission Control V2 + Research Center 统一浅色重构（Apple Dashboard）☀️
 
 取消 Research Center 与 Mission Control 的 Bloomberg Terminal 深色主题，整个后台统一为 **Apple / Stripe / Linear / OpenAI Platform 浅色 Dashboard**，与首页 / AI选股 / 策略中心同一设计语言。**纯 UI 重构**，未改任何 API / DB / Prisma / Cron / Adaptive / Shadow / Fusion / Learning / Strategy / GPT / Backtest / Portfolio / Version / 业务逻辑 / 算法；所有数据继续只读现有 API。统一设计语言：背景 `#F7F8FA` · 卡片 `#FFFFFF` · 边框 `#E7EAF0` · 圆角 22 · 阴影 `0 8px 30px rgba(0,0,0,.05)` · 主色蓝/绿/橙/紫。

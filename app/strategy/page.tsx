@@ -148,8 +148,8 @@ function stratShort(s: StratType, t: (k: MessageKey) => string): string {
 }
 
 function returnColor(v: number | null): string {
-  if (v == null) return "text-slate-400";
-  return v > 0 ? "text-emerald-400" : v < 0 ? "text-red-400" : "text-slate-400";
+  if (v == null) return "text-[#6E6E73]";
+  return v > 0 ? "text-emerald-400" : v < 0 ? "text-red-400" : "text-[#6E6E73]";
 }
 
 function fmtPct(v: number | null, dec = 2): string {
@@ -165,13 +165,13 @@ function fmtScore(v: number | null): string {
 // ── Grade badge ───────────────────────────────────────────────────────────────
 
 function GradeBadge({ grade }: { grade: string | null }) {
-  if (!grade) return <span className="text-slate-500 text-xs">—</span>;
+  if (!grade) return <span className="text-[#86868B] text-xs">—</span>;
   const color =
     grade === "A+" ? "bg-emerald-500/20 text-emerald-300 border-emerald-600/40" :
     grade === "A"  ? "bg-green-500/20   text-green-300   border-green-600/40"   :
     grade === "B"  ? "bg-yellow-500/20  text-yellow-300  border-yellow-600/40"  :
     grade === "C"  ? "bg-orange-500/20  text-orange-300  border-orange-600/40"  :
-                    "bg-slate-700/40   text-slate-400   border-slate-600/40";
+                    "bg-[#EEF0F4]   text-[#6E6E73]   border-[#E8EAED]";
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${color}`}>
       {grade}
@@ -182,11 +182,11 @@ function GradeBadge({ grade }: { grade: string | null }) {
 // ── Recommendation status badge ───────────────────────────────────────────────
 
 function RecBadge({ rec, t }: { rec: string | null; t: (k: MessageKey) => string }) {
-  if (!rec) return <span className="text-slate-500 text-xs">—</span>;
+  if (!rec) return <span className="text-[#86868B] text-xs">—</span>;
   const cfg =
     rec === "READY"     ? { cls: "bg-emerald-500/20 text-emerald-300 border-emerald-600/40", label: t("strategy.status.ready")     } :
     rec === "PARTIAL"   ? { cls: "bg-yellow-500/20  text-yellow-300  border-yellow-600/40",  label: t("strategy.status.partial")   } :
-                          { cls: "bg-slate-600/30   text-slate-400   border-slate-600/40",   label: t("strategy.status.not_ready") };
+                          { cls: "bg-[#EEF0F4]   text-[#6E6E73]   border-[#E8EAED]",   label: t("strategy.status.not_ready") };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${cfg.cls}`}>
       {cfg.label}
@@ -197,7 +197,7 @@ function RecBadge({ rec, t }: { rec: string | null; t: (k: MessageKey) => string
 // ── Fillrate maturity label ───────────────────────────────────────────────────
 
 function maturity(fillRate: number | null): { labelKey: MessageKey; cls: string } {
-  if (fillRate == null || fillRate < 0.30) return { labelKey: "strategy.maturity.insufficient", cls: "text-slate-500" };
+  if (fillRate == null || fillRate < 0.30) return { labelKey: "strategy.maturity.insufficient", cls: "text-[#86868B]" };
   if (fillRate < 0.50) return { labelKey: "strategy.maturity.limited",        cls: "text-orange-400" };
   if (fillRate < 0.80) return { labelKey: "strategy.status.partial",          cls: "text-yellow-400" };
   return                       { labelKey: "strategy.status.ready",            cls: "text-emerald-400" };
@@ -238,7 +238,7 @@ function OverviewCard({
     <button
       onClick={onClick}
       className={`w-full text-left rounded-xl border transition-all p-4 ${c.bg} ${c.border} ${
-        active ? "ring-2 ring-offset-2 ring-offset-[#0f172a] ring-opacity-60 " + (
+        active ? "ring-2 ring-offset-2 ring-offset-white ring-opacity-60 " + (
           strategyType === "DAY_TRADE"   ? "ring-amber-500"  :
           strategyType === "SWING_TRADE" ? "ring-blue-500"   : "ring-emerald-500"
         ) : "hover:brightness-110"
@@ -257,26 +257,26 @@ function OverviewCard({
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <div className="text-slate-500 mb-0.5">{t("strategy.capital.return")}</div>
+          <div className="text-[#86868B] mb-0.5">{t("strategy.capital.return")}</div>
           <div className={`font-semibold tabular-nums ${returnColor(snap?.cumulativeReturnPct ?? null)}`}>
             {fmtPct(snap?.cumulativeReturnPct ?? null)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-0.5">{t("strategy.avg_alpha")}</div>
+          <div className="text-[#86868B] mb-0.5">{t("strategy.avg_alpha")}</div>
           <div className={`font-semibold tabular-nums ${returnColor(snap?.alpha ?? null)}`}>
             {fmtPct(snap?.alpha ?? null)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-0.5">{t("strategy.win_rate")}</div>
-          <div className="text-slate-200 font-semibold tabular-nums">
+          <div className="text-[#86868B] mb-0.5">{t("strategy.win_rate")}</div>
+          <div className="text-[#1D1D1F] font-semibold tabular-nums">
             {snap?.winRate != null ? `${(snap.winRate * 100).toFixed(0)}%` : "—"}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-0.5">{t("strategy.learning.integrity")}</div>
-          <div className={`font-semibold tabular-nums ${lrn?.integrityScore != null ? "text-slate-200" : "text-slate-500"}`}>
+          <div className="text-[#86868B] mb-0.5">{t("strategy.learning.integrity")}</div>
+          <div className={`font-semibold tabular-nums ${lrn?.integrityScore != null ? "text-[#1D1D1F]" : "text-[#86868B]"}`}>
             {fmtScore(lrn?.integrityScore ?? null)}
           </div>
         </div>
@@ -284,15 +284,15 @@ function OverviewCard({
 
       {/* Closed trades — prominent display */}
       <div className="mt-2.5 mb-1">
-        <div className="text-[10px] text-slate-500 mb-0.5">{t("strategy.closed_count")}</div>
-        <div className="text-sm font-semibold tabular-nums text-slate-200">{data.closedTrades}</div>
+        <div className="text-[10px] text-[#86868B] mb-0.5">{t("strategy.closed_count")}</div>
+        <div className="text-sm font-semibold tabular-nums text-[#1D1D1F]">{data.closedTrades}</div>
       </div>
 
-      <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
-        <span>{t("strategy.open_count")} <span className="text-slate-300">{data.openPositions}</span></span>
-        <span>{t("strategy.sample_count")} <span className="text-slate-300">{data.closedTrades}</span></span>
+      <div className="mt-1 flex items-center gap-3 text-[10px] text-[#86868B]">
+        <span>{t("strategy.open_count")} <span className="text-[#4B5563]">{data.openPositions}</span></span>
+        <span>{t("strategy.sample_count")} <span className="text-[#4B5563]">{data.closedTrades}</span></span>
         {data.recommendations && (
-          <span>Top10 <span className="text-slate-300">{data.recommendations.top10Count}</span></span>
+          <span>Top10 <span className="text-[#4B5563]">{data.recommendations.top10Count}</span></span>
         )}
       </div>
     </button>
@@ -304,7 +304,7 @@ function OverviewCard({
 function LearningSection({ learning, t }: { learning: LearningReport | null; t: (k: MessageKey) => string }) {
   if (!learning) {
     return (
-      <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 p-4 text-slate-500 text-sm text-center">
+      <div className="bg-white rounded-lg border border-[#E8EAED] p-4 text-[#86868B] text-sm text-center">
         {t("strategy.collecting")}
       </div>
     );
@@ -318,9 +318,9 @@ function LearningSection({ learning, t }: { learning: LearningReport | null; t: 
   ];
 
   return (
-    <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 p-4">
+    <div className="bg-white rounded-lg border border-[#E8EAED] p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.learning.grade")}</h3>
+        <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.learning.grade")}</h3>
         <div className="flex items-center gap-2">
           <GradeBadge grade={learning.grade} />
           <RecBadge rec={learning.recommendation} t={t} />
@@ -330,9 +330,9 @@ function LearningSection({ learning, t }: { learning: LearningReport | null; t: 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         {scores.map(({ key, val }) => (
           <div key={key} className="text-center">
-            <div className="text-[10px] text-slate-500 mb-1">{key}</div>
-            <div className="text-lg font-bold text-slate-100 tabular-nums">{fmtScore(val)}</div>
-            <div className="h-1 bg-slate-700 rounded-full mt-1 overflow-hidden">
+            <div className="text-[10px] text-[#86868B] mb-1">{key}</div>
+            <div className="text-lg font-bold text-[#1D1D1F] tabular-nums">{fmtScore(val)}</div>
+            <div className="h-1 bg-[#EEF0F4] rounded-full mt-1 overflow-hidden">
               <div
                 className="h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${Math.min(100, val ?? 0)}%` }}
@@ -342,18 +342,18 @@ function LearningSection({ learning, t }: { learning: LearningReport | null; t: 
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 text-xs text-slate-400 border-t border-slate-700/40 pt-3">
-        <div>{t("strategy.win_rate")} <span className="text-slate-200 font-medium tabular-nums">
+      <div className="grid grid-cols-3 gap-3 text-xs text-[#6E6E73] border-t border-[#E8EAED] pt-3">
+        <div>{t("strategy.win_rate")} <span className="text-[#1D1D1F] font-medium tabular-nums">
           {learning.winRate != null ? `${(learning.winRate * 100).toFixed(0)}%` : "—"}</span>
         </div>
         <div>{t("strategy.avg_alpha")} <span className={`font-medium tabular-nums ${returnColor(learning.alpha)}`}>
           {fmtPct(learning.alpha)}</span>
         </div>
-        <div>n= <span className="text-slate-200 font-medium tabular-nums">{learning.sampleCount}</span></div>
+        <div>n= <span className="text-[#1D1D1F] font-medium tabular-nums">{learning.sampleCount}</span></div>
       </div>
 
       {learning.summary && (
-        <div className="mt-2 text-[10px] text-slate-500 font-mono break-all">{learning.summary}</div>
+        <div className="mt-2 text-[10px] text-[#86868B] font-mono break-all">{learning.summary}</div>
       )}
     </div>
   );
@@ -364,7 +364,7 @@ function LearningSection({ learning, t }: { learning: LearningReport | null; t: 
 function BacktestSection({ summaries, t }: { summaries: BacktestSummary[]; t: (k: MessageKey) => string }) {
   if (summaries.length === 0) {
     return (
-      <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 p-4 text-slate-500 text-sm text-center">
+      <div className="bg-white rounded-lg border border-[#E8EAED] p-4 text-[#86868B] text-sm text-center">
         {t("strategy.collecting")}
       </div>
     );
@@ -374,14 +374,14 @@ function BacktestSection({ summaries, t }: { summaries: BacktestSummary[]; t: (k
   const sorted = [...summaries].sort((a, b) => parseInt(a.horizon) - parseInt(b.horizon));
 
   return (
-    <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700/40">
-        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.backtest.section")}</h3>
+    <div className="bg-white rounded-lg border border-[#E8EAED] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#E8EAED]">
+        <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.backtest.section")}</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-slate-700/30 text-slate-500">
+            <tr className="border-b border-[#EEF0F4] text-[#86868B]">
               <th className="text-left px-4 py-2">期間</th>
               <th className="text-right px-3 py-2">{t("strategy.win_rate")}</th>
               <th className="text-right px-3 py-2">{t("strategy.avg_return")}</th>
@@ -395,9 +395,9 @@ function BacktestSection({ summaries, t }: { summaries: BacktestSummary[]; t: (k
             {sorted.map((row) => {
               const m = maturity(row.fillRate);
               return (
-                <tr key={row.horizon} className="border-b border-slate-700/20 hover:bg-slate-700/10">
-                  <td className="px-4 py-2.5 font-medium text-slate-300">{row.horizon}</td>
-                  <td className={`px-3 py-2.5 text-right tabular-nums ${row.winRate != null ? returnColor((row.winRate - 0.5) * 100) : "text-slate-500"}`}>
+                <tr key={row.horizon} className="border-b border-[#EEF0F4] hover:bg-[#F4F5F7]">
+                  <td className="px-4 py-2.5 font-medium text-[#4B5563]">{row.horizon}</td>
+                  <td className={`px-3 py-2.5 text-right tabular-nums ${row.winRate != null ? returnColor((row.winRate - 0.5) * 100) : "text-[#86868B]"}`}>
                     {row.winRate != null ? `${(row.winRate * 100).toFixed(0)}%` : "—"}
                   </td>
                   <td className={`px-3 py-2.5 text-right tabular-nums ${returnColor(row.avgReturnPct)}`}>
@@ -406,10 +406,10 @@ function BacktestSection({ summaries, t }: { summaries: BacktestSummary[]; t: (k
                   <td className={`px-3 py-2.5 text-right tabular-nums ${returnColor(row.alpha)}`}>
                     {fmtPct(row.alpha)}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#6E6E73]">
                     {row.maxDrawdown != null ? `${row.maxDrawdown.toFixed(1)}%` : "—"}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{row.filledCount}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#4B5563]">{row.filledCount}</td>
                   <td className={`px-4 py-2.5 text-right tabular-nums ${m.cls}`}>{t(m.labelKey)}</td>
                 </tr>
               );
@@ -425,18 +425,18 @@ function BacktestSection({ summaries, t }: { summaries: BacktestSummary[]; t: (k
 
 function PositionsSection({ positions, t }: { positions: OpenPosition[]; t: (k: MessageKey) => string }) {
   return (
-    <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700/40 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.position.open_title")}</h3>
-        <span className="text-xs text-slate-500">{positions.length}</span>
+    <div className="bg-white rounded-lg border border-[#E8EAED] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#E8EAED] flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.position.open_title")}</h3>
+        <span className="text-xs text-[#86868B]">{positions.length}</span>
       </div>
       {positions.length === 0 ? (
-        <div className="p-6 text-center text-slate-500 text-sm">{t("strategy.position.none")}</div>
+        <div className="p-6 text-center text-[#86868B] text-sm">{t("strategy.position.none")}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-700/30 text-slate-500">
+              <tr className="border-b border-[#EEF0F4] text-[#86868B]">
                 <th className="text-left px-4 py-2">銘柄</th>
                 <th className="text-right px-3 py-2">買値</th>
                 <th className="text-right px-3 py-2">現在値</th>
@@ -447,16 +447,16 @@ function PositionsSection({ positions, t }: { positions: OpenPosition[]; t: (k: 
             </thead>
             <tbody>
               {positions.map((p) => (
-                <tr key={p.id} className="border-b border-slate-700/20 hover:bg-slate-700/10">
+                <tr key={p.id} className="border-b border-[#EEF0F4] hover:bg-[#F4F5F7]">
                   <td className="px-4 py-2.5">
                     <Link href={`/stocks/${encodeURIComponent(p.symbol)}`} className="text-blue-400 hover:text-blue-300 font-medium">
                       {p.symbol}
                     </Link>
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#4B5563]">
                     {p.entryPrice != null ? `¥${Math.round(p.entryPrice).toLocaleString("ja-JP")}` : "—"}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#4B5563]">
                     {p.currentPrice != null ? `¥${Math.round(p.currentPrice).toLocaleString("ja-JP")}` : "—"}
                   </td>
                   <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${returnColor(p.returnPct)}`}>
@@ -465,7 +465,7 @@ function PositionsSection({ positions, t }: { positions: OpenPosition[]; t: (k: 
                   <td className={`px-3 py-2.5 text-right tabular-nums ${returnColor(p.alpha)}`}>
                     {fmtPct(p.alpha)}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
+                  <td className="px-4 py-2.5 text-right tabular-nums text-[#6E6E73]">
                     {p.holdingDays != null ? `${p.holdingDays}${t("strategy.days_unit")}` : "—"}
                   </td>
                 </tr>
@@ -482,18 +482,18 @@ function PositionsSection({ positions, t }: { positions: OpenPosition[]; t: (k: 
 
 function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey) => string }) {
   return (
-    <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700/40 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.trade.recent")}</h3>
-        <span className="text-xs text-slate-500">{trades.length}</span>
+    <div className="bg-white rounded-lg border border-[#E8EAED] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#E8EAED] flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.trade.recent")}</h3>
+        <span className="text-xs text-[#86868B]">{trades.length}</span>
       </div>
       {trades.length === 0 ? (
-        <div className="p-6 text-center text-slate-500 text-sm">{t("strategy.trade.none")}</div>
+        <div className="p-6 text-center text-[#86868B] text-sm">{t("strategy.trade.none")}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-700/30 text-slate-500">
+              <tr className="border-b border-[#EEF0F4] text-[#86868B]">
                 <th className="text-left px-4 py-2">{t("strategy.rec.date")}</th>
                 <th className="text-left px-3 py-2">銘柄</th>
                 <th className="text-right px-3 py-2">{t("strategy.trade.buy_price")}</th>
@@ -506,8 +506,8 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
             </thead>
             <tbody>
               {trades.map((tr) => (
-                <tr key={tr.id} className="border-b border-slate-700/20 hover:bg-slate-700/10">
-                  <td className="px-4 py-2.5 tabular-nums text-slate-400">
+                <tr key={tr.id} className="border-b border-[#EEF0F4] hover:bg-[#F4F5F7]">
+                  <td className="px-4 py-2.5 tabular-nums text-[#6E6E73]">
                     {tr.tradeDate ? tr.tradeDate.slice(0, 10) : "—"}
                   </td>
                   <td className="px-3 py-2.5">
@@ -518,10 +518,10 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
                       </Link>
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#4B5563]">
                     {tr.entryPrice != null ? `¥${Math.round(tr.entryPrice).toLocaleString("ja-JP")}` : "—"}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#4B5563]">
                     {tr.exitPrice != null ? `¥${Math.round(tr.exitPrice).toLocaleString("ja-JP")}` : "—"}
                   </td>
                   <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${returnColor(tr.returnPct)}`}>
@@ -530,10 +530,10 @@ function TradesSection({ trades, t }: { trades: RecentTrade[]; t: (k: MessageKey
                   <td className={`px-3 py-2.5 text-right tabular-nums ${returnColor(tr.alpha)}`}>
                     {fmtPct(tr.alpha)}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#6E6E73]">
                     {tr.holdingDays != null ? `${tr.holdingDays}${t("strategy.days_unit")}` : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-slate-400">
+                  <td className="px-4 py-2.5 text-right text-[#6E6E73]">
                     {tr.exitReason && EXIT_REASON_KEYS[tr.exitReason]
                       ? t(EXIT_REASON_KEYS[tr.exitReason])
                       : (tr.exitReason ?? "—")}
@@ -577,21 +577,21 @@ function RecommendationSection({
         ];
 
   return (
-    <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700/40 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-300">{t("strategy.rec.title")}</h3>
-        <div className="flex items-center gap-3 text-[10px] text-slate-500">
+    <div className="bg-white rounded-lg border border-[#E8EAED] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#E8EAED] flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.rec.title")}</h3>
+        <div className="flex items-center gap-3 text-[10px] text-[#86868B]">
           {recs.tradeDate && <span>{recs.tradeDate.slice(0, 10)}</span>}
-          <span>{t("strategy.rec.top100")} <span className="text-slate-300">{recs.top100Count}</span></span>
+          <span>{t("strategy.rec.top100")} <span className="text-[#4B5563]">{recs.top100Count}</span></span>
         </div>
       </div>
       {recs.top10.length === 0 ? (
-        <div className="p-6 text-center text-slate-500 text-sm">{t("strategy.collecting")}</div>
+        <div className="p-6 text-center text-[#86868B] text-sm">{t("strategy.collecting")}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-700/30 text-slate-500">
+              <tr className="border-b border-[#EEF0F4] text-[#86868B]">
                 <th className="text-left px-4 py-2">#</th>
                 <th className="text-left px-3 py-2">銘柄</th>
                 <th className="text-right px-3 py-2">{t("strategy.rec.ai_score")}</th>
@@ -603,25 +603,25 @@ function RecommendationSection({
             </thead>
             <tbody>
               {recs.top10.map((rec) => (
-                <tr key={rec.symbol} className="border-b border-slate-700/20 hover:bg-slate-700/10">
-                  <td className="px-4 py-2.5 text-slate-500 tabular-nums">{rec.rank}</td>
+                <tr key={rec.symbol} className="border-b border-[#EEF0F4] hover:bg-[#F4F5F7]">
+                  <td className="px-4 py-2.5 text-[#86868B] tabular-nums">{rec.rank}</td>
                   <td className="px-3 py-2.5">
                     <Link href={`/stocks/${encodeURIComponent(rec.symbol)}`} className="text-blue-400 hover:text-blue-300 font-semibold">
                       {rec.symbol}
                     </Link>
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[#1D1D1F]">
                     {rec.aiScore != null ? rec.aiScore.toFixed(1) : "—"}
                   </td>
                   {extraCols.map((c) => (
-                    <td key={c.label} className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                    <td key={c.label} className="px-3 py-2.5 text-right tabular-nums text-[#4B5563]">
                       {c.val(rec) != null ? (c.val(rec) as number).toFixed(1) : "—"}
                     </td>
                   ))}
                   <td className="px-3 py-2.5 text-right">
                     <button
                       onClick={() => onExplain(rec.symbol)}
-                      className="text-[11px] px-2 py-1 rounded-md bg-slate-700/50 hover:bg-slate-600/60 text-slate-200 border border-slate-600/40 transition-colors"
+                      className="text-[11px] px-2 py-1 rounded-md bg-[#EEF0F4] hover:bg-[#E8EAED] text-[#1D1D1F] border border-[#E8EAED] transition-colors"
                     >
                       {t("explain.view_reason")}
                     </button>
@@ -653,41 +653,41 @@ function CapitalSection({
   const winRate   = snapshot?.winRate ?? null;
 
   return (
-    <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 p-4">
+    <div className="bg-white rounded-lg border border-[#E8EAED] p-4">
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-xs">
         <div>
-          <div className="text-slate-500 mb-1">{t("strategy.capital.cash")}</div>
-          <div className="text-slate-200 font-semibold tabular-nums">
+          <div className="text-[#86868B] mb-1">{t("strategy.capital.cash")}</div>
+          <div className="text-[#1D1D1F] font-semibold tabular-nums">
             {cash != null ? `¥${Math.round(cash).toLocaleString("ja-JP")}` : "—"}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-1">{t("strategy.capital.invested")}</div>
-          <div className="text-slate-200 font-semibold tabular-nums">
+          <div className="text-[#86868B] mb-1">{t("strategy.capital.invested")}</div>
+          <div className="text-[#1D1D1F] font-semibold tabular-nums">
             {invested != null ? `¥${Math.round(invested).toLocaleString("ja-JP")}` : "—"}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-1">{t("strategy.capital.total")}</div>
-          <div className="text-slate-200 font-semibold tabular-nums">
+          <div className="text-[#86868B] mb-1">{t("strategy.capital.total")}</div>
+          <div className="text-[#1D1D1F] font-semibold tabular-nums">
             {total != null ? `¥${Math.round(total).toLocaleString("ja-JP")}` : "—"}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-1">{t("strategy.capital.return")}</div>
+          <div className="text-[#86868B] mb-1">{t("strategy.capital.return")}</div>
           <div className={`font-semibold tabular-nums ${returnColor(cumReturn)}`}>
             {fmtPct(cumReturn)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-1">{t("strategy.avg_alpha")}</div>
+          <div className="text-[#86868B] mb-1">{t("strategy.avg_alpha")}</div>
           <div className={`font-semibold tabular-nums ${returnColor(alpha)}`}>
             {fmtPct(alpha)}
           </div>
         </div>
         <div>
-          <div className="text-slate-500 mb-1">{t("strategy.win_rate")}</div>
-          <div className="text-slate-200 font-semibold tabular-nums">
+          <div className="text-[#86868B] mb-1">{t("strategy.win_rate")}</div>
+          <div className="text-[#1D1D1F] font-semibold tabular-nums">
             {winRate != null ? `${(winRate * 100).toFixed(0)}%` : "—"}
           </div>
         </div>
@@ -821,7 +821,7 @@ function ExplainDrawer({
     data?.conclusion === "STRONG" ? "bg-emerald-900/50 text-emerald-300 border-emerald-700/40"
     : data?.conclusion === "RECOMMEND" ? "bg-blue-900/50 text-blue-300 border-blue-700/40"
     : data?.conclusion === "WATCH" ? "bg-amber-900/50 text-amber-300 border-amber-700/40"
-    : "bg-slate-700/50 text-slate-300 border-slate-600/40";
+    : "bg-[#EEF0F4] text-[#4B5563] border-[#E8EAED]";
 
   // Score bars
   const bd = data?.scoreBreakdown ?? null;
@@ -835,24 +835,24 @@ function ExplainDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md h-full bg-slate-900 border-l border-slate-700/60 shadow-2xl overflow-y-auto">
+      <div className="relative w-full max-w-md h-full bg-white border-l border-[#E8EAED] shadow-2xl overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-slate-900 border-b border-slate-700/50 px-5 py-4 flex items-start justify-between z-10">
+        <div className="sticky top-0 bg-white border-b border-[#E8EAED] px-5 py-4 flex items-start justify-between z-10">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-slate-100">{symbol}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">
+              <span className="text-lg font-bold text-[#1D1D1F]">{symbol}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EEF0F4] text-[#4B5563]">
                 {stratLabel(strategyType, t)}
               </span>
             </div>
-            {displayName && <div className="text-xs text-slate-400 mt-0.5">{displayName}</div>}
+            {displayName && <div className="text-xs text-[#6E6E73] mt-0.5">{displayName}</div>}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-xl leading-none px-1">×</button>
+          <button onClick={onClose} className="text-[#6E6E73] hover:text-[#1D1D1F] text-xl leading-none px-1">×</button>
         </div>
 
         <div className="px-5 py-4 space-y-5">
           {loading && (
-            <div className="py-10 text-center text-slate-500 text-sm">{t("explain.loading")}</div>
+            <div className="py-10 text-center text-[#86868B] text-sm">{t("explain.loading")}</div>
           )}
           {error && (
             <div className="py-10 text-center text-red-400 text-sm">{t("explain.load_error")}</div>
@@ -861,36 +861,36 @@ function ExplainDrawer({
             <>
               {/* Conclusion + status */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] text-slate-500">{t("explain.conclusion_label")}</span>
+                <span className="text-[10px] text-[#86868B]">{t("explain.conclusion_label")}</span>
                 <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${conclusionColor}`}>
                   {t(`explain.conclusion.${data.conclusion}` as MessageKey)}
                 </span>
-                <span className="text-[10px] text-slate-500 ml-2">{t("explain.status_label")}</span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700/50">
+                <span className="text-[10px] text-[#86868B] ml-2">{t("explain.status_label")}</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-[#F4F5F7] text-[#4B5563] border border-[#E8EAED]">
                   {t(`explain.status.${data.status}` as MessageKey)}
                 </span>
               </div>
 
               {/* Summary */}
-              <p className="text-sm text-slate-300 leading-relaxed">{summary}</p>
+              <p className="text-sm text-[#4B5563] leading-relaxed">{summary}</p>
 
               {/* Not-Top10 metrics: rank / cutoff / gap */}
               {data.explanationType === "NOT_TOP10" && (
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="text-[10px] text-slate-500">{t("explain.rank")}</div>
-                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
-                      {data.rank ?? "—"}<span className="text-[10px] text-slate-500"> / {data.totalCandidates}</span>
+                  <div className="bg-[#F4F5F7] rounded-lg p-2">
+                    <div className="text-[10px] text-[#86868B]">{t("explain.rank")}</div>
+                    <div className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
+                      {data.rank ?? "—"}<span className="text-[10px] text-[#86868B]"> / {data.totalCandidates}</span>
                     </div>
                   </div>
-                  <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="text-[10px] text-slate-500">{t("explain.cutoff")}</div>
-                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                  <div className="bg-[#F4F5F7] rounded-lg p-2">
+                    <div className="text-[10px] text-[#86868B]">{t("explain.cutoff")}</div>
+                    <div className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
                       {data.top10CutoffScore != null ? data.top10CutoffScore.toFixed(1) : "—"}
                     </div>
                   </div>
-                  <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="text-[10px] text-slate-500">{t("explain.score_gap")}</div>
+                  <div className="bg-[#F4F5F7] rounded-lg p-2">
+                    <div className="text-[10px] text-[#86868B]">{t("explain.score_gap")}</div>
                     <div className="text-sm font-semibold text-amber-400 tabular-nums">
                       {data.scoreGap != null ? `-${data.scoreGap.toFixed(1)}` : "—"}
                     </div>
@@ -901,19 +901,19 @@ function ExplainDrawer({
               {/* Not-Candidate metrics: candidate pool / overall score / rating */}
               {isNC && (
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="text-[10px] text-slate-500">{t("explain.candidate_pool")}</div>
-                    <div className="text-sm font-semibold text-slate-200 tabular-nums">{data.totalCandidates}</div>
+                  <div className="bg-[#F4F5F7] rounded-lg p-2">
+                    <div className="text-[10px] text-[#86868B]">{t("explain.candidate_pool")}</div>
+                    <div className="text-sm font-semibold text-[#1D1D1F] tabular-nums">{data.totalCandidates}</div>
                   </div>
-                  <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="text-[10px] text-slate-500">{t("explain.overall_score")}</div>
-                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                  <div className="bg-[#F4F5F7] rounded-lg p-2">
+                    <div className="text-[10px] text-[#86868B]">{t("explain.overall_score")}</div>
+                    <div className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
                       {data.adaptiveScore != null ? data.adaptiveScore.toFixed(1) : "—"}
                     </div>
                   </div>
-                  <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="text-[10px] text-slate-500">{t("explain.cutoff")}</div>
-                    <div className="text-sm font-semibold text-slate-200 tabular-nums">
+                  <div className="bg-[#F4F5F7] rounded-lg p-2">
+                    <div className="text-[10px] text-[#86868B]">{t("explain.cutoff")}</div>
+                    <div className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
                       {data.top10CutoffScore != null ? data.top10CutoffScore.toFixed(1) : "—"}
                     </div>
                   </div>
@@ -924,16 +924,16 @@ function ExplainDrawer({
               {bd && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t("explain.breakdown")}</h4>
+                    <h4 className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider">{t("explain.breakdown")}</h4>
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-500 mr-1">{t("explain.final_score")}</span>
-                      <span className="text-base font-bold text-slate-100 tabular-nums">
+                      <span className="text-[10px] text-[#86868B] mr-1">{t("explain.final_score")}</span>
+                      <span className="text-base font-bold text-[#1D1D1F] tabular-nums">
                         {bd.finalScore != null ? bd.finalScore.toFixed(1) : "—"}
                       </span>
                     </div>
                   </div>
                   {dims.length === 0 ? (
-                    <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
+                    <div className="text-xs text-[#86868B]">{t("explain.no_data")}</div>
                   ) : (
                     <div className="space-y-1.5">
                       {dims.map((d) => {
@@ -942,16 +942,16 @@ function ExplainDrawer({
                         const neg = v < 0;
                         return (
                           <div key={d.code} className="flex items-center gap-2">
-                            <span className="w-14 text-[11px] text-slate-400 shrink-0">
+                            <span className="w-14 text-[11px] text-[#6E6E73] shrink-0">
                               {t(`explain.dim.${d.code}` as MessageKey)}
                             </span>
-                            <div className="flex-1 h-3 bg-slate-800 rounded overflow-hidden">
+                            <div className="flex-1 h-3 bg-[#F4F5F7] rounded overflow-hidden">
                               <div
                                 className={`h-full ${neg ? "bg-red-500/70" : "bg-blue-500/70"}`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
-                            <span className={`w-10 text-right text-[11px] tabular-nums ${neg ? "text-red-400" : "text-slate-300"}`}>
+                            <span className={`w-10 text-right text-[11px] tabular-nums ${neg ? "text-red-400" : "text-[#4B5563]"}`}>
                               {v.toFixed(0)}
                             </span>
                           </div>
@@ -965,15 +965,15 @@ function ExplainDrawer({
               {/* Reasons — only for stocks in the recommendation pool */}
               {data.found && (
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.reasons")}</h4>
+                  <h4 className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider mb-2">{t("explain.reasons")}</h4>
                   {data.reasons.length === 0 ? (
-                    <div className="text-xs text-slate-500">{t("explain.no_data")}</div>
+                    <div className="text-xs text-[#86868B]">{t("explain.no_data")}</div>
                   ) : (
                     <ul className="space-y-1">
                       {data.reasons.map((r) => (
                         <li key={r.code} className="flex items-center justify-between text-xs">
-                          <span className="text-slate-300">· {t(`explain.reason.${r.code}` as MessageKey)}</span>
-                          <span className="text-slate-400 tabular-nums">{r.value.toFixed(1)}</span>
+                          <span className="text-[#4B5563]">· {t(`explain.reason.${r.code}` as MessageKey)}</span>
+                          <span className="text-[#6E6E73] tabular-nums">{r.value.toFixed(1)}</span>
                         </li>
                       ))}
                     </ul>
@@ -984,12 +984,12 @@ function ExplainDrawer({
               {/* Main shortfalls (未入选主要短板) — NOT_TOP10 / NOT_CANDIDATE */}
               {(data.explanationType === "NOT_TOP10" || isNC) && data.shortfalls.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.missing")}</h4>
+                  <h4 className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider mb-2">{t("explain.missing")}</h4>
                   <ul className="space-y-1">
                     {data.shortfalls.map((m) => (
                       <li key={m.code} className="flex items-center justify-between text-xs">
                         <span className="text-amber-300/90">· {t(`explain.short.${m.code}` as MessageKey)}</span>
-                        <span className="text-slate-400 tabular-nums">{m.value != null ? m.value.toFixed(0) : ""}</span>
+                        <span className="text-[#6E6E73] tabular-nums">{m.value != null ? m.value.toFixed(0) : ""}</span>
                       </li>
                     ))}
                   </ul>
@@ -999,7 +999,7 @@ function ExplainDrawer({
               {/* Improvement factors (改善建议) */}
               {data.improvementFactors.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.improvement")}</h4>
+                  <h4 className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider mb-2">{t("explain.improvement")}</h4>
                   <ul className="space-y-1">
                     {data.improvementFactors.map((c) => (
                       <li key={c} className="text-xs text-emerald-300/90">→ {t(`explain.imp.${c}` as MessageKey)}</li>
@@ -1011,7 +1011,7 @@ function ExplainDrawer({
               {/* Risks — hidden when there is no usable data at all */}
               {!isDI && data.risks.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.risks")}</h4>
+                  <h4 className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider mb-2">{t("explain.risks")}</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {data.risks.map((r) => (
                       <span key={r.code} className="text-[11px] px-2 py-1 rounded-md bg-red-900/20 text-red-300/90 border border-red-800/30">
@@ -1025,13 +1025,13 @@ function ExplainDrawer({
               {/* Strategy fit */}
               {!isDI && (
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("explain.fit")}</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">{t(fitKey)}</p>
+                  <h4 className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider mb-2">{t("explain.fit")}</h4>
+                  <p className="text-xs text-[#6E6E73] leading-relaxed">{t(fitKey)}</p>
                 </div>
               )}
 
               {/* Footer meta */}
-              <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
+              <div className="pt-2 border-t border-[#E8EAED] text-[10px] text-[#86868B] flex items-center justify-between">
                 <span>{t("explain.updated_at")}: {data.generatedAt.slice(0, 19).replace("T", " ")}</span>
                 {data.tradeDate && <span>{data.tradeDate}</span>}
               </div>
@@ -1073,7 +1073,7 @@ function StrategyTab({
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 bg-slate-800/30 rounded-xl animate-pulse" />
+          <div key={i} className="h-32 bg-white rounded-xl animate-pulse" />
         ))}
       </div>
     );
@@ -1105,8 +1105,8 @@ function StrategyTab({
       />
 
       {/* Why Not Recommended — query any stock (T2 P4) */}
-      <div className="bg-slate-800/30 rounded-lg border border-slate-700/40 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-300 mb-2">{t("explain.query_title")}</h3>
+      <div className="bg-white rounded-lg border border-[#E8EAED] px-4 py-3">
+        <h3 className="text-sm font-semibold text-[#4B5563] mb-2">{t("explain.query_title")}</h3>
         <form
           className="flex items-center gap-2"
           onSubmit={(e) => {
@@ -1119,7 +1119,7 @@ function StrategyTab({
             value={queryInput}
             onChange={(e) => setQueryInput(e.target.value)}
             placeholder={t("explain.query_placeholder")}
-            className="flex-1 bg-slate-900/60 border border-slate-700/50 rounded-md px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-500"
+            className="flex-1 bg-white border border-[#E8EAED] rounded-md px-3 py-1.5 text-xs text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#007AFF]"
           />
           <button
             type="submit"
@@ -1151,7 +1151,7 @@ function StrategyTab({
 
       {/* Learning */}
       <div>
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="text-xs font-semibold text-[#86868B] uppercase tracking-wider mb-2">
           {t("strategy.learning.grade")}
         </div>
         <LearningSection learning={detail.learning} t={t} />
@@ -1159,7 +1159,7 @@ function StrategyTab({
 
       {/* Backtest */}
       <div>
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="text-xs font-semibold text-[#86868B] uppercase tracking-wider mb-2">
           {t("strategy.backtest.section")}
         </div>
         <BacktestSection summaries={detail.backtestSummaries} t={t} />
@@ -1232,7 +1232,7 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
   if (loading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => <div key={i} className="h-28 bg-slate-800/30 rounded-xl animate-pulse" />)}
+        {[1, 2, 3].map((i) => <div key={i} className="h-28 bg-white rounded-xl animate-pulse" />)}
       </div>
     );
   }
@@ -1262,7 +1262,7 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
           <span className="text-[10px] font-semibold text-violet-400 bg-violet-900/40 border border-violet-700/50 px-2.5 py-1 rounded">
             {t("strategy.stabilization.frozen")}
           </span>
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[10px] text-[#86868B]">
             {t("strategy.validation.passRate")}{": "}
             {stats.passRate != null ? `${(stats.passRate * 100).toFixed(0)}%` : "—"}
             {` (${stats.passRuns}/${stats.totalRuns})`}
@@ -1271,15 +1271,15 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
       </div>
 
       {/* Phase 7 readiness */}
-      <div className="bg-slate-800/30 rounded-xl border border-slate-700/40 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-700/40 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-300">{t("strategy.phase7.title")}</h3>
+      <div className="bg-white rounded-xl border border-[#E8EAED] overflow-hidden">
+        <div className="px-5 py-3 border-b border-[#E8EAED] flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.phase7.title")}</h3>
           {phase7.ready ? (
             <span className="text-xs font-bold text-emerald-300 bg-emerald-900/40 border border-emerald-700/50 px-2.5 py-1 rounded">
               🚀 {t("strategy.phase7.ready")}
             </span>
           ) : (
-            <span className="text-xs text-slate-500 bg-slate-700/30 px-2.5 py-1 rounded">
+            <span className="text-xs text-[#86868B] bg-[#F4F5F7] px-2.5 py-1 rounded">
               {t("strategy.phase7.not_ready")}
             </span>
           )}
@@ -1289,26 +1289,26 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
             <div
               key={cond.key}
               className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border ${
-                cond.met ? "bg-emerald-900/10 border-emerald-800/30" : "bg-slate-700/20 border-slate-700/30"
+                cond.met ? "bg-emerald-900/10 border-emerald-800/30" : "bg-[#F4F5F7] border-[#EEF0F4]"
               }`}
             >
               <div className="flex items-center gap-2 text-xs">
                 <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${
-                  cond.met ? "bg-emerald-500/30 text-emerald-300" : "bg-slate-600/40 text-slate-400"
+                  cond.met ? "bg-emerald-500/30 text-emerald-300" : "bg-[#E8EAED] text-[#6E6E73]"
                 }`}>
                   {cond.met ? "✓" : "○"}
                 </span>
-                <span className={cond.met ? "text-slate-300" : "text-slate-500"}>
+                <span className={cond.met ? "text-[#4B5563]" : "text-[#86868B]"}>
                   {t(PHASE7_LABEL_MAP[cond.key] ?? "strategy.phase7.conditions")}
                 </span>
               </div>
-              <span className={`text-[10px] tabular-nums flex-shrink-0 font-mono ${cond.met ? "text-emerald-400" : "text-slate-500"}`}>
+              <span className={`text-[10px] tabular-nums flex-shrink-0 font-mono ${cond.met ? "text-emerald-400" : "text-[#86868B]"}`}>
                 {cond.current}/{cond.target}
               </span>
             </div>
           ))}
           {phase7.conditions.length === 0 && (
-            <p className="col-span-2 text-center text-slate-500 text-xs py-2">
+            <p className="col-span-2 text-center text-[#86868B] text-xs py-2">
               {t("strategy.validation.noData")}
             </p>
           )}
@@ -1317,8 +1317,8 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
 
       {/* Cumulative stats */}
       {latest && (
-        <div className="bg-slate-800/30 rounded-xl border border-slate-700/40 p-4">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        <div className="bg-white rounded-xl border border-[#E8EAED] p-4">
+          <div className="text-xs font-semibold text-[#86868B] uppercase tracking-wider mb-3">
             {t("strategy.cumulative.title")}
           </div>
           <div className="grid grid-cols-3 gap-4 text-xs text-center">
@@ -1328,9 +1328,9 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
               { label: "LONG",  filled: latest.longClosedTotal,  winRate: latest.longWinRate,  grade: latest.longGrade  },
             ].map(({ label, filled, winRate, grade }) => (
               <div key={label}>
-                <div className="text-[10px] text-slate-500 mb-1">{label}</div>
-                <div className="text-lg font-bold text-slate-200 tabular-nums">{filled ?? 0}</div>
-                <div className="text-[10px] text-slate-400 mb-1">
+                <div className="text-[10px] text-[#86868B] mb-1">{label}</div>
+                <div className="text-lg font-bold text-[#1D1D1F] tabular-nums">{filled ?? 0}</div>
+                <div className="text-[10px] text-[#6E6E73] mb-1">
                   {winRate != null ? `${(winRate * 100).toFixed(0)}% win` : "—"}
                 </div>
                 <GradeBadge grade={grade ?? null} />
@@ -1341,18 +1341,18 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
       )}
 
       {/* Daily validation history */}
-      <div className="bg-slate-800/30 rounded-xl border border-slate-700/40 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-700/40 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-300">{t("strategy.validation.title")}</h3>
-          <span className="text-xs text-slate-500">{records.length}{" "}days</span>
+      <div className="bg-white rounded-xl border border-[#E8EAED] overflow-hidden">
+        <div className="px-5 py-3 border-b border-[#E8EAED] flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#4B5563]">{t("strategy.validation.title")}</h3>
+          <span className="text-xs text-[#86868B]">{records.length}{" "}days</span>
         </div>
         {records.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">{t("strategy.validation.noData")}</div>
+          <div className="p-8 text-center text-[#86868B] text-sm">{t("strategy.validation.noData")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[10px]">
               <thead>
-                <tr className="border-b border-slate-700/30 text-slate-500">
+                <tr className="border-b border-[#EEF0F4] text-[#86868B]">
                   <th className="text-left px-4 py-2 whitespace-nowrap">{t("strategy.validation.date")}</th>
                   {CHECK_FIELDS.map(({ label }) => (
                     <th key={label} className="text-center px-1.5 py-2 whitespace-nowrap">{t(label)}</th>
@@ -1362,8 +1362,8 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
               </thead>
               <tbody>
                 {records.map((r) => (
-                  <tr key={r.id} className={`border-b border-slate-700/20 hover:bg-slate-700/10 ${r.allPass ? "" : "bg-red-900/5"}`}>
-                    <td className="px-4 py-2 text-slate-300 font-mono whitespace-nowrap">
+                  <tr key={r.id} className={`border-b border-[#EEF0F4] hover:bg-[#F4F5F7] ${r.allPass ? "" : "bg-red-900/5"}`}>
+                    <td className="px-4 py-2 text-[#4B5563] font-mono whitespace-nowrap">
                       {r.validationDate?.slice(0, 10)}
                     </td>
                     {CHECK_FIELDS.map(({ field }) => (
@@ -1376,7 +1376,7 @@ function StabilizationTab({ t }: { t: (k: MessageKey) => string }) {
                     <td className="text-center px-3 py-2">
                       {r.incidentReport
                         ? <span className="text-red-400" title={r.incidentReport}>⚠</span>
-                        : <span className="text-slate-600">—</span>
+                        : <span className="text-[#A1A1A6]">—</span>
                       }
                     </td>
                   </tr>
@@ -1429,7 +1429,7 @@ function ReportsTab({ t }: { t: (k: MessageKey) => string }) {
   if (loading) {
     return (
       <div className="space-y-4">
-        {[1, 2].map((i) => <div key={i} className="h-40 bg-slate-800/30 rounded-xl animate-pulse" />)}
+        {[1, 2].map((i) => <div key={i} className="h-40 bg-white rounded-xl animate-pulse" />)}
       </div>
     );
   }
@@ -1499,16 +1499,16 @@ function ReportSection({
             className={`text-xs px-2 py-1 rounded border ${accentCls.sel} bg-transparent cursor-pointer`}
           >
             {data.files.map((f) => (
-              <option key={f} value={f} className="bg-slate-900">{f}</option>
+              <option key={f} value={f} className="bg-white">{f}</option>
             ))}
           </select>
         )}
       </div>
       <div className="p-4">
         {!data || !data.content ? (
-          <p className="text-slate-500 text-sm">{t("strategy.reports.nodata")}</p>
+          <p className="text-[#86868B] text-sm">{t("strategy.reports.nodata")}</p>
         ) : (
-          <pre className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-mono max-h-[500px] overflow-y-auto">
+          <pre className="text-xs text-[#4B5563] whitespace-pre-wrap leading-relaxed font-mono max-h-[500px] overflow-y-auto">
             {data.content}
           </pre>
         )}
@@ -1521,8 +1521,8 @@ function ReportSection({
 
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs ${ok ? "text-emerald-400" : "text-slate-500"}`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ok ? "bg-emerald-400" : "bg-slate-600"}`} />
+    <div className={`flex items-center gap-1.5 text-xs ${ok ? "text-emerald-400" : "text-[#86868B]"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ok ? "bg-emerald-400" : "bg-[#D2D5DB]"}`} />
       {label}
     </div>
   );
@@ -1532,26 +1532,26 @@ function SystemStatusCard({ unified, t }: { unified: OverviewData["unified"]; t:
   if (!unified) return null;
   const isRunning = unified.grade && ["A+", "A", "B", "C"].includes(unified.grade);
   return (
-    <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
-      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">
+    <div className="bg-white border border-[#E8EAED] rounded-xl p-4">
+      <div className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider mb-3">
         {t("strategy.system_status.title")}
       </div>
       <div className="flex items-center justify-between mb-3">
         <div>
-          <div className="text-2xl font-bold text-slate-100 tabular-nums">
+          <div className="text-2xl font-bold text-[#1D1D1F] tabular-nums">
             {unified.integrityScore?.toFixed(1) ?? "—"}
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">{t("strategy.learning.integrity")}</div>
+          <div className="text-[10px] text-[#86868B] mt-0.5">{t("strategy.learning.integrity")}</div>
         </div>
         <div className="text-right">
           <GradeBadge grade={unified.grade ?? null} />
-          <div className={`text-xs mt-1.5 font-medium ${isRunning ? "text-emerald-400" : "text-slate-400"}`}>
+          <div className={`text-xs mt-1.5 font-medium ${isRunning ? "text-emerald-400" : "text-[#6E6E73]"}`}>
             {isRunning ? t("strategy.system_status.running") : t("strategy.system_status.init")}
           </div>
         </div>
       </div>
       {unified.reportDate && (
-        <div className="text-[10px] text-slate-500">
+        <div className="text-[10px] text-[#86868B]">
           {t("strategy.learning.grade")} {new Date(unified.reportDate).toISOString().slice(0, 10)}
         </div>
       )}
@@ -1572,28 +1572,28 @@ function TodayExecutionCard({ exec, t }: { exec: TodayExecution | null | undefin
   const passCount = checks.filter((c) => c.ok).length;
   const totalCount = checks.length;
   return (
-    <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
+    <div className="bg-white border border-[#E8EAED] rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">
           {t("strategy.today_exec.title")}
         </div>
         {exec && (
           <span className={`text-xs font-semibold tabular-nums ${
-            passCount === totalCount ? "text-emerald-400" : passCount >= totalCount - 2 ? "text-yellow-400" : "text-slate-500"
+            passCount === totalCount ? "text-emerald-400" : passCount >= totalCount - 2 ? "text-yellow-400" : "text-[#86868B]"
           }`}>
             {passCount}/{totalCount}
           </span>
         )}
       </div>
       {!exec ? (
-        <div className="text-slate-600 text-xs">{t("strategy.collecting")}</div>
+        <div className="text-[#A1A1A6] text-xs">{t("strategy.collecting")}</div>
       ) : (
         <div className="grid grid-cols-2 gap-y-2 gap-x-3">
           {checks.map((c) => <StatusChip key={c.label} ok={c.ok} label={c.label} />)}
         </div>
       )}
       {exec?.validDate && (
-        <div className="text-[10px] text-slate-600 mt-3">{exec.validDate}</div>
+        <div className="text-[10px] text-[#A1A1A6] mt-3">{exec.validDate}</div>
       )}
     </div>
   );
@@ -1601,26 +1601,26 @@ function TodayExecutionCard({ exec, t }: { exec: TodayExecution | null | undefin
 
 function StabilizationStatusCard({ val, t }: { val: RecentValidationSummary | null | undefined; t: (k: MessageKey) => string }) {
   return (
-    <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
-      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">
+    <div className="bg-white border border-[#E8EAED] rounded-xl p-4">
+      <div className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider mb-3">
         {t("strategy.stab_card.title")}
       </div>
       {!val ? (
-        <div className="text-slate-600 text-xs">{t("strategy.collecting")}</div>
+        <div className="text-[#A1A1A6] text-xs">{t("strategy.collecting")}</div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <div className="text-xl font-bold text-slate-100 tabular-nums">{val.stableDays}</div>
-              <div className="text-[10px] text-slate-500">{t("strategy.stab_card.days")}</div>
+              <div className="text-xl font-bold text-[#1D1D1F] tabular-nums">{val.stableDays}</div>
+              <div className="text-[10px] text-[#86868B]">{t("strategy.stab_card.days")}</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-slate-100 tabular-nums">{val.healthDays}/{val.totalDays}</div>
-              <div className="text-[10px] text-slate-500">{t("strategy.stab_card.health_days")}</div>
+              <div className="text-xl font-bold text-[#1D1D1F] tabular-nums">{val.healthDays}/{val.totalDays}</div>
+              <div className="text-[10px] text-[#86868B]">{t("strategy.stab_card.health_days")}</div>
             </div>
           </div>
-          <div className="border-t border-slate-700/40 pt-2 mt-2">
-            <div className={`text-xs font-medium ${val.phase7Ready ? "text-violet-400" : "text-slate-500"}`}>
+          <div className="border-t border-[#E8EAED] pt-2 mt-2">
+            <div className={`text-xs font-medium ${val.phase7Ready ? "text-violet-400" : "text-[#86868B]"}`}>
               {val.phase7Ready ? t("strategy.stab_card.phase7_ready") : t("strategy.stab_card.phase7")}
             </div>
           </div>
@@ -1634,10 +1634,11 @@ type ActiveTab = StratType | "STABILIZATION" | "REPORTS";
 
 // ── Premium dark primitives (P3-T15 · Bloomberg × Aladdin) ────────────────────
 const SM = {
-  bg: "#111315", card: "#171A1F", cardHi: "#1C2028", border: "#262B33",
-  ink: "#E6E8EB", sub: "#9BA1A9", faint: "#6B7280",
-  green: "#34C759", amber: "#FF9F0A", red: "#FF453A", blue: "#0A84FF",
+  bg: "#F7F8FA", card: "#FFFFFF", cardHi: "#F4F5F7", border: "#E8EAED",
+  ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6",
+  green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", blue: "#007AFF",
 };
+const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
 const STRAT_HEX: Record<StratType, string> = { DAY_TRADE: "#FF9F0A", SWING_TRADE: "#0A84FF", LONG_TRADE: "#34C759" };
 const SFONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif";
 const gradeVerdict = (g: string | null): string => g === "A" ? "强势" : g === "B" ? "稳健" : g === "C" ? "观察" : g === "D" ? "等待" : "—";
@@ -1649,7 +1650,7 @@ function SRing({ score, size = 62, stroke = 5, color }: { score: number | null; 
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#23272E" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E8EAED" strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)} style={{ transition: "stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)" }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1663,7 +1664,7 @@ function SBadge({ label, color }: { label: string; color: string }) {
 }
 function MissionCard({ label, code, value, unit, sub, color, pct }: { label: string; code: string; value: string; unit?: string; sub?: string; color: string; pct?: number }) {
   return (
-    <div style={{ background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 16, padding: 16 }}>
+    <div style={{ background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 16, padding: 16 , boxShadow: SHADOW }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: SM.ink }}>{label}</span>
         <span style={{ fontSize: 10, color: SM.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>{code}</span>
@@ -1673,7 +1674,7 @@ function MissionCard({ label, code, value, unit, sub, color, pct }: { label: str
         {unit && <span style={{ fontSize: 12, color: SM.faint, fontWeight: 600 }}>{unit}</span>}
       </div>
       {sub && <div style={{ fontSize: 11, color: SM.sub, marginTop: 5 }}>{sub}</div>}
-      {pct != null && <div style={{ marginTop: 10, height: 5, borderRadius: 999, background: "#0d0f12", overflow: "hidden" }}><div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: "100%", background: color, transition: "width .4s ease" }} /></div>}
+      {pct != null && <div style={{ marginTop: 10, height: 5, borderRadius: 999, background: "#EEF0F4", overflow: "hidden" }}><div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: "100%", background: color, transition: "width .4s ease" }} /></div>}
     </div>
   );
 }
@@ -1686,7 +1687,7 @@ function StratPremiumCard({ type, data, active, onClick, label }: { type: StratT
   const win = snap?.winRate ?? lrn?.winRate ?? null;
   const ringScore = lrn?.integrityScore ?? lrn?.confidenceScore ?? null;
   return (
-    <button onClick={onClick} style={{ textAlign: "left", background: SM.card, border: `1px solid ${active ? c : SM.border}`, boxShadow: active ? `0 0 0 1px ${c}, 0 8px 30px -16px ${c}88` : "none", borderRadius: 18, padding: 18, cursor: "pointer", transition: "border-color .2s, box-shadow .2s" }}>
+    <button onClick={onClick} style={{ textAlign: "left", background: SM.card, border: `1px solid ${active ? c : SM.border}`, boxShadow: active ? `0 0 0 1px ${c}, 0 10px 30px -12px ${c}66` : SHADOW, borderRadius: 18, padding: 18, cursor: "pointer", transition: "border-color .2s, box-shadow .2s" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 9, height: 9, borderRadius: 999, background: c }} />
