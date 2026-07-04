@@ -87,38 +87,38 @@ export default function AIResearchLabPage() {
   const lastUpdate = health?.auditAt ? new Date(new Date(health.auditAt).getTime() + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ") : "暂无数据";
 
   const kpis = [
-    { label: "AI 引擎", value: "Adaptive V3", sub: "正式 · 影子", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE },
-    { label: "影子评分", value: "已启用", sub: "V2 与 V3 对比", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE },
-    { label: "融合引擎", value: "已启用", sub: "市场状态", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT },
-    { label: "学习引擎", value: "运行中", sub: "每日报告", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT },
-    { label: "纸面交易", value: "研究", sub: "融合模拟盘", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.PAPER_TRADING },
-    { label: "研发健康度", value: healthScore != null ? `${healthScore}` : "暂无数据", sub: health ? `${lastUpdate} JST` : "加载中…", icon: <Activity size={18} />, accent: healthScore != null && health!.criticalCount === 0 ? C.green : C.amber, href: ROUTES.VERIFY },
+    { label: "AI评分引擎", value: "Adaptive V3", sub: "正式 · 影子", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE },
+    { label: "Shadow Engine", value: "已启用", sub: "V2 vs V3 对比", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE },
+    { label: "Fusion Engine", value: "已启用", sub: "市场状态融合", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT },
+    { label: "Learning Engine", value: "运行中", sub: "每日学习", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT },
+    { label: "策略融合研究", value: "Fusion Research", sub: "Production × Alpha × Fusion", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.FUSION_REPORT },
+    { label: "Research Health", value: healthScore != null ? `${healthScore}` : "暂无数据", sub: "研究健康度", icon: <Activity size={18} />, accent: healthScore != null && health!.criticalCount === 0 ? C.green : C.amber, href: ROUTES.VERIFY },
   ];
 
   const modules = [
-    { name: "Adaptive 评分", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE, cta: "查看评分",
+    { name: "Adaptive Engine", icon: <Sparkles size={18} />, accent: C.blue, href: ROUTES.SHADOW_SCORE, cta: "查看评分",
       rows: [{ k: "版本", v: "V3" }, { k: "状态", v: "正式", color: C.green }, { k: "可信度", v: "暂无数据" }, { k: "最近更新", v: lastUpdate }] },
-    { name: "影子引擎", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE, cta: "影子对比",
+    { name: "Shadow Engine", icon: <Zap size={18} />, accent: C.purple, href: ROUTES.SHADOW_SCORE, cta: "影子对比",
       rows: [{ k: "状态", v: "运行中", color: C.green }, { k: "当前", v: "V3" }, { k: "影子对比", v: "已就绪", color: C.green }] },
-    { name: "融合引擎", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT, cta: "融合报告",
+    { name: "Fusion Engine", icon: <Layers size={18} />, accent: "#AF52DE", href: ROUTES.FUSION_REPORT, cta: "融合报告",
       rows: [{ k: "市场状态", v: "已启用", color: C.green }, { k: "当前", v: "正式" }, { k: "最优比例", v: "历史搜索" }] },
-    { name: "学习引擎", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT, cta: "学习报告",
+    { name: "Learning Engine", icon: <GraduationCap size={18} />, accent: C.green, href: ROUTES.LEARNING_REPORT, cta: "学习报告",
       rows: [{ k: "数据集", v: "暂无数据" }, { k: "最近学习", v: "每日 17:00 JST" }, { k: "健康度", v: health && health.criticalCount === 0 ? "通过" : "暂无数据", color: C.green }] },
-    { name: "回测", icon: <BarChart3 size={18} />, accent: "#0A84FF", href: ROUTES.BACKTEST, cta: "回测验证",
+    { name: "Backtest Engine", icon: <BarChart3 size={18} />, accent: "#0A84FF", href: ROUTES.BACKTEST, cta: "回测验证",
       rows: [{ k: "历史", v: "可用", color: C.green }, { k: "结果", v: "每日更新" }, { k: "周期", v: "1d / 7d / 30d / 90d" }] },
-    { name: "纸面交易", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.PAPER_TRADING, cta: "纸面交易",
-      rows: [{ k: "状态", v: "研究", color: C.amber }, { k: "模式", v: "融合模拟盘" }, { k: "产品化模块", v: "敬请期待", color: C.faint }] },
+    { name: "Fusion Research", icon: <FileText size={18} />, accent: C.amber, href: ROUTES.FUSION_REPORT, cta: "查看研究",
+      rows: [{ k: "当前状态", v: "研究中", color: C.amber }, { k: "实验模式", v: "Production × Alpha × Fusion" }, { k: "研究方向", v: "策略融合验证" }] },
   ];
 
   const roadmap = [
-    { name: "Adaptive 评分 V3", status: "正式", done: true },
-    { name: "影子引擎", status: "正式", done: true },
-    { name: "融合引擎", status: "正式", done: true },
-    { name: "学习引擎", status: "正式", done: true },
-    { name: "纸面交易（研究）", status: "运行中", done: true },
-    { name: "纸面交易（产品化）", status: "下一步", done: false },
-    { name: "组合引擎", status: "下一步", done: false },
-    { name: "Adaptive 评分 V4", status: "规划中", done: false },
+    { name: "Adaptive Engine V3", status: "正式", done: true },
+    { name: "Shadow Engine", status: "正式", done: true },
+    { name: "Fusion Engine", status: "正式", done: true },
+    { name: "Learning Engine", status: "正式", done: true },
+    { name: "Fusion Research", status: "运行中", done: true },
+    { name: "Fusion Research（产品化）", status: "下一步", done: false },
+    { name: "Portfolio Engine", status: "下一步", done: false },
+    { name: "Adaptive Engine V4", status: "规划中", done: false },
   ];
 
   const notes = [
@@ -129,7 +129,7 @@ export default function AIResearchLabPage() {
     { v: "v17.4x", t: "Alpha 引擎 2.0（因子 → 融合）", c: "#AF52DE" },
   ];
 
-  const future = ["组合", "纸面交易", "因子实验室", "Adaptive V4", "AI 解释", "机构流向", "宏观引擎"];
+  const future = ["Portfolio Engine", "Fusion Research", "Factor Lab", "Adaptive V4", "AI Explain", "Institution Flow", "Macro Engine"];
 
   return (
     <div className="min-h-screen dash-font" style={{ background: C.bg }}>

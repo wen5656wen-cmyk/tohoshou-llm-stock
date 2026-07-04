@@ -2,6 +2,25 @@
 
 ---
 
+## [17.72.0] - 2026-07-05 — P3-T22 AI 研发中心命名统一（Research Center Naming Unification）🏷️
+
+统一 AI 研发中心（`/admin/experiments`）所有模块命名风格为 Research / Engine 体系，**彻底移除易误解的「纸面交易 / 模拟盘 / Paper Trading」概念**，改为 Fusion Research。**纯展示文案**，未改 API / Prisma / DB / Cron / Adaptive / Shadow / Fusion 算法 / Learning / Strategy / Backtest / GPT / Version / Health / 数据来源 / 任何逻辑（仍只读 `/api/health/status`）。
+
+### 顶部 6 状态卡（标题 + 副标题双行）
+① Adaptive V3 · **AI评分引擎** · 正式·影子；② 已启用 · **Shadow Engine** · V2 vs V3 对比；③ 已启用 · **Fusion Engine** · 市场状态融合；④ 运行中 · **Learning Engine** · 每日学习；⑤ **Fusion Research** · 策略融合研究 · Production × Alpha × Fusion（橙色 icon，替代原「研究/纸面交易/融合模拟盘」）；⑥ 85 · **Research Health** · 研究健康度。
+
+### 研发模块 6 卡命名统一
+Adaptive Engine / Shadow Engine / Fusion Engine / Learning Engine / Backtest Engine / **Fusion Research**（原「纸面交易」）。Fusion Research 卡字段：当前状态=研究中、实验模式=Production × Alpha × Fusion、研究方向=策略融合验证、按钮=查看研究 →；`href` 由 PAPER_TRADING 改指 FUSION_REPORT（/admin/research?tab=fusion，真实融合研究页）。
+
+### 文案统一（全页无残留）
+Paper Trading → Fusion Research；纸面交易 → 融合研究；模拟盘/Fusion模拟盘 → 研究模式 / Fusion Research。路线图同步（Adaptive Engine V3/Shadow Engine/Fusion Engine/Learning Engine/Fusion Research/Fusion Research（产品化）/Portfolio Engine/Adaptive Engine V4）；未来模块同步（Portfolio Engine/Fusion Research/Factor Lab/Adaptive V4/AI Explain/Institution Flow/Macro Engine）。grep `纸面交易|模拟盘|Paper Trading` = 0。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 2.9s）；Health ✅ CRITICAL=0；/admin/experiments 200；无 API/DB/逻辑改动。整页统一为 AI Engine Research Platform 命名风格。
+- 修改：`app/admin/experiments/page.tsx`。
+
+---
+
 ## [17.71.2] - 2026-07-05 — 控制中心（/admin/mission-control）全页汉化 🈶
 
 将 Mission Control 控制中心页所有用户可见英文文案汉化为简体中文。**纯展示层**，未改任何布局 / 组件 / 数据 / API / 检测逻辑（仍只读 `/api/admin/mission-control` + 60s 自动刷新）。标题 Mission Control→**控制中心**、Trading Architecture→交易架构；4 状态卡（生产状态·任务状态 / 交易架构 / 数据流水线·今日 / 每日校验，单位 项通过·步·通过，`FROZEN`→已冻结）；区块标题（数据流水线·时间线 / 警告（N）/ 严重（N）/ 数据新鲜度 / 三策略 / 系统进程）；空状态（No Warnings→无警告、No Critical Issues→无严重问题）；Last Sync→上次同步、score→评分、Nikkei→日经、Phase7→阶段7。**API 返回的运维审计项经展示层映射汉化**（不改后端）：`ISSUE_ZH` 按 `issue.id` 映射 5 条健康检查名（52周高点>股价×10 等）、`zhVal` 处理 genuine/suspect/missing 值文案、`phaseZh` 处理 `nextPhase`、`reasonZh` 处理 `health:data WARNING=N`→数据健康检查·警告 N。保留技术/品牌词：TOHOSHOU、adaptive-v3、版本号、JST、VIX、pm2 进程名。
