@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { ROUTES } from "@/lib/routes";
 import {
   LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
   GraduationCap, Database, FlaskConical, Settings,
@@ -21,21 +22,21 @@ export default function Sidebar() {
     {
       key: "main",
       items: [
-        { href: "/",                      label: t("nav.cockpit"),        Icon: LayoutGrid },
-        { href: "/screener",              label: t("nav.aiScreener"),     Icon: Sparkles },
-        { href: "/strategy",              label: t("nav.strategyCenter"), Icon: Target },
-        { href: "/portfolio",             label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
-        { href: "/backtest",              label: t("nav.backtest"),       Icon: LineChart },
-        { href: "/admin/research",        label: t("nav.research"),       Icon: Microscope },
+        { href: ROUTES.DASHBOARD,       label: t("nav.cockpit"),        Icon: LayoutGrid },
+        { href: ROUTES.AI_SELECTION,    label: t("nav.aiScreener"),     Icon: Sparkles },
+        { href: ROUTES.STRATEGY_CENTER, label: t("nav.strategyCenter"), Icon: Target },
+        { href: ROUTES.AUTO_TRADING,    label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
+        { href: ROUTES.BACKTEST,        label: t("nav.backtest"),       Icon: LineChart },
+        { href: ROUTES.RESEARCH,        label: t("nav.research"),       Icon: Microscope },
       ],
     },
     {
       key: "secondary",
       items: [
-        { href: "/admin/learning-report", label: t("nav.learningReport"), Icon: GraduationCap },
-        { href: "/sync",                  label: t("nav.syncStatus"),     Icon: Database },
-        { href: "/admin/experiments",     label: t("nav.experiments"),    Icon: FlaskConical },
-        { href: "/admin/mission-control", label: t("nav.missionControl"), Icon: Settings },
+        { href: ROUTES.LEARNING_REPORT, label: t("nav.learningReport"), Icon: GraduationCap },
+        { href: ROUTES.DATA_CENTER,     label: t("nav.syncStatus"),     Icon: Database },
+        { href: ROUTES.LABS,            label: t("nav.experiments"),    Icon: FlaskConical },
+        { href: ROUTES.SETTINGS,        label: t("nav.missionControl"), Icon: Settings },
       ],
     },
   ];

@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Sparkles, ArrowRight, TrendingUp, TrendingDown,
-  Newspaper, Layers, BarChart3, Boxes, Search, Bell, User, Zap, FileText,
+  Newspaper, Layers, BarChart3, Boxes, Bell, User, Zap, FileText,
   Target, ShieldCheck,
 } from "./icons";
+import { ROUTES, stockDetail, timelineRoute } from "@/lib/routes";
+import { SearchBox } from "./SearchBox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Sev = "NORMAL" | "WARNING" | "CRITICAL";
@@ -109,20 +111,16 @@ function DashboardSection({ title, sub, action, delay, children }: {
 // ── DashboardHeader ───────────────────────────────────────────────────────────
 function DashboardHeader({ greetKey }: { greetKey: string }) {
   return (
-    <header className="dash-in flex items-center justify-between gap-4 mb-10">
+    <header className="dash-in relative z-30 flex items-center justify-between gap-4 mb-10">
       <div className="text-[13px] font-medium" style={{ color: C.faint }}>
         {GREET[greetKey] ?? "你好"} 👋 <span style={{ color: C.sub }}>欢迎回来</span>
       </div>
       <div className="flex items-center gap-2.5">
-        <Link href="/screener" className="hidden sm:flex items-center gap-2 rounded-full px-4 h-10 dash-card dash-int"
-          style={{ color: C.faint }}>
-          <Search size={16} />
-          <span className="text-[13px] pr-6" style={{ color: C.faint }}>搜索股票…</span>
-        </Link>
-        <Link href="/news" aria-label="通知" className="inline-flex items-center justify-center w-10 h-10 rounded-full dash-card dash-int" style={{ color: C.sub }}>
+        <div className="hidden sm:block"><SearchBox /></div>
+        <Link href={ROUTES.NEWS} aria-label="通知" title="通知中心" className="inline-flex items-center justify-center w-10 h-10 rounded-full dash-card dash-int" style={{ color: C.sub }}>
           <Bell size={17} />
         </Link>
-        <Link href="/admin/mission-control" aria-label="账户" className="inline-flex items-center justify-center w-10 h-10 rounded-full dash-int"
+        <Link href={ROUTES.SETTINGS} aria-label="账户 / 系统设置" title="系统设置" className="inline-flex items-center justify-center w-10 h-10 rounded-full dash-int"
           style={{ background: C.ink, color: "#fff" }}>
           <User size={17} />
         </Link>
@@ -170,11 +168,18 @@ function DashboardHero({ hero }: { hero: DashboardData["hero"] }) {
               {hero.summary ?? "该标的进入今日 AI 综合评分排行前列，技术面与量化因子共同支撑其推荐评级。"}
             </p>
             <div className="flex items-center gap-4 mt-6">
-              <Link href={`/stocks/${hero.symbol}`}
-                className="inline-flex items-center gap-2 h-11 px-6 rounded-full text-[15px] font-semibold text-white dash-int"
-                style={{ background: C.blue }}>
-                查看分析 <ArrowRight size={17} />
-              </Link>
+              {hero.symbol ? (
+                <Link href={stockDetail(hero.symbol)}
+                  className="inline-flex items-center gap-2 h-11 px-6 rounded-full text-[15px] font-semibold text-white dash-int"
+                  style={{ background: C.blue }}>
+                  查看分析 <ArrowRight size={17} />
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-2 h-11 px-6 rounded-full text-[15px] font-semibold cursor-not-allowed"
+                  title="该推荐暂无股票代码，无法打开详情" style={{ background: "#F0F0F3", color: C.faint }}>
+                  暂无详情
+                </span>
+              )}
               {hero.price != null && (
                 <span className="text-[13px] font-medium tabular-nums" style={{ color: C.faint }}>参考价 ¥{fmt(hero.price, 0)}</span>
               )}
@@ -211,7 +216,7 @@ function DashboardStatusCard({ health, pipeline, systemStatus, lastTradingDate }
 }) {
   const gColor = gradeColor(health.grade);
   return (
-    <div className="dash-card p-6 lg:p-7 h-full flex flex-col">
+    <Link href={ROUTES.MISSION_CONTROL} className="h-full dash-card dash-int p-6 lg:p-7 flex flex-col" title="进入控制中心">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span style={{ color: C.ink }}><ShieldCheck size={17} /></span>
@@ -241,7 +246,7 @@ function DashboardStatusCard({ health, pipeline, systemStatus, lastTradingDate }
         <span style={{ color: C.line }}>·</span>
         <span>行情 {lastTradingDate ?? "—"}</span>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -268,7 +273,7 @@ function DashboardMarketCard({ label, value, change, decimals }: {
   const down = change != null && change < 0;
   const cColor = up ? C.green : down ? C.red : C.faint;
   return (
-    <div className="dash-card dash-int p-5">
+    <Link href={ROUTES.MARKET} className="dash-card dash-int p-5 block" title="查看市场状态">
       <div className="flex items-center justify-between">
         <span className="text-[14px] font-semibold" style={{ color: C.ink }}>{label}</span>
         <span className="text-[11px] font-medium" style={{ color: C.faint }}>今日</span>
@@ -282,7 +287,7 @@ function DashboardMarketCard({ label, value, change, decimals }: {
       ) : (
         <div className="mt-3 text-[12px] font-medium" style={{ color: C.faint }}>收盘价</div>
       )}
-    </div>
+    </Link>
   );
 }
 
@@ -297,7 +302,7 @@ function DashboardTimeline({ items }: { items: DashboardData["timeline"] }) {
         const tx = tlText(e.type, e.n);
         const last = i === items.length - 1;
         return (
-          <div key={i} className="flex gap-4">
+          <Link key={i} href={timelineRoute(e.type)} title={`前往「${tx.label}」`} className="flex gap-4 group">
             <div className="flex flex-col items-center">
               <span className="w-3 h-3 rounded-full mt-1.5 shrink-0" style={{ background: C.green, boxShadow: `0 0 0 4px ${C.green}1a` }} />
               {!last && <span className="w-px flex-1 my-1" style={{ background: C.line }} />}
@@ -305,11 +310,11 @@ function DashboardTimeline({ items }: { items: DashboardData["timeline"] }) {
             <div className={`flex-1 flex items-center justify-between gap-3 ${last ? "" : "pb-6"}`}>
               <div>
                 <div className="text-[12px] font-medium tabular-nums" style={{ color: C.faint }}>{e.time} JST</div>
-                <div className="text-[14px] font-medium mt-0.5" style={{ color: C.ink }}>{tx.label}</div>
+                <div className="text-[14px] font-medium mt-0.5 transition-colors group-hover:text-[#007AFF]" style={{ color: C.ink }}>{tx.label}</div>
               </div>
               <span className="text-[13px]" style={{ color: C.faint }}>{tx.detail}</span>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>
@@ -350,12 +355,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
     { value: fmt(stats.todayRec), title: "今日推荐", icon: <Sparkles size={17} />, accent: C.green },
   ];
   const quickActions = [
-    { href: "/screener", label: "AI 选股", desc: "今日推荐排行", icon: <Sparkles size={24} />, accent: C.blue },
-    { href: "/admin/research?tab=score", label: "影子评分", desc: "Alpha Shadow", icon: <Zap size={24} />, accent: "#5856D6" },
-    { href: "/admin/research?tab=fusion", label: "融合策略", desc: "Regime Fusion", icon: <Layers size={24} />, accent: "#AF52DE" },
-    { href: "/fusion/paper", label: "纸面交易", desc: "Paper Trading", icon: <FileText size={24} />, accent: "#FF2D55" },
-    { href: "/backtest", label: "回测研究", desc: "历史验证", icon: <BarChart3 size={24} />, accent: C.green },
-    { href: "/admin/learning-report", label: "学习报告", desc: "AI 学习成果", icon: <TrendingUp size={24} />, accent: C.amber },
+    { href: ROUTES.AI_SELECTION, label: "AI 选股", desc: "今日推荐排行", icon: <Sparkles size={24} />, accent: C.blue },
+    { href: ROUTES.SHADOW_SCORE, label: "影子评分", desc: "Alpha Shadow", icon: <Zap size={24} />, accent: "#5856D6" },
+    { href: ROUTES.FUSION_REPORT, label: "融合策略", desc: "Regime Fusion", icon: <Layers size={24} />, accent: "#AF52DE" },
+    { href: ROUTES.PAPER_TRADING, label: "纸面交易", desc: "Paper Trading", icon: <FileText size={24} />, accent: "#FF2D55" },
+    { href: ROUTES.BACKTEST, label: "回测研究", desc: "历史验证", icon: <BarChart3 size={24} />, accent: C.green },
+    { href: ROUTES.LEARNING_REPORT, label: "学习报告", desc: "AI 学习成果", icon: <TrendingUp size={24} />, accent: C.amber },
   ];
 
   return (
@@ -391,7 +396,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
         {/* Timeline */}
         <DashboardSection title="今日流水线" sub="数据处理活动流（JST）"
-          action={<Link href="/admin/mission-control" className="text-[13px] font-medium flex items-center gap-1" style={{ color: C.blue }}>控制中心 <ArrowRight size={14} /></Link>}>
+          action={<Link href={ROUTES.MISSION_CONTROL} className="text-[13px] font-medium flex items-center gap-1" style={{ color: C.blue }}>控制中心 <ArrowRight size={14} /></Link>}>
           <DashboardTimeline items={data.timeline} />
         </DashboardSection>
 

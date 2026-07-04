@@ -2,6 +2,38 @@
 
 ---
 
+## [17.52.0] - 2026-07-04 — P3-T7 Dashboard 全链接与全功能可用性修复 🔗
+
+### 目标
+全站入口可用性修复 + 链接审计 + 功能连通性验收。只修入口/链接/跳转/展示可用性，**不改任何核心业务**。
+
+### 路由常量化（单一真源）
+- 新增 **`lib/routes.ts`**：`ROUTES` 常量表 + `stockDetail(symbol)` / `comingSoon(feature)` / `timelineRoute(type)` / `stockSearchApi(q)` 动态生成器。Sidebar 与 DashboardView 全部改用 ROUTES，**消灭散落硬编码 href**。
+
+### 顶部搜索（真实 typeahead）
+- 新增 **`components/dashboard/SearchBox.tsx`**：复用现有只读 `/api/stocks?q=`（已支持 代码/中文/日文/英文 四种搜索 + limit），220ms 防抖、下拉 Top6、方向键/回车/Esc、点击结果跳 `/stocks/[symbol]`、loading skeleton、`未找到相关股票` 空态、错误 `重试`。实测 `7203.T/丰田/トヨタ/Toyota` 均可搜。**修复下拉 z-index 层叠 bug**（`.dash-in` 的 transform 使 header 成层叠上下文困住下拉 → header 提 `relative z-30`）。
+
+### Dashboard 入口全部接线
+- **Hero 查看分析** → `stockDetail(symbol)`；symbol 缺失时按钮 `disabled` + 说明（`暂无详情`）。
+- **系统状态卡** 整卡可点 → 控制中心。**Market 卡**（TOPIX/USDJPY/VIX/NASDAQ）可点 → 市场状态。**Timeline 每条**可点 → 对应页（评分→AI选股 / 新闻→新闻 / 行情→数据中心 / 全球→市场状态）+ hover 高亮。
+- 通知 → 新闻；账户 → 系统设置；Quick Actions 6 个 + Sidebar 10 项全部 ROUTES 常量、全部真实 200。
+
+### Coming Soon + 友好路由别名
+- 新增 **`app/coming-soon/page.tsx`** + `components/dashboard/ComingSoonView.tsx`（Apple Premium 风：`功能建设中` + feature 说明 + `返回总览`/`返回上一页`）。
+- **`next.config.ts` `redirects()`**：`/control-center`→`/admin/mission-control`、`/data-center`→`/sync`、`/settings`→`/admin/mission-control`、`/research`→`/admin/research`、`/learning-report`→`/admin/learning-report`（服务器级 **308**，瞬时无闪烁，curl 可跟随）。
+
+### Smoke Test
+- 新增 **`scripts/smoke-dashboard-links.ts`** + `npm run smoke:links`（`BASE=` 可选，2xx/3xx=PASS，4xx/5xx=FAIL，输出表格）。**实测 28/28 PASS**（含 5 个 308 别名）。
+
+### 按钮状态规范
+- 全 Dashboard 无 `href="#"` / `javascript:void(0)` / 空 onClick / console.log 占位；可点即有真实动作，不可用即 disabled + 说明。
+
+### 验收
+- Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；**Smoke 28/28 PASS**；warm TTFB 0.14s；未改任何业务代码（数据契约不变），V3 Freeze 不受影响。
+- 新增：`lib/routes.ts`、`app/coming-soon/page.tsx`、`components/dashboard/{ComingSoonView,SearchBox}.tsx`、`scripts/smoke-dashboard-links.ts`；修改：`components/dashboard/DashboardView.tsx`、`components/Sidebar.tsx`、`next.config.ts`、`package.json`。
+
+---
+
 ## [17.51.0] - 2026-07-04 — P3-T6 Dashboard Premium UI（Apple × Linear × Vercel × Stripe）✨
 
 ### 目标
