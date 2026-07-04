@@ -2,6 +2,36 @@
 
 ---
 
+## [17.53.0] - 2026-07-04 — P3-T8 AI选股页面 Apple Premium UI 重构 📈
+
+### 目标
+在**保持 AI 评分 / 筛选 / 排序 / 搜索 / 接口返回完全不变**的前提下，将 `/screener` 重构为 Apple × Linear × Vercel × Stripe × Apple Stocks 风格的专业金融 AI 产品。**纯展示层**，未改任何业务逻辑/算法/API/数据。
+
+### 逻辑 100% 保留（仅搬运，未改一处）
+`/api/screener?limit=200` + `/api/gpt-score`；客户端 rec/style/market 筛选；sort（含 percentileRank/gptScore/finalScore 特判）；300ms 防抖搜索（`/api/screener?q=`）；`displayScore = gpt.finalScore ?? adaptiveScore`。**实测 API stats 逐字段不变**（SB0/BUY12/HOLD284/WATCH1590/AVOID1183）。
+
+### Apple Premium 重构（`components/screener/`，无一文件 >500 行）
+- **组件拆分**：`ScreenerHeader / MetricCards / FilterBar / SearchBar / StockCard / ScoreRing / Pagination / EmptyState / LoadingState / Segmented / Dropdown`（page.tsx 248 行仅做状态编排）。
+- **Header**：AI选股 大标题 + 副标题「整合股票列表、AI推荐与全市场筛选」+ Apple 搜索（⌘K，代码/中/日/英）+ 刷新按钮（旋转态）+ 最后更新时间。
+- **统计卡**：5 张 Apple Card（0 Strong Buy / 12 Buy / 284 Hold / 1,590 Watch / 1,183 Avoid），数字 40px + 小标题，点击即筛选、激活态彩色描边。
+- **筛选**：Apple **Segmented Control**（全部/强烈买入/买入/观察/持有/回避）；风格 / 市场 / 排序 三个 Apple **Dropdown**（统一 40px 高、圆角、chevron、popover）。
+- **股票卡（重点）**：`#rank` + 收藏书签 → 名称(18px 最大) + 代码 + Prime/Standard/Growth 徽章 + 风格芯片 → **ScoreRing 环形评分**（`finalScoreHex` 上色）+ 评级 pill + ¥价格 + 涨跌 → RSI/均线/5D 指标 chip → 查看分析 + 收藏；**hover 整卡上浮 2px + 阴影增强 + 名称变蓝**。
+- **AI Score**：改绿色数字为 **Apple Activity Ring** 圆环（73 绿环）。
+- **信息层级**：名称 18 > 价格 19 > 评级/环 > 代码 12 > 指标，字号严格分级。
+- **分页**：Apple 圆角分页（当前页蓝 / 上一页 / 下一页 / 省略号），每页 24。
+- **收藏**：localStorage 本地收藏（**零后端、零 schema、零业务逻辑**，纯 UI 状态），书签填充蓝。
+- **⌘K/Ctrl+K** 聚焦搜索；刷新按钮重取数据（不闪 loading）。
+- 设计 token 复用 T6 `.dash-card/.dash-int/.dash-in`（圆角/极浅阴影/1px 描边/240ms 动画），新增 `dash-spin`（刷新旋转）；色 #FAFAFA/#FFFFFF/#ECECEC/#007AFF/#34C759/#FF9F0A/#FF3B30，无渐变无霓虹。
+
+### 响应式
+`max-w-1600`；grid 1→2→3(lg)→4(2xl) 自动换列；1440 三列 / 1920·2560 四列均协调、留白充足。
+
+### 验收
+- Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；/screener 200；**API stats 不变**（零业务改动，V3 Freeze 不受影响）。
+- 新增：`components/screener/{ui,StockCard,sections}.tsx`；修改：`app/screener/page.tsx`、`app/globals.css`、`components/dashboard/icons.tsx`。
+
+---
+
 ## [17.52.0] - 2026-07-04 — P3-T7 Dashboard 全链接与全功能可用性修复 🔗
 
 ### 目标

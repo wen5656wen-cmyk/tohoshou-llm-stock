@@ -113,6 +113,10 @@ body {
   border-color: #E2E2E4;
 }
 
+@keyframes dash-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dash-in { animation: none; }
   .dash-int:hover, .dash-tile:hover { transform: none; }

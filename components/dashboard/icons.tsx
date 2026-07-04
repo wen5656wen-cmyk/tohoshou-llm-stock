@@ -111,3 +111,24 @@ export const Boxes = (p: IconProps) => (
 export const Menu = (p: IconProps) => (
   <Icon {...p}><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></Icon>
 );
+export const RefreshCw = (p: IconProps) => (
+  <Icon {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></Icon>
+);
+export const Bookmark = (p: IconProps) => (
+  <Icon {...p}><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></Icon>
+);
+export const ChevronDown = (p: IconProps) => (
+  <Icon {...p}><path d="m6 9 6 6 6-6" /></Icon>
+);
+export const ChevronLeft = (p: IconProps) => (
+  <Icon {...p}><path d="m15 18-6-6 6-6" /></Icon>
+);
+export const ChevronRight = (p: IconProps) => (
+  <Icon {...p}><path d="m9 18 6-6-6-6" /></Icon>
+);
+export const Star = (p: IconProps) => (
+  <Icon {...p}><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></Icon>
+);
+export const SlidersHorizontal = (p: IconProps) => (
+  <Icon {...p}><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></Icon>
+);

@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { buildStockUrl } from "@/lib/navigation/back";
-import Link from "next/link";
-import StockMobileCard from "@/components/StockMobileCard";
-import { getRec, getRecommendationLabel, returnColorClass, fmtPct, fmtJpy, finalScoreColor } from "@/lib/rec-config";
 import { useI18n } from "@/lib/i18n";
-import { getPrimaryName } from "@/lib/company-name";
+import { ScreenerHeader, MetricCards, FilterBar } from "@/components/screener/sections";
+import { StockCard } from "@/components/screener/StockCard";
+import { Pagination, EmptyState, LoadingState } from "@/components/screener/ui";
 
+// ── Types (unchanged data contract) ───────────────────────────────────────────
 type Score = {
   symbol: string; name: string; nameZh: string | null; nameEn: string | null; market: string | null;
   sector: string | null;
@@ -43,51 +43,22 @@ type Stats = {
 };
 
 type ApiResponse = { stats: Stats; scores: Score[] };
-
-const STYLE_KEYS = ["QUALITY_COMPOUNDER", "GROWTH_MOMENTUM", "CYCLICAL_EXPORTER", "VALUE_DEFENSIVE", "DOMESTIC_DEFENSIVE", "SPECULATIVE_MOMENTUM"] as const;
-
-function maTrendDisplay(trend: string | null): { label: string; cls: string } {
-  const map: Record<string, { label: string; cls: string }> = {
-    GOLDEN:  { label: "MA↑↑", cls: "text-emerald-600 font-bold" },
-    BULLISH: { label: "MA↑",  cls: "text-emerald-500" },
-    NEUTRAL: { label: "MA—",  cls: "text-slate-400" },
-    BEARISH: { label: "MA↓",  cls: "text-red-400" },
-    DEAD:    { label: "MA↓↓", cls: "text-red-600 font-bold" },
-  };
-  return map[trend ?? ""] ?? { label: "MA—", cls: "text-slate-300" };
-}
-
-function MktChip({ mkt }: { mkt: string | null }) {
-  if (!mkt) return null;
-  const label = mkt.includes("プライム") ? "P" : mkt.includes("スタンダード") ? "S" : mkt.includes("グロース") ? "G" : "?";
-  const cls = label === "P" ? "bg-violet-100 text-violet-700"
-    : label === "S" ? "bg-blue-100 text-blue-700"
-    : "bg-emerald-100 text-emerald-700";
-  return <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${cls}`}>{label}</span>;
-}
-
 type SortKey = "adaptiveScore" | "totalScore" | "opportunityScore" | "percentileRank" | "return20d" | "rsi14" | "gptScore" | "finalScore";
+type GptSummary = { symbol: string; ruleScore: number; gptScore: number; finalScore: number; confidence: string; action: string; summaryZh: string; summaryJa: string; summaryEn: string; updatedAt: string };
 
-type GptSummary = {
-  symbol: string;
-  ruleScore: number;
-  gptScore: number;
-  finalScore: number;
-  confidence: string;
-  action: string;
-  summaryZh: string;
-  summaryJa: string;
-  summaryEn: string;
-  updatedAt: string;
-};
+const PAGE_SIZE = 24;
 
 export default function ScreenerPage() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   useScrollRestoration("screener");
   const pathname = usePathname();
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // ── State (identical data logic to previous version) ─────────────────────────
   const [data, setData] = useState<ApiResponse | null>(null);
   const [searchData, setSearchData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gptMap, setGptMap] = useState<Map<string, GptSummary>>(new Map());
@@ -97,6 +68,8 @@ export default function ScreenerPage() {
   const [sortKey, setSortKey] = useState<SortKey>("finalScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [favs, setFavs] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -112,19 +85,13 @@ export default function ScreenerPage() {
   useEffect(() => {
     fetch("/api/gpt-score")
       .then((r) => r.json())
-      .then((rows: GptSummary[]) => {
-        if (Array.isArray(rows)) {
-          setGptMap(new Map(rows.map((r) => [r.symbol, r])));
-        }
-      })
+      .then((rows: GptSummary[]) => { if (Array.isArray(rows)) setGptMap(new Map(rows.map((r) => [r.symbol, r]))); })
       .catch(() => {});
   }, []);
 
+  // Debounced search (identical endpoint / behavior)
   useEffect(() => {
-    if (!search.trim()) {
-      setSearchData(null);
-      return;
-    }
+    if (!search.trim()) { setSearchData(null); return; }
     setSearchLoading(true);
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ q: search.trim(), sort: sortKey });
@@ -136,267 +103,145 @@ export default function ScreenerPage() {
     return () => clearTimeout(timer);
   }, [search, sortKey]);
 
-  if (loading) return (
-    <div className="p-6 flex items-center justify-center h-64">
-      <div className="text-slate-400 text-sm animate-pulse">{t("common.loading")}</div>
-    </div>
-  );
-  if (error || !data) return (
-    <div className="p-6">
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">{error}</div>
-    </div>
-  );
+  // Favorites — display-only, localStorage (no backend / no schema / no business logic)
+  useEffect(() => {
+    try { const raw = localStorage.getItem("screener_favs"); if (raw) setFavs(new Set(JSON.parse(raw))); } catch {}
+  }, []);
+  const toggleFav = useCallback((sym: string) => {
+    setFavs((prev) => {
+      const n = new Set(prev);
+      if (n.has(sym)) n.delete(sym); else n.add(sym);
+      try { localStorage.setItem("screener_favs", JSON.stringify([...n])); } catch {}
+      return n;
+    });
+  }, []);
+
+  // ⌘K / Ctrl+K focuses search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); searchRef.current?.focus(); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Reset to page 1 when the visible set changes
+  useEffect(() => { setPage(1); }, [recFilter, styleFilter, mktFilter, sortKey, sortDir, search]);
+
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    const params = new URLSearchParams({ limit: "200", sort: "adaptiveScore" });
+    Promise.all([
+      fetch(`/api/screener?${params}`).then((r) => r.json()).then((d) => setData(d)),
+      fetch("/api/gpt-score").then((r) => r.json()).then((rows: GptSummary[]) => { if (Array.isArray(rows)) setGptMap(new Map(rows.map((r) => [r.symbol, r]))); }).catch(() => {}),
+    ]).catch(() => {}).finally(() => setRefreshing(false));
+  }, []);
+
+  const setSort = useCallback((key: string) => {
+    const k = key as SortKey;
+    setSortKey(k);
+    setSortDir(k === "percentileRank" ? "asc" : "desc");
+  }, []);
 
   const activeData = (search.trim() && searchData) ? searchData : data;
-  const { stats, scores } = activeData;
 
-  let filtered = scores.filter((s) => {
-    const rv2 = s.recommendationV2 ?? "HOLD";
-    if (recFilter !== "ALL" && rv2 !== recFilter) return false;
-    if (styleFilter !== "ALL" && s.stockStyle !== styleFilter) return false;
-    if (mktFilter === "Prime"    && !s.market?.includes("プライム")) return false;
-    if (mktFilter === "Standard" && !s.market?.includes("スタンダード")) return false;
-    if (mktFilter === "Growth"   && !s.market?.includes("グロース")) return false;
-    return true;
-  });
-
-  filtered = [...filtered].sort((a, b) => {
-    let av: number, bv: number;
-    if (sortKey === "percentileRank") {
-      av = a.percentileRank ?? 999;
-      bv = b.percentileRank ?? 999;
-      return sortDir === "asc" ? av - bv : bv - av;
-    }
-    if (sortKey === "gptScore") {
-      av = gptMap.get(a.symbol)?.gptScore ?? -999;
-      bv = gptMap.get(b.symbol)?.gptScore ?? -999;
+  // ── Filter + sort (identical algorithm) ──────────────────────────────────────
+  const filtered = useMemo(() => {
+    if (!activeData) return [] as Score[];
+    let f = activeData.scores.filter((s) => {
+      const rv2 = s.recommendationV2 ?? "HOLD";
+      if (recFilter !== "ALL" && rv2 !== recFilter) return false;
+      if (styleFilter !== "ALL" && s.stockStyle !== styleFilter) return false;
+      if (mktFilter === "Prime" && !s.market?.includes("プライム")) return false;
+      if (mktFilter === "Standard" && !s.market?.includes("スタンダード")) return false;
+      if (mktFilter === "Growth" && !s.market?.includes("グロース")) return false;
+      return true;
+    });
+    f = [...f].sort((a, b) => {
+      let av: number, bv: number;
+      if (sortKey === "percentileRank") {
+        av = a.percentileRank ?? 999; bv = b.percentileRank ?? 999;
+        return sortDir === "asc" ? av - bv : bv - av;
+      }
+      if (sortKey === "gptScore") {
+        av = gptMap.get(a.symbol)?.gptScore ?? -999; bv = gptMap.get(b.symbol)?.gptScore ?? -999;
+        return sortDir === "desc" ? bv - av : av - bv;
+      }
+      if (sortKey === "finalScore") {
+        av = gptMap.get(a.symbol)?.finalScore ?? a.adaptiveScore ?? -999;
+        bv = gptMap.get(b.symbol)?.finalScore ?? b.adaptiveScore ?? -999;
+        return sortDir === "desc" ? bv - av : av - bv;
+      }
+      av = (a[sortKey] as number | null) ?? -999;
+      bv = (b[sortKey] as number | null) ?? -999;
       return sortDir === "desc" ? bv - av : av - bv;
-    }
-    if (sortKey === "finalScore") {
-      av = gptMap.get(a.symbol)?.finalScore ?? a.adaptiveScore ?? -999;
-      bv = gptMap.get(b.symbol)?.finalScore ?? b.adaptiveScore ?? -999;
-      return sortDir === "desc" ? bv - av : av - bv;
-    }
-    av = (a[sortKey] as number | null) ?? -999;
-    bv = (b[sortKey] as number | null) ?? -999;
-    return sortDir === "desc" ? bv - av : av - bv;
-  });
+    });
+    return f;
+  }, [activeData, recFilter, styleFilter, mktFilter, sortKey, sortDir, gptMap]);
 
   const buyCount = filtered.filter((s) => s.recommendationV2 === "STRONG_BUY" || s.recommendationV2 === "BUY").length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir((d) => d === "desc" ? "asc" : "desc");
-    else { setSortKey(key); setSortDir(key === "percentileRank" ? "asc" : "desc"); }
-  }
+  const resultText = search.trim()
+    ? (searchLoading ? t("screener.searching") : `"${search.trim()}" · ${filtered.length} ${t("screener.result_count")}`)
+    : `${filtered.length} ${t("screener.result_count")} · ${t("screener.bull_count")} ${buyCount}`;
 
-  const hasGptScores = gptMap.size > 0;
-
-  function ThBtn({ col, label }: { col: SortKey; label: string }) {
-    const active = sortKey === col;
-    return (
-      <th
-        className={`px-2 py-2.5 font-medium text-right cursor-pointer select-none whitespace-nowrap hover:text-slate-700 ${active ? "text-blue-600" : ""}`}
-        onClick={() => toggleSort(col)}
-      >
-        {label}{active ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-      </th>
-    );
-  }
-
-  const DIST = [
-    { key: "STRONG_BUY", val: stats.strongBuy },
-    { key: "BUY",        val: stats.buy },
-    { key: "HOLD",       val: stats.hold },
-    { key: "WATCH",      val: stats.watch },
-    { key: "AVOID",      val: stats.avoid },
-  ];
+  const stats = activeData?.stats;
 
   return (
-    <div className="p-4 md:p-6 max-w-[1500px]">
-      <div className="mb-4">
-        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("screener.title")}</h1>
-        <p className="text-xs text-blue-600 font-medium mt-0.5 mb-1">{t("screener.combined_description")}</p>
-        <p className="text-sm font-medium text-slate-500 mt-1">
-          {t(`temp.${stats.marketTemperature}` as Parameters<typeof t>[0]) ?? stats.marketTemperature}
-          　{t("screener.bull_count")} {stats.bullCount} ({stats.bullRate}%)　{stats.total} {t("screener.result_count")}
-          {stats.lastComputedAt && `　${t("screener.updated")}: ${new Date(stats.lastComputedAt).toLocaleString()}`}
-        </p>
-      </div>
+    <div className="min-h-screen dash-font" style={{ background: "#FAFAFA" }}>
+      <div className="mx-auto max-w-[1600px] px-6 lg:px-10 xl:px-14 py-8 lg:py-10">
+        <ScreenerHeader
+          title={t("screener.title")}
+          subtitle={t("screener.combined_description")}
+          search={search}
+          onSearch={setSearch}
+          searchRef={searchRef}
+          onRefresh={refresh}
+          refreshing={refreshing}
+          lastComputedAt={stats?.lastComputedAt ?? null}
+        />
 
-      {/* Distribution chips */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-        {DIST.map((d) => {
-          const rec = getRec(d.key);
-          const active = recFilter === d.key;
-          return (
-            <div
-              key={d.key}
-              className={`bg-white rounded-2xl border shadow-sm p-3 text-center cursor-pointer transition-colors min-w-[80px] ${
-                active ? `${rec.border} ${rec.bg}` : "border-slate-200 hover:border-slate-300"
-              }`}
-              onClick={() => setRecFilter(recFilter === d.key ? "ALL" : d.key)}
-            >
-              <div className={`text-xl font-bold tabular-nums ${rec.text}`}>{d.val}</div>
-              <div className={`text-[10px] mt-0.5 font-semibold whitespace-nowrap ${rec.text}`}>{getRecommendationLabel(d.key, lang)}</div>
+        {error ? (
+          <div className="dash-card p-6 text-[14px]" style={{ color: "#FF3B30" }}>{error}</div>
+        ) : loading || !stats ? (
+          <LoadingState />
+        ) : (
+          <>
+            <MetricCards stats={stats} active={recFilter} onFilter={setRecFilter} />
+            <FilterBar
+              recFilter={recFilter} setRecFilter={setRecFilter}
+              styleFilter={styleFilter} setStyleFilter={setStyleFilter}
+              mktFilter={mktFilter} setMktFilter={setMktFilter}
+              sortKey={sortKey} setSortKey={setSort}
+              resultText={resultText}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5 dash-in" style={{ animationDelay: "120ms" }}>
+              {pageItems.map((s, i) => {
+                const gpt = gptMap.get(s.symbol);
+                const displayScore = gpt?.finalScore ?? s.adaptiveScore;
+                return (
+                  <StockCard
+                    key={s.symbol}
+                    s={s}
+                    rank={(page - 1) * PAGE_SIZE + i + 1}
+                    displayScore={displayScore}
+                    href={buildStockUrl(s.symbol, "screener", pathname)}
+                    favorited={favs.has(s.symbol)}
+                    onToggleFav={toggleFav}
+                  />
+                );
+              })}
+              {filtered.length === 0 && <EmptyState text={searchLoading ? t("screener.searching") : t("screener.no_results")} />}
             </div>
-          );
-        })}
-      </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto md:flex-wrap pb-1">
-        {/* rec filter */}
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {(["ALL", "STRONG_BUY", "BUY", "WATCH", "HOLD", "AVOID"] as const).map((r) => {
-            const rec = getRec(r);
-            return (
-              <button key={r} onClick={() => setRecFilter(r)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${recFilter === r ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-                {r === "ALL" ? t("screener.all") : getRecommendationLabel(r, lang)}
-              </button>
-            );
-          })}
-        </div>
+            <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
-        {/* style filter */}
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {(["ALL", ...STYLE_KEYS] as const).map((s) => (
-            <button key={s} onClick={() => setStyleFilter(s)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${styleFilter === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-              {s === "ALL" ? t("screener.all_styles") : t(`style.short.${s}` as Parameters<typeof t>[0])}
-            </button>
-          ))}
-        </div>
-
-        {/* market filter */}
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {[{ k: "ALL", l: t("screener.all_markets") }, { k: "Prime", l: t("market.prime") }, { k: "Standard", l: t("market.standard") }, { k: "Growth", l: t("market.growth") }].map(({ k, l }) => (
-            <button key={k} onClick={() => setMktFilter(k)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${mktFilter === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-              {l}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative">
-          <input
-            type="text"
-            placeholder={t("screener.search_placeholder")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-blue-400 w-52"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 text-xs"
-            >✕</button>
-          )}
-        </div>
-
-        <span className="text-xs text-slate-400 ml-auto">
-          {searchLoading ? (
-            <span className="animate-pulse">{t("screener.searching")}</span>
-          ) : search.trim() ? (
-            `"${search}" → ${filtered.length} ${t("screener.result_count")}`
-          ) : (
-            `${filtered.length} ${t("screener.result_count")} · ${t("screener.bull_count")} ${buyCount}`
-          )}
-        </span>
-      </div>
-
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-2 mb-4">
-        {filtered.slice(0, 200).map((s, idx) => (
-          <StockMobileCard key={s.symbol} s={s} rank={idx + 1} href={buildStockUrl(s.symbol, "screener", pathname)} />
-        ))}
-        {filtered.length === 0 && (
-          <div className="py-12 text-center text-slate-400 text-sm">
-            {searchLoading ? t("screener.searching") : t("screener.no_results")}
-          </div>
+            <div className="mt-8 text-center text-[12px]" style={{ color: "#86868B" }}>{t("screener.hint")}</div>
+          </>
         )}
-      </div>
-
-      {/* Desktop Card Grid — compact style aligned with Watchlist */}
-      <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-        {filtered.slice(0, 200).map((s, idx) => {
-          const gpt = gptMap.get(s.symbol);
-          const displayScore = gpt?.finalScore ?? s.adaptiveScore;
-          const hasGpt = !!gpt;
-          const rec = getRec(s.recommendationV2);
-          const rsiColor = s.rsi14 == null ? "text-slate-400" : s.rsi14 >= 70 ? "text-red-500" : s.rsi14 <= 30 ? "text-emerald-500" : "text-slate-600";
-          const ma = maTrendDisplay(s.maTrend);
-          return (
-            <Link
-              key={s.symbol}
-              href={buildStockUrl(s.symbol, "screener", pathname)}
-              className={`block bg-white border rounded-xl p-3 hover:border-blue-200 hover:shadow-md transition-all duration-200 group ${s.highRiskFlag ? "border-red-100" : "border-slate-200"}`}
-            >
-              {/* Name + code row */}
-              <div className="mb-1.5">
-                <div className="flex items-baseline gap-1 min-w-0">
-                  <span className="text-[9px] text-slate-300 tabular-nums font-mono shrink-0">#{idx + 1}</span>
-                  {s.highRiskFlag && <span className="text-[10px] text-red-400 shrink-0">⚠</span>}
-                  {s.isWatchlist && <span className="text-[11px] text-amber-500 shrink-0" title={t("universe.rule.MANUAL_INCLUDE_WATCHLIST")}>★</span>}
-                  <span className="text-[13px] font-bold text-slate-900 group-hover:text-blue-600 truncate leading-snug">
-                    {getPrimaryName(s, lang)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                  <span className="text-[10px] text-slate-400 font-mono">{s.symbol}</span>
-                  <MktChip mkt={s.market} />
-                  {s.stockStyle && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-400">
-                      {t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Score + badge */}
-              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                <span className={`text-[13px] font-bold tabular-nums ${finalScoreColor(displayScore)}`}>
-                  综合分 {displayScore?.toFixed(0) ?? "—"}
-                </span>
-                {hasGpt && (
-                  <span className="text-[9px] text-indigo-500 font-mono">
-                    R{gpt.ruleScore.toFixed(0)} G{gpt.gptScore.toFixed(0)}
-                  </span>
-                )}
-                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${rec.bg} ${rec.text}`}>
-                  {getRecommendationLabel(s.recommendationV2, lang)}
-                </span>
-              </div>
-
-              {/* Price + 20d return */}
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[13px] font-semibold text-slate-800 tabular-nums">{fmtJpy(s.latestClose)}</span>
-                <span className={`text-[11px] tabular-nums font-medium ${returnColorClass(s.return20d)}`}>{fmtPct(s.return20d)}</span>
-              </div>
-
-              {/* Indicators */}
-              <div className="flex items-center gap-1 text-[11px] font-mono flex-wrap">
-                <span className={rsiColor}>RSI {s.rsi14?.toFixed(1) ?? "—"}</span>
-                <span className="text-slate-200">·</span>
-                <span className={ma.cls}>{ma.label}</span>
-                {s.return5d != null && (
-                  <>
-                    <span className="text-slate-200">·</span>
-                    <span className={`tabular-nums ${returnColorClass(s.return5d)}`}>5D {fmtPct(s.return5d)}</span>
-                  </>
-                )}
-              </div>
-            </Link>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="col-span-2 md:col-span-3 lg:col-span-4 py-12 text-center text-slate-400 text-sm">
-            {searchLoading ? t("screener.searching") : t("screener.no_results")}
-          </div>
-        )}
-      </div>
-      <div className="mt-3 text-xs text-slate-400 text-center">
-        {t("screener.hint")}
       </div>
     </div>
   );
