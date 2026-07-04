@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#1677FF"/><stop offset="1" stop-color="#4DA3FF"/>
+  </linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <!-- trend line connecting candle tops -->
+    <polyline points="120,382 166,286 256,224 346,158 392,150" stroke-width="9" opacity="0.75"/>
+    <!-- wicks -->
+    <line x1="166" y1="282" x2="166" y2="386" stroke-width="10"/>
+    <line x1="256" y1="222" x2="256" y2="326" stroke-width="10"/>
+    <line x1="346" y1="154" x2="346" y2="258" stroke-width="10"/>
+  </g>
+  <g fill="#FFFFFF">
+    <!-- candle bodies -->
+    <rect x="148" y="298" width="36" height="72" rx="9"/>
+    <rect x="238" y="238" width="36" height="72" rx="9"/>
+    <rect x="328" y="170" width="36" height="72" rx="9"/>
+    <!-- AI sparkle -->
+    <path transform="translate(406,116) scale(34)" d="M0,-1 C0.12,-0.28 0.28,-0.12 1,0 C0.28,0.12 0.12,0.28 0,1 C-0.12,0.28 -0.28,0.12 -1,0 C-0.28,-0.12 -0.12,-0.28 0,-1 Z"/>
+  </g>
+</svg>
