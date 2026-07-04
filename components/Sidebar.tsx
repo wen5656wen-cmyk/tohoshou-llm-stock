@@ -4,9 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
+import {
+  LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
+  GraduationCap, Database, FlaskConical, Settings,
+} from "./dashboard/icons";
 
-type NavItem = { href: string; label: string; icon: string; badge?: string };
-type NavGroup = { labelKey: string; items: NavItem[] };
+type IconCmp = (p: { size?: number }) => React.ReactElement;
+type NavItem = { href: string; label: string; Icon: IconCmp; badge?: string };
+type NavGroup = { key: string; items: NavItem[] };
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -14,31 +19,23 @@ export default function Sidebar() {
 
   const groups: NavGroup[] = [
     {
-      labelKey: "nav.core",
+      key: "main",
       items: [
-        { href: "/",                   label: t("nav.cockpit"),        icon: "◈" },
-        { href: "/screener",           label: t("nav.aiScreener"),    icon: "✦" },
-        { href: "/strategy",           label: t("nav.strategyCenter"), icon: "◆" },
-        { href: "/portfolio",          label: t("nav.aiPortfolio"),   icon: "◇", badge: "Paper" },
-        { href: "/backtest",           label: t("nav.backtest"),      icon: "▣" },
-        { href: "/admin/research",     label: t("nav.research"),      icon: "◉" },
+        { href: "/",                      label: t("nav.cockpit"),        Icon: LayoutGrid },
+        { href: "/screener",              label: t("nav.aiScreener"),     Icon: Sparkles },
+        { href: "/strategy",              label: t("nav.strategyCenter"), Icon: Target },
+        { href: "/portfolio",             label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
+        { href: "/backtest",              label: t("nav.backtest"),       Icon: LineChart },
+        { href: "/admin/research",        label: t("nav.research"),       Icon: Microscope },
       ],
     },
     {
-      labelKey: "nav.dataAndLearning",
+      key: "secondary",
       items: [
-        { href: "/admin/learning-report", label: t("nav.learningReport"), icon: "◐" },
-        { href: "/admin/versions",        label: t("nav.versionCenter"),  icon: "◫" },
-        { href: "/admin/experiments",     label: t("nav.experiments"),    icon: "⬡" },
-        { href: "/news",                  label: t("nav.news"),           icon: "◎" },
-      ],
-    },
-    {
-      labelKey: "nav.systemMgmt",
-      items: [
-        { href: "/admin/mission-control", label: t("nav.missionControl"), icon: "⟁" },
-        { href: "/admin/verify",          label: t("nav.dataVerify"),     icon: "✅" },
-        { href: "/sync",                  label: t("nav.syncStatus"),     icon: "⟳" },
+        { href: "/admin/learning-report", label: t("nav.learningReport"), Icon: GraduationCap },
+        { href: "/sync",                  label: t("nav.syncStatus"),     Icon: Database },
+        { href: "/admin/experiments",     label: t("nav.experiments"),    Icon: FlaskConical },
+        { href: "/admin/mission-control", label: t("nav.missionControl"), Icon: Settings },
       ],
     },
   ];
@@ -47,59 +44,67 @@ export default function Sidebar() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 bg-[#0f1629] flex-col z-40">
-      <div className="px-5 py-5 border-b border-slate-700/50">
-        <div className="flex items-center gap-2">
-          <span className="text-xl text-blue-400">◈</span>
+    <aside
+      className="hidden md:flex fixed left-0 top-0 h-full w-56 flex-col z-40 dash-font"
+      style={{ background: "#FFFFFF", borderRight: "1px solid #ECECEC" }}
+    >
+      {/* Logo */}
+      <div className="px-5 py-5" style={{ borderBottom: "1px solid #ECECEC" }}>
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-white" style={{ background: "#007AFF" }}>
+            <Sparkles size={17} />
+          </span>
           <div>
-            <div className="text-white font-bold text-sm leading-tight">TOHOSHOU AI</div>
-            <div className="text-slate-500 text-xs">{t("site.subtitle")}</div>
+            <div className="font-semibold text-[14px] leading-tight" style={{ color: "#1d1d1f" }}>TOHOSHOU AI</div>
+            <div className="text-[11px]" style={{ color: "#86868b" }}>{t("site.subtitle")}</div>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
-        {groups.map((group) => (
-          <div key={group.labelKey}>
-            <div className="px-3 pb-1">
-              <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
-                {t(group.labelKey as Parameters<typeof t>[0])}
-              </span>
-            </div>
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {groups.map((group, gi) => (
+          <div key={group.key} className={gi > 0 ? "mt-3 pt-3" : ""} style={gi > 0 ? { borderTop: "1px solid #ECECEC" } : undefined}>
             <div className="space-y-0.5">
-              {group.items.map(({ href, label, icon, badge }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  prefetch={true}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all active:opacity-70 active:scale-[0.98] ${
-                    isActive(href)
-                      ? "bg-blue-600/20 text-blue-300 font-medium"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-                  }`}
-                >
-                  <span className="text-base w-5 text-center">{icon}</span>
-                  <span className="flex-1">{label}</span>
-                  {badge && (
-                    <span className="text-[9px] font-bold text-slate-500 bg-slate-700/50 border border-slate-600/40 px-1.5 py-0.5 rounded tracking-wider">
-                      {badge}
-                    </span>
-                  )}
-                </Link>
-              ))}
+              {group.items.map(({ href, label, Icon, badge }) => {
+                const active = isActive(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    prefetch={true}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] transition-colors active:scale-[0.99]"
+                    style={{
+                      background: active ? "#F0F0F3" : "transparent",
+                      color: active ? "#1d1d1f" : "#6e6e73",
+                      fontWeight: active ? 600 : 500,
+                    }}
+                  >
+                    <span style={{ color: active ? "#007AFF" : "#86868b" }}><Icon size={19} /></span>
+                    <span className="flex-1">{label}</span>
+                    {badge && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                        style={{ color: "#86868b", background: "#F0F0F3" }}>
+                        {badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}
       </nav>
 
-      <div className="px-4 py-4 border-t border-slate-700/50 space-y-3">
-        <div className="text-slate-600 text-xs">
+      {/* Footer */}
+      <div className="px-4 py-4 space-y-3" style={{ borderTop: "1px solid #ECECEC" }}>
+        <div className="text-[11px]" style={{ color: "#86868b" }}>
           {t("nav.data_sources")}
-          <div className="mt-1.5 space-y-0.5">
+          <div className="mt-1.5 space-y-1">
             {["J-Quants", "Yahoo Finance JP", "TDnet"].map((s) => (
               <div key={s} className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                <span className="text-slate-500 text-xs">{s}</span>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#34C759" }} />
+                <span className="text-[11px]" style={{ color: "#6e6e73" }}>{s}</span>
               </div>
             ))}
           </div>

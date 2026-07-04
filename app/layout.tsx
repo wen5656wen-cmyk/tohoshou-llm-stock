@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh">
-      <body className="min-h-screen bg-[#f8f9fb]">
+      <body className="min-h-screen bg-[#fafafa]">
         <I18nProvider>
           <HtmlLangSync />
           <Sidebar />

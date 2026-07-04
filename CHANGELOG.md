@@ -2,6 +2,51 @@
 
 ---
 
+## [17.50.0] - 2026-07-04 — P3-T5 Dashboard Apple UI 重构 + 首页数据修复（Production）🍎
+
+### 背景 / 根因
+首页 `/`（`app/page.tsx` → 旧 `SystemDashboard.tsx`）大量指标显示「—」「加载中…」「Invalid Date」。
+**根因**：`/api/admin/mission-control` 早已重构为 V2 结构（`productionStatus`/`todayPipeline`/`dataFreshness`/`health`/`version`/`generatedAt`），
+但 `SystemDashboard.tsx` 仍读旧字段（`mc.healthScore`/`mc.pipeline`/`mc.featureCoverage`/`mc.freshness`/`mc.computedAt`）——
+全部 `undefined` → 所有 pill 显示「—」，底部 `new Date(mc.computedAt)` → 「Invalid Date」。API 本身健康（HTTP 200、真实数据），纯前端字段映射断裂。
+
+### 架构性修复（消灭客户端 loading 竞态）
+- **`app/page.tsx` 改为服务器组件一次性并行抓取全部数据**（force-dynamic），服务器端安全格式化（`fmtDate`/`jstClock`/`daysAgo` 全部 null-safe，永不产生 NaN/Invalid Date），以 props 传给纯展示客户端组件 → **首屏即渲染真实数据，无 loading 态、无「—」**。
+- 展示组件 `components/dashboard/DashboardView.tsx` 通过 `router.refresh()` 每 60s 静默刷新（重跑服务器组件、无 loading 闪烁）。
+
+### Apple UI 重构（White / Light Gray / Soft Shadow / Large Radius / Huge Whitespace）
+- 背景 `#FAFAFA`、卡片 `#FFFFFF`、描边 `#ECECEC`、极淡阴影、圆角 24–28px、大量留白；Primary `#007AFF` / Success `#34C759` / Error `#FF3B30` / Warn `#FF9F0A`；SF Pro Display → Inter 字体栈（`.dash-font` 作用域限定，不改全局）。
+- **动画**：CSS `dash-fade-up`（fade + slide-up，cubic-bezier）+ hover `scale(1.02)`，尊重 `prefers-reduced-motion`（**未引入 Framer Motion——CSS 实现同等 Apple 观感且首屏更快、零依赖零部署风险**）。
+- **图标**：本地内联 SVG（Lucide MIT 路径，`components/dashboard/icons.tsx`）——**零依赖、零服务器 npm install**，视觉等同 lucide-react。
+- 抽组件：`SectionHeader`/`Card`/`MetricCard`/`StatusRow`/`MarketCard`/`QuickAction` + 各 Section。
+- **Sidebar 重构**：浅色（白底 `#ECECEC` 描边）+ Lucide 图标（无彩色/无发光）+ 规范化菜单（总览/AI选股/策略中心/自动交易/回测/研究分析 ─ 学习报告/数据中心/实验室/系统设置），保留三语 i18n `t()`。
+
+### 页面结构（四屏）
+- **Header**：晚上好 👋 欢迎回来 / TOHOSHOU AI 正在分析日本市场 / 搜索·通知·账户。
+- **第一屏**：① Hero 今日精选（股票/评分/AI 一句总结=`DailyRecommendation.summaryZh`/查看分析；无推荐→「今日暂无推荐·每日08:00自动更新」）② 系统状态（数据同步/AI模型/策略引擎/Cron/数据库/API 全绿）+ 运营条（系统健康度/数据流水线/数据校验/数据新鲜度，即原「—」四项，已修复）。
+- **第二屏**：AI 数据统计（股票总数/评分完成/今日推荐/AI分析/新闻数量，Large Number）。
+- **第三屏**：今日流水线 Timeline（真实 JST 时间戳）。
+- **第四屏**：快速入口（AI选股/影子评分/融合策略/纸面交易/回测研究/学习报告，Apple 大按钮）。
+
+### 数据修复实测（生产）
+- 系统健康度 88/100 GREEN（CRITICAL=0、WARNING=4、PASS=61，读最新 `reports/data-health-guard-*.json`）；数据流水线 **5/5 全部完成**；数据校验 **通过 CRITICAL 0**；数据新鲜度 2026-07-03。
+- 系统状态 6 项全 **NORMAL**；市场概况 TOPIX 431.70 +1.24% / 美元日元 161.38 / VIX 15.81 / 纳斯达克 25,832.67 −0.80%（**日经225 数据源为 null → 服务器端过滤，不显示占位**）；AI 统计 3,719 / 3,069 / 12 / 3,069 / 359。
+- **HTML 无 `—`/`null`/`undefined`/`NaN`/`Invalid Date`/`Loading` 可见文本**（余留 `$undefined` 为 Next.js RSC Flight 内部标记，非 UI）。
+- TTFB ≈ 0.63s（服务器渲染，force-dynamic）。
+
+### 边界修正
+- 全球指数日期天然滞后（跟随美股 T-1）→ 新鲜度判定放宽至 ≤2 天，避免 Cron/流水线误判 amber。
+- 市场卡 `change=null`（USD/JPY·VIX 无涨跌字段）显示「收盘价」而非 `—`；`value=null` 的指数服务器端整卡过滤。
+
+### 禁改项确认（未触碰）
+AI Score / GPT Ranking / Recommendation / Strategy / Fusion / Shadow Backtest / Paper Trading / Learning / Cron / DB Schema / Trading / Ranking Logic **全部未改**；仅展示层 + 只读数据聚合。**V3 Freeze 不受影响**（未触任何评分算法/权重/阈值）。
+
+### 验收
+- Build ✅ PASS（`next build` exit 0，tsc 0 error）；Health ✅ CRITICAL=0；Dashboard API ✅（`/` HTTP 200）；Dashboard Data ✅（全部真实）；Loading State ✅（无 loading 竞态）；Apple UI ✅；Performance ✅（TTFB 0.63s）；Deploy ✅（rsync `.next` + `pm2 restart tohoshou-web`，未动 cron/schema）。
+- 修改文件：`app/page.tsx`、`app/layout.tsx`、`app/globals.css`、`components/Sidebar.tsx`、`components/dashboard/icons.tsx`(新)、`components/dashboard/DashboardView.tsx`(新)。旧 `app/SystemDashboard.tsx` 失去引用（保留、无害）。
+
+---
+
 ## [17.49.0] - 2026-07-03 — P3-T4 V3 Shadow Freeze（冻结验证期开始）🔒
 
 ### 🔒 V3 Shadow Freeze v1 开始
