@@ -178,6 +178,10 @@ export type Messages = {
 
   // ─── News page ─────────────────────────────────────────────────────────────
   "news.title": string;
+  "news.loaded_total": string;
+  "news.important": string;
+  "news.clear_filter": string;
+  "news.search": string;
   "news.all": string;
   "news.positive": string;
   "news.negative": string;

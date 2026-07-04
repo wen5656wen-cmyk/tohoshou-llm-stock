@@ -2,6 +2,30 @@
 
 ---
 
+## [17.61.0] - 2026-07-04 — P3-T18 版本中心 + 新闻资讯 Premium UI 联合重构 🗂️📰
+
+两页同步升级为浅色 Apple Premium。**纯 UI**，未改 API/DB/Prisma/News Sync/Version Logic/Cron/AI Score/Learning/Strategy/任何计算或写入逻辑；全部只读现有 API。
+
+### 版本中心 `/admin/versions`（深色 DB 表 → Version Center · 浅色 Apple/GitHub Releases/Linear Changelog）
+- Header（版本中心 + 系统版本·评分架构·模型配置·发布记录 + 返回控制中心 + 刷新时间）。
+- **当前版本 Hero**（20260626-v7.7 大字 + 运行中/Production badge + 评分架构/Schema/规则引擎/LLM/开始日期/DR 关联/BP 关联/学习报告）。
+- **版本时间线**（version snapshots：基准→当前，role badge）。
+- **Segmented tabs**（快照/时间线/对比/完整性）+ Apple 版本表（当前行高亮，全字段保留，tabular-nums，hover）+ 变更日志 + 发布时间线（deployments）+ 对比（A/B + backtest delta）+ 完整性（DR/BP 覆盖卡）。数据来自 `/api/admin/versions` + `version-timeline` + `versions/compare`（只读）。
+
+### 新闻资讯 `/news`（普通列表 → News Intelligence · Apple News/Bloomberg 风）
+- 组件拆分 `components/news/parts.tsx`：NewsHeader / NewsSummaryCards / NewsFilters / NewsRow / NewsEmptyState（app/news/page.tsx 61 行 CJK-free）。
+- **Header**（新闻资讯 + Yahoo/Kabutan/TDnet + 搜索标题 + 刷新 + 更新时间）。
+- **7 摘要卡**（已加载/重要/利好/利空/TDnet/Kabutan/Yahoo，实时从加载集计数，无则 0，**不伪造**）。
+- **3 行 Filter Chips**（情绪 全部/利好/利空/中性 · 来源 全部/个股专属/市场新闻 · 分类 全部/财报/业绩修正/分红/回购/IR/市场，统一高度，选中明确）。
+- **Apple News Row**（标题主视觉 + 情绪点/代码/来源/时间弱化 + 重要 badge 右侧，hover，标题→原文 url，代码→/stocks/[symbol]）。
+- **空状态**（visible=0 → 暂无 + 清除筛选按钮）；client 搜索过滤标题/代码。新增 4 个 i18n 键（loaded_total/important/clear_filter/search，三语言）。
+
+### 验收
+Build ✅ PASS（tsc 0 · app/news CJK-free）；Health ✅ CRITICAL=0；/admin/versions + /news 200；按钮全真实（返回/tabs/对比/版本行/搜索/筛选/刷新/清除/新闻点击，无 href=#/假按钮）；1440/1920 响应式。**无 API/DB/逻辑改动**。V3 Freeze 不受影响。
+- 修改：`app/admin/versions/page.tsx`（重写）、`app/news/page.tsx`（重写）、新增 `components/news/parts.tsx`、`lib/i18n/types.ts` + 三语言 messages（+4 键）。
+
+---
+
 ## [17.60.0] - 2026-07-04 — P3-T17 自动交易 → Paper Trading Cockpit 重构 📊
 
 `/portfolio`（AI 自动交易驾驶舱）从深色 monospace 资金表 → **Paper Trading Cockpit**（AI 模拟交易驾驶舱，Apple × Bloomberg Portfolio × BlackRock Aladdin 深色 #111315/#171A1F/#262B33）。**纯 UI**，未改 Paper Trading/Portfolio/持仓/盈亏计算/买卖规则/AI Score/Strategy/Fusion/Shadow/Cron/DB/Prisma/API/任何算法/任何资金数据；全部来自现有 `/api/portfolio/paper` + `/api/strategy/explain`（只读）。

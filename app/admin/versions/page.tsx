@@ -1,573 +1,292 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
 type VersionRole = "current" | "baseline" | "legacy";
-
 type VersionEntry = {
-  id: string;
-  modelVersion: string;
-  scoreVersion: string;
-  schemaVersion: string;
-  ruleEngineVer: string;
-  scoringSchemaVer: string;
-  llmModelVer: string;
-  startDate: string;
-  endDate: string | null;
-  isBaseline: boolean;
-  changeLog: string | null;
-  experimentId: string | null;
-  createdAt: string;
-  role: VersionRole;
-  drLinked: number;
-  bpLinked: number;
-  learningReportExists: boolean;
+  id: string; modelVersion: string; scoreVersion: string; schemaVersion: string; ruleEngineVer: string; scoringSchemaVer: string; llmModelVer: string;
+  startDate: string; endDate: string | null; isBaseline: boolean; changeLog: string | null; experimentId: string | null; createdAt: string;
+  role: VersionRole; drLinked: number; bpLinked: number; learningReportExists: boolean;
 };
-
-type Integrity = {
-  drTotal: number;
-  drLinked: number;
-  drMissingCount: number;
-  drCoveragePct: number;
-  bpTotal: number;
-  bpLinked: number;
-  bpMissingCount: number;
-  bpCoveragePct: number;
-  status: "OK" | "WARNING" | "CRITICAL";
-};
-
-type HorizonRow = {
-  horizon: string;
-  sampleCount: number;
-  filledCount: number;
-  winCount: number;
-  avgReturn: number | null;
-  avgAlpha: number | null;
-  winRate: number | null;
-};
-
+type Integrity = { drTotal: number; drLinked: number; drMissingCount: number; drCoveragePct: number; bpTotal: number; bpLinked: number; bpMissingCount: number; bpCoveragePct: number; status: "OK" | "WARNING" | "CRITICAL" };
+type HorizonRow = { horizon: string; sampleCount: number; filledCount: number; winCount: number; avgReturn: number | null; avgAlpha: number | null; winRate: number | null };
 type CompareResult = {
-  versionA: { id: string; schemaVersion: string; modelVersion: string; startDate: string };
-  versionB: { id: string; schemaVersion: string; modelVersion: string; startDate: string };
-  comparisonAllowed: boolean;
-  reason: string | null;
-  tradingDaysA: number;
-  tradingDaysB: number;
-  featureCoverageA: number | null;
-  featureCoverageB: number | null;
-  backtestA: HorizonRow[];
-  backtestB: HorizonRow[];
-  backtestDelta: Array<{ horizon: string; winRateDelta: number | null; returnDelta: number | null; alphaDelta: number | null }> | null;
-  winRateDelta7d: number | null;
-  regressionStatus: string;
+  versionA: { id: string; schemaVersion: string; modelVersion: string; startDate: string }; versionB: { id: string; schemaVersion: string; modelVersion: string; startDate: string };
+  comparisonAllowed: boolean; reason: string | null; tradingDaysA: number; tradingDaysB: number; featureCoverageA: number | null; featureCoverageB: number | null;
+  backtestA: HorizonRow[]; backtestB: HorizonRow[]; backtestDelta: Array<{ horizon: string; winRateDelta: number | null; returnDelta: number | null; alphaDelta: number | null }> | null; winRateDelta7d: number | null; regressionStatus: string;
 };
-
 type TimelineEntry =
-  | { type: "VERSION";    date: string; id: string; schemaVersion: string; modelVersion: string; role: string; tradingDays: number; sampleCount: number; learningReportExists: boolean; regressionStatus: string | null; changeLog: string | null; isBaseline: boolean }
+  | { type: "VERSION"; date: string; id: string; schemaVersion: string; modelVersion: string; role: string; tradingDays: number; sampleCount: number; learningReportExists: boolean; regressionStatus: string | null; changeLog: string | null; isBaseline: boolean }
   | { type: "EXPERIMENT"; date: string; id: string; status: string; hypothesis: string; decision: string | null; versionSnapshotId: string | null }
   | { type: "DEPLOYMENT"; date: string; id: number; commitHash: string; summary: string; buildStatus: string; healthStatus: string; productionReady: boolean };
 
-// ── Style helpers ─────────────────────────────────────────────────────────────
-
-const S = {
-  bg:      "#0a0a0a",
-  surface: "#111",
-  border:  "#222",
-  muted:   "#666",
-  text:    "#ddd",
-  green:   "#22c55e",
-  yellow:  "#eab308",
-  red:     "#ef4444",
-  blue:    "#3b82f6",
-  orange:  "#f97316",
-  purple:  "#a855f7",
+const C = {
+  bg: "#FAFAFA", card: "#FFFFFF", line: "#ECECEC", cardSub: "#F7F7F9",
+  ink: "#1D1D1F", sub: "#6E6E73", faint: "#86868B",
+  blue: "#007AFF", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", purple: "#5856D6",
 };
+const roleHex = (r: string) => r === "current" ? C.green : r === "baseline" ? C.blue : C.faint;
+const roleLabel = (r: string) => r === "current" ? "当前" : r === "baseline" ? "基准" : "历史";
+const num = (v: number | null | undefined, d = 1) => v == null ? "—" : v.toFixed(d);
 
-function roleBadge(role: VersionRole) {
-  const cfg: Record<VersionRole, { bg: string; label: string }> = {
-    current:  { bg: S.green,  label: "当前"  },
-    baseline: { bg: S.blue,   label: "基准" },
-    legacy:   { bg: S.muted,  label: "历史"   },
-  };
-  const c = cfg[role] ?? cfg.legacy;
+function Pill({ label, color }: { label: string; color: string }) {
+  return <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color, background: `${color}14` }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />{label}</span>;
+}
+function Seg<T extends string>({ tabs, active, onChange }: { tabs: { key: T; label: string }[]; active: T; onChange: (k: T) => void }) {
   return (
-    <span style={{ background: c.bg, color: "#000", fontWeight: 700, fontSize: 10, padding: "1px 5px", borderRadius: 3 }}>
-      {c.label}
-    </span>
+    <div className="inline-flex p-1 rounded-full mb-5" style={{ background: "#F0F0F3", border: `1px solid ${C.line}` }}>
+      {tabs.map((tb) => {
+        const on = tb.key === active;
+        return <button key={tb.key} onClick={() => onChange(tb.key)} className="px-4 h-8 rounded-full text-[13px] font-semibold transition-all" style={on ? { background: "#fff", color: C.ink, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" } : { color: C.sub }}>{tb.label}</button>;
+      })}
+    </div>
   );
 }
 
-function integrityStatus(pct: number, missing: number) {
-  if (missing === 0) return <span style={{ color: S.green }}>✅ {pct}%</span>;
-  if (pct >= 50)    return <span style={{ color: S.yellow }}>⚠ {pct}% ({missing} 条缺失)</span>;
-  return <span style={{ color: S.red }}>❌ {pct}% ({missing} 条缺失)</span>;
-}
-
-function regColor(status: string | null) {
-  if (!status) return S.muted;
-  if (status === "OK")    return S.green;
-  if (status === "WARNING") return S.yellow;
-  if (status === "CRITICAL") return S.red;
-  return S.muted;
-}
-
-function deltaColor(v: number | null) {
-  if (v === null) return S.muted;
-  if (v > 0)  return S.green;
-  if (v < -5) return S.red;
-  if (v < 0)  return S.yellow;
-  return S.text;
-}
-
-function fmt(v: number | null, suffix = "") {
-  if (v === null) return <span style={{ color: S.muted }}>—</span>;
-  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}${suffix}`;
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
-
-export default function VersionsPage() {
-  const [versions,   setVersions]   = useState<VersionEntry[]>([]);
-  const [integrity,  setIntegrity]  = useState<Integrity | null>(null);
-  const [timeline,   setTimeline]   = useState<TimelineEntry[]>([]);
+export default function VersionCenterPage() {
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [integrity, setIntegrity] = useState<Integrity | null>(null);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [compareResult, setCompareResult] = useState<CompareResult | null>(null);
-  const [compareA,   setCompareA]   = useState("");
-  const [compareB,   setCompareB]   = useState("");
-  const [comparing,  setComparing]  = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
-  const [activeTab,  setActiveTab]  = useState<"versions" | "timeline" | "compare" | "integrity">("versions");
-  const [now,        setNow]        = useState("");
+  const [compareA, setCompareA] = useState("");
+  const [compareB, setCompareB] = useState("");
+  const [comparing, setComparing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"versions" | "timeline" | "compare" | "integrity">("versions");
+  const [now, setNow] = useState("");
 
   const loadAll = useCallback(async () => {
     try {
-      const [vRes, tRes] = await Promise.all([
-        fetch("/api/admin/versions"),
-        fetch("/api/admin/version-timeline"),
-      ]);
-      const vData = await vRes.json();
-      const tData = await tRes.json();
-      setVersions(vData.versions ?? []);
-      setIntegrity(vData.integrity ?? null);
-      setTimeline(tData.timeline ?? []);
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    }
-    setNow(new Date().toISOString().slice(0, 19).replace("T", " ") + " UTC");
+      const [vRes, tRes] = await Promise.all([fetch("/api/admin/versions"), fetch("/api/admin/version-timeline")]);
+      const vData = await vRes.json(); const tData = await tRes.json();
+      setVersions(vData.versions ?? []); setIntegrity(vData.integrity ?? null); setTimeline(tData.timeline ?? []); setError(null);
+    } catch (e) { setError(String(e)); }
+    setNow(new Date().toISOString().slice(11, 19) + " UTC");
   }, []);
-
-  useEffect(() => {
-    loadAll();
-    const id = setInterval(loadAll, 60_000);
-    return () => clearInterval(id);
-  }, [loadAll]);
-
-  // Pre-fill compare selects with current + baseline
+  useEffect(() => { loadAll(); const id = setInterval(loadAll, 60_000); return () => clearInterval(id); }, [loadAll]);
   useEffect(() => {
     if (versions.length >= 2 && !compareA && !compareB) {
-      const cur  = versions.find((v) => v.role === "current");
-      const base = versions.find((v) => v.role === "baseline");
-      if (cur)  setCompareA(cur.id);
-      if (base) setCompareB(base.id);
+      const cur = versions.find((v) => v.role === "current"); const base = versions.find((v) => v.role === "baseline");
+      if (cur) setCompareA(cur.id); if (base) setCompareB(base.id);
     }
   }, [versions, compareA, compareB]);
-
   const runCompare = useCallback(async () => {
     if (!compareA || !compareB) return;
     setComparing(true);
-    try {
-      const res = await fetch(`/api/admin/versions/compare?a=${encodeURIComponent(compareA)}&b=${encodeURIComponent(compareB)}`);
-      setCompareResult(await res.json());
-    } finally {
-      setComparing(false);
-    }
+    try { const res = await fetch(`/api/admin/versions/compare?a=${encodeURIComponent(compareA)}&b=${encodeURIComponent(compareB)}`); setCompareResult(await res.json()); }
+    finally { setComparing(false); }
   }, [compareA, compareB]);
 
-  const mono: React.CSSProperties = { fontFamily: "monospace", fontSize: 12 };
-  const cell: React.CSSProperties = { padding: "6px 10px", borderBottom: `1px solid ${S.border}`, ...mono, verticalAlign: "top" };
+  const cur = versions.find((v) => v.role === "current") ?? versions[0] ?? null;
 
-  return (
-    <div style={{ background: S.bg, minHeight: "100vh", color: S.text, ...mono, padding: 16 }}>
+  const shell = (inner: React.ReactNode) => <div className="min-h-screen dash-font" style={{ background: C.bg }}><div className="mx-auto max-w-[1600px] px-6 lg:px-10 py-8 dash-in">{inner}</div></div>;
+  if (error) return shell(<div className="dash-card p-6 text-[14px]" style={{ color: C.red }}>加载失败：{error}</div>);
+
+  return shell(
+    <>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>版本中心</h1>
-          <div style={{ color: S.muted, fontSize: 11, marginTop: 2 }}>
-            {versions.length} 个快照 · 刷新于 {now}
-          </div>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em]" style={{ color: C.ink }}>版本中心</h1>
+          <p className="text-[13px] mt-1" style={{ color: C.faint }}>系统版本 · 评分架构 · 模型配置 · 发布记录</p>
         </div>
-        <a href="/admin/mission-control" style={{ color: S.blue, fontSize: 11, textDecoration: "none" }}>
-          ← 控制中心
-        </a>
-      </div>
-
-      {error && (
-        <div style={{ background: "#1a0000", border: `1px solid ${S.red}`, padding: 8, marginBottom: 12, color: S.red, fontSize: 12 }}>
-          错误：{error}
+        <div className="flex items-center gap-2.5">
+          <Link href="/admin/mission-control" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-[13px] font-semibold dash-card dash-int" style={{ color: C.ink }}>← 返回控制中心</Link>
+          {now && <span className="text-[12px] tabular-nums hidden lg:inline" style={{ color: C.faint }}>刷新 {now}</span>}
         </div>
-      )}
+      </header>
 
       {/* Integrity banner */}
       {integrity && integrity.status !== "OK" && (
-        <div style={{
-          background: integrity.status === "CRITICAL" ? "#1a0000" : "#1a1200",
-          border: `1px solid ${integrity.status === "CRITICAL" ? S.red : S.yellow}`,
-          padding: "8px 12px", marginBottom: 12, fontSize: 12,
-        }}>
-          <strong style={{ color: integrity.status === "CRITICAL" ? S.red : S.yellow }}>
-            {integrity.status === "CRITICAL" ? "❌ 完整性严重异常" : "⚠ 完整性警告"}
-          </strong>
-          {" · "}
-          DR：{integrity.drMissingCount} 条未关联（已关联 {integrity.drCoveragePct}%）
-          {" · "}
-          BP：{integrity.bpMissingCount} 条未关联（已关联 {integrity.bpCoveragePct}%）
+        <div className="flex items-center gap-3 rounded-2xl px-4 py-3 mb-6" style={{ background: `${integrity.status === "CRITICAL" ? C.red : C.amber}12`, border: `1px solid ${integrity.status === "CRITICAL" ? C.red : C.amber}33` }}>
+          <span className="text-[15px]" style={{ color: integrity.status === "CRITICAL" ? C.red : C.amber }}>⚠</span>
+          <span className="text-[13px] font-medium" style={{ color: integrity.status === "CRITICAL" ? C.red : C.amber }}>数据完整性{integrity.status === "CRITICAL" ? "严重异常" : "警告"} · DR {integrity.drCoveragePct}% · BP {integrity.bpCoveragePct}%</span>
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-        {(["versions", "timeline", "compare", "integrity"] as const).map((t) => {
-          const tabLabel: Record<string, string> = { versions: "快照", timeline: "时间线", compare: "对比", integrity: "完整性" };
-          return (
-          <button
-            key={t}
-            onClick={() => setActiveTab(t)}
-            style={{
-              background: activeTab === t ? "#333" : "transparent",
-              border: `1px solid ${activeTab === t ? "#555" : S.border}`,
-              color: activeTab === t ? S.text : S.muted,
-              padding: "4px 12px", cursor: "pointer", ...mono, borderRadius: 3,
-            }}
-          >
-            {tabLabel[t] ?? t.toUpperCase()}
-          </button>
-          );
-        })}
-      </div>
-
-      {/* ── VERSIONS TAB ─────────────────────────────────────────────────── */}
-      {activeTab === "versions" && (
-        <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
-          <thead>
-            <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-              {["状态","ID","schemaVersion","modelVersion","scoreVersion","llmModel","开始日期","结束日期","DR 关联","BP 关联","报告","变更日志"].map((h) => (
-                <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600 }}>{h}</th>
+      {/* Current version hero */}
+      {cur && (
+        <div className="dash-card p-6 lg:p-7 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+            <div className="lg:w-72 shrink-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: C.faint }}>当前版本 · Current</div>
+              <div className="text-[30px] font-semibold tabular-nums tracking-[-0.02em] mt-2" style={{ color: C.ink }}>{cur.id}</div>
+              <div className="flex items-center gap-2 mt-3">
+                <Pill label={cur.endDate ? "已结束" : "运行中"} color={cur.endDate ? C.faint : C.green} />
+                <Pill label="Production" color={C.blue} />
+              </div>
+            </div>
+            <div className="flex-1 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
+              {[
+                ["评分架构", cur.scoreVersion, C.ink], ["Schema", cur.schemaVersion, C.ink], ["规则引擎", cur.ruleEngineVer, C.ink], ["LLM 模型", cur.llmModelVer, C.ink],
+                ["开始日期", cur.startDate?.slice(0, 10) ?? "—", C.sub], ["DR 关联", cur.drLinked.toLocaleString(), C.sub], ["BP 关联", cur.bpLinked.toLocaleString(), C.sub],
+                ["学习报告", cur.learningReportExists ? "已生成" : "无", cur.learningReportExists ? C.green : C.faint],
+              ].map(([k, v, c]) => (
+                <div key={k as string}><div className="text-[11px]" style={{ color: C.faint }}>{k}</div><div className="text-[15px] font-semibold tabular-nums mt-1 truncate" style={{ color: c as string }}>{v}</div></div>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {versions.map((v) => (
-              <tr key={v.id} style={{ background: v.role === "current" ? "#0a1a0a" : "transparent" }}>
-                <td style={cell}>{roleBadge(v.role)}</td>
-                <td style={{ ...cell, color: S.blue, fontWeight: 600 }}>{v.id}</td>
-                <td style={cell}>{v.schemaVersion}</td>
-                <td style={cell}>{v.modelVersion}</td>
-                <td style={cell}>{v.scoreVersion}</td>
-                <td style={cell}>{v.llmModelVer}</td>
-                <td style={cell}>{v.startDate}</td>
-                <td style={{ ...cell, color: v.endDate ? S.muted : S.green }}>{v.endDate ?? "进行中"}</td>
-                <td style={cell}>
-                  {v.drLinked > 0
-                    ? <span style={{ color: S.green }}>{v.drLinked.toLocaleString()}</span>
-                    : <span style={{ color: S.yellow }}>0</span>}
-                </td>
-                <td style={cell}>
-                  {v.bpLinked > 0
-                    ? <span style={{ color: S.green }}>{v.bpLinked.toLocaleString()}</span>
-                    : <span style={{ color: S.yellow }}>0</span>}
-                </td>
-                <td style={cell}>
-                  {v.learningReportExists
-                    ? <span style={{ color: S.green }}>✓</span>
-                    : <span style={{ color: S.muted }}>—</span>}
-                </td>
-                <td style={{ ...cell, maxWidth: 240, color: S.muted, whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 11 }}>
-                  {v.changeLog ?? "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* ── TIMELINE TAB ─────────────────────────────────────────────────── */}
-      {activeTab === "timeline" && (
-        <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
-          <thead>
-            <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-              {["日期","类型","ID / 哈希","详情","交易日数","样本数","报告","回归"].map((h) => (
-                <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {timeline.map((entry, i) => {
-              const typeColor = entry.type === "VERSION" ? S.purple : entry.type === "EXPERIMENT" ? S.orange : S.blue;
+      {/* Version timeline (from version snapshots) */}
+      {versions.length > 0 && (
+        <section className="mb-8">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-3" style={{ color: C.faint }}>版本时间线 · Version Timeline</div>
+          <div className="dash-card p-6">
+            {[...versions].sort((a, b) => (a.startDate < b.startDate ? -1 : 1)).map((v, i, arr) => {
+              const col = roleHex(v.role); const last = i === arr.length - 1;
               return (
-                <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "#0d0d0d" }}>
-                  <td style={{ ...cell, color: S.muted }}>{entry.date}</td>
-                  <td style={cell}><span style={{ color: typeColor, fontWeight: 700, fontSize: 11 }}>{entry.type}</span></td>
-                  <td style={{ ...cell, color: S.blue }}>
-                    {entry.type === "VERSION"    ? entry.id :
-                     entry.type === "EXPERIMENT" ? entry.id :
-                     entry.commitHash.slice(0, 7)}
-                  </td>
-                  <td style={{ ...cell, maxWidth: 260, fontSize: 11, color: S.muted, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                    {entry.type === "VERSION"    ? (entry.changeLog ?? `${entry.schemaVersion} · ${entry.modelVersion} · ${entry.role}`) :
-                     entry.type === "EXPERIMENT" ? `[${entry.status}] ${entry.hypothesis.slice(0, 80)}` :
-                     entry.summary.slice(0, 80)}
-                  </td>
-                  <td style={cell}>
-                    {entry.type === "VERSION" ? entry.tradingDays : "—"}
-                  </td>
-                  <td style={cell}>
-                    {entry.type === "VERSION" ? entry.sampleCount.toLocaleString() : "—"}
-                  </td>
-                  <td style={cell}>
-                    {entry.type === "VERSION"
-                      ? (entry.learningReportExists ? <span style={{ color: S.green }}>✓</span> : <span style={{ color: S.muted }}>—</span>)
-                      : "—"}
-                  </td>
-                  <td style={cell}>
-                    {entry.type === "VERSION"
-                      ? <span style={{ color: regColor(entry.regressionStatus) }}>{entry.regressionStatus ?? "—"}</span>
-                      : "—"}
-                  </td>
-                </tr>
+                <div key={v.id} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <span className="w-3 h-3 rounded-full mt-1 shrink-0" style={{ background: col, boxShadow: `0 0 0 3px ${col}22` }} />
+                    {!last && <span className="w-px flex-1 my-1" style={{ background: C.line }} />}
+                  </div>
+                  <div className={`flex-1 flex items-center justify-between gap-3 flex-wrap ${last ? "" : "pb-5"}`}>
+                    <div>
+                      <span className="text-[14px] font-semibold tabular-nums" style={{ color: C.ink }}>{v.id}</span>
+                      <span className="text-[12px] ml-2" style={{ color: C.faint }}>{v.scoreVersion} · {v.startDate?.slice(0, 10)}{v.endDate ? ` → ${v.endDate.slice(0, 10)}` : " → 至今"}</span>
+                    </div>
+                    <Pill label={roleLabel(v.role)} color={col} />
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        </section>
       )}
 
-      {/* ── COMPARE TAB ──────────────────────────────────────────────────── */}
-      {activeTab === "compare" && (
-        <div>
-          {/* Selector */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: S.muted }}>版本 A：</label>
-            <select
-              value={compareA}
-              onChange={(e) => setCompareA(e.target.value)}
-              style={{ background: S.surface, color: S.text, border: `1px solid ${S.border}`, padding: "4px 8px", ...mono }}
-            >
-              <option value="">— 选择 —</option>
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>{v.id} [{v.role}]</option>
+      {/* Segmented tabs */}
+      <Seg tabs={[{ key: "versions", label: "快照" }, { key: "timeline", label: "时间线" }, { key: "compare", label: "对比" }, { key: "integrity", label: "完整性" }]} active={tab} onChange={setTab} />
+
+      {/* Versions table */}
+      {tab === "versions" && (
+        <div className="dash-card overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead><tr style={{ borderBottom: `1px solid ${C.line}` }}>
+              {["状态", "ID", "Schema", "Model", "评分", "LLM", "开始", "结束", "DR", "BP", "报告"].map((h, i) => (
+                <th key={h} className={`px-3 py-3 text-[11px] font-semibold uppercase whitespace-nowrap ${i <= 1 ? "text-left" : i >= 8 && i <= 9 ? "text-right" : "text-left"}`} style={{ color: C.faint }}>{h}</th>
               ))}
-            </select>
-            <label style={{ fontSize: 11, color: S.muted }}>vs</label>
-            <select
-              value={compareB}
-              onChange={(e) => setCompareB(e.target.value)}
-              style={{ background: S.surface, color: S.text, border: `1px solid ${S.border}`, padding: "4px 8px", ...mono }}
-            >
-              <option value="">— 选择 —</option>
+            </tr></thead>
+            <tbody>
               {versions.map((v) => (
-                <option key={v.id} value={v.id}>{v.id} [{v.role}]</option>
+                <tr key={v.id} className="transition-colors hover:bg-[#F7F7F9]" style={{ borderBottom: `1px solid ${C.line}`, background: v.role === "current" ? `${C.green}08` : undefined }}>
+                  <td className="px-3 py-3"><Pill label={roleLabel(v.role)} color={roleHex(v.role)} /></td>
+                  <td className="px-3 py-3 font-semibold tabular-nums" style={{ color: C.ink }}>{v.id}</td>
+                  <td className="px-3 py-3 tabular-nums" style={{ color: C.sub }}>{v.schemaVersion}</td>
+                  <td className="px-3 py-3 tabular-nums" style={{ color: C.sub }}>{v.modelVersion}</td>
+                  <td className="px-3 py-3 tabular-nums" style={{ color: C.sub }}>{v.scoreVersion}</td>
+                  <td className="px-3 py-3 tabular-nums" style={{ color: C.sub }}>{v.llmModelVer}</td>
+                  <td className="px-3 py-3 tabular-nums" style={{ color: C.faint }}>{v.startDate?.slice(0, 10)}</td>
+                  <td className="px-3 py-3 tabular-nums" style={{ color: C.faint }}>{v.endDate?.slice(0, 10) ?? "运行中"}</td>
+                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: C.sub }}>{v.drLinked.toLocaleString()}</td>
+                  <td className="px-3 py-3 text-right tabular-nums" style={{ color: C.sub }}>{v.bpLinked.toLocaleString()}</td>
+                  <td className="px-3 py-3"><span className="text-[12px]" style={{ color: v.learningReportExists ? C.green : C.faint }}>{v.learningReportExists ? "✓" : "—"}</span></td>
+                </tr>
               ))}
-            </select>
-            <button
-              onClick={runCompare}
-              disabled={!compareA || !compareB || comparing}
-              style={{
-                background: "#1a3a1a", border: `1px solid ${S.green}`, color: S.green,
-                padding: "4px 14px", cursor: "pointer", ...mono, borderRadius: 3,
-              }}
-            >
-              {comparing ? "加载中…" : "对比"}
-            </button>
-          </div>
-
-          {compareResult && (
-            <div>
-              {/* Comparison header */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-                {([["A", compareResult.versionA], ["B", compareResult.versionB]] as const).map(([label, v]) => (
-                  <div key={label} style={{ background: S.surface, border: `1px solid ${S.border}`, padding: 10 }}>
-                    <div style={{ color: S.muted, fontSize: 11, marginBottom: 4 }}>版本 {label}</div>
-                    <div style={{ color: S.blue, fontWeight: 700 }}>{v.id}</div>
-                    <div>schemaVersion: {v.schemaVersion}</div>
-                    <div>modelVersion: {v.modelVersion}</div>
-                    <div style={{ color: S.muted }}>startDate: {v.startDate}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Comparison allowed banner */}
-              <div style={{
-                background: compareResult.comparisonAllowed ? "#0a1a0a" : "#1a0000",
-                border: `1px solid ${compareResult.comparisonAllowed ? S.green : S.red}`,
-                padding: "8px 12px", marginBottom: 12, fontSize: 12,
-              }}>
-                {compareResult.comparisonAllowed
-                  ? <span style={{ color: S.green }}>✅ 可比较 — schemaVersion 相同</span>
-                  : <span style={{ color: S.red }}>❌ 不可比较 — {compareResult.reason}</span>}
-              </div>
-
-              {/* Meta stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
-                {[
-                  ["交易日数 A", compareResult.tradingDaysA],
-                  ["交易日数 B", compareResult.tradingDaysB],
-                  ["特征覆盖率 A", compareResult.featureCoverageA != null ? `${compareResult.featureCoverageA}%` : "—"],
-                  ["特征覆盖率 B", compareResult.featureCoverageB != null ? `${compareResult.featureCoverageB}%` : "—"],
-                ].map(([label, val]) => (
-                  <div key={String(label)} style={{ background: S.surface, border: `1px solid ${S.border}`, padding: "8px 10px" }}>
-                    <div style={{ color: S.muted, fontSize: 10 }}>{label}</div>
-                    <div style={{ fontWeight: 700, fontSize: 16 }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Regression status */}
-              <div style={{ marginBottom: 12, fontSize: 12 }}>
-                <span style={{ color: S.muted }}>回归状态：</span>
-                <span style={{ color: regColor(compareResult.regressionStatus), fontWeight: 700 }}>
-                  {{ OK: "正常", WARNING: "注意", CRITICAL: "严重" }[compareResult.regressionStatus] ?? compareResult.regressionStatus}
-                </span>
-                {compareResult.winRateDelta7d !== null && (
-                  <span style={{ marginLeft: 8, color: deltaColor(compareResult.winRateDelta7d) }}>
-                    （7日胜率变化：{compareResult.winRateDelta7d >= 0 ? "+" : ""}{compareResult.winRateDelta7d?.toFixed(2)}pp）
-                  </span>
-                )}
-              </div>
-
-              {/* Backtest horizon table */}
-              <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}`, marginBottom: 12 }}>
-                <thead>
-                  <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-                    <th style={{ ...cell, textAlign: "left" }}>周期</th>
-                    <th style={{ ...cell, textAlign: "right" }}>胜率 A</th>
-                    <th style={{ ...cell, textAlign: "right" }}>胜率 B</th>
-                    <th style={{ ...cell, textAlign: "right" }}>Δ 胜率</th>
-                    <th style={{ ...cell, textAlign: "right" }}>均收益 A</th>
-                    <th style={{ ...cell, textAlign: "right" }}>均收益 B</th>
-                    <th style={{ ...cell, textAlign: "right" }}>Δ 收益</th>
-                    <th style={{ ...cell, textAlign: "right" }}>Δ 超额</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {compareResult.backtestA.map((rowA, i) => {
-                    const rowB = compareResult.backtestB[i];
-                    const delta = compareResult.backtestDelta?.[i];
-                    return (
-                      <tr key={rowA.horizon}>
-                        <td style={{ ...cell, fontWeight: 700 }}>{rowA.horizon}</td>
-                        <td style={{ ...cell, textAlign: "right" }}>{rowA.winRate != null ? `${rowA.winRate.toFixed(1)}%` : "—"}</td>
-                        <td style={{ ...cell, textAlign: "right" }}>{rowB?.winRate != null ? `${rowB.winRate.toFixed(1)}%` : "—"}</td>
-                        <td style={{ ...cell, textAlign: "right", color: deltaColor(delta?.winRateDelta ?? null) }}>
-                          {delta?.winRateDelta != null ? fmt(delta.winRateDelta, "pp") : "—"}
-                        </td>
-                        <td style={{ ...cell, textAlign: "right" }}>{rowA.avgReturn != null ? `${rowA.avgReturn.toFixed(2)}%` : "—"}</td>
-                        <td style={{ ...cell, textAlign: "right" }}>{rowB?.avgReturn != null ? `${rowB.avgReturn.toFixed(2)}%` : "—"}</td>
-                        <td style={{ ...cell, textAlign: "right", color: deltaColor(delta?.returnDelta ?? null) }}>
-                          {delta?.returnDelta != null ? fmt(delta.returnDelta, "pp") : "—"}
-                        </td>
-                        <td style={{ ...cell, textAlign: "right", color: deltaColor(delta?.alphaDelta ?? null) }}>
-                          {delta?.alphaDelta != null ? fmt(delta.alphaDelta, "pp") : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            </tbody>
+          </table>
+          {versions.some((v) => v.changeLog) && (
+            <div className="p-5 space-y-3" style={{ borderTop: `1px solid ${C.line}` }}>
+              <div className="text-[11px] font-semibold uppercase" style={{ color: C.faint }}>变更日志</div>
+              {versions.filter((v) => v.changeLog).map((v) => (
+                <div key={v.id} className="flex gap-3 text-[13px]"><span className="font-semibold tabular-nums shrink-0" style={{ color: C.blue }}>{v.id}</span><span style={{ color: C.sub }}>{v.changeLog}</span></div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* ── INTEGRITY TAB ────────────────────────────────────────────────── */}
-      {activeTab === "integrity" && integrity && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 16 }}>
-            {/* DR integrity */}
-            <div style={{ background: S.surface, border: `1px solid ${S.border}`, padding: 16 }}>
-              <div style={{ color: S.muted, fontSize: 11, marginBottom: 8, fontWeight: 600 }}>DailyRecommendation → versionSnapshotId</div>
-              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>
-                {integrityStatus(integrity.drCoveragePct, integrity.drMissingCount)}
-              </div>
-              <div style={{ color: S.muted, fontSize: 11 }}>
-                {integrity.drLinked.toLocaleString()} / {integrity.drTotal.toLocaleString()} 条已关联
-              </div>
-              {integrity.drMissingCount > 0 && (
-                <div style={{ marginTop: 8, color: S.yellow, fontSize: 11 }}>
-                  ⚠ {integrity.drMissingCount} 条 versionSnapshotId 为空。
-                  <br />运行：<code style={{ background: "#222", padding: "0 4px" }}>npx tsx scripts/backfill-dr-version.ts</code>
+      {/* Timeline (deployments / releases) */}
+      {tab === "timeline" && (
+        <div className="dash-card p-2">
+          {timeline.length === 0 ? <div className="py-10 text-center text-[13px]" style={{ color: C.faint }}>暂无记录</div> : timeline.map((e, i) => {
+            const meta = e.type === "DEPLOYMENT" ? { c: C.blue, tag: "发布", title: e.summary, sub: `${e.commitHash} · ${e.buildStatus}` }
+              : e.type === "VERSION" ? { c: roleHex((e as { role: string }).role), tag: "版本", title: e.id, sub: `${e.schemaVersion} · ${e.tradingDays}天` }
+              : { c: C.purple, tag: "实验", title: (e as { hypothesis: string }).hypothesis, sub: (e as { status: string }).status };
+            return (
+              <div key={`${e.type}-${i}`} className="flex items-start gap-3 px-4 py-3" style={i > 0 ? { borderTop: `1px solid ${C.line}` } : undefined}>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 mt-0.5" style={{ color: meta.c, background: `${meta.c}14` }}>{meta.tag}</span>
+                <span className="text-[12px] tabular-nums shrink-0 mt-1 w-20" style={{ color: C.faint }}>{e.date}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium truncate" style={{ color: C.ink }}>{meta.title}</div>
+                  <div className="text-[11px] tabular-nums mt-0.5" style={{ color: C.faint }}>{meta.sub}</div>
                 </div>
-              )}
-            </div>
-
-            {/* BP integrity */}
-            <div style={{ background: S.surface, border: `1px solid ${S.border}`, padding: 16 }}>
-              <div style={{ color: S.muted, fontSize: 11, marginBottom: 8, fontWeight: 600 }}>BacktestPositionResult → versionSnapshotId</div>
-              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>
-                {integrityStatus(integrity.bpCoveragePct, integrity.bpMissingCount)}
               </div>
-              <div style={{ color: S.muted, fontSize: 11 }}>
-                {integrity.bpLinked.toLocaleString()} / {integrity.bpTotal.toLocaleString()} 条已关联
-              </div>
-            </div>
-          </div>
-
-          {/* Per-version breakdown */}
-          <div style={{ color: S.muted, fontSize: 11, marginBottom: 6, fontWeight: 600 }}>各版本关联情况</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${S.border}` }}>
-            <thead>
-              <tr style={{ background: "#181818", fontSize: 11, color: S.muted }}>
-                {["状态","ID","DR 关联","BP 关联","学习报告"].map((h) => (
-                  <th key={h} style={{ ...cell, textAlign: "left", fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {versions.map((v) => (
-                <tr key={v.id}>
-                  <td style={cell}>{roleBadge(v.role)}</td>
-                  <td style={{ ...cell, color: S.blue }}>{v.id}</td>
-                  <td style={cell}>
-                    {v.drLinked > 0
-                      ? <span style={{ color: S.green }}>{v.drLinked.toLocaleString()}</span>
-                      : <span style={{ color: S.yellow }}>0 ← 需要回填</span>}
-                  </td>
-                  <td style={cell}>
-                    {v.bpLinked > 0
-                      ? <span style={{ color: S.green }}>{v.bpLinked.toLocaleString()}</span>
-                      : <span style={{ color: S.muted }}>0</span>}
-                  </td>
-                  <td style={cell}>
-                    {v.learningReportExists
-                      ? <span style={{ color: S.green }}>✓ 已生成</span>
-                      : <span style={{ color: S.muted }}>未生成</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Overall system integrity status */}
-          <div style={{
-            marginTop: 16,
-            background: integrity.status === "OK" ? "#0a1a0a" : integrity.status === "WARNING" ? "#1a1200" : "#1a0000",
-            border: `1px solid ${integrity.status === "OK" ? S.green : integrity.status === "WARNING" ? S.yellow : S.red}`,
-            padding: 12, fontSize: 12,
-          }}>
-            <strong style={{ color: integrity.status === "OK" ? S.green : integrity.status === "WARNING" ? S.yellow : S.red }}>
-              整体完整性：{{ OK: "正常", WARNING: "警告", CRITICAL: "严重异常" }[integrity.status] ?? integrity.status}
-            </strong>
-            {integrity.status === "OK" && " — 所有 BacktestPositionResult 和 DailyRecommendation 均可追溯到 VersionSnapshot。"}
-            {integrity.status === "WARNING" && " — DailyRecommendation 存在空 versionSnapshotId，请运行 backfill-dr-version.ts 修复。"}
-            {integrity.status === "CRITICAL" && " — BacktestPositionResult 存在空 versionSnapshotId，请排查 update-backtest.ts。"}
-          </div>
+            );
+          })}
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 10, color: S.muted, borderTop: `1px solid ${S.border}`, paddingTop: 8 }}>
-        版本中心 · 每60秒自动刷新 ·{" "}
-        <a href="/admin/experiments" style={{ color: S.muted }}>实验管理 →</a>
-      </div>
-    </div>
+      {/* Compare */}
+      {tab === "compare" && (
+        <div className="dash-card p-6">
+          <div className="flex flex-wrap items-end gap-3 mb-5">
+            {[["版本 A", compareA, setCompareA], ["版本 B", compareB, setCompareB]].map(([lbl, val, set]) => (
+              <div key={lbl as string}>
+                <div className="text-[11px] mb-1" style={{ color: C.faint }}>{lbl as string}</div>
+                <select value={val as string} onChange={(e) => (set as (s: string) => void)(e.target.value)} className="h-9 px-3 rounded-lg text-[13px] tabular-nums" style={{ background: C.cardSub, border: `1px solid ${C.line}`, color: C.ink }}>
+                  <option value="">选择…</option>
+                  {versions.map((v) => <option key={v.id} value={v.id}>{v.id} ({roleLabel(v.role)})</option>)}
+                </select>
+              </div>
+            ))}
+            <button onClick={runCompare} disabled={comparing || !compareA || !compareB} className="h-9 px-5 rounded-full text-[13px] font-semibold text-white disabled:opacity-50" style={{ background: C.blue }}>{comparing ? "对比中…" : "运行对比"}</button>
+          </div>
+          {compareResult && (
+            <div>
+              {!compareResult.comparisonAllowed && <div className="text-[13px] mb-4 px-3 py-2 rounded-lg" style={{ background: `${C.amber}12`, color: C.amber }}>{compareResult.reason ?? "不可对比"}</div>}
+              <div className="flex items-center gap-3 mb-4">
+                <Pill label={`回归 ${compareResult.regressionStatus}`} color={compareResult.regressionStatus === "OK" ? C.green : C.amber} />
+                {compareResult.winRateDelta7d != null && <span className="text-[13px] tabular-nums" style={{ color: compareResult.winRateDelta7d >= 0 ? C.green : C.red }}>7d 胜率 Δ {compareResult.winRateDelta7d > 0 ? "+" : ""}{num(compareResult.winRateDelta7d)}%</span>}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead><tr style={{ borderBottom: `1px solid ${C.line}` }}>{["周期", "A 胜率", "B 胜率", "Δ 胜率", "Δ 收益", "Δ Alpha"].map((h, i) => <th key={h} className={`px-3 py-2 text-[11px] font-semibold uppercase ${i === 0 ? "text-left" : "text-right"}`} style={{ color: C.faint }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {(compareResult.backtestDelta ?? []).map((d) => {
+                      const a = compareResult.backtestA.find((x) => x.horizon === d.horizon); const b = compareResult.backtestB.find((x) => x.horizon === d.horizon);
+                      return (
+                        <tr key={d.horizon} style={{ borderBottom: `1px solid ${C.line}` }}>
+                          <td className="px-3 py-2 font-semibold uppercase" style={{ color: C.ink }}>{d.horizon}</td>
+                          <td className="px-3 py-2 text-right tabular-nums" style={{ color: C.sub }}>{a?.winRate != null ? `${num(a.winRate)}%` : "—"}</td>
+                          <td className="px-3 py-2 text-right tabular-nums" style={{ color: C.sub }}>{b?.winRate != null ? `${num(b.winRate)}%` : "—"}</td>
+                          <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: d.winRateDelta == null ? C.faint : d.winRateDelta >= 0 ? C.green : C.red }}>{d.winRateDelta == null ? "—" : `${d.winRateDelta > 0 ? "+" : ""}${num(d.winRateDelta)}%`}</td>
+                          <td className="px-3 py-2 text-right tabular-nums" style={{ color: d.returnDelta == null ? C.faint : d.returnDelta >= 0 ? C.green : C.red }}>{d.returnDelta == null ? "—" : `${d.returnDelta > 0 ? "+" : ""}${num(d.returnDelta, 2)}%`}</td>
+                          <td className="px-3 py-2 text-right tabular-nums" style={{ color: d.alphaDelta == null ? C.faint : d.alphaDelta >= 0 ? C.green : C.red }}>{d.alphaDelta == null ? "—" : `${d.alphaDelta > 0 ? "+" : ""}${num(d.alphaDelta, 2)}%`}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Integrity */}
+      {tab === "integrity" && integrity && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {[["DailyRec 关联", integrity.drCoveragePct, integrity.drLinked, integrity.drTotal, integrity.drMissingCount],
+            ["Backtest 关联", integrity.bpCoveragePct, integrity.bpLinked, integrity.bpTotal, integrity.bpMissingCount]].map(([lbl, pctv, linked, total, missing]) => (
+            <div key={lbl as string} className="dash-card p-6">
+              <div className="text-[13px] font-semibold" style={{ color: C.ink }}>{lbl}</div>
+              <div className="text-[30px] font-semibold tabular-nums mt-2" style={{ color: (pctv as number) >= 100 ? C.green : C.amber }}>{pctv}%</div>
+              <div className="text-[12px] tabular-nums mt-1" style={{ color: C.faint }}>{(linked as number).toLocaleString()} / {(total as number).toLocaleString()} 已关联</div>
+              {(missing as number) > 0 && <div className="text-[12px] mt-2" style={{ color: C.amber }}>⚠ {(missing as number).toLocaleString()} 条未关联</div>}
+              <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: "#EEEEF1" }}><div className="h-full rounded-full" style={{ width: `${pctv}%`, background: (pctv as number) >= 100 ? C.green : C.amber }} /></div>
+            </div>
+          ))}
+          <div className="dash-card p-6 flex flex-col items-center justify-center text-center">
+            <div className="text-[13px] font-semibold" style={{ color: C.ink }}>系统完整性</div>
+            <div className="text-[22px] font-semibold mt-3" style={{ color: integrity.status === "OK" ? C.green : integrity.status === "CRITICAL" ? C.red : C.amber }}>{integrity.status}</div>
+            <Pill label={integrity.status === "OK" ? "全部关联" : "需关注"} color={integrity.status === "OK" ? C.green : C.amber} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

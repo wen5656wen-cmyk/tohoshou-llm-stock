@@ -158,6 +158,10 @@ const enUS: Messages = {
 
   // News
   "news.title": "News",
+  "news.loaded_total": "Loaded",
+  "news.important": "Important",
+  "news.clear_filter": "Clear filters",
+  "news.search": "Search titles",
   "news.all": "All",
   "news.positive": "🟢 Positive",
   "news.negative": "🔴 Negative",

@@ -158,6 +158,10 @@ const jaJP: Messages = {
 
   // News
   "news.title": "ニュース",
+  "news.loaded_total": "読み込み",
+  "news.important": "重要",
+  "news.clear_filter": "フィルタ解除",
+  "news.search": "タイトル検索",
   "news.all": "すべて",
   "news.positive": "🟢 好材料",
   "news.negative": "🔴 悪材料",

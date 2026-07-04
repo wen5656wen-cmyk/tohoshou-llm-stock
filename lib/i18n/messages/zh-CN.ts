@@ -158,6 +158,10 @@ const zhCN: Messages = {
 
   // News
   "news.title": "新闻资讯",
+  "news.loaded_total": "已加载",
+  "news.important": "重要",
+  "news.clear_filter": "清除筛选",
+  "news.search": "搜索标题",
   "news.all": "全部",
   "news.positive": "🟢 利好",
   "news.negative": "🔴 利空",
