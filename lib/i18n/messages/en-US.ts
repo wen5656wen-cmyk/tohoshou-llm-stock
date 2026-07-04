@@ -393,6 +393,7 @@ const enUS: Messages = {
   "nav.systemMgmt": "System",
   // new items
   "nav.cockpit": "Today Overview",
+  "nav.commandCenter": "AI Command Center",
   "nav.missionControl": "Mission Control",
   "nav.research": "Research",
   "nav.learningReport": "Learning Report",

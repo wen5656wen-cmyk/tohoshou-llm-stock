@@ -37,6 +37,7 @@ export type Messages = {
   "nav.dataAndLearning": string;
   "nav.systemMgmt": string;
   "nav.cockpit": string;
+  "nav.commandCenter": string;
   "nav.missionControl": string;
   "nav.research": string;
   "nav.learningReport": string;

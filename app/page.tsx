@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { prisma } from "@/lib/prisma";
-import { DashboardView, type DashboardData } from "@/components/dashboard/DashboardView";
+import { type DashboardData } from "@/components/dashboard/DashboardView";
+import { CommandCenter } from "@/components/command-center/CommandCenter";
 
 export const dynamic = "force-dynamic";
 
@@ -275,5 +276,5 @@ async function getDashboardData(): Promise<DashboardData> {
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
-  return <DashboardView data={data} />;
+  return <CommandCenter data={data} />;
 }

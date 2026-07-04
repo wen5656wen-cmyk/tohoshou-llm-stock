@@ -102,7 +102,7 @@ function ScoreRing({ score, size = 58, stroke = 5, color }: { score: number | nu
 }
 
 // ── Header (compact) ──────────────────────────────────────────────────────────
-function CmdHeader({ greetKey }: { greetKey: string }) {
+export function CmdHeader({ greetKey }: { greetKey: string }) {
   return (
     <header className="dash-in relative z-30 flex items-center justify-between gap-4 h-11">
       <div className="flex items-baseline gap-2.5 min-w-0">
@@ -119,7 +119,7 @@ function CmdHeader({ greetKey }: { greetKey: string }) {
 }
 
 // ── Today Intelligence (row 1, left) ──────────────────────────────────────────
-function TodayIntelligence({ intel, hero, marketDate }: { intel: DashboardData["intelligence"]; hero: DashboardData["hero"]; marketDate: string | null }) {
+export function TodayIntelligence({ intel, hero, marketDate }: { intel: DashboardData["intelligence"]; hero: DashboardData["hero"]; marketDate: string | null }) {
   const sent = intel.regime ? SENTIMENT[intel.regime] ?? { zh: "—", en: "—", color: C.faint } : { zh: "—", en: "—", color: C.faint };
   const risk = intel.risk ? RISK[intel.risk] : null;
   const rating = hero?.rating ? RATING[hero.rating] ?? { label: hero.rating, color: C.blue } : null;
@@ -202,7 +202,7 @@ function TodayIntelligence({ intel, hero, marketDate }: { intel: DashboardData["
 }
 
 // ── System Health (row 1, right) ──────────────────────────────────────────────
-function SystemHealth({ health, systemStatus, pipeline }: { health: DashboardData["health"]; systemStatus: DashboardData["systemStatus"]; pipeline: DashboardData["pipeline"] }) {
+export function SystemHealth({ health, systemStatus, pipeline }: { health: DashboardData["health"]; systemStatus: DashboardData["systemStatus"]; pipeline: DashboardData["pipeline"] }) {
   const g = gradeColor(health.grade);
   return (
     <Link href={ROUTES.MISSION_CONTROL} title="进入控制中心" className="h-full dash-card dash-int p-4 flex flex-col">
@@ -276,8 +276,34 @@ function MarketAndStats({ market, stats }: { market: DashboardData["market"]; st
   );
 }
 
+// ── Market row only (for Command Center; stats deferred to Screener) ──────────
+export function MarketRow({ market }: { market: DashboardData["market"] }) {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      {market.map((m) => {
+        const up = m.change != null && m.change > 0, down = m.change != null && m.change < 0;
+        const cc = up ? C.green : down ? C.red : C.faint;
+        return (
+          <Link key={m.key} href={ROUTES.MARKET} className="dash-card dash-int p-3 block">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-semibold" style={{ color: C.ink }}>{MKT_LABEL[m.key] ?? m.key}</span>
+              {m.change != null && Number.isFinite(m.change) && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums" style={{ color: cc }}>
+                  {up ? <TrendingUp size={11} /> : down ? <TrendingDown size={11} /> : null}{up ? "+" : ""}{m.change.toFixed(2)}%
+                </span>
+              )}
+            </div>
+            <div className="text-[19px] font-semibold tabular-nums tracking-[-0.01em] leading-none mt-1" style={{ color: C.ink }}>{fmt(m.value, m.decimals)}</div>
+            <div className="text-[11px] font-medium mt-1 truncate" style={{ color: C.faint }}>AI：{mktAI(m.key, m.value, m.change)}</div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Pipeline (row 3, left) ────────────────────────────────────────────────────
-function PipelineCompact({ timeline }: { timeline: DashboardData["timeline"] }) {
+export function PipelineCompact({ timeline }: { timeline: DashboardData["timeline"] }) {
   return (
     <div className="dash-card p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-2">
@@ -302,7 +328,7 @@ function PipelineCompact({ timeline }: { timeline: DashboardData["timeline"] }) 
 }
 
 // ── Quick Actions (row 3, right) ──────────────────────────────────────────────
-function QuickActions() {
+export function QuickActions() {
   const items = [
     { href: ROUTES.AI_SELECTION, label: "AI 选股", icon: <Sparkles size={19} />, accent: C.blue },
     { href: ROUTES.SHADOW_SCORE, label: "影子评分", icon: <Zap size={19} />, accent: "#5856D6" },

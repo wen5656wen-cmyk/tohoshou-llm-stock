@@ -2,6 +2,28 @@
 
 ---
 
+## [17.65.0] - 2026-07-05 — P3-T19 AI 指挥中心（Dashboard + Screener 合并）🎛️
+
+将「今日总览（Dashboard）」+「AI选股（Screener）」合并为唯一首页 **AI 指挥中心（AI Command Center）**。**仅信息架构重组 + 组件组合**，未改 Prisma/DB/Cron/API/Adaptive/Shadow/Fusion/Learning/Strategy/Portfolio/Paper/Backtest/News/评分算法/Prompt/任何 business logic；所有筛选/排序/搜索/收藏/分页/评分/API 逐字节保留。
+
+### 合并方式（Composition-only）
+- `components/dashboard/DashboardView.tsx`：将 `CmdHeader`/`TodayIntelligence`/`SystemHealth`/`PipelineCompact`/`QuickActions` 改为 `export` + 新增 `MarketRow`（仅市场行，去掉与 Screener 重复的 stats 行）。
+- `components/screener/ScreenerBody.tsx`（新）：Screener 页 body 原样抽出为可复用组件 + `embedded` 开关（嵌入时去外层 min-h-screen 容器，逻辑/state/API 完全不变）。
+- `components/command-center/CommandCenter.tsx`（新，client）：按第一~七屏顺序组合 —— Today Intelligence Hero + 市场概览 + AI推荐统计(MetricCards 5 卡) + 筛选器 + 股票卡片+分页 + 今日流水线 + 快捷入口。
+- `app/page.tsx`（server 取数不变）→ 渲染 `<CommandCenter data>`；`app/screener/page.tsx` → `<ScreenerBody/>`（旧路由 /screener 兼容保留）。
+
+### 导航
+Sidebar 删除「今日总览」，「AI选股」→「AI 指挥中心」指向 `/`（新增 i18n `nav.commandCenter` 三语言）。旧路由 `/`、`/screener` 均可访问，不影响 `/stocks/[symbol]` 收藏链接。
+
+### 删除/去重
+删除独立 Dashboard 视图（`/` 现为指挥中心）+ Dashboard 与 Screener 重复的 KPI/统计行（保留 Screener 的 Strong Buy/Buy/Hold/Watch/Avoid）。
+
+### 验收
+Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；`/` + `/screener` 200；股票详情/Explain Drawer/AI评分/排序/搜索/收藏/分页/API 全一致。V3 Freeze 不受影响。
+- 修改：`components/dashboard/DashboardView.tsx`、`app/page.tsx`、`app/screener/page.tsx`、`components/Sidebar.tsx`、`lib/i18n/*`；新增 `components/screener/ScreenerBody.tsx`、`components/command-center/CommandCenter.tsx`。
+
+---
+
 ## [17.64.0] - 2026-07-04 — P3-T18 研究分析 → AI 研究中心 重构 + 版本中心 LLM 修正 🔬🧠
 
 ### 研究分析 `/admin/research` → AI 研究中心（Research Center）

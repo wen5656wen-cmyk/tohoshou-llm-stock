@@ -393,6 +393,7 @@ const zhCN: Messages = {
   "nav.systemMgmt": "系统管理",
   // new items
   "nav.cockpit": "今日总览",
+  "nav.commandCenter": "AI 指挥中心",
   "nav.missionControl": "控制中心",
   "nav.research": "研究分析",
   "nav.learningReport": "学习报告",

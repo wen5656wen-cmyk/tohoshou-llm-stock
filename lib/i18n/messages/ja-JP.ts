@@ -393,6 +393,7 @@ const jaJP: Messages = {
   "nav.systemMgmt": "システム管理",
   // new items
   "nav.cockpit": "今日の概況",
+  "nav.commandCenter": "AI コマンドセンター",
   "nav.missionControl": "ミッション管理",
   "nav.research": "研究・分析",
   "nav.learningReport": "学習レポート",
