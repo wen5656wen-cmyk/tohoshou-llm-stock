@@ -90,6 +90,7 @@ async function getDashboardData(): Promise<DashboardData> {
     latestPriceSync,
     latestGm,
     latestStrategyRec,
+    latestRegime,
   ] = await Promise.all([
     prisma.stock.count(),
     prisma.stockScore.count({ where: { adaptiveScore: { not: null } } }),
@@ -116,6 +117,7 @@ async function getDashboardData(): Promise<DashboardData> {
       select: { date: true, createdAt: true, nikkei: true, nikkeiChange: true, topix: true, topixChange: true, usdjpy: true, vix: true, nasdaq: true, nasdaqChange: true },
     }),
     db.strategyRecommendation.findFirst({ orderBy: { tradeDate: "desc" }, select: { tradeDate: true } }).catch(() => null),
+    prisma.marketRegime.findFirst({ orderBy: { date: "desc" }, select: { regime: true, regimeScore: true, breadth: true, volatility: true, trendScore: true } }).catch(() => null),
   ]);
 
   // Price coverage on the last completed trading day.
@@ -132,11 +134,28 @@ async function getDashboardData(): Promise<DashboardData> {
     recsToday = await db.strategyRecommendation.count({ where: { tradeDate: latestStrategyRec.tradeDate } }).catch(() => 0);
   }
 
-  // Hero stock display name.
+  // Hero stock display name + dimension scores (for AI reasons — read-only).
+  // Reason KEYS only (Chinese labels resolved in the view, keeps app/ CJK-free).
   let heroName: string | null = null;
+  let heroReasonKeys: string[] = [];
   if (heroRec?.symbol) {
-    const s = await prisma.stock.findUnique({ where: { symbol: heroRec.symbol }, select: { nameZh: true, name: true } });
+    const [s, sc] = await Promise.all([
+      prisma.stock.findUnique({ where: { symbol: heroRec.symbol }, select: { nameZh: true, name: true } }),
+      prisma.stockScore.findUnique({
+        where: { symbol: heroRec.symbol },
+        select: { technicalScore: true, fundamentalScore: true, moneyFlowScore: true, newsSentimentScore: true, globalTrendScore: true },
+      }).catch(() => null),
+    ]);
     heroName = s?.nameZh ?? s?.name ?? heroRec.symbol;
+    if (sc) {
+      heroReasonKeys = [
+        { key: "tech", ratio: (sc.technicalScore ?? 0) / 30 },
+        { key: "fund", ratio: (sc.fundamentalScore ?? 0) / 25 },
+        { key: "flow", ratio: (sc.moneyFlowScore ?? 0) / 20 },
+        { key: "news", ratio: (sc.newsSentimentScore ?? 0) / 15 },
+        { key: "global", ratio: (sc.globalTrendScore ?? 0) / 10 },
+      ].filter((d) => d.ratio >= 0.5).sort((a, b) => b.ratio - a.ratio).slice(0, 3).map((d) => d.key);
+    }
   }
 
   const strongBuy = recGroups.find((r) => r.recommendation === "STRONG_BUY")?._count?.recommendation ?? 0;
@@ -206,9 +225,22 @@ async function getDashboardData(): Promise<DashboardData> {
     return "evening";
   })();
 
+  // ── Today Intelligence (read-only derivation from MarketRegime) ─────────────
+  const breadth = num(latestRegime?.breadth);
+  const volatility = num(latestRegime?.volatility);
+  const intelligence = {
+    regime: latestRegime?.regime ?? null, // BULL | SIDEWAYS | BEAR | null
+    confidence: breadth != null ? Math.round(breadth)
+      : (latestRegime?.regimeScore != null ? Math.round(Math.max(0, Math.min(100, 50 + latestRegime.regimeScore * 50))) : null),
+    risk: volatility == null ? null : volatility < 20 ? "LOW" : volatility <= 25 ? "MEDIUM" : "HIGH",
+    volatility,
+    breadth,
+  };
+
   return {
     greetKey,
     sys: { coveragePct, scoresToday, recsToday, globalOk },
+    intelligence,
     hero: heroRec
       ? {
           symbol: heroRec.symbol,
@@ -217,6 +249,7 @@ async function getDashboardData(): Promise<DashboardData> {
           score: num(heroRec.adaptiveScore),
           rating: heroRec.recommendation,
           summary: heroRec.summaryZh?.trim() || null,
+          reasonKeys: heroReasonKeys,
           price: num(heroRec.buyPrice),
         }
       : null,
@@ -230,6 +263,7 @@ async function getDashboardData(): Promise<DashboardData> {
       scoredCount,
       todayRec: strongBuy + buy,
       todayRecTotal,
+      strongBuy,
       aiAnalysis: scoresToday,
       news: newsToday,
     },

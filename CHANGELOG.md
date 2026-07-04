@@ -2,6 +2,36 @@
 
 ---
 
+## [17.54.0] - 2026-07-04 — P3-T9 Dashboard Command Center（一屏 AI 工作台）重构 🎛️
+
+### 定位转变
+Dashboard 从"官网留白风"（T6）重定义为 **AI 指挥中心**：信息效率 > 留白，决策效率 > 动画。**1440×900 / 1920×1080 / 2560×1440 首屏绝对无需滚动**（实测 content scrollHeight == innerHeight：813/993/1353，零溢出）。仅展示层，未改任何算法/API/数据。
+
+### 一屏三行布局（紧凑）
+- **Header**（h44）：指挥中心 + 问候 + 搜索(typeahead)/通知/账户。
+- **第一行**（h232）：左 **Today Intelligence**（col-8）+ 右 **System Health**（col-4，88/100 + 6 状态点 + 流水线5/5）。
+- **第二行**（Market+Statistics 合并）：4 市场卡（含 AI 解读）一行 + 6 统计格一行。
+- **第三行**（h210）：左 **今日流水线**（col-7，4 条 time+事件+数量+✔）+ 右 **快速入口**（col-5，6 个 Launchpad 磁贴 3×2）。
+
+### Today Intelligence（回答 4 问）
+- **今日 AI 判断**：多头/震荡/空头（读 `MarketRegime.regime` BULL/SIDEWAYS/BEAR，实时真实）+ Bullish/Neutral/Bearish。
+- **AI 置信度**：76%（读 `MarketRegime.breadth` 市场宽度）+ 进度条。
+- **市场风险**：低·Low（读 `MarketRegime.volatility`：<20 Low / ≤25 Medium / >25 High）+ 波动率。
+- **TOP1 推荐 + 为什么**：ScoreRing 73 + 评级 + 3 条理由 bullet（读头号推荐 `StockScore` 维度分 tech/fund/flow/news/global 取 ratio≥0.5 前 3，key→中文映射在组件层）+ 查看分析。
+- **删除固定文案**「日本市场正在持续分析中」→ 改为每日随 regime 变化的 AI 判断。
+
+### 金融 AI 化（市场卡 AI 解读）
+TOPIX 多头趋势延续 / 美元日元 日元偏弱·利好出口 / VIX 风险偏低·适合持仓 / 纳指 美科技承压（确定性展示层启发式，非模型调用/非业务逻辑）。
+
+### 数据（只读聚合，零业务改动）
+page.tsx 新增只读查询：`MarketRegime` 最新行 + 头号推荐 `StockScore` 维度分；`intelligence{regime,confidence,risk,volatility,breadth}` + `hero.reasonKeys` + `stats.strongBuy`。Chinese 标签映射全在 `components/`（app/page.tsx 零中文字面量）。V3 Freeze/评分/推荐/API 完全未动。
+
+### 验收
+- Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；**One Screen ✅**（1440/1920/2560 无滚动实测）；信息密度 ✅；Apple Premium UI ✅；Financial AI UX ✅。
+- 修改：`app/page.tsx`、`components/dashboard/DashboardView.tsx`。
+
+---
+
 ## [17.53.0] - 2026-07-04 — P3-T8 AI选股页面 Apple Premium UI 重构 📈
 
 ### 目标
