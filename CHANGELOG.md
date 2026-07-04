@@ -2,6 +2,28 @@
 
 ---
 
+## [17.60.0] - 2026-07-04 — P3-T17 自动交易 → Paper Trading Cockpit 重构 📊
+
+`/portfolio`（AI 自动交易驾驶舱）从深色 monospace 资金表 → **Paper Trading Cockpit**（AI 模拟交易驾驶舱，Apple × Bloomberg Portfolio × BlackRock Aladdin 深色 #111315/#171A1F/#262B33）。**纯 UI**，未改 Paper Trading/Portfolio/持仓/盈亏计算/买卖规则/AI Score/Strategy/Fusion/Shadow/Cron/DB/Prisma/API/任何算法/任何资金数据；全部来自现有 `/api/portfolio/paper` + `/api/strategy/explain`（只读）。
+
+### 组件拆分（page 61 行 + parts 385 行，均 <500）
+`components/paper-trading/parts.tsx`：PaperTradingHeader / PaperModeBanner / TradingHero / TradingBrief / StrategyCapitalPools / PortfolioPositionsTable / TradingTimeline / TradingRiskPanel / EmptyState / ExplainDrawer；`app/portfolio/page.tsx` 仅 fetch + 编排（CJK-free）。
+
+### 内容（3 秒掌握：今天赚没赚/资产/今日交易/策略/持仓/风险）
+- **Hero 4 KPI**：今日表现(profited YES/NO + pnl + 收益率) / 当前资产(total+现金/持仓/初始) / 累计表现(returnPct+跑赢TOPIX) / 账户状态(Paper Broker+自动运行+流水线+Health+今日买卖/持仓/成交)。
+- **Paper Mode Banner**（amber）：当前为模拟交易模式，不会产生真实买卖或资金变动。
+- **AI Trading Brief**：市场状态+买卖/持仓/盈亏+主要贡献/拖累股票 + 风险等级 + AI 建议（aiDailySummary，卡片化 Highlights/Risk/Recommendation）。
+- **Strategy Capital Pools**：3 机构级资金卡（日内橙/波段蓝/长线绿）+ 资金占比视觉条（strategyPools）。
+- **Portfolio Positions**：Bloomberg 风表（策略/代码/数量/买入价/现价/市值/浮盈/持仓天数/AI评分/风险/查看原因→ExplainDrawer 右抽屉，代码→/stocks/[symbol]，盈利绿亏损红 tabular-nums hover 高亮）。
+- **Trading Flow**：recentExecutionsEnhanced 时间线（买入/卖出 badge），无数据 EmptyState「暂无交易流水」不伪造。
+- **Risk Panel**：riskMetrics（风险等级/仓位·现金占比/最大单一/Top5集中度/持仓数/未实现盈亏/连胜连亏）+ 策略暴露条；缺数据 N/A。
+
+### 验收
+Build ✅ PASS（tsc 0 · CJK-free）；Health ✅ CRITICAL=0；/portfolio 200；1440/1920/2560 响应式（1440 首屏 KPI 完整）；按钮全真实（查看原因/代码/刷新，无 href=#/假按钮）。**交易逻辑/API 100% 未变**：totalAssets=10294200 · todayPnl=100000 · beatTopix=true（before=after）。V3 Freeze 不受影响。
+- 修改：`app/portfolio/page.tsx`（重写）、新增 `components/paper-trading/parts.tsx`。
+
+---
+
 ## [17.59.0] - 2026-07-04 — 学习报告 → Learning Intelligence Center 重构 🧠
 
 `/admin/learning-report` 从深色 monospace 数据库报表 → **Learning Intelligence Center**（AI 学习驾驶舱，Apple × Bloomberg × OpenAI Research 浅色）。**纯 UI**，未改 Prisma/DB/Cron/Learning Engine/Shadow/Fusion/Adaptive/Strategy/Recommendation/Backtest/Feature/API/计算逻辑；所有数字来自现有 `/api/admin/learning-report` + `/api/admin/mission-control`（featFields）；**零假数据**。
