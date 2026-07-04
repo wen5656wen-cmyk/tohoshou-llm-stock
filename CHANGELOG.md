@@ -2,6 +2,25 @@
 
 ---
 
+## [17.58.0] - 2026-07-04 — P3-T16 实验管理 → AI Research Lab（研发中心）重构 🔬
+
+`/admin/experiments`（原空的「实验管理」+ Prisma Studio 教程）→ **AI Research Lab**（研发驾驶舱，Apple/Linear/Vercel/Stripe 浅色）。**纯展示层**，未改任何 Prisma/DB/API/Shadow/Fusion/Learning/Strategy/GPT/Ranking/算法；仅读只读 `/api/health/status` 取真实 Research Health。路由 `/admin/experiments` 不变，左侧导航「实验管理」保持跳转一致。
+
+### 内容
+- **Header**：AI Research Lab · Research Center · AI Engine Development + Adaptive V3·Production / Healthy pill + 最后更新（真实 health.auditAt）。
+- **6 KPI Cards**：AI Engine(Adaptive V3·Production) / Shadow(Enabled) / Fusion(Enabled) / Learning(Running) / Paper Trading(Research) / Research Health(真实健康分，如 88)；均 Apple 卡 + 跳转真实研究页(ROUTES)。
+- **6 Research Modules**：Adaptive Score / Shadow Engine / Fusion Engine / Learning Engine / Backtest / Paper Trading，各含 Version/Status/Confidence/Last Update 等（**无真实数据显示 N/A / Coming Soon，绝不伪造**）+ 真实链接按钮(查看评分/影子对比/融合报告/学习报告/回测验证/纸面交易)。
+- **Research Roadmap** 时间线（Adaptive V3/Shadow/Fusion/Learning ✔Production → Paper Product/Portfolio ●Next → Adaptive V4 ◎Planning，纯展示）。
+- **Research Notes**（v17.57/56/55/54/4x 真实版本摘要）。
+- **Future Modules**：Portfolio/Paper Trading/Factor Lab/Adaptive V4/AI Explain/Institution Flow/Macro Engine 全 Coming Soon。
+- **删除**：空实验列表 / 0 个实验 / 计划中·已完成·已废弃 / Prisma Studio 教程 / CLI 说明。
+
+### 验收
+Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；/admin/experiments 200；**无 API/DB/算法改动**（仅只读 health/status 展示）；所有按钮真实链接或 Coming Soon（无 href=#/空 onClick/假按钮）。V3 Freeze 不受影响。
+- 修改：`app/admin/experiments/page.tsx`。
+
+---
+
 ## [17.57.0] - 2026-07-04 — P3-T15 策略中心 Strategy Intelligence Center Premium 重构 🏦
 
 `/strategy` 升级为 Bloomberg × BlackRock Aladdin × Bridgewater × Apple Stocks Pro 风格的机构级策略情报中心。**纯 UI**，未改任何策略/评分/推荐/AI 算法/持仓/API/计算公式。保留 `overview` fetch + `StrategyTab`/`StabilizationTab`/`ReportsTab`/`ExplainDrawer` 全部逻辑。
