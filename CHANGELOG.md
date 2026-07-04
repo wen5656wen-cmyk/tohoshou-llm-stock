@@ -2,6 +2,25 @@
 
 ---
 
+## [17.69.0] - 2026-07-05 — P3-T19.2 AI研究中心·市场与融合组深色重建（Market Regime + Fusion Research）🛰️
+
+将 AI 研究中心【市场与融合】组两个子面板从浅色开发页升级为统一**深色 Research Terminal**（Bloomberg × Aladdin × OpenAI Research）。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Market Regime 判断逻辑 / Fusion 算法 / Adaptive / Shadow / Learning / Strategy / Backtest / Prompt / 业务逻辑；两面板继续只读现有 `/api/regime` 与 `/api/fusion/report`，**零假数据**，复用 `components/research/kit.tsx` 深色套件。
+
+### 市场状态 `MarketRegimePanel.tsx`（274 行）
+新增 panel 局部 `MarketHero`（大字牛市/震荡市/熊市 verdict + AI判断偏多/震荡/偏空 + 风险 + 置信度暂无数据 + 最近更新 + 「查看AI融合策略研究→」真实跳转）+ `MarketInsight`（今日市场摘要，真实字段 regime/breadth/volatility/regimeScore/trendScore 的确定性展示层复述，**非模型编造**）。6 KPI（市场状态/风险等级/状态评分/趋势/市场宽度Breadth/波动率，全为 `/api/regime` 已有字段）+ 市场状态分布（牛/震荡/熊天数 + 状态色带 old→new）+ **Market Timeline**（从时间序列相邻日 regime diff 检测状态切换点）+ 市场指标（TOPIX 收盘 + MA20/60/120，**日经/VIX/USDJPY 不在本 API → 如实标注不伪造**）+ 完整状态历史 dark table。**风险等级 = 波动率阈值映射（沿用 AI指挥中心既有口径 <20低/≤25中/>25高），非新算指标**。
+
+### AI融合策略研究 `FusionReportPanel.tsx`（291 行）
+新增 `FusionHero`（Fusion Research + 已就绪 + **研究模式** badge + 研究目标 SHARPE + 数据基准 asOfLatest + 「查看市场状态→」）+ `FusionFlow`（Adaptive→Shadow→**Fusion(高亮)**→Strategy→Recommendation→Production 决策链，高亮当前研究节点）+ `FusionDecisionPanel`（决策面板：`fused.sharpe` vs `production.sharpe` 展示层比较 → 融合占优/正式占优/基本持平 + 每状态研究倾向「建议Fusion/继续Production/继续观察」，**明确标注「是否采纳由人工决定」，非新逻辑**）。6 KPI（覆盖市场状态/研究目标/融合占优状态N/N/平均影子权重/数据基准/运行模式研究模式）+ 研究结论（方法论 note + 各状态真实夏普对比）+ 各市场状态融合明细 3 卡（正式/影子/最佳融合 对比表 + 权重-夏普搜索曲线，正绿负红）。
+
+### 导航接线
+`app/admin/research/page.tsx`：两面板传 `onNavigate={setTab}`（Hero CTA/空错态按钮真实切 tab，无 `href="#"`/空 onClick/console.log）；`DARK_TABS` 增加 `regime`/`fusion`（容器切深色 #111315）。ResearchNav 两级高亮（Tier1 市场与融合 + Tier2 市场状态/AI融合策略研究）正确。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.5s）；Health ✅ CRITICAL=0（生产 ❌0 ⚠️5，允许推荐）；/admin/research 200；/api/regime + /api/fusion/report 200 真实数据；1440 无横向溢出、max-w-[1600] 居中；中文化（Fusion/Shadow/Adaptive/AI/TOPIX/Production/SHARPE 保留）；无 API/DB/逻辑改动；V3 Freeze 不受影响。
+- 修改：重写 `components/research/MarketRegimePanel.tsx`、`components/research/FusionReportPanel.tsx`；`app/admin/research/page.tsx`（onNavigate + 深色容器）。
+
+---
+
 ## [17.68.0] - 2026-07-05 — P3-T19.1 AI研究中心·因子研究组深色重建（Alpha因子库 + 因子分析）🔬
 
 将 AI 研究中心【因子研究】组两个子面板从浅色/旧式开发页升级为统一**深色 Research Terminal** 风格。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Alpha 因子计算 / 因子分析逻辑 / 评分 / Shadow / Fusion / Learning / Strategy / Backtest / Prompt / 业务逻辑；两面板继续只读现有 `/api/alpha` 与 `/api/alpha/report`，**零假数据**。
