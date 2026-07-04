@@ -2,6 +2,28 @@
 
 ---
 
+## [17.62.0] - 2026-07-04 — P3-T19 AI历史回测 → AI Backtest Intelligence 重构 📈
+
+`/backtest` 从深色表格后台页 → **AI Backtest Intelligence**（AI 历史回测分析中心，浅色 Apple × Bloomberg × TradingView）。**纯 UI**，未改 Backtest Engine/回测算法/收益率·Alpha·TOPIX 计算/Strategy Backtest/DB/Prisma/API/Cron/任何计算逻辑；全部只读现有 API（`learning-report` backtestSummary + `backtest/summary` + `mission-control` backtest + `backtest/strategy`）。
+
+### 组件拆分（page 66 行 CJK-free + parts 244 行，均 <500）
+`components/backtest/parts.tsx`：BacktestHeader / BacktestHero / BacktestNotice / HorizonStatusCards / BacktestMatrixTable / MaturityTimeline / StrategyBacktestPanel / BacktestEmptyState。
+
+### 内容（3 秒掌握：有无数据/成熟周期/跑赢 TOPIX/最佳周期/需等待）
+- **Hero**：推荐日期(cohortCount) / 已成熟周期(READY horizons) / 最佳周期(最高胜率) / 胜率 / Alpha vs TOPIX / 状态(部分成熟) + 跑赢/跑输 TOPIX badge。
+- **回测说明**（入场价/收益率/推荐日期/未考虑滑点/历史不代表未来，紧凑浅色）。
+- **周期状态 9 卡**（1D~90D：状态点/平均收益/覆盖率/α，缺显 N/A）。
+- **回测矩阵**（Apple 表：周期/状态 已就绪·等待中·样本不足/样本·已填/胜率/平均收益/Alpha/成熟日期，正绿负红 tabular-nums，已就绪行高亮 hover）。
+- **成熟时间线**（1D~90D READY 实心绿·等待中空心，30D/90D 显 expectedFillDates 预计日期）。
+- **三策略回测**（日内30%/波段40%/长线30% 成熟 chips 来自 mission-control；无 stats → Empty State「暂无策略回测数据 + 请先运行 npm run strategy-backtest + 查看策略中心」真实链接 /strategy）。
+- 全中文化（周期/样本/已完成/胜率/平均收益/成熟日期/已就绪/等待中/暂无数据），新增 24 个 backtest.* i18n 键（三语言）。
+
+### 验收
+Build ✅ PASS（tsc 0 · app/backtest 字符串 CJK-free）；Health ✅ CRITICAL=0；/backtest 200；空状态专业；按钮全真实（刷新/查看策略中心，无 href=#/假按钮）；1440/1920 响应式。**无 API/DB/计算逻辑改动**（learning-report backtestSummary before=after：9 行·1d win 50.9 READY）。V3 Freeze 不受影响。
+- 修改：`app/backtest/page.tsx`（重写）、新增 `components/backtest/parts.tsx`、`lib/i18n/types.ts` + 三语言 messages（+24 键）。
+
+---
+
 ## [17.61.0] - 2026-07-04 — P3-T18 版本中心 + 新闻资讯 Premium UI 联合重构 🗂️📰
 
 两页同步升级为浅色 Apple Premium。**纯 UI**，未改 API/DB/Prisma/News Sync/Version Logic/Cron/AI Score/Learning/Strategy/任何计算或写入逻辑；全部只读现有 API。
