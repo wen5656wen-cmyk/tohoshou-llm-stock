@@ -2,6 +2,22 @@
 
 ---
 
+## [17.82.0] - 2026-07-05 — P5-T1 Explain AI Engine（AI 决策解释引擎 V1）🧠💬
+
+建立全站唯一的 **AI 决策解释引擎**：在现有 AI 决策之上生成「为什么推荐 / 为什么不推荐 / 主要风险 / 未来关注」，让推荐**可解释**。**纯展示/派生层，只读现有评分数据，绝不重算**——未改 Adaptive / Shadow / Fusion / Learning / Strategy / GPT Score / Recommendation / Ranking / DB / Prisma / Cron / Backtest / Paper Trading；不影响任何评分。
+
+### 新增 `lib/explain/`（10 文件，唯一 Explain 来源）
+`types.ts`(ExplainResult 10 字段+ScoreSnapshot/RegimeSnapshot 只读输入+ExplainProvider 接口)、`templates.ts`(维度/评级/风格/市场状态中文映射)、`utils.ts`(dimRatio/dimTier/volRisk 只读换算)、`strength.ts`(优势/机会推导)、`risk.ts`(弱点/风险推导 + actionWarnings 透传)、`summary.ts`(总结/市场环境/建议策略[对齐三策略门槛]/持有周期/置信度[读 ruleConfidence]/未来关注)、`engine.ts`(ruleExplain 规则引擎)、`provider.ts`(**ExplainProvider 抽象**:RuleEngine[默认]/GPT/Hybrid 预留，均安全回退 rule，**默认不调 GPT**，env `EXPLAIN_PROVIDER` 可切)、`builder.ts`(**buildExplain 全站唯一入口**)、`index.ts`。
+
+### 新增统一 Explain API
+`GET /api/explain/[symbol]?provider=rule|gpt|hybrid`（默认 rule）——只读 StockScore + 最新 MarketRegime → `buildExplain` → 统一 ExplainResult。实测 6525.T 完整 10 字段（持有/综合 62/前 5%/技术面强 97%/机会分 63/牛市低风险/HIGH 置信）；缺失代码优雅空态；`provider=gpt` 安全回退 rule 无 GPT 调用；`/api/strategy/explain` 仍 200 无回归。
+
+### 验收
+Build ✅（tsc 0，Compiled 4.0s）；Health ✅ CRITICAL=0；No API Regression ✅；No DB / No Logic Change ✅（只读零重算）；Explain Engine / 统一 Explain / Rule Explain / Provider ✅ 全 PASS。后续股票详情/策略/Paper/研究可逐步接入 `/api/explain`（现 ExplainDrawer 经 `/api/strategy/explain` 继续工作零回归）；未来切 `EXPLAIN_PROVIDER=gpt` 即完成 Explain AI 升级。
+- 新增：`lib/explain/*`（10 文件）、`app/api/explain/[symbol]/route.ts`。
+
+---
+
 ## [17.81.0] - 2026-07-05 — P4-T4 Legacy 路由收敛（Redirect First，不删除）🔀
 
 将审计（PROJECT_AUDIT）识别的 7 条历史遗留路由统一 **307 临时重定向**到 AI 研究中心/首页。**仅路由层**，未改任何 API / DB / Prisma / Cron / Alpha·Fusion 计算 / AI评分 / Shadow / Learning / Strategy / Backtest / GPT / 业务逻辑；**不删除**任何旧页面文件/API/脚本/表（安全收敛，非激进删除，观察 2 周后由 P4-T5/T6 再评估物理删除）。
