@@ -2,16 +2,36 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { PanelHeader } from "./PanelHeader";
+import {
+  RM,
+  ResearchPanelShell,
+  ResearchStatusBadge,
+  ResearchButton,
+  ResearchKpiGrid,
+  ResearchKpiCard,
+  ResearchSection,
+  ResearchChip,
+  ResearchInsightCard,
+  ResearchStackBar,
+  ResearchTable,
+  RTh,
+  RTd,
+  rowHoverClass,
+  ResearchLoadingState,
+  ResearchEmptyState,
+  ResearchErrorState,
+  type Tone,
+} from "./kit";
 
-// V3 动态评分（P3-T1，Shadow-only 展示）。不影响正式 AI 推荐。
+// V3动态评分 — Adaptive V3 Intelligence（AI 研究中心 · V3 组）。
+// 纯展示层：只读现有 /api/scoring-v3/shadow，展示 Adaptive Score V3（Shadow 影子，不影响正式推荐）。
+// 不改任何 API / Adaptive-v3 / Scoring / 评分算法。评分均值为已有字段的展示层聚合。
 
 type Row = {
   symbol: string; name: string; nameZh: string | null;
   scoreV3: number; rawScore: number; riskAdjustment: number; rank: number; percentile: number; rating: string;
   confidence: number; qualityScore: number; calibrated: boolean;
-  subScores: Record<string, number | null> | null;
-  contributions: Record<string, number | null> | null;
+  subScores: Record<string, number | null> | null; contributions: Record<string, number | null> | null;
   explanation: string;
   v2AdaptiveScore: number | null; v2PercentileRank: number | null; v2Rec: string | null;
 };
@@ -20,26 +40,24 @@ type Shadow = {
   weights: Record<string, number> | null; total: number;
   ratingDist: Record<string, number>; dimCoverage: Record<string, number>; rows: Row[];
 };
-type BtRow = { period: number; strategy: string; topN: number; holdDays: number; cumReturn: number | null; alpha: number | null; sharpe: number | null; maxDrawdown: number | null; winRate: number | null; annualizedReturn: number | null; turnover: number | null };
-type Backtest = { asOfLatest: string | null; regime: string | null; v3Weights: any; fusionAlphaWeight: number; turnover: Record<string, number | null>; rows: BtRow[] };
 
 const DIM_ZH: Record<string, string> = { technical: "技术面", fundamental: "基本面", alpha: "Alpha", news: "新闻事件", flow: "资金流动性" };
 const RATING_ZH: Record<string, string> = { STRONG_BUY: "强烈买入", BUY: "买入", HOLD: "持有", WATCH: "观察", AVOID: "回避" };
-const RATING_COLOR: Record<string, string> = { STRONG_BUY: "#16a34a", BUY: "#2563eb", HOLD: "#64748b", WATCH: "#d97706", AVOID: "#dc2626" };
-const STRAT_ZH: Record<string, string> = { PRODUCTION: "正式评分V2", ALPHA: "影子评分", FUSION: "融合", V3: "V3动态" };
+const RATING_TONE: Record<string, Tone> = { STRONG_BUY: "green", BUY: "green", HOLD: "neutral", WATCH: "amber", AVOID: "red" };
+const RATING_HEX: Record<string, string> = { STRONG_BUY: RM.green, BUY: "#30B0C7", HOLD: RM.faint, WATCH: RM.amber, AVOID: RM.red };
+const REGIME_ZH: Record<string, string> = { BULL: "牛市", BEAR: "熊市", SIDEWAYS: "震荡市" };
 function fx(v: number | null | undefined, d = 1) { return v == null ? "—" : v.toFixed(d); }
-function pctColor(v: number | null | undefined) { return v == null ? "#94a3b8" : v > 0 ? "#16a34a" : v < 0 ? "#dc2626" : "#334155"; }
 
-export function ScoreV3Panel() {
+export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [data, setData] = useState<Shadow | null>(null);
-  const [bt, setBt] = useState<Backtest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/scoring-v3/shadow?limit=800").then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); }).then(setData).catch((e) => setError(String(e)));
-    fetch("/api/scoring-v3/backtest").then((r) => r.json()).then(setBt).catch(() => {});
+    fetch("/api/scoring-v3/shadow?limit=3000")
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d: Shadow) => setData(d)).catch((e) => setError(String(e)));
   }, []);
 
   const rows = useMemo(() => {
@@ -49,122 +67,151 @@ export function ScoreV3Panel() {
     return data.rows.filter((r) => r.symbol.toLowerCase().includes(ql) || (r.name ?? "").toLowerCase().includes(ql) || (r.nameZh ?? "").includes(q.trim()));
   }, [data, q]);
 
+  const avgScore = useMemo(() => {
+    const rs = data?.rows ?? []; if (!rs.length) return null;
+    return rs.reduce((s, r) => s + r.scoreV3, 0) / rs.length;
+  }, [data]);
+
   function exportCsv() {
     if (!data) return;
-    const head = ["rank", "symbol", "name", "scoreV3", "rating", "percentile", "riskAdjustment", "v2AdaptiveScore", "v2Rec"];
+    const head = ["rank", "symbol", "name", "scoreV3", "rating", "percentile", "confidence", "riskAdjustment", "v2AdaptiveScore", "v2Rec"];
     const lines = [head.join(",")];
-    for (const r of data.rows) lines.push([r.rank, r.symbol, `"${(r.name ?? "").replace(/"/g, '""')}"`, r.scoreV3, r.rating, r.percentile, r.riskAdjustment, r.v2AdaptiveScore ?? "", r.v2Rec ?? ""].join(","));
+    for (const r of data.rows) lines.push([r.rank, r.symbol, `"${(r.name ?? "").replace(/"/g, '""')}"`, r.scoreV3, r.rating, r.percentile, r.confidence, r.riskAdjustment, r.v2AdaptiveScore ?? "", r.v2Rec ?? ""].join(","));
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `score-v3-${data.date ?? "latest"}.csv`; a.click(); URL.revokeObjectURL(url);
   }
 
-  const btHead = useMemo(() => {
-    if (!bt?.rows?.length) return [];
-    return [30, 90, 180].map((p) => {
-      const g = (s: string) => bt.rows.find((r) => r.period === p && r.strategy === s && r.topN === 20 && r.holdDays === 20);
-      return { period: p, PRODUCTION: g("PRODUCTION"), ALPHA: g("ALPHA"), FUSION: g("FUSION"), V3: g("V3") };
-    });
-  }, [bt]);
+  const total = data?.total ?? 0;
+  const hasData = !!data && (data.rows?.length ?? 0) > 0;
+  const goCalib = onNavigate ? () => onNavigate("calibration") : undefined;
+  const goOverview = onNavigate ? () => onNavigate("overview") : undefined;
+  const dist = data?.ratingDist ?? {};
+  const topRow = data?.rows?.[0];
+
+  const hero = (
+    <AdaptiveScoreHero date={data?.date ?? null} computedAt={data?.computedAt ?? null} regime={data?.regime ?? null}
+      total={total} loading={!data && !error} error={!!error} hasData={hasData} topRating={topRow?.rating ?? null} onCalib={goCalib} />
+  );
+
+  if (error) return <ResearchPanelShell>{hero}<ResearchErrorState message={error} hint={<>请运行 <code style={{ color: RM.sub }}>npm run compute-scores</code> 生成 V3 影子评分。</>} actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>} /></ResearchPanelShell>;
+  if (!data) return <ResearchPanelShell>{hero}<ResearchLoadingState label="正在加载 V3 动态评分…" /></ResearchPanelShell>;
+  if (!hasData) return <ResearchPanelShell>{hero}<ResearchEmptyState title="暂无 V3 评分数据" desc="V3 动态评分尚未生成或 API 暂无返回。" actions={<><ResearchButton variant="primary" onClick={goCalib} disabled={!goCalib}>查看 V3 Calibration</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton></>} /></ResearchPanelShell>;
+
+  const dims = ["technical", "fundamental", "alpha", "news", "flow"] as const;
 
   return (
-    <div className="p-6 max-w-[1400px]">
-      <PanelHeader title="V3动态评分" desc="Adaptive Score V3 Pro：动态权重 + 风险层 + 市场状态门控（Shadow 影子，不影响正式AI推荐）。" phase="P3-T1"
-        dataDate={data?.date} computedAt={data?.computedAt} stockCount={data?.total}
-        statusText="影子评分（不参与正式AI推荐）" error={error} loading={!data && !error} />
+    <ResearchPanelShell>
+      {hero}
 
-      {data?.weights ? (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4">
-          <div className="text-[11px] text-slate-400 font-medium mb-2">今日动态权重 · 市场状态 {data.regime === "BULL" ? "🟢牛市" : data.regime === "BEAR" ? "🔴熊市" : "🟡震荡市"}（自动按因子质量/覆盖率/RankIC调整，全球维度已移除、资金改用个股级数据）</div>
-          <div className="flex flex-wrap gap-2">
-            {(["technical", "fundamental", "alpha", "news", "flow"] as const).map((d) => (
-              <div key={d} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
-                <span className="text-xs text-slate-500">{DIM_ZH[d]}</span>
-                <span className="text-sm font-bold text-slate-900 tabular-nums">{((data.weights![d] ?? 0) * 100).toFixed(1)}%</span>
-                <span className="text-[10px] text-slate-400">覆盖{fx(data.dimCoverage?.[d])}%</span>
-              </div>
-            ))}
-          </div>
+      {/* KPI —— 今日评分数 + 评分均值 + 5 评级桶（真实字段） */}
+      <ResearchKpiGrid>
+        <ResearchKpiCard label="今日评分数" value={total.toLocaleString()} sub="覆盖股票数" tone="blue" />
+        <ResearchKpiCard label="评分均值" value={fx(avgScore, 1)} sub="全市场 scoreV3 均值" />
+        <ResearchKpiCard label="强烈买入" value={dist.STRONG_BUY ?? 0} sub="STRONG_BUY" tone="green" />
+        <ResearchKpiCard label="买入" value={dist.BUY ?? 0} sub="BUY" tone="green" />
+        <ResearchKpiCard label="持有 / 观察" value={`${dist.HOLD ?? 0} / ${dist.WATCH ?? 0}`} sub="HOLD / WATCH" />
+        <ResearchKpiCard label="回避" value={dist.AVOID ?? 0} sub="AVOID" tone="red" />
+      </ResearchKpiGrid>
+
+      {/* Distribution + 权重/覆盖 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="lg:col-span-2">
+          <ResearchSection title="评级分布" desc="V3 动态评分标定后的评级构成">
+            <ResearchStackBar segments={["STRONG_BUY", "BUY", "HOLD", "WATCH", "AVOID"].map((k) => ({ label: RATING_ZH[k], value: dist[k] ?? 0, color: RATING_HEX[k] }))} />
+          </ResearchSection>
         </div>
-      ) : null}
-
-      {btHead.length ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-          <div className="text-[11px] text-slate-400 font-medium mb-2">回测对比（Top20 · 持有20日 · 累计收益%）· 数据日期 {bt?.asOfLatest ?? "—"} · V3为价格核心重建（基本面/新闻无历史）</div>
-          <div className="overflow-auto">
-            <table className="w-full text-xs">
-              <thead><tr className="text-slate-400 border-b border-slate-100">
-                <th className="text-left py-1 font-medium">周期</th>
-                {(["PRODUCTION", "ALPHA", "FUSION", "V3"] as const).map((s) => <th key={s} className="text-right py-1 font-medium">{STRAT_ZH[s]}</th>)}
-              </tr></thead>
-              <tbody>
-                {btHead.map((r) => (
-                  <tr key={r.period} className="border-b border-slate-50">
-                    <td className="py-1 text-slate-600 font-medium">{r.period}日</td>
-                    {(["PRODUCTION", "ALPHA", "FUSION", "V3"] as const).map((s) => (
-                      <td key={s} className={`py-1 text-right tabular-nums font-semibold ${s === "V3" ? "bg-blue-50/40" : ""}`} style={{ color: pctColor((r as any)[s]?.cumReturn) }}>{fx((r as any)[s]?.cumReturn, 2)}%</td>
-                    ))}
-                  </tr>
-                ))}
-                <tr className="text-[11px] text-slate-400">
-                  <td className="py-1">换手率</td>
-                  {(["PRODUCTION", "ALPHA", "FUSION", "V3"] as const).map((s) => <td key={s} className="py-1 text-right tabular-nums">{fx(bt?.turnover?.[s])}%</td>)}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex gap-2 mb-3 flex-wrap items-center">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索股票代码/名称…" className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        {data ? <span className="text-xs text-slate-400">评级：{["STRONG_BUY", "BUY", "HOLD", "WATCH", "AVOID"].map((k) => `${RATING_ZH[k]} ${data.ratingDist[k] ?? 0}`).join(" · ")}</span> : null}
-        <button onClick={exportCsv} disabled={!data?.rows.length} className="ml-auto bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg font-medium">导出CSV</button>
+        <ResearchInsightCard title="AI 今日评分结论" tone="blue">
+          市场状态 <b style={{ color: RM.ink }}>{REGIME_ZH[data.regime ?? ""] ?? "—"}</b>，共评分 <b style={{ color: RM.ink }}>{total.toLocaleString()}</b> 只，均值 <b style={{ color: RM.ink }}>{fx(avgScore, 1)}</b>。看多信号（强烈买入 + 买入）<b style={{ color: RM.green }}>{(dist.STRONG_BUY ?? 0) + (dist.BUY ?? 0)}</b> 只。校准与就绪度见 <button onClick={goCalib} disabled={!goCalib} className="font-semibold disabled:opacity-40" style={{ color: RM.blue }}>V3 Calibration</button>。
+        </ResearchInsightCard>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-auto" style={{ maxHeight: "calc(100vh - 420px)" }}>
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-slate-50 z-10">
-            <tr className="text-left text-slate-500 border-b border-slate-200">
-              <th className="px-3 py-2 font-medium text-right">#</th>
-              <th className="px-3 py-2 font-medium">股票</th>
-              <th className="px-3 py-2 font-medium text-right">V3评分</th>
-              <th className="px-3 py-2 font-medium text-center">评级</th>
-              <th className="px-3 py-2 font-medium text-right">百分位</th>
-              <th className="px-3 py-2 font-medium text-right" title="可信度：分数背后的数据支撑度（覆盖/风险/维度完整）">Confidence</th>
-              <th className="px-3 py-2 font-medium text-right" title="负向风险扣分（波动/流动性/财报/数据）">风险扣分</th>
-              <th className="px-3 py-2 font-medium text-right">V2评分</th>
-              <th className="px-3 py-2 font-medium text-center">V2评级</th>
-              <th className="px-3 py-2 font-medium text-center">解释</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!data ? (
-              <tr><td colSpan={10} className="px-3 py-10 text-center text-slate-400">加载中…</td></tr>
-            ) : rows.map((r) => (
-              <Fragment key={r.symbol}>
-                <tr className="border-b border-slate-50 hover:bg-blue-50/30">
-                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{r.rank}</td>
-                  <td className="px-3 py-1.5"><Link href={`/stocks/${encodeURIComponent(r.symbol)}`} className="text-blue-600 hover:underline font-mono">{r.symbol}</Link><span className="text-slate-500 ml-1.5">{r.nameZh ?? r.name}</span></td>
-                  <td className="px-3 py-1.5 text-right tabular-nums font-bold text-slate-900">{r.scoreV3.toFixed(1)}</td>
-                  <td className="px-3 py-1.5 text-center"><span className="px-2 py-0.5 rounded font-medium text-white text-[11px]" style={{ background: RATING_COLOR[r.rating] }}>{RATING_ZH[r.rating] ?? r.rating}</span></td>
-                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{r.percentile.toFixed(1)}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums font-medium" style={{ color: r.confidence >= 80 ? "#16a34a" : r.confidence >= 60 ? "#d97706" : "#dc2626" }}>{r.confidence.toFixed(0)}%</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums" style={{ color: r.riskAdjustment < 0 ? "#dc2626" : "#94a3b8" }}>{r.riskAdjustment.toFixed(1)}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-600">{fx(r.v2AdaptiveScore, 0)}</td>
-                  <td className="px-3 py-1.5 text-center text-slate-500">{r.v2Rec ?? "—"}</td>
-                  <td className="px-3 py-1.5 text-center"><button onClick={() => setExpanded(expanded === r.symbol ? null : r.symbol)} className="text-blue-600 hover:underline">{expanded === r.symbol ? "收起" : "查看"}</button></td>
-                </tr>
-                {expanded === r.symbol ? (
-                  <tr className="bg-slate-50">
-                    <td colSpan={10} className="px-4 py-3">
-                      <pre className="text-[11px] text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">{r.explanation}</pre>
-                    </td>
-                  </tr>
-                ) : null}
-              </Fragment>
+      {/* 动态权重 + 维度覆盖 */}
+      {data.weights ? (
+        <ResearchSection title="今日动态权重 · 维度覆盖" desc={`按因子质量 / 覆盖率 / RankIC 自动调整 · 市场状态 ${REGIME_ZH[data.regime ?? ""] ?? "—"}`}>
+          <div className="flex flex-wrap gap-2">
+            {dims.map((dm) => (
+              <ResearchChip key={dm}>{DIM_ZH[dm]} <b style={{ color: RM.ink }} className="mx-1">{((data.weights![dm] ?? 0) * 100).toFixed(1)}%</b><span style={{ color: RM.faint }}>覆盖{fx(data.dimCoverage?.[dm])}%</span></ResearchChip>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </ResearchSection>
+      ) : null}
+
+      {/* 评分明细表 */}
+      <ResearchSection title="V3 评分明细" desc={`按 V3 评分排名 · 共 ${rows.length.toLocaleString()} 行`} right={
+        <div className="flex items-center gap-2">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索代码 / 名称…" className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none" style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }} />
+          <ResearchButton onClick={exportCsv} disabled={!rows.length}>导出CSV</ResearchButton>
+        </div>
+      }>
+        {rows.length === 0 ? <ResearchEmptyState title="无匹配股票" desc="尝试更换搜索关键词。" /> : (
+          <div style={{ maxHeight: "calc(100vh - 320px)", overflow: "auto" }}>
+            <ResearchTable minWidth={920}>
+              <thead>
+                <tr>
+                  <RTh align="right">#</RTh><RTh>股票</RTh><RTh align="right">V3评分</RTh><RTh align="center">评级</RTh>
+                  <RTh align="right">百分位</RTh><RTh align="right">Confidence</RTh><RTh align="right">风险扣分</RTh>
+                  <RTh align="right">V2评分</RTh><RTh align="center">解释</RTh>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 600).map((r) => (
+                  <Fragment key={r.symbol}>
+                    <tr className={rowHoverClass}>
+                      <RTd align="right" mono color={RM.faint}>{r.rank}</RTd>
+                      <RTd>
+                        <Link href={`/stocks/${encodeURIComponent(r.symbol)}`} style={{ color: RM.blue }} className="hover:underline font-mono">{r.symbol}</Link>
+                        <span className="ml-1.5 truncate inline-block max-w-[130px] align-bottom" style={{ color: RM.sub }}>{r.nameZh ?? r.name}</span>
+                      </RTd>
+                      <RTd align="right" mono color={RM.ink}>{r.scoreV3.toFixed(1)}</RTd>
+                      <RTd align="center"><ResearchStatusBadge tone={RATING_TONE[r.rating] ?? "neutral"}>{RATING_ZH[r.rating] ?? r.rating}</ResearchStatusBadge></RTd>
+                      <RTd align="right" mono color={RM.sub}>{r.percentile.toFixed(1)}</RTd>
+                      <RTd align="right" mono color={r.confidence >= 80 ? RM.green : r.confidence >= 60 ? RM.amber : RM.red}>{r.confidence.toFixed(0)}%</RTd>
+                      <RTd align="right" mono color={r.riskAdjustment < 0 ? RM.red : RM.faint}>{r.riskAdjustment.toFixed(1)}</RTd>
+                      <RTd align="right" mono color={RM.sub}>{fx(r.v2AdaptiveScore, 0)}</RTd>
+                      <RTd align="center"><button onClick={() => setExpanded(expanded === r.symbol ? null : r.symbol)} style={{ color: RM.blue }} className="hover:underline">{expanded === r.symbol ? "收起" : "查看"}</button></RTd>
+                    </tr>
+                    {expanded === r.symbol ? (
+                      <tr><td colSpan={9} style={{ background: RM.card, borderBottom: `1px solid ${RM.border}` }}><pre className="text-[11px] whitespace-pre-wrap font-sans leading-relaxed px-4 py-3" style={{ color: RM.sub }}>{r.explanation}</pre></td></tr>
+                    ) : null}
+                  </Fragment>
+                ))}
+              </tbody>
+            </ResearchTable>
+            {rows.length > 600 && <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>为保证渲染性能，仅展示前 600 行（共 {rows.length.toLocaleString()} 行）。完整数据请「导出CSV」。</div>}
+          </div>
+        )}
+      </ResearchSection>
+    </ResearchPanelShell>
+  );
+}
+
+// ── AdaptiveScoreHero ─────────────────────────────────────────────────────────
+function AdaptiveScoreHero({ date, computedAt, regime, total, loading, error, hasData, topRating, onCalib }: {
+  date: string | null; computedAt: string | null; regime: string | null; total: number; loading: boolean; error: boolean; hasData: boolean; topRating: string | null; onCalib?: () => void;
+}) {
+  const statusText = loading ? "运行中" : error ? "暂无数据" : hasData ? "已完成" : "暂无数据";
+  const statusTone: Tone = loading ? "amber" : error || !hasData ? "neutral" : "green";
+  return (
+    <div className="rounded-2xl px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-4" style={{ background: RM.panel, border: `1px solid ${RM.border}` }}>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>V3动态评分</h1>
+          <span className="text-[12px] font-medium" style={{ color: RM.faint }}>Adaptive V3 Intelligence</span>
+          <ResearchStatusBadge tone={statusTone}>今日评分{statusText}</ResearchStatusBadge>
+          <ResearchStatusBadge tone="blue">adaptive-v3</ResearchStatusBadge>
+          <ResearchStatusBadge tone="amber">影子模式</ResearchStatusBadge>
+        </div>
+        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>Adaptive Score Engine · 动态权重 + 风险层 + 市场状态门控</p>
+        <div className="mt-2 flex items-center gap-4 flex-wrap text-[12px]">
+          <span style={{ color: RM.sub }}>今日评分 <b className="tabular-nums" style={{ color: RM.ink }}>{total.toLocaleString()}</b> 只</span>
+          <span style={{ color: RM.sub }}>市场状态 <b style={{ color: RM.ink }}>{REGIME_ZH[regime ?? ""] ?? "—"}</b></span>
+          <span style={{ color: RM.faint }}>数据日期 <b className="tabular-nums" style={{ color: RM.sub }}>{date ?? "暂无数据"}</b></span>
+          <span style={{ color: RM.faint }}>更新 <span className="tabular-nums" style={{ color: RM.sub }}>{computedAt ? new Date(computedAt).toLocaleString("zh-CN") : "暂无数据"}</span></span>
+        </div>
+      </div>
+      <div className="shrink-0 flex items-center gap-2">
+        {topRating && <div className="text-right hidden xl:block"><div className="text-[11px]" style={{ color: RM.faint }}>榜首建议</div><div className="text-[14px] font-semibold" style={{ color: RATING_HEX[topRating] ?? RM.ink }}>{RATING_ZH[topRating] ?? topRating}</div></div>}
+        <ResearchButton onClick={onCalib} disabled={!onCalib}>查看 V3 Calibration →</ResearchButton>
       </div>
     </div>
   );

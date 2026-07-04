@@ -2,6 +2,31 @@
 
 ---
 
+## [17.71.0] - 2026-07-05 — P3-T19.4 AI研究中心·V3组终章重构（V3动态评分 + V3校准中心 + V3冻结监控）🧊✅
+
+完成 AI 研究中心**最后一组 3 个面板**，至此全部 **9/9 子面板**统一为深色 Research Terminal。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Adaptive-v3 / Scoring / Calibration / Freeze / Shadow / Fusion / Learning / Strategy / Backtest / Prompt / 业务逻辑；三面板继续只读现有 `/api/scoring-v3/shadow` `/calibration` `/freeze`，**零假数据**，复用 `components/research/kit.tsx`。
+
+### kit.tsx 新增（440 行）
+`ResearchTimeline`（垂直连线步骤：done/current/waiting 三态）+ `ResearchStackBar`（堆叠分布条 + 图例）——供 V3 三面板与后续复用。
+
+### V3动态评分 `ScoreV3Panel.tsx`（218 行）
+`AdaptiveScoreHero`（今日评分已完成 + adaptive-v3 + 影子模式 badge · 今日评分数 · 市场状态 · 榜首建议 · 「查看V3 Calibration→」）+ 6 KPI（今日评分数 / **评分均值 全市场 scoreV3 均值** / 强烈买入 / 买入 / 持有·观察 / 回避，均为 ratingDist + rows 真实字段）+ 评级分布 `ResearchStackBar` + AI今日评分结论 insight + 今日动态权重·维度覆盖 chips（新闻覆盖 0.5% 如实）+ V3评分明细 dark table（评级 badge / Confidence 分色 / 风险扣分 / explain 展开 / 股票跳详情 / 搜索+CSV / 前600行）。
+
+### V3校准中心 `CalibrationPanel.tsx`（219 行）
+`CalibrationHero`（Grade B · 76.8就绪度 · Confidence 84.3% · 数据质量 94.9% · 「查看V3 Freeze Monitor→」）+ 6 KPI + 校准建议 Recommendation（**grade→文本既有映射：A继续使用/B继续Shadow/C重新校准/D等待更多样本**）+ 今日动态阈值 + Confidence 分布（高/中/低分档）+ Data Quality 维度覆盖条 + STRONG_BUY 统计 + **Calibration History `ResearchTimeline` + 表**。
+
+### V3冻结监控 `FreezeMonitorPanel.tsx`（218 行）
+`FreezeHero`（冻结中 + 未达标 · 第2/7天 · 开始/剩余/最终评审）+ 6 KPI（Freeze版本 / Commit / 验证进度 / 就绪度 / 剩余天数 / 是否通过）+ 冻结进度条 + 冻结结论（gateReady/over 派生建议）+ **Validation Timeline `ResearchTimeline`**（Day1…totalDays，按 startDate 推算日期 + history 标注 done/今天/等待中）+ Freeze Result 前向验证（replay verdict V3胜 v3Win/cells + forward V2/V3/spread 表，正绿负红）+ 冻结权重（锁定）chips + 禁改声明 + 每日累计表。
+
+### 导航接线
+`app/admin/research/page.tsx`：三面板传 `onNavigate={setTab}`；`DARK_TABS` 补齐 `v3`/`calibration`/`freeze`——**至此 9 tab 全部深色**。ResearchNav 两级高亮（Tier1 V3 + Tier2 三子 tab）正确，无 `href="#"`/空 onClick/console.log。
+
+### 验收（AI 研究中心全部完成）
+Build ✅ PASS（tsc 0，Compiled 3.4s）；Health ✅ CRITICAL=0；/admin/research 200；三 V3 API 200 真实数据；1440 无横向溢出、max-w-[1600] 居中；中文化（Adaptive/V3/Calibration/Freeze/Shadow/Production/Confidence 保留）；无 API/DB/逻辑改动；V3 Freeze 不受影响。**AI 研究中心 9/9 子面板全部统一为机构级 Research Terminal（因子研究2 + 市场融合2 + Shadow·Alpha2 + V3组3）。**
+- 修改：重写 `components/research/ScoreV3Panel.tsx`、`CalibrationPanel.tsx`、`FreezeMonitorPanel.tsx`；`kit.tsx`（+ResearchTimeline/ResearchStackBar）；`app/admin/research/page.tsx`。
+
+---
+
 ## [17.70.0] - 2026-07-05 — P3-T19.3 AI研究中心·Shadow·Alpha 组深色重建（影子评分 + Alpha策略回测）👁️
 
 将 AI 研究中心【Shadow · Alpha】组两个子面板从浅色开发页升级为统一**深色 Research Terminal**。**纯展示层**，未改任何 API / DB / Prisma / Schema / Cron / Shadow 评分算法 / Alpha Score 计算 / Alpha 策略回测算法 / Adaptive / Fusion / Learning / Strategy / Backtest Engine / Prompt / 业务逻辑；两面板继续只读现有 `/api/alpha/score` 与 `/api/alpha/backtest`，**零假数据**，复用 `components/research/kit.tsx`。

@@ -380,6 +380,57 @@ export function ResearchInsightCard({
   );
 }
 
+// ── Timeline (vertical connected steps) ──────────────────────────────────────
+export type TimelineStep = { label: string; sub?: ReactNode; right?: ReactNode; state: "done" | "current" | "waiting" };
+export function ResearchTimeline({ steps }: { steps: TimelineStep[] }) {
+  const dot = (s: TimelineStep["state"]) => (s === "done" ? RM.green : s === "current" ? RM.blue : RM.faint);
+  return (
+    <div className="relative">
+      {steps.map((s, i) => {
+        const c = dot(s.state);
+        return (
+          <div key={i} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <span className="w-3 h-3 rounded-full shrink-0 mt-1.5" style={{ background: s.state === "waiting" ? "transparent" : c, border: `2px solid ${c}` }} />
+              {i < steps.length - 1 && <span className="w-px flex-1 my-1" style={{ background: RM.border }} />}
+            </div>
+            <div className="flex-1 min-w-0 pb-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] font-semibold" style={{ color: s.state === "waiting" ? RM.faint : RM.ink }}>{s.label}</span>
+                {s.right}
+              </div>
+              {s.sub != null && <div className="text-[12px] mt-0.5" style={{ color: RM.faint }}>{s.sub}</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// stacked distribution bar (segments sum to 100%)
+export function ResearchStackBar({ segments }: { segments: { label: string; value: number; color: string }[] }) {
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  return (
+    <div>
+      <div className="flex h-8 rounded-lg overflow-hidden" style={{ border: `1px solid ${RM.border}` }}>
+        {segments.map((s) => s.value > 0 && (
+          <div key={s.label} title={`${s.label} ${s.value}`} style={{ width: `${(s.value / total) * 100}%`, background: s.color, opacity: 0.9 }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
+        {segments.map((s) => (
+          <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: RM.sub }}>
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
+            {s.label} <b className="tabular-nums" style={{ color: RM.ink }}>{s.value.toLocaleString()}</b>
+            <span style={{ color: RM.faint }}>({((s.value / total) * 100).toFixed(1)}%)</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // return-value color helper (green up / red down / neutral)
 export function retColor(v: number | null | undefined): string {
   if (v == null) return RM.faint;

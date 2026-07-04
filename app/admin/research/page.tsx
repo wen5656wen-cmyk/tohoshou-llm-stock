@@ -128,8 +128,8 @@ export default function ResearchCenterPage() {
     if (q && CENTER_TABS.some((t) => t.key === q)) setTab(q);
   }, []);
 
-  // 已升级为深色 Research Terminal 的面板（自带 max-w/间距，容器切深色底）
-  const DARK_TABS = new Set(["factors", "analytics", "regime", "fusion", "score", "backtest"]);
+  // 已升级为深色 Research Terminal 的面板（自带 max-w/间距，容器切深色底）——全部 9 个面板已完成
+  const DARK_TABS = new Set(["factors", "analytics", "regime", "fusion", "score", "backtest", "v3", "calibration", "freeze"]);
 
   const panels: Record<string, React.ReactNode> = {
     factors: <AlphaFactorsPanel onNavigate={setTab} />,
@@ -138,9 +138,9 @@ export default function ResearchCenterPage() {
     backtest: <AlphaBacktestPanel onNavigate={setTab} />,
     regime: <MarketRegimePanel onNavigate={setTab} />,
     fusion: <FusionReportPanel onNavigate={setTab} />,
-    v3: <ScoreV3Panel />,
-    calibration: <CalibrationPanel />,
-    freeze: <FreezeMonitorPanel />,
+    v3: <ScoreV3Panel onNavigate={setTab} />,
+    calibration: <CalibrationPanel onNavigate={setTab} />,
+    freeze: <FreezeMonitorPanel onNavigate={setTab} />,
   };
 
   return (
