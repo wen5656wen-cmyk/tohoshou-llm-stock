@@ -2,6 +2,30 @@
 
 ---
 
+## [17.55.1] - 2026-07-04 — P3-T9 补充：Sidebar 功能入口完整性恢复 🔁
+
+### 背景
+T6 Sidebar 重构时丢失了 3 个功能入口、三级分组被压成两组。本次**仅恢复功能完整性，不新增任何功能**。
+
+### 恢复的入口（旧版有、新版缺）
+- **版本中心** `/admin/versions`（nav.versionCenter）— 恢复
+- **新闻资讯** `/news`（nav.news）— 恢复
+- **数据校验** `/admin/verify`（nav.dataVerify）— 恢复（与 `/sync` 同步状态是**不同页面**，非改名：数据校验=「数据有没有问题」，同步状态=「数据同步到哪里」，两者并存）
+
+### 恢复三级结构（13 项，= 旧版数量，零删除）
+- **核心**：今日总览 / AI选股 / 策略中心 / 自动交易(Paper) / 回测验证 / 研究分析
+- **数据与学习**：学习报告 / 版本中心 / 实验管理 / 新闻资讯
+- **系统管理**：控制中心 / 数据校验 / 同步状态
+- 分组标题（核心/数据与学习/系统管理，读 nav.core/dataAndLearning/systemMgmt）+ 数据来源(J-Quants/Yahoo Finance JP/TDnet) + 语言切换全部保留。
+
+### 保持
+Apple Premium 浅色 UI + Lucide 图标不变；全部走 `ROUTES` 常量；新增图标 Layers(版本中心)/Newspaper(新闻)/CircleCheck(数据校验)/RefreshCw(同步状态)。三个恢复路由实测 200。
+
+### 验收
+Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；**新版功能数量 13 = 旧版 13（≥，零删除）**；仅改 `components/Sidebar.tsx`。
+
+---
+
 ## [17.55.0] - 2026-07-04 — P3-T10 股票详情页 Apple Premium AI 决策页重构 📊
 
 ### 目标

@@ -7,36 +7,46 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import { ROUTES } from "@/lib/routes";
 import {
   LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
-  GraduationCap, Database, FlaskConical, Settings,
+  GraduationCap, Layers, FlaskConical, Newspaper,
+  Settings, CircleCheck, RefreshCw,
 } from "./dashboard/icons";
 
 type IconCmp = (p: { size?: number }) => React.ReactElement;
 type NavItem = { href: string; label: string; Icon: IconCmp; badge?: string };
-type NavGroup = { key: string; items: NavItem[] };
+type NavGroup = { labelKey: string; items: NavItem[] };
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
 
+  // Restores the original 3-tier structure (13 entries) — nothing removed.
   const groups: NavGroup[] = [
     {
-      key: "main",
+      labelKey: "nav.core",
       items: [
-        { href: ROUTES.DASHBOARD,       label: t("nav.cockpit"),        Icon: LayoutGrid },
-        { href: ROUTES.AI_SELECTION,    label: t("nav.aiScreener"),     Icon: Sparkles },
-        { href: ROUTES.STRATEGY_CENTER, label: t("nav.strategyCenter"), Icon: Target },
-        { href: ROUTES.AUTO_TRADING,    label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
-        { href: ROUTES.BACKTEST,        label: t("nav.backtest"),       Icon: LineChart },
-        { href: ROUTES.RESEARCH,        label: t("nav.research"),       Icon: Microscope },
+        { href: ROUTES.DASHBOARD,         label: t("nav.cockpit"),        Icon: LayoutGrid },
+        { href: ROUTES.AI_SELECTION,      label: t("nav.aiScreener"),     Icon: Sparkles },
+        { href: ROUTES.STRATEGY_CENTER,   label: t("nav.strategyCenter"), Icon: Target },
+        { href: ROUTES.AUTO_TRADING,      label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
+        { href: ROUTES.BACKTEST,          label: t("nav.backtest"),       Icon: LineChart },
+        { href: ROUTES.RESEARCH,          label: t("nav.research"),       Icon: Microscope },
       ],
     },
     {
-      key: "secondary",
+      labelKey: "nav.dataAndLearning",
       items: [
-        { href: ROUTES.LEARNING_REPORT, label: t("nav.learningReport"), Icon: GraduationCap },
-        { href: ROUTES.DATA_CENTER,     label: t("nav.syncStatus"),     Icon: Database },
-        { href: ROUTES.LABS,            label: t("nav.experiments"),    Icon: FlaskConical },
-        { href: ROUTES.SETTINGS,        label: t("nav.missionControl"), Icon: Settings },
+        { href: ROUTES.LEARNING_REPORT,   label: t("nav.learningReport"), Icon: GraduationCap },
+        { href: ROUTES.VERSIONS,          label: t("nav.versionCenter"),  Icon: Layers },
+        { href: ROUTES.LABS,              label: t("nav.experiments"),    Icon: FlaskConical },
+        { href: ROUTES.NEWS,              label: t("nav.news"),           Icon: Newspaper },
+      ],
+    },
+    {
+      labelKey: "nav.systemMgmt",
+      items: [
+        { href: ROUTES.MISSION_CONTROL,   label: t("nav.missionControl"), Icon: Settings },
+        { href: ROUTES.VERIFY,            label: t("nav.dataVerify"),     Icon: CircleCheck },
+        { href: ROUTES.DATA_CENTER,       label: t("nav.syncStatus"),     Icon: RefreshCw },
       ],
     },
   ];
@@ -50,7 +60,7 @@ export default function Sidebar() {
       style={{ background: "#FFFFFF", borderRight: "1px solid #ECECEC" }}
     >
       {/* Logo */}
-      <div className="px-5 py-5" style={{ borderBottom: "1px solid #ECECEC" }}>
+      <div className="px-5 py-4" style={{ borderBottom: "1px solid #ECECEC" }}>
         <div className="flex items-center gap-2.5">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-white" style={{ background: "#007AFF" }}>
             <Sparkles size={17} />
@@ -62,10 +72,15 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+      {/* Nav — 3-tier grouped */}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto">
         {groups.map((group, gi) => (
-          <div key={group.key} className={gi > 0 ? "mt-3 pt-3" : ""} style={gi > 0 ? { borderTop: "1px solid #ECECEC" } : undefined}>
+          <div key={group.labelKey} className={gi > 0 ? "mt-4" : ""}>
+            <div className="px-3 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "#B0B0B5" }}>
+                {t(group.labelKey as Parameters<typeof t>[0])}
+              </span>
+            </div>
             <div className="space-y-0.5">
               {group.items.map(({ href, label, Icon, badge }) => {
                 const active = isActive(href);
@@ -74,14 +89,14 @@ export default function Sidebar() {
                     key={href}
                     href={href}
                     prefetch={true}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] transition-colors active:scale-[0.99]"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] transition-colors active:scale-[0.99]"
                     style={{
                       background: active ? "#F0F0F3" : "transparent",
                       color: active ? "#1d1d1f" : "#6e6e73",
                       fontWeight: active ? 600 : 500,
                     }}
                   >
-                    <span style={{ color: active ? "#007AFF" : "#86868b" }}><Icon size={19} /></span>
+                    <span style={{ color: active ? "#007AFF" : "#86868b" }}><Icon size={18} /></span>
                     <span className="flex-1">{label}</span>
                     {badge && (
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
@@ -97,8 +112,8 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-4 space-y-3" style={{ borderTop: "1px solid #ECECEC" }}>
+      {/* Footer — data sources + language */}
+      <div className="px-4 py-3.5 space-y-3" style={{ borderTop: "1px solid #ECECEC" }}>
         <div className="text-[11px]" style={{ color: "#86868b" }}>
           {t("nav.data_sources")}
           <div className="mt-1.5 space-y-1">
