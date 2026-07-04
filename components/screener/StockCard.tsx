@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getRec, getRecommendationLabel, fmtPct, fmtJpy } from "@/lib/rec-config";
 import { getPrimaryName } from "@/lib/company-name";
-import { ArrowRight, Bookmark, Star, AlertTriangle } from "@/components/dashboard/icons";
+import { ArrowRight, AlertTriangle } from "@/components/dashboard/icons";
 import { C, ScoreRing, MktBadge } from "./ui";
 
 type ScoreLike = {
@@ -39,52 +39,31 @@ export function StockCard({ s, rank, displayScore, href, favorited, onToggleFav 
   s: ScoreLike; rank: number; displayScore: number | null; href: string;
   favorited: boolean; onToggleFav: (symbol: string) => void;
 }) {
-  const { t, lang } = useI18n();
+  const { lang } = useI18n();
   const rec = getRec(s.recommendationV2);
   const rsiColor = s.rsi14 == null ? C.faint : s.rsi14 >= 70 ? C.red : s.rsi14 <= 30 ? C.green : C.sub;
   const ma = maTrend(s.maTrend);
 
   return (
-    <div className="dash-card dash-int p-5 flex flex-col group" style={{ minHeight: 232 }}>
-      {/* Top: rank + favorite */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-md" style={{ color: C.faint, background: "#F4F4F6" }}>#{rank}</span>
-        <button
-          type="button"
-          onClick={() => onToggleFav(s.symbol)}
-          aria-label={favorited ? "取消收藏" : "收藏"}
-          title={favorited ? "取消收藏" : "收藏"}
-          className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[#F4F4F6]"
-          style={{ color: favorited ? C.blue : C.faint }}
-        >
-          <Bookmark size={17} {...(favorited ? { fill: C.blue } : {})} />
-        </button>
-      </div>
-
-      {/* Name + code */}
+    <div className="dash-card dash-int p-5 flex flex-col group" style={{ minHeight: 196 }}>
+      {/* Name + code (rank inline) */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          {s.isWatchlist && <span style={{ color: C.amber }} title={t("universe.rule.MANUAL_INCLUDE_WATCHLIST")}><Star size={13} fill={C.amber} /></span>}
+          <span className="text-[11px] font-semibold tabular-nums shrink-0" style={{ color: C.faint }}>#{rank}</span>
           {s.highRiskFlag && <span style={{ color: C.red }} title="高风险"><AlertTriangle size={13} /></span>}
           <Link href={href} className="text-[18px] font-semibold tracking-[-0.01em] truncate transition-colors group-hover:text-[#007AFF]" style={{ color: C.ink }}>
             {getPrimaryName(s as never, lang)}
           </Link>
-          {/* watchlist tooltip uses a valid message key */}
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+        <div className="flex items-center gap-1.5 mt-1">
           <span className="text-[12px] font-medium tabular-nums" style={{ color: C.sub }}>{s.symbol}</span>
           <MktBadge mkt={s.market} />
-          {s.stockStyle && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ color: C.faint, background: "#F4F4F6" }}>
-              {t(`style.short.${s.stockStyle}` as Parameters<typeof t>[0])}
-            </span>
-          )}
         </div>
       </div>
 
       {/* Score ring + rating + price */}
       <div className="flex items-center gap-4 mt-4">
-        <ScoreRing score={displayScore} size={66} />
+        <ScoreRing score={displayScore} size={62} />
         <div className="min-w-0 flex-1">
           <span className="inline-flex items-center text-[12px] font-semibold px-2 py-0.5 rounded-full" style={{ color: rec.color, background: `${rec.color}14` }}>
             {getRecommendationLabel(s.recommendationV2, lang)}
@@ -98,13 +77,12 @@ export function StockCard({ s, rank, displayScore, href, favorited, onToggleFav 
         </div>
       </div>
 
-      {/* Indicators */}
-      <div className="flex items-center gap-2 mt-4 flex-wrap">
+      {/* Indicators: RSI + MA only */}
+      <div className="flex items-center gap-2 mt-3.5">
         <Chip label="RSI" value={s.rsi14?.toFixed(0) ?? "—"} color={rsiColor} />
         <div className="flex items-center px-2.5 h-7 rounded-lg" style={{ background: "#F7F7F9" }}>
           <span className="text-[12px] font-semibold" style={{ color: ma.color }}>{ma.label}</span>
         </div>
-        <Chip label="5D" value={fmtPct(s.return5d)} color={s.return5d == null ? C.faint : s.return5d >= 0 ? C.green : C.red} />
       </div>
 
       {/* Actions */}

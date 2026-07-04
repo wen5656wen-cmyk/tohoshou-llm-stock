@@ -278,9 +278,12 @@ function MarketAndStats({ market, stats }: { market: DashboardData["market"]; st
 
 // ── Market row only (for Command Center; stats deferred to Screener) ──────────
 export function MarketRow({ market }: { market: DashboardData["market"] }) {
+  // Home spec: keep exactly 4 cards on one row (日经225 / TOPIX / USDJPY / VIX)
+  const four = market.filter((m) => ["nikkei", "topix", "usdjpy", "vix"].includes(m.key));
+  const shown = four.length >= 4 ? four.slice(0, 4) : market.slice(0, 4);
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-      {market.map((m) => {
+      {shown.map((m) => {
         const up = m.change != null && m.change > 0, down = m.change != null && m.change < 0;
         const cc = up ? C.green : down ? C.red : C.faint;
         return (

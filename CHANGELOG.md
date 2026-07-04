@@ -2,6 +2,26 @@
 
 ---
 
+## [17.67.0] - 2026-07-05 — P3-T20 首页信息架构精炼（Home × Screener Unified）📉
+
+对 AI 指挥中心首页做信息架构精炼：**减少信息、提高效率**，整体长度约 -40%、股票卡视觉元素约 -30%。**纯 UI**，未改 API/DB/GPT评分/Adaptive/Shadow/Fusion/Strategy/Explain/Learning/Ranking/Backtest/业务逻辑；`/` 与 `/screener` **共享同一组件**（改一处两端同步，无复制）。
+
+### 变更
+- **AI推荐统计 5 张巨卡 → 1 张紧凑 Summary Card**（`MetricCards`）：`总股票 3,068 · Buy 11 · Hold 284 · Watch 1590 · Avoid 1183`，每项仍可点击筛选；不再占满整行。
+- **股票卡 -30% 视觉元素**（`StockCard`）：删除顶部 rank 徽章 + 重复收藏按钮、watchlist 星标、风格标签、5D chip；保留 名称/代码/AI评分环/建议/价格/涨跌/RSI/MA/查看分析/收藏；`minHeight 232→196`。
+- **市场行固定 4 卡一行**（`MarketRow`）：日经225/TOPIX/USDJPY/VIX（去掉换行的第 5 张）。
+- **首页去底部冗余**（`CommandCenter`）：移除「今日流水线 + 快捷入口」区块与页脚，首页流为 Hero→市场→推荐Summary→搜索筛选→股票→结束。
+- 收紧间距（MetricCards `mb-10→mb-5`、FilterBar `mb-8→mb-5`）。
+
+### 信息层级（3 秒懂）
+Hero(今日AI判断 Bullish/置信度/风险 + TOP1推荐 + 系统健康) → 市场 4 卡 → 推荐 Summary → 搜索/风格/市场/排序一行 → 股票网格。首屏即见市场+推荐+可开始选股。
+
+### 验收
+Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；`/` + `/screener` 200；1440 / MacBook 13"(1280) 响应式；共享组件（StockCard/MetricCards/FilterBar 改动两端同步）；无 API/逻辑改动。V3 Freeze 不受影响。
+- 修改：`components/screener/StockCard.tsx`、`components/screener/sections.tsx`、`components/command-center/CommandCenter.tsx`、`components/dashboard/DashboardView.tsx`。
+
+---
+
 ## [17.66.0] - 2026-07-05 — 研究中心统一深色终端 Shell + 分组导航 🧭
 
 AI 研究中心从「10 个挤压的 monospace tab」升级为**统一深色 Research Terminal chrome + 两级分组导航**。**纯 UI/信息架构**，未改 API/DB/Alpha/因子/Shadow/V3/Fusion/Calibration/Freeze/Backtest 算法/任何业务逻辑；所有面板继续读原 API。

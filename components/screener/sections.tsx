@@ -41,34 +41,36 @@ export function ScreenerHeader({ title, subtitle, search, onSearch, searchRef, o
   );
 }
 
-// ── MetricCards ───────────────────────────────────────────────────────────────
+// ── MetricCards → compact recommendation summary (single card, clickable stats) ─
 export function MetricCards({ stats, active, onFilter }: {
   stats: Stats; active: string; onFilter: (key: string) => void;
 }) {
-  const cards = [
-    { key: "STRONG_BUY", value: stats.strongBuy, label: "Strong Buy", color: C.green },
-    { key: "BUY", value: stats.buy, label: "Buy", color: C.blue },
+  const items = [
+    { key: "BUY", value: stats.buy + stats.strongBuy, label: "Buy", color: C.green },
     { key: "HOLD", value: stats.hold, label: "Hold", color: C.sub },
     { key: "WATCH", value: stats.watch, label: "Watch", color: C.amber },
     { key: "AVOID", value: stats.avoid, label: "Avoid", color: C.red },
   ];
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-5 mb-10 dash-in" style={{ animationDelay: "40ms" }}>
-      {cards.map((c) => {
-        const on = active === c.key;
-        return (
-          <button key={c.key} onClick={() => onFilter(on ? "ALL" : c.key)}
-            className="dash-card dash-int p-6 text-left" style={on ? { borderColor: c.color, boxShadow: `0 0 0 1px ${c.color}, 0 8px 24px -14px ${c.color}66` } : undefined}>
-            <div className="text-[40px] font-semibold tabular-nums tracking-[-0.02em] leading-none" style={{ color: on ? c.color : C.ink }}>
-              {c.value.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-1.5 mt-3">
-              <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
-              <span className="text-[13px] font-medium" style={{ color: C.sub }}>{c.label}</span>
-            </div>
-          </button>
-        );
-      })}
+    <div className="dash-card p-4 mb-5 dash-in" style={{ animationDelay: "40ms" }}>
+      <div className="flex items-center gap-x-6 gap-y-3 flex-wrap">
+        <div className="flex items-baseline gap-2 pr-5" style={{ borderRight: `1px solid ${C.line}` }}>
+          <span className="text-[24px] font-semibold tabular-nums tracking-[-0.02em] leading-none" style={{ color: C.ink }}>{stats.total.toLocaleString()}</span>
+          <span className="text-[12px] font-medium" style={{ color: C.faint }}>AI 推荐 · 总股票</span>
+        </div>
+        {items.map((it) => {
+          const on = active === it.key || (it.key === "BUY" && active === "STRONG_BUY");
+          return (
+            <button key={it.key} onClick={() => onFilter(on ? "ALL" : it.key)}
+              className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-[#F4F4F6]"
+              style={on ? { background: `${it.color}12` } : undefined}>
+              <span className="w-2 h-2 rounded-full" style={{ background: it.color }} />
+              <span className="text-[13px] font-medium" style={{ color: C.sub }}>{it.label}</span>
+              <span className="text-[16px] font-semibold tabular-nums" style={{ color: on ? it.color : C.ink }}>{it.value.toLocaleString()}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -111,7 +113,7 @@ export function FilterBar({ recFilter, setRecFilter, styleFilter, setStyleFilter
   ];
 
   return (
-    <div className="mb-8 dash-in" style={{ animationDelay: "80ms" }}>
+    <div className="mb-5 dash-in" style={{ animationDelay: "80ms" }}>
       <div className="flex items-center gap-3 flex-wrap">
         <Segmented options={recOptions} value={recFilter} onChange={setRecFilter} />
         <div className="flex items-center gap-2.5 flex-wrap">
