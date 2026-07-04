@@ -2,6 +2,30 @@
 
 ---
 
+## [17.56.0] - 2026-07-04 — P3-T12/T13/T14 三大运维页 Premium UI 重构 🛰️
+
+纯 UI 重构，**未改任何 API/Cron/DB/Prisma/Health·Pipeline·Sync 逻辑/检测算法/数据源**。三页全部消费现有 endpoint。
+
+### T12 · 控制中心 Mission Control（Premium 深色运维驾驶舱）
+`/admin/mission-control` 从黑块 monospace 升级为 Grafana × GitHub Actions × Linear × Datadog 深色风（bg #111315 / card #171A1F / border #262B33 / #34C759·#FF9F0A·#FF453A·#0A84FF）。保留 `data` + 60s 自动刷新 + 全部字段。
+- Header：Mission Control + 版本徽章(V1·FROZEN🔒 + scoreVersion + snapshot) + 刷新 + Last Sync。
+- 第一屏 **4 张 Status Card**：Production / Trading Architecture / Pipeline(进度条) / Validation（图标+状态 badge+大数字+完成率）。
+- **Pipeline Timeline**（GitHub Actions 风）：13 步 time/状态点/名称/结果/耗时/JST/✓。
+- **Warnings** 可展开 Apple Alert Cards；**Critical=0 显示 ✅ No Critical Issues**（非空框）。
+- Data Freshness + 三策略 + 系统进程(pm2)。tabular-nums、hover/refresh 轻动画。
+
+### T13 · 数据校验 Verification Center（Premium 浅色）
+`/admin/verify` 绿框 Banner → **Hero 6 状态卡**（Health Score / Warnings·Non-Blocking / Critical·PASS / Stocks / Coverage / Last Check，读 verify + 新增 `/api/health/status` 只读）。**告警 Apple Alert Cards**（Blocking/Warning 分级）；**生产状态模块时间线**（8 模块 badge）；安全规范 checklist(AISafetyPanel) 保留；刷新/复制报告 Apple 按钮；Critical=0→「No Blocking Issues · System Ready」。抽查/历史快照保留。
+
+### T14 · 同步状态 Data Pipeline Center（Premium 浅色）
+`/sync` 5 张普通数字卡 → **统一 Hero**（同步进度条 10/10 Healthy + 100% Data Ready + 6 状态卡：数据源健康/Health Score/覆盖/综合评分/TDnet/市场温度）。**巨大黄色 WARNING → 紧凑可展开 Apple Alert**（数据健康守卫 · N Warning · No Blocking · AI 推荐已允许）。保留 10 张源卡片(✅REAL badge + 立即同步/仅Cron，runSync/poll 逻辑不变) + Cron 时间线 + 同步日志。
+
+### 验收
+Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；三页 /admin/mission-control · /admin/verify · /sync 均 200；**逻辑/API/Cron 100% 未改**（仅展示层 + verify 新增只读 health/status 拉取）。V3 Freeze 不受影响。
+- 修改：`app/admin/mission-control/page.tsx`、`app/admin/verify/page.tsx`、`app/sync/page.tsx`。
+
+---
+
 ## [17.55.2] - 2026-07-04 — P3-T11 股票详情页 V2：左右平衡 + 信息架构优化 📐
 
 ### 目标

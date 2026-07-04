@@ -186,6 +186,7 @@ export default function AdminVerifyPage() {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied]         = useState(false);
+  const [health, setHealth]         = useState<{ status: string; criticalCount: number; warningCount: number; passCount: number; adjCoveragePct: number; auditAt: string; latestPriceDate: string } | null>(null);
 
   const [recDate, setRecDate]       = useState("");
   const [recSymbol, setRecSymbol]   = useState("");
@@ -201,8 +202,12 @@ export default function AdminVerifyPage() {
   const loadStatus = useCallback(async () => {
     setRefreshing(true);
     try {
-      const d = await fetch("/api/admin/verify?module=status").then(r => r.json());
+      const [d, h] = await Promise.all([
+        fetch("/api/admin/verify?module=status").then(r => r.json()),
+        fetch("/api/health/status").then(r => r.json()).catch(() => null),
+      ]);
       setStatus(d);
+      if (h) setHealth(h);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -275,112 +280,108 @@ export default function AdminVerifyPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
 
-      {/* ── 顶部总状态 Banner ──────────────────────────────────────────────── */}
-      <div className={`rounded-2xl border-2 p-5 mb-6 ${ready ? "bg-emerald-50 border-emerald-300" : "bg-red-50 border-red-300"}`}>
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="min-w-0">
-            {/* 主状态 */}
-            <div className={`text-xl font-black mb-0.5 ${ready ? "text-emerald-700" : "text-red-700"}`}>
-              {ready ? "✓ 生产环境就绪" : "✗ 生产环境未就绪"}
-            </div>
-            <div className={`text-sm font-semibold mb-3 ${ready ? "text-emerald-600" : "text-red-600"}`}>
-              {ready ? "生产环境已就绪" : "生产环境未就绪"}
-            </div>
-
-            {/* 指标行 */}
-            <div className="flex flex-wrap gap-4 text-sm mb-2">
-              <div>
-                <span className="text-slate-500 text-xs">允许推荐 / Allow Recommendation</span>
-                <div className={`font-bold ${status?.meta.healthAllowRec ? "text-emerald-700" : "text-slate-400"}`}>
-                  {status?.meta.healthAllowRec === true ? "是 ✓" : status?.meta.healthAllowRec === false ? "否 ✗" : "—"}
+      {/* ── Hero — Verification Center ─────────────────────────────────────── */}
+      {(() => {
+        const hCrit = health?.criticalCount ?? status?.meta.healthCritical ?? blocking.length;
+        const hWarn = health?.warningCount ?? warnings.length;
+        const hScore = Math.max(0, Math.min(100, 100 - hCrit * 25 - hWarn * 3));
+        const scoreColor = hCrit > 0 ? "#FF3B30" : hScore >= 90 ? "#34C759" : "#FF9F0A";
+        const coverage = health?.adjCoveragePct ?? (status?.meta.priceSyncOk ? 100 : null);
+        const lastCheck = status ? new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" }).slice(5, 16) : "—";
+        const cells = [
+          { label: "Health Score", value: `${hScore}`, unit: health?.status === "WARNING" ? "注意" : hCrit > 0 ? "异常" : "Healthy", color: scoreColor },
+          { label: "Warnings", value: `${hWarn}`, unit: "Non Blocking", color: hWarn > 0 ? "#FF9F0A" : "#34C759" },
+          { label: "Critical", value: `${hCrit}`, unit: hCrit === 0 ? "PASS" : "Blocking", color: hCrit > 0 ? "#FF3B30" : "#34C759" },
+          { label: "Stocks", value: (status?.meta.stockCount ?? 0).toLocaleString(), unit: "上市", color: "#1D1D1F" },
+          { label: "Coverage", value: coverage != null ? `${coverage}%` : "—", unit: "行情覆盖", color: coverage != null && coverage >= 95 ? "#34C759" : "#FF9F0A" },
+          { label: "Last Check", value: lastCheck.split(" ")[1] ?? lastCheck, unit: `${lastCheck.split(" ")[0] ?? ""} JST`, color: "#1D1D1F" },
+        ];
+        return (
+          <div className="dash-font mb-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center justify-center w-11 h-11 rounded-2xl text-[20px]" style={{ background: ready ? "#34C75914" : "#FF3B3014", color: ready ? "#34C759" : "#FF3B30" }}>{ready ? "✓" : "✗"}</span>
+                <div>
+                  <div className="text-[24px] font-semibold tracking-[-0.02em]" style={{ color: "#1D1D1F" }}>{ready ? "Production Ready" : "Production Not Ready"}</div>
+                  <div className="text-[13px]" style={{ color: "#86868B" }}>Verification Center · System Health · Production Readiness</div>
                 </div>
               </div>
-              <div>
-                <span className="text-slate-500 text-xs">阻断问题 / Blocking Issues</span>
-                <div className={`font-bold ${blocking.length === 0 ? "text-emerald-700" : "text-red-700"}`}>
-                  {blocking.length}
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-500 text-xs">警告 / Warnings</span>
-                <div className={`font-bold ${warnings.length > 0 ? "text-amber-600" : "text-emerald-700"}`}>
-                  {warnings.length}
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-500 text-xs">股票总数 / Stocks</span>
-                <div className="font-bold text-slate-700">{status?.meta.stockCount?.toLocaleString() ?? "—"}</div>
+              <div className="flex items-center gap-2.5">
+                <button onClick={loadStatus} disabled={refreshing}
+                  className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold text-white disabled:opacity-50" style={{ background: "#007AFF" }}>
+                  <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span>{refreshing ? "检查中…" : "刷新全部检查"}
+                </button>
+                <button onClick={copyReport}
+                  className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold dash-card dash-int" style={{ color: "#1D1D1F" }}>
+                  {copied ? "✓ 已复制" : "⎘ 复制报告"}
+                </button>
               </div>
             </div>
-
-            {/* 阻断问题列表 */}
-            {blocking.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <div className="text-xs font-bold text-red-600 uppercase">阻断问题 / Blocking Issues</div>
-                {blocking.map((issue, i) => (
-                  <div key={i} className="text-xs text-red-700 font-mono bg-red-100/60 rounded px-2 py-1">✗ {issue}</div>
-                ))}
-              </div>
-            )}
-
-            {/* 警告列表 */}
-            {warnings.length > 0 && (
-              <div className="mt-2 space-y-0.5">
-                <div className="text-xs font-bold text-amber-600 uppercase">警告 / Warnings</div>
-                {warnings.map((w, i) => (
-                  <div key={i} className="text-xs text-amber-700 font-mono">⚠ {w}</div>
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {cells.map((c) => (
+                <div key={c.label} className="dash-card p-5">
+                  <div className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "#86868B" }}>{c.label}</div>
+                  <div className="text-[30px] font-semibold tabular-nums tracking-[-0.02em] leading-none mt-2" style={{ color: c.color }}>{c.value}</div>
+                  <div className="text-[12px] font-medium mt-1.5" style={{ color: "#6E6E73" }}>{c.unit}</div>
+                </div>
+              ))}
+            </div>
           </div>
+        );
+      })()}
 
-          {/* 操作按钮 */}
-          <div className="flex flex-col gap-2 shrink-0 min-w-[160px]">
-            <button
-              onClick={loadStatus}
-              disabled={refreshing}
-              className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg font-semibold transition"
-            >
-              {refreshing ? "检查中…" : "⟳ 刷新全部检查"}
-            </button>
-            <div className="text-xs text-slate-400 text-center -mt-1">刷新所有检查</div>
-            <button
-              onClick={copyReport}
-              className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm px-4 py-2 rounded-lg font-semibold transition"
-            >
-              {copied ? "✓ 已复制!" : "⎘ 复制验收报告"}
-            </button>
-            <div className="text-xs text-slate-400 text-center -mt-1">复制验收报告</div>
-            <div className="text-xs text-slate-400 text-center mt-1">
-              最后检查 / Last checked:<br />
-              {status ? new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" }).slice(0, 16) + " JST" : "—"}
-            </div>
+      {/* ── Warnings / Blocking — Apple Alert Cards ────────────────────────── */}
+      {(blocking.length > 0 || warnings.length > 0) ? (
+        <div className="dash-font mb-6">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-2.5" style={{ color: "#86868B" }}>告警 · Alerts ({blocking.length + warnings.length})</div>
+          <div className="space-y-2">
+            {blocking.map((w, i) => (
+              <div key={`b${i}`} className="dash-card flex items-start gap-3 p-3.5" style={{ borderColor: "#FF3B3033" }}>
+                <span className="text-[15px]" style={{ color: "#FF3B30" }}>✕</span>
+                <span className="text-[13px] font-medium flex-1" style={{ color: "#1D1D1F" }}>{w}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: "#FF3B30", background: "#FF3B3014" }}>BLOCKING</span>
+              </div>
+            ))}
+            {warnings.map((w, i) => (
+              <div key={`w${i}`} className="dash-card flex items-start gap-3 p-3.5">
+                <span className="text-[15px]" style={{ color: "#FF9F0A" }}>⚠</span>
+                <span className="text-[13px] font-medium flex-1" style={{ color: "#1D1D1F" }}>{w}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: "#FF9F0A", background: "#FF9F0A14" }}>WARNING · Non-Blocking</span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="dash-font mb-6">
+          <div className="dash-card flex items-center gap-3 p-4" style={{ borderColor: "#34C75933", background: "#34C7590d" }}>
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-[15px]" style={{ background: "#34C75922", color: "#34C759" }}>✓</span>
+            <span className="text-[13px] font-semibold" style={{ color: "#34C759" }}>No Blocking Issues · System Ready</span>
+          </div>
+        </div>
+      )}
 
-      {/* ── Nav ────────────────────────────────────────────────────────────── */}
-      <div className="flex gap-3 text-xs text-slate-400 mb-4 flex-wrap">
-        <a href="#modules"  className="hover:text-slate-700">模块检查 / Modules</a>
-        <span>·</span>
-        <a href="#dailyrec" className="hover:text-slate-700">每日推荐 / Daily Rec</a>
-        <span>·</span>
-        <a href="#history"  className="hover:text-slate-700">历史快照 / History</a>
+      {/* ── Production Status — module timeline ────────────────────────────── */}
+      <div className="dash-font mb-6">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-2.5" style={{ color: "#86868B" }}>生产状态 · Production Status</div>
+        <div className="dash-card p-2">
+          {(status?.modules ?? []).map((m, i) => {
+            const col = m.status === "PASS" ? "#34C759" : m.status === "WARNING" ? "#FF9F0A" : "#FF3B30";
+            return (
+              <div key={m.key} className="flex items-center gap-3 px-3.5 py-3" style={i > 0 ? { borderTop: "1px solid #ECECEC" } : undefined}>
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col, boxShadow: `0 0 0 3px ${col}22` }} />
+                <span className="text-[13px] font-semibold w-40 shrink-0" style={{ color: "#1D1D1F" }}>{m.name}</span>
+                <span className="text-[12px] flex-1 truncate" style={{ color: "#86868B" }}>{String(m.current ?? m.message ?? "")}</span>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ color: col, background: `${col}14` }}>{m.status}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── AI 安全规范 / Decision Engine Safety Rules ──────────────────── */}
       <div className="mb-4">
         <AISafetyPanel />
       </div>
-
-      {/* ── 模块检查 / Module Checks ─────────────────────────────────────── */}
-      <Section id="modules" title="模块检查 / Module Checks — 点击展开 / click to expand">
-        <div className="space-y-2">
-          {(status?.modules ?? []).map(mod => (
-            <ModuleCard key={mod.key} mod={mod} />
-          ))}
-        </div>
-      </Section>
 
       {/* ── 每日推荐快照 / DailyRecommendation Snapshot ─────────────────── */}
       <Section id="dailyrec" title="每日推荐快照 / DailyRecommendation Snapshot">

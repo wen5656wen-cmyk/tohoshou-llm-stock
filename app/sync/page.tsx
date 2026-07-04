@@ -437,102 +437,78 @@ export default function SyncPage() {
         </div>
       </div>
 
-      {/* ── Summary banner ── */}
-      {sum && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
-          {/* Health */}
-          <div className="col-span-2 sm:col-span-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">数据源健康</div>
-            <div className="flex gap-2 items-baseline flex-wrap">
-              <span className="text-lg font-bold text-green-600">{sum.realCount} REAL</span>
-              {sum.partialCount > 0 && <span className="text-sm text-amber-600">{sum.partialCount}部分</span>}
-              {sum.fallbackCount > 0 && <span className="text-sm text-slate-500">{sum.fallbackCount}降级</span>}
-              {sum.failedCount > 0 && <span className="text-sm text-red-600">{sum.failedCount}失败</span>}
+      {/* ── Hero — Data Pipeline Center ─────────────────────────────────────── */}
+      {sum && (() => {
+        const total = data?.sources.length ?? 0;
+        const healthy = sum.realCount;
+        const hlCrit = health?.criticalCount ?? 0;
+        const hlWarn = health?.warningCount ?? 0;
+        const hlScore = Math.max(0, Math.min(100, 100 - hlCrit * 25 - hlWarn * 3));
+        const scoreColor = hlCrit > 0 ? "#FF3B30" : hlScore >= 90 ? "#34C759" : "#FF9F0A";
+        const cov = health?.adjCoveragePct ?? null;
+        const cells = [
+          { label: "数据源健康", value: `${healthy}/${total}`, unit: sum.failedCount > 0 ? `${sum.failedCount} 失败` : "全部 REAL", color: sum.failedCount > 0 ? "#FF3B30" : "#34C759" },
+          { label: "Health Score", value: `${hlScore}`, unit: health?.status === "WARNING" ? "注意" : hlCrit > 0 ? "异常" : "Healthy", color: scoreColor },
+          { label: "行情覆盖", value: cov != null ? `${cov}%` : "—", unit: "Coverage", color: cov != null && cov >= 95 ? "#34C759" : "#FF9F0A" },
+          { label: "综合评分", value: sum.stockScoreTotal.toLocaleString(), unit: "只已评分", color: "#1D1D1F" },
+          { label: "TDnet 披露", value: sum.disclosureTotal.toLocaleString(), unit: `${sum.disclosureCoveredSymbols} 只覆盖`, color: "#1D1D1F" },
+          { label: "市场温度", value: temp?.label ?? sum.marketTemperature, unit: sum.lastScoreComputedAt ? `评分 ${dayjs(sum.lastScoreComputedAt).format("M/D HH:mm")}` : "—", color: "#1D1D1F" },
+        ];
+        return (
+          <div className="dash-font mb-6">
+            {/* Progress strip */}
+            <div className="dash-card p-4 mb-4 flex items-center gap-4 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold px-2.5 py-1 rounded-full" style={{ color: sum.failedCount > 0 ? "#FF9F0A" : "#34C759", background: sum.failedCount > 0 ? "#FF9F0A14" : "#34C75914" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: sum.failedCount > 0 ? "#FF9F0A" : "#34C759" }} />
+                {healthy}/{total} {sum.failedCount > 0 ? "需关注" : "Healthy"}
+              </span>
+              <div className="flex-1 min-w-[160px] h-2 rounded-full overflow-hidden" style={{ background: "#EEEEF1" }}>
+                <div className="h-full rounded-full" style={{ width: `${total ? (healthy / total) * 100 : 0}%`, background: "#34C759", transition: "width .5s ease" }} />
+              </div>
+              <span className="text-[12px] font-medium" style={{ color: "#86868B" }}>{total ? Math.round((healthy / total) * 100) : 0}% Data Ready</span>
+            </div>
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {cells.map((c) => (
+                <div key={c.label} className="dash-card p-5">
+                  <div className="text-[11px] font-medium" style={{ color: "#86868B" }}>{c.label}</div>
+                  <div className="text-[22px] font-semibold tabular-nums tracking-[-0.01em] leading-tight mt-2" style={{ color: c.color }}>{c.value}</div>
+                  <div className="text-[11px] font-medium mt-1" style={{ color: "#6E6E73" }}>{c.unit}</div>
+                </div>
+              ))}
             </div>
           </div>
-          {/* Last score */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">最后评分</div>
-            <div className="text-sm font-bold text-slate-800 leading-tight">
-              {sum.lastScoreComputedAt
-                ? dayjs(sum.lastScoreComputedAt).format("M/D HH:mm")
-                : "—"}
-            </div>
-            <div className="text-xs text-slate-400 mt-0.5">JST</div>
-          </div>
-          {/* StockScore */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">综合评分</div>
-            <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.stockScoreTotal.toLocaleString()}</div>
-            <div className="text-xs text-slate-400">只已评分</div>
-          </div>
-          {/* TDnet */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">TDnet 披露</div>
-            <div className="text-lg font-bold text-slate-800 tabular-nums">{sum.disclosureTotal.toLocaleString()}</div>
-            <div className="text-xs text-slate-400">{sum.disclosureCoveredSymbols}只覆盖</div>
-          </div>
-          {/* Market temp */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="text-xs text-slate-500 mb-1">市场温度</div>
-            <div className={`text-base font-bold ${temp?.color ?? "text-slate-600"}`}>
-              {temp?.emoji} {temp?.label ?? sum.marketTemperature}
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Data Health card ── */}
       {health && (() => {
         const s = health.status;
-        const isNeverRun = s === "NEVER_RUN" || s === "ERROR";
         const isCrit = s === "CRITICAL";
-        const isWarn = s === "WARNING";
         const isPass = s === "PASS";
-        const borderCls = isCrit ? "border-red-200 bg-red-50"
-                        : isWarn ? "border-amber-200 bg-amber-50"
-                        : isNeverRun ? "border-slate-200 bg-slate-50"
-                        : "border-emerald-200 bg-emerald-50";
-        const statusCls = isCrit ? "text-red-600"
-                        : isWarn ? "text-amber-600"
-                        : isNeverRun ? "text-slate-400"
-                        : "text-emerald-600";
-        const statusLabel = isNeverRun ? "NEVER RUN" : s;
+        const color = isCrit ? "#FF3B30" : isPass ? "#34C759" : "#FF9F0A";
         return (
-          <div className={`rounded-2xl border shadow-sm p-5 mb-6 ${borderCls}`}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`text-[40px] font-black tabular-nums leading-none ${statusCls}`}>
-                  {statusLabel}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-700">{t("health.title")}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">
-                    {health.auditAt
-                      ? `${dayjs(health.auditAt).format("M/D HH:mm")} · CRITICAL ${health.criticalCount ?? "—"} · WARNING ${health.warningCount ?? "—"} · adjClose ${health.adjCoveragePct?.toFixed(1) ?? "—"}%`
-                      : health.message ?? "Run: npm run health:data"}
-                  </div>
-                  {!isNeverRun && (
-                    health.allowRecommendation
-                      ? <div className="text-xs font-semibold text-emerald-600 mt-1">{t("health.allowed")}</div>
-                      : <div className="text-xs font-semibold text-red-600 mt-1">{t("health.blocked")}</div>
-                  )}
-                </div>
-              </div>
-              <div className="text-[10px] text-slate-300 font-mono text-right shrink-0">
-                {health.reportFile ?? ""}
-              </div>
-            </div>
+          <details className="dash-card dash-font mb-6" style={{ borderColor: `${color}33` }}>
+            <summary className="flex items-center gap-3 p-4 cursor-pointer" style={{ listStyle: "none" }}>
+              <span className="text-[15px]" style={{ color }}>{isPass ? "✓" : "⚠"}</span>
+              <span className="text-[14px] font-semibold" style={{ color: "#1D1D1F" }}>
+                {isPass ? "数据健康守卫 · 全部通过" : `数据健康守卫 · ${health.warningCount ?? 0} Warning`}
+              </span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color, background: `${color}14` }}>
+                {isCrit ? `CRITICAL ${health.criticalCount}` : "No Blocking"}
+              </span>
+              {health.allowRecommendation && <span className="text-[11px] font-medium" style={{ color: "#34C759" }}>AI 推荐已允许</span>}
+              <span className="ml-auto text-[11px] tabular-nums" style={{ color: "#86868B" }}>
+                {health.auditAt ? dayjs(health.auditAt).format("M/D HH:mm") : ""} · adjClose {health.adjCoveragePct?.toFixed(0) ?? "—"}%
+              </span>
+              <span className="text-[11px]" style={{ color: "#86868B" }}>▾</span>
+            </summary>
             {health.topIssues && health.topIssues.length > 0 && (
-              <div className={`mt-3 text-xs space-y-0.5 border-t pt-3 ${
-                isCrit ? "text-red-700 border-red-100" : "text-amber-700 border-amber-100"
-              }`}>
-                {health.topIssues.map((issue, i) => (
-                  <div key={i}>• {issue}</div>
-                ))}
+              <div className="px-4 pb-4 text-[12px] space-y-1" style={{ color: "#6E6E73" }}>
+                {health.topIssues.map((issue, i) => <div key={i}>• {issue}</div>)}
               </div>
             )}
-          </div>
+          </details>
         );
       })()}
 
