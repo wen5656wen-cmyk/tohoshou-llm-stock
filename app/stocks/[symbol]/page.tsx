@@ -8,7 +8,7 @@ import {
   C, Skel, AiUniverseControl,
   type IntelData,
 } from "@/components/stock-detail/ui";
-import { Toolbar, Hero, MetricStrip, DecisionPanel, RiskPanel, CompanyPanel } from "@/components/stock-detail/panels";
+import { Toolbar, Hero, MetricStrip, DecisionPanel, RiskPanel, CompanyPanel, AIScorePanel, FinancialsPanel, NewsPanel } from "@/components/stock-detail/panels";
 import { ChartTabs, CHART_PERIODS, type TabKey } from "@/components/stock-detail/ChartTabs";
 import type { PricePoint, Financial } from "@/components/stock-detail/ui";
 
@@ -40,20 +40,20 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
     ]).then(([d]) => { if (d.error) setError(d.error); else setData(d as IntelData); }).catch((e) => setError(e.message));
   }, [decoded]);
 
-  // Chart series (lazy — loaded once the price tab is viewed; price is default)
+  // Chart series (indicators) — loaded on mount (chart is the primary left module)
   useEffect(() => {
-    if (tab !== "price" || chartFull.length > 0) return;
+    if (chartFull.length > 0) return;
     fetch(`/api/stocks/${encodeURIComponent(decoded)}/indicators`).then((r) => r.json())
       .then((d) => { if (d.series) setChartFull(d.series.all ?? []); }).catch(() => null);
-  }, [tab, decoded, chartFull.length]);
+  }, [decoded, chartFull.length]);
 
-  // Financials (lazy — loaded when the financials tab is viewed)
+  // Financials — loaded on mount (financials summary is always-visible in the left stack)
   useEffect(() => {
-    if (tab !== "fin" || financials.length > 0) return;
+    if (financials.length > 0) return;
     setFinLoading(true);
     fetch(`/api/financials/${encodeURIComponent(decoded)}`).then((r) => r.json())
       .then((d) => { if (Array.isArray(d)) setFinancials(d); }).catch(() => null).finally(() => setFinLoading(false));
-  }, [tab, decoded, financials.length]);
+  }, [decoded, financials.length]);
 
   const toggleWatch = async () => {
     if (!data) return;
@@ -75,7 +75,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
     const title = data ? data.stock.nameZh ?? data.stock.name : decoded;
     try { if (navigator.share) await navigator.share({ title, url }); else await navigator.clipboard?.writeText(url); } catch { /* user cancelled */ }
   };
-  const onReport = () => setTab("ai");
+  const onReport = () => { if (typeof document !== "undefined") document.getElementById("ai-score-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
   // ── Error / loading ────────────────────────────────────────────────────────
   if (error) {
@@ -124,7 +124,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <Toolbar backLabel={backLabel} onBack={onBack} watched={watched} watchLoading={watchLoading} onToggleWatch={toggleWatch} onShare={onShare} onReport={onReport} />
 
         <div className="dash-in space-y-3.5" style={{ animationDelay: "20ms" }}>
-          <Hero stock={stock} score={score} ind={ind} latestClose={latestClose} latestDate={latestDate} stratKey={stratKey} hasStrat={!!stratC} />
+          <Hero stock={stock} score={score} ind={ind} latestClose={latestClose} latestDate={latestDate} stratKey={stratKey} hasStrat={!!stratC} aiSummary={aiConclusion} confidence={score?.overallConfidence ?? null} />
           <MetricStrip score={score} ind={ind} stock={stock} latestClose={latestClose} />
           <AiUniverseControl
             symbol={stock.symbol}
@@ -140,13 +140,15 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
         {/* Left main + right AI decision rail */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 dash-in" style={{ animationDelay: "60ms" }}>
-          <div className="lg:col-span-8 min-w-0">
+          <div className="lg:col-span-8 min-w-0 space-y-3.5">
             <ChartTabs
-              tab={tab} setTab={setTab} ind={ind} score={score}
+              tab={tab} setTab={setTab} ind={ind}
               chartData={chartData} chartPeriod={chartPeriod} setChartPeriod={setChartPeriod} chartLoading={chartFull.length === 0}
-              financials={financials} financialsLoading={finLoading}
-              news={news} symbol={stock.symbol} latestClose={latestClose} latestDate={latestDate}
+              latestClose={latestClose} latestDate={latestDate}
             />
+            <div id="ai-score-panel"><AIScorePanel score={score} /></div>
+            <FinancialsPanel financials={financials} loading={finLoading} />
+            <NewsPanel news={news} symbol={stock.symbol} />
           </div>
           <div className="lg:col-span-4 min-w-0">
             <div className="lg:sticky lg:top-4 space-y-3.5">

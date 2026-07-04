@@ -2,6 +2,32 @@
 
 ---
 
+## [17.55.2] - 2026-07-04 — P3-T11 股票详情页 V2：左右平衡 + 信息架构优化 📐
+
+### 目标
+纯信息架构优化（无新业务、无 API/评分/数据改动）。修复 T10 详情页下半部严重失衡：左栏图表结束后大片空白，右栏 Decision/Risk/Peer 仍很长。
+
+### P1 修复：左栏连续堆叠（Bloomberg/TradingView 风）
+- ChartTabs 精简为 **价格走势 / 技术指标** 两个图表 Tab（保留 K线/MA/RSI/Volume/周期切换）。
+- 把原藏在 Tab 里的 **AI 评分构成 / 财务摘要 / 公司新闻** 移出为**左栏常驻堆叠卡片**（`AIScorePanel`/`FinancialsPanel`/`NewsPanel`），全部用现有 API（intelligence 的 score/news + 现有 /financials，financials 改为挂载即加载）。
+- 效果：左栏 = 图表 → 评分构成 → 财务数据 → 最新动态，与右栏(决策+风险+同行)**基本等高、上下连续、无 >400px 空白**。实测完整数据股(7203.T)左栏略高于右栏。
+
+### Hero V2（3 区，不增高）
+左 identity（名称/代码/行业/市场/风格/评级）｜中 AI verdict（BUY/HOLD/AVOID + AI Confidence 条 + 一句 AI 摘要）｜右 price + ScoreRing。
+
+### 其它优化
+- **同行比较 → 排行榜**：前三名金/银/铜排名徽章 + 醒目评分 + 评级色块（Bloomberg 风）。
+- **风险分析颜色层级**：低=绿 / 中=橙 / 高=红（复用 riskColor，未改评分）。
+- **图表区**：图例字号/留白/padding Apple Stocks 化；周期 1M/3M/6M/1Y/3Y/全部（切片，不改逻辑）。
+- 查看报告 → 平滑滚动到「评分构成」卡片（`#ai-score-panel`）。
+
+### 验收
+Build ✅ PASS（tsc 0 error，panels 377/ChartTabs 127/page 166 均 <500）；Health ✅ CRITICAL=0；/stocks 200；**API/评分/数据零改动**（仅展示层重排 + 现有 endpoint）。V3 Freeze 不受影响。
+- 修改：`app/stocks/[symbol]/page.tsx`、`components/stock-detail/panels.tsx`、`components/stock-detail/ChartTabs.tsx`。
+- 备注：会话中观察到 4318.T StockScore 被 purge（其 ai-universe 记录被改为 MANUAL_INCLUDE_WATCHLIST，aiEnabled=true 待重算）——与本 UI 改动无关，下次 07:30 compute-scores 自愈；UI 对空数据正确显示空态。
+
+---
+
 ## [17.55.1] - 2026-07-04 — P3-T9 补充：Sidebar 功能入口完整性恢复 🔁
 
 ### 背景
