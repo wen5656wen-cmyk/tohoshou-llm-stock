@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   RM,
+  SHADOW_SM,
   ResearchPanelShell,
   ResearchStatusBadge,
   ResearchButton,
@@ -98,16 +99,16 @@ export function AlphaBacktestPanel({ onNavigate }: { onNavigate?: (tab: string) 
 
   const controls = (
     <div className="flex items-center gap-3 flex-wrap">
-      <div className="inline-flex p-1 rounded-lg" style={{ background: RM.card, border: `1px solid ${RM.border}` }}>
+      <div className="inline-flex p-1 rounded-lg" style={{ background: RM.track, border: `1px solid ${RM.border}` }}>
         {PERIODS.map((p) => {
           const on = period === p;
-          return <button key={p} onClick={() => setPeriod(p)} className="text-[12px] font-semibold px-3 h-7 rounded-md transition-all" style={on ? { background: RM.panel, color: RM.ink, boxShadow: "inset 0 0 0 1px #343A44" } : { color: RM.sub }}>{p}日</button>;
+          return <button key={p} onClick={() => setPeriod(p)} className="text-[12px] font-semibold px-3 h-7 rounded-md transition-all" style={on ? { background: RM.panel, color: RM.ink, boxShadow: SHADOW_SM } : { color: RM.sub }}>{p}日</button>;
         })}
       </div>
-      <div className="inline-flex p-1 rounded-lg" style={{ background: RM.card, border: `1px solid ${RM.border}` }}>
+      <div className="inline-flex p-1 rounded-lg" style={{ background: RM.track, border: `1px solid ${RM.border}` }}>
         {(["PRODUCTION", "SHADOW", "OVERLAY"] as View[]).map((v) => {
           const on = view === v;
-          return <button key={v} onClick={() => setView(v)} className="text-[12px] font-semibold px-3 h-7 rounded-md transition-all" style={on ? { background: RM.panel, color: RM.ink, boxShadow: "inset 0 0 0 1px #343A44" } : { color: RM.sub }}>{VLABEL[v]}</button>;
+          return <button key={v} onClick={() => setView(v)} className="text-[12px] font-semibold px-3 h-7 rounded-md transition-all" style={on ? { background: RM.panel, color: RM.ink, boxShadow: SHADOW_SM } : { color: RM.sub }}>{VLABEL[v]}</button>;
         })}
       </div>
       <div className="ml-auto"><ResearchButton onClick={exportCsv} disabled={!data?.cells.length}>导出CSV</ResearchButton></div>

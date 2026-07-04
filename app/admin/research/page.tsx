@@ -128,9 +128,7 @@ export default function ResearchCenterPage() {
     if (q && CENTER_TABS.some((t) => t.key === q)) setTab(q);
   }, []);
 
-  // 已升级为深色 Research Terminal 的面板（自带 max-w/间距，容器切深色底）——全部 9 个面板已完成
-  const DARK_TABS = new Set(["factors", "analytics", "regime", "fusion", "score", "backtest", "v3", "calibration", "freeze"]);
-
+  // 全部 9 个面板已统一为 Apple Dashboard 浅色（复用 components/research/kit.tsx）
   const panels: Record<string, React.ReactNode> = {
     factors: <AlphaFactorsPanel onNavigate={setTab} />,
     analytics: <AlphaAnalyticsPanel onNavigate={setTab} />,
@@ -144,12 +142,12 @@ export default function ResearchCenterPage() {
   };
 
   return (
-    <div style={{ background: "#111315", minHeight: "100vh" }}>
+    <div style={{ background: "#F7F8FA", minHeight: "100vh" }}>
       <ResearchNav tab={tab} setTab={setTab} />
       {tab === "overview" ? (
         <ResearchCenter onTab={setTab} />
       ) : (
-        <div style={{ background: DARK_TABS.has(tab) ? "#111315" : "#F5F6F8", minHeight: "calc(100vh - 120px)" }}>
+        <div style={{ background: "#F7F8FA", minHeight: "calc(100vh - 120px)" }}>
           <div className="mx-auto max-w-[1600px] px-5 lg:px-8 py-6">{panels[tab]}</div>
         </div>
       )}

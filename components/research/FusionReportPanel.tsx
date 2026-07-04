@@ -282,7 +282,7 @@ function RegimeCard({ r }: { r: RegimeRow }) {
         {grid.map((g) => {
           const h = g.sharpe == null ? 0 : Math.max(3, ((g.sharpe - minS) / (maxS - minS || 1)) * 100);
           const isBest = Math.abs(g.w - w) < 0.001;
-          return <div key={g.w} title={`w=${g.w} 夏普=${num(g.sharpe)}`} style={{ flex: 1, height: `${h}%`, background: isBest ? RHEX[r.regime] : "#343A44", borderRadius: "2px 2px 0 0" }} />;
+          return <div key={g.w} title={`w=${g.w} 夏普=${num(g.sharpe)}`} style={{ flex: 1, height: `${h}%`, background: isBest ? RHEX[r.regime] : "#D2D5DB", borderRadius: "2px 2px 0 0" }} />;
         })}
       </div>
       <div className="flex justify-between text-[9px] mt-0.5" style={{ color: RM.faint }}><span>0</span><span>影子权重</span><span>1</span></div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   RM,
+  SHADOW_SM,
   ResearchPanelShell,
   ResearchHero,
   ResearchButton,
@@ -124,7 +125,7 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
   const goOverview = onNavigate ? () => onNavigate("overview") : undefined;
 
   const periodSelector = (
-    <div className="inline-flex p-1 rounded-lg" style={{ background: RM.card, border: `1px solid ${RM.border}` }}>
+    <div className="inline-flex p-1 rounded-lg" style={{ background: RM.track, border: `1px solid ${RM.border}` }}>
       {PERIODS.map((p) => {
         const on = period === p;
         return (
@@ -132,7 +133,7 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
             key={p}
             onClick={() => setPeriod(p)}
             className="text-[12px] font-semibold px-3 h-7 rounded-md transition-all"
-            style={on ? { background: RM.panel, color: RM.ink, boxShadow: "inset 0 0 0 1px #343A44" } : { color: RM.sub }}
+            style={on ? { background: RM.panel, color: RM.ink, boxShadow: SHADOW_SM } : { color: RM.sub }}
           >
             {p}日
           </button>

@@ -2,6 +2,26 @@
 
 ---
 
+## [17.73.0] - 2026-07-05 — P3-T23 Mission Control V2 + Research Center 统一浅色重构（Apple Dashboard）☀️
+
+取消 Research Center 与 Mission Control 的 Bloomberg Terminal 深色主题，整个后台统一为 **Apple / Stripe / Linear / OpenAI Platform 浅色 Dashboard**，与首页 / AI选股 / 策略中心同一设计语言。**纯 UI 重构**，未改任何 API / DB / Prisma / Cron / Adaptive / Shadow / Fusion / Learning / Strategy / GPT / Backtest / Portfolio / Version / 业务逻辑 / 算法；所有数据继续只读现有 API。统一设计语言：背景 `#F7F8FA` · 卡片 `#FFFFFF` · 边框 `#E7EAF0` · 圆角 22 · 阴影 `0 8px 30px rgba(0,0,0,.05)` · 主色蓝/绿/橙/紫。
+
+### Research Center 全面浅色（一处改，9 面板 + 概览同步）
+- **`components/research/kit.tsx`** 深色 `RM` 调色板 → 浅色 Apple（新增 `SHADOW`/`SHADOW_SM`/`tile`/`track`，Hero/Section/KpiCard/Table/Chip/Insight/Timeline/StackBar/Loading/Empty/Error 全部浅色化，`rowHoverClass` 改浅色，新增 `ResearchSegmented`）——**因子研究2 + 市场融合2 + Shadow·Alpha2 + V3组3 共 9 个面板一次性转浅色**。
+- 修正各面板硬编码深色：AlphaAnalytics/AlphaBacktest 分段控件 `#343A44` inset → `SHADOW_SM` + `track` 底；FusionReport 权重-夏普柱 `#343A44` → `#D2D5DB`。
+- **`ResearchNav.tsx`** 深色 → 浅色（毛玻璃白顶栏 + 蓝色激活 Tier1 pill + 浅灰 Tier2 segmented）。
+- **`center.tsx`**（综合驾驶舱概览）深色 `M` → 浅色 + 卡片阴影 + Pill 浅色 tint；顺带 T22 命名统一：Paper Trading → **Fusion Research**（引擎卡 + Engine Matrix）。
+- **`app/admin/research/page.tsx`** 容器背景 `#111315` → `#F7F8FA`，移除 `DARK_TABS`（全部面板已浅色）。
+
+### Mission Control V2（重构布局 + 浅色）
+`app/admin/mission-control/page.tsx` 深色 Bloomberg → 浅色 Apple，保留全部数据接口 + `load()` + 60s 自动刷新（零逻辑改动），重排为 7 段：① **Hero**（控制中心 · System Health 85/100 · Healthy · 最后同步 · 下一步 Cron · 版本 adaptive-v3）② **6 KPI**（AI Engine / Cron / API / Database / Pipeline / Health）③ **Today's Pipeline · Timeline**（左时间 · 状态色）④ **System Warnings → 5 领域诊断卡**（Data Quality / Pipeline / Score / Research / Strategy，各含标题 + 状态 + 说明 + 查看详情，**不再是 5 个雷同 Warning**）⑤ **Data Freshness**（股票/新闻/评分/全球指数 · 更新时间 + 覆盖率 + 状态）⑥ **Strategy Status**（日内/波段/长线 · 推荐数/持仓/收益/学习）⑦ **System Services**（Web/Cron/Database/API/AI Engine 全绿）。API/Database 状态基于「本页成功拉取 mission-control API（其查询 DB）」判定为正常，非伪造。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.0s）；Health ✅ CRITICAL=0；/admin/mission-control + /admin/research + 9 面板 200；1440/1728/1920 响应式（`repeat(auto-fit,minmax())` + `max-w-[1600]` 居中）；无 API/DB/逻辑改动；V3 Freeze 不受影响。**整个 TOHOSHOU AI 后台现为统一 Apple Dashboard 产品，非多风格拼接。**
+- 修改：`components/research/kit.tsx`、`ResearchNav.tsx`、`center.tsx`、`AlphaAnalyticsPanel.tsx`、`AlphaBacktestPanel.tsx`、`FusionReportPanel.tsx`、`app/admin/research/page.tsx`、`app/admin/mission-control/page.tsx`。
+
+---
+
 ## [17.72.0] - 2026-07-05 — P3-T22 AI 研发中心命名统一（Research Center Naming Unification）🏷️
 
 统一 AI 研发中心（`/admin/experiments`）所有模块命名风格为 Research / Engine 体系，**彻底移除易误解的「纸面交易 / 模拟盘 / Paper Trading」概念**，改为 Fusion Research。**纯展示文案**，未改 API / Prisma / DB / Cron / Adaptive / Shadow / Fusion 算法 / Learning / Strategy / Backtest / GPT / Version / Health / 数据来源 / 任何逻辑（仍只读 `/api/health/status`）。

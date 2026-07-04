@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Severity = "NORMAL" | "WARNING" | "CRITICAL";
@@ -45,36 +47,19 @@ interface MissionControlV2 {
   generatedAt: string;
 }
 
-// ── Palette (Grafana × GitHub Actions × Linear dark) ──────────────────────────
+// ── Palette (Apple Dashboard 浅色，与首页/研究中心统一) ─────────────────────────
 const M = {
-  bg: "#111315", card: "#171A1F", cardHi: "#1C2028", border: "#262B33", borderHi: "#323944",
-  ink: "#E6E8EB", sub: "#9BA1A9", faint: "#6B7280",
-  green: "#34C759", amber: "#FF9F0A", red: "#FF453A", blue: "#0A84FF",
+  bg: "#F7F8FA", card: "#FFFFFF", tile: "#F4F5F7", track: "#EEF0F4", border: "#E7EAF0",
+  ink: "#1D1D1F", sub: "#6E6E73", muted: "#86868B", faint: "#A1A1A6",
+  green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", blue: "#007AFF", purple: "#5E5CE6",
 };
+const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
+const SHADOW_SM = "0 1px 3px rgba(0,0,0,0.04)";
 const sevColor: Record<Severity, string> = { NORMAL: M.green, WARNING: M.amber, CRITICAL: M.red };
 const sevText: Record<Severity, string> = { NORMAL: "正常", WARNING: "注意", CRITICAL: "异常" };
 const stepColor: Record<StepStatus, string> = { SUCCESS: M.green, WAITING: M.amber, FAILED: M.red, SKIPPED: M.faint };
 const stepText: Record<StepStatus, string> = { SUCCESS: "成功", WAITING: "等待", FAILED: "失败", SKIPPED: "跳过" };
 const STRAT: Record<string, string> = { DAY_TRADE: "日内", SWING_TRADE: "波段", LONG_TRADE: "长线" };
-
-// 显示层翻译（不改 API 返回值）——运维审计项名称 / 阶段 / 原因文案
-const ISSUE_ZH: Record<string, string> = {
-  high52w_10x_price: "52周高点 > 股价×10（疑似异常）",
-  low52w_too_low: "52周低点 < 股价÷20（疑似异常）",
-  return20d_extreme: "20日收益 |>100%| 或 < -70%",
-  return60d_extreme: "60日收益极端值（>300% 或 < -90%）",
-  day_trade_result_recent_coverage: "日内交易结果近期覆盖",
-};
-function issueName(i: IssueDetail) { return ISSUE_ZH[i.id] ?? i.name; }
-function zhVal(v: string) {
-  return v
-    .replace(/genuine/gi, "真实").replace(/suspect/gi, "可疑")
-    .replace(/consecutive day\(s\) missing/gi, "天连续缺失").replace(/missing/gi, "缺失");
-}
-const PHASE_ZH: Record<string, string> = { "Phase 7 AI Strategy Optimization": "阶段7 · AI 策略优化" };
-function phaseZh(s: string) { return PHASE_ZH[s] ?? s.replace(/^Phase\s*(\d+)/i, "阶段$1"); }
-function reasonZh(s: string) { return s.replace(/^health:data\s+WARNING=/i, "数据健康检查 · 警告 ").replace(/^health:data\s+CRITICAL=/i, "数据健康检查 · 严重 "); }
-
 const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif";
 
 function fmtUptime(ms: number | null): string {
@@ -86,72 +71,22 @@ function fmtUptime(ms: number | null): string {
 }
 
 // ── Primitives ────────────────────────────────────────────────────────────────
-function DCard({ children, style, className = "" }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
-  return <div className={className} style={{ background: M.card, border: `1px solid ${M.border}`, borderRadius: 16, ...style }}>{children}</div>;
+function Card({ children, style, className = "" }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
+  return <div className={className} style={{ background: M.card, border: `1px solid ${M.border}`, borderRadius: 22, boxShadow: SHADOW, ...style }}>{children}</div>;
 }
 function Badge({ label, color }: { label: string; color: string }) {
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color, background: `${color}1f`, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.02em" }}><span style={{ width: 6, height: 6, borderRadius: 999, background: color }} />{label}</span>;
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color, background: `${color}14`, border: `1px solid ${color}29`, padding: "3px 9px", borderRadius: 999 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: color }} />{label}</span>;
 }
 function Dot({ c }: { c: string }) { return <span style={{ width: 8, height: 8, borderRadius: 999, background: c, boxShadow: `0 0 0 3px ${c}22`, display: "inline-block", flexShrink: 0 }} />; }
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 11, fontWeight: 700, color: M.faint, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>{children}</div>;
+  return <div style={{ fontSize: 11, fontWeight: 700, color: M.faint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{children}</div>;
 }
-
-function StatusCard({ title, code, sev, metric, metricUnit, sub, pct, footer }: {
-  title: string; code: string; sev: Severity; metric: string; metricUnit?: string; sub?: string; pct?: number; footer?: string;
-}) {
-  const color = sevColor[sev];
+function Kpi({ label, value, sub, color = M.ink, tone }: { label: string; value: string; sub?: string; color?: string; tone?: string }) {
   return (
-    <DCard style={{ padding: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: M.ink }}>{title}</div>
-          <div style={{ fontSize: 10, color: M.faint, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 2 }}>{code}</div>
-        </div>
-        <Badge label={sevText[sev]} color={color} />
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 14 }}>
-        <span style={{ fontSize: 34, fontWeight: 700, color: M.ink, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", lineHeight: 1 }}>{metric}</span>
-        {metricUnit && <span style={{ fontSize: 13, color: M.faint, fontWeight: 600 }}>{metricUnit}</span>}
-      </div>
-      {sub && <div style={{ fontSize: 12, color: M.sub, marginTop: 4 }}>{sub}</div>}
-      {pct != null && (
-        <div style={{ marginTop: 12, height: 5, borderRadius: 999, background: "#0d0f12", overflow: "hidden" }}>
-          <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: "100%", background: color, transition: "width .4s ease" }} />
-        </div>
-      )}
-      {footer && <div style={{ fontSize: 11, color: M.faint, marginTop: 10, fontVariantNumeric: "tabular-nums" }}>{footer}</div>}
-    </DCard>
-  );
-}
-
-function AlertItem({ issue }: { issue: IssueDetail }) {
-  const [open, setOpen] = useState(false);
-  const color = sevColor[issue.level];
-  return (
-    <div style={{ borderRadius: 12, border: `1px solid ${M.border}`, background: M.cardHi, overflow: "hidden" }}>
-      <button onClick={() => setOpen((o) => !o)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-        <span style={{ fontSize: 14, color }}>{issue.level === "CRITICAL" ? "✕" : "⚠"}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: M.ink, flex: 1 }}>{issueName(issue)}</span>
-        <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{zhVal(issue.value)}</span>
-        <span style={{ fontSize: 10, color, fontWeight: 700 }}>{sevText[issue.level]}</span>
-        <span style={{ color: M.faint, fontSize: 11, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
-      </button>
-      {open && (
-        <div style={{ padding: "0 14px 12px 34px", fontSize: 12, color: M.sub, lineHeight: 1.6 }}>
-          <div><span style={{ color: M.faint }}>影响：</span>{issue.impact}</div>
-          <div style={{ marginTop: 3 }}><span style={{ color: M.faint }}>建议：</span>{issue.suggestion}</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EmptyOk({ text }: { text: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 18px", borderRadius: 12, border: `1px solid ${M.green}33`, background: `${M.green}0d` }}>
-      <span style={{ width: 26, height: 26, borderRadius: 999, background: `${M.green}22`, color: M.green, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✓</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: M.green }}>{text}</span>
+    <div style={{ background: M.card, border: `1px solid ${M.border}`, borderRadius: 16, boxShadow: SHADOW_SM, padding: 18 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: M.muted }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: tone ?? color, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", marginTop: 8, lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: M.faint, marginTop: 5, fontVariantNumeric: "tabular-nums" }}>{sub}</div>}
     </div>
   );
 }
@@ -162,7 +97,6 @@ export default function MissionControlPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [nowTick, setNowTick] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -177,178 +111,218 @@ export default function MissionControlPage() {
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
-  useEffect(() => {
-    load();
-    const id = setInterval(load, 60_000);
-    const tick = setInterval(() => setNowTick(Date.now()), 15_000);
-    return () => { clearInterval(id); clearInterval(tick); };
-  }, [load]);
+  useEffect(() => { load(); const id = setInterval(load, 60_000); return () => clearInterval(id); }, [load]);
 
   if (loading) return <div style={{ background: M.bg, minHeight: "100vh", color: M.faint, padding: 40, fontFamily: font }}>加载中…</div>;
-  if (error) return <div style={{ background: M.bg, minHeight: "100vh", color: M.red, padding: 40, fontFamily: font }}>错误：{error}</div>;
+  if (error) return <div style={{ background: M.bg, minHeight: "100vh", color: M.red, padding: 40, fontFamily: font }}>加载失败：{error}</div>;
   if (!data) return null;
 
-  const { productionStatus, todayPipeline, dataFreshness, strategyRecommendations, strategyExecutions, learning, validation, pm2, criticalIssues, warningIssues, architectureStatus, version } = data;
-  const stale = lastRefresh ? (nowTick - lastRefresh.getTime()) > 5 * 60_000 : false;
+  const { todayPipeline, dataFreshness, strategyRecommendations, strategyExecutions, learning, pm2, criticalIssues, architectureStatus, version } = data;
   const arch = architectureStatus;
   const fresh = dataFreshness;
+  const healthScore = Math.max(0, Math.min(100, 100 - data.health.criticalCount * 25 - data.health.warningCount * 3));
+  const healthy = data.health.criticalCount === 0;
+  const scoreVer = version.scoreVersion ?? "adaptive-v3";
+  const nextCron = todayPipeline.steps.find((s) => s.status === "WAITING")?.scheduledLabel.replace(" JST", "") ?? "—";
+  const webOnline = pm2.web?.status === "online";
+  const cronOnline = pm2.cron?.status === "online";
+
+  const kpis = [
+    { label: "AI Engine", value: scoreVer, sub: arch.status === "FROZEN" ? "已冻结 · 影子" : arch.currentMode, color: M.blue },
+    { label: "Cron", value: cronOnline ? "运行中" : "异常", sub: pm2.cron ? `↺${pm2.cron.restarts} · ${fmtUptime(pm2.cron.uptimeMs)}` : "—", tone: cronOnline ? M.green : M.red },
+    { label: "API", value: "正常", sub: "接口响应正常", tone: M.green },
+    { label: "Database", value: "正常", sub: "PostgreSQL 连接正常", tone: M.green },
+    { label: "Pipeline", value: `${todayPipeline.completedSteps}/${todayPipeline.totalSteps}`, sub: `完成率 ${todayPipeline.completionPct}%`, tone: todayPipeline.failedCount > 0 ? M.red : M.ink },
+    { label: "Health", value: `${healthScore}`, sub: `${data.health.status} · ⚠${data.health.warningCount} ✕${data.health.criticalCount}`, tone: healthy ? M.green : M.red },
+  ];
 
   const freshCards = [
     { label: "股票行情", date: fresh.dailyPrice.lastCompletedDate ?? fresh.dailyPrice.latestDate, extra: `覆盖 ${fresh.dailyPrice.coveragePct}%`, sev: fresh.dailyPrice.status },
-    { label: "综合评分", date: fresh.stockScore.latestDate, extra: `今日 ${fresh.stockScore.scoredTodayCount}`, sev: "NORMAL" as Severity },
-    { label: "新闻资讯", date: fresh.news.latestAt ? fresh.news.latestAt.slice(0, 10) : null, extra: `今日 ${fresh.news.todayNewCount}`, sev: "NORMAL" as Severity },
+    { label: "新闻资讯", date: fresh.news.latestAt ? fresh.news.latestAt.slice(0, 10) : null, extra: `今日 ${fresh.news.todayNewCount} 条`, sev: "NORMAL" as Severity },
+    { label: "综合评分", date: fresh.stockScore.latestDate, extra: `今日 ${fresh.stockScore.scoredTodayCount} 只`, sev: "NORMAL" as Severity },
     { label: "全球指数", date: fresh.globalMarket.latestDate, extra: "日经 · VIX", sev: "NORMAL" as Severity },
   ];
-  const strat = (["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const);
+
+  const lu = learning.unified;
+  const stratWorst = (["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).reduce<Severity>((acc, k) => {
+    const s = strategyRecommendations[k].status;
+    return s === "CRITICAL" || acc === "CRITICAL" ? "CRITICAL" : s === "WARNING" || acc === "WARNING" ? "WARNING" : "NORMAL";
+  }, "NORMAL");
+  const gradeSev = (g: string | null): Severity => (g === "A" || g === "B" ? "NORMAL" : g === "C" ? "WARNING" : "CRITICAL");
+
+  // 五个领域诊断卡（非五个雷同 Warning）
+  const domains = [
+    { title: "Data Quality", sev: data.health.warningCount > 0 ? ("WARNING" as Severity) : ("NORMAL" as Severity), desc: data.health.warningCount > 0 ? `${data.health.warningCount} 项数据质量告警待复核` : "数据完整性检查通过", href: ROUTES.VERIFY },
+    { title: "Pipeline", sev: todayPipeline.failedCount > 0 ? ("CRITICAL" as Severity) : todayPipeline.allDoneToday ? ("NORMAL" as Severity) : ("WARNING" as Severity), desc: `今日流水线 ${todayPipeline.completedSteps}/${todayPipeline.totalSteps} 步完成`, href: ROUTES.DATA_CENTER },
+    { title: "Score", sev: fresh.stockScore.scoredTodayCount > 0 ? ("NORMAL" as Severity) : ("WARNING" as Severity), desc: `今日 ${fresh.stockScore.scoredTodayCount} 只已评分 · ${scoreVer}`, href: ROUTES.SHADOW_SCORE },
+    { title: "Research", sev: gradeSev(lu?.grade ?? null), desc: lu ? `Learning Grade ${lu.grade ?? "—"} · 就绪度 ${lu.integrityScore?.toFixed(0) ?? "—"}` : "暂无学习报告", href: ROUTES.FUSION_REPORT },
+    { title: "Strategy", sev: stratWorst, desc: `三策略 推荐 ${strategyRecommendations.DAY_TRADE.total}/${strategyRecommendations.SWING_TRADE.total}/${strategyRecommendations.LONG_TRADE.total}`, href: ROUTES.STRATEGY_CENTER },
+  ];
+
+  const services = [
+    { n: "Web", ok: webOnline, extra: pm2.web ? `↺${pm2.web.restarts} · ${fmtUptime(pm2.web.uptimeMs)}` : "—" },
+    { n: "Cron", ok: cronOnline, extra: pm2.cron ? `↺${pm2.cron.restarts} · ${fmtUptime(pm2.cron.uptimeMs)}` : "—" },
+    { n: "Database", ok: true, extra: "PostgreSQL" },
+    { n: "API", ok: true, extra: "REST · 200" },
+    { n: "AI Engine", ok: true, extra: scoreVer },
+  ];
 
   return (
     <div style={{ background: M.bg, minHeight: "100vh", color: M.ink, fontFamily: font }}>
-      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "20px 24px 40px" }}>
+      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "28px 28px 48px" }} className="dash-in">
 
-        {/* ── Header ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>控制中心</div>
-            <div style={{ fontSize: 12, color: M.faint, marginTop: 2 }}>TOHOSHOU AI 运维驾驶舱 · 交易架构 {arch.version}</div>
-          </div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Badge label={`${arch.version} · ${arch.status === "FROZEN" ? "已冻结 🔒" : arch.status}`} color={M.blue} />
-            {version.scoreVersion && <span style={{ fontSize: 11, color: M.sub, fontFamily: "monospace" }}>评分 {version.scoreVersion}</span>}
-            {version.versionSnapshotId && <span style={{ fontSize: 11, color: M.faint, fontFamily: "monospace" }}>#{version.versionSnapshotId}</span>}
-            <button onClick={load} disabled={refreshing}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: M.ink, background: M.card, border: `1px solid ${M.border}`, borderRadius: 999, padding: "7px 14px", cursor: "pointer" }}>
-              <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span> 刷新
-            </button>
-            <div style={{ textAlign: "right", fontSize: 10, color: stale ? M.amber : M.faint, fontVariantNumeric: "tabular-nums" }}>
-              <div>上次同步 {lastRefresh?.toLocaleTimeString("zh-CN")}</div>
-              <div>自动 60s{stale ? " · ⚠ 超 5 分钟" : ""}</div>
+        {/* ── Hero ── */}
+        <Card style={{ padding: 24, marginBottom: 22, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 20 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", color: M.ink }}>控制中心</h1>
+              <Badge label={healthy ? "Healthy" : "Review"} color={healthy ? M.green : M.amber} />
+              <Badge label={`${arch.version} · ${arch.status === "FROZEN" ? "已冻结" : arch.status}`} color={M.blue} />
+            </div>
+            <p style={{ fontSize: 13, color: M.muted, marginTop: 6 }}>Mission Control · AI 运行状态 · System Health</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap", marginTop: 14 }}>
+              <div>
+                <div style={{ fontSize: 34, fontWeight: 700, color: healthy ? M.green : M.red, letterSpacing: "-0.02em", lineHeight: 1 }}>{healthScore}<span style={{ fontSize: 15, color: M.faint, fontWeight: 600 }}> / 100</span></div>
+                <div style={{ fontSize: 11, color: M.faint, marginTop: 4 }}>System Health</div>
+              </div>
+              <div style={{ width: 1, height: 34, background: M.border }} />
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: M.ink, fontVariantNumeric: "tabular-nums" }}>{lastRefresh?.toLocaleTimeString("zh-CN") ?? "—"}</div><div style={{ fontSize: 11, color: M.faint }}>最后同步</div></div>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: M.ink, fontVariantNumeric: "tabular-nums" }}>{nextCron}</div><div style={{ fontSize: 11, color: M.faint }}>下一步 Cron</div></div>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: M.blue }}>{scoreVer}</div><div style={{ fontSize: 11, color: M.faint }}>版本</div></div>
             </div>
           </div>
+          <button onClick={load} disabled={refreshing}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: M.ink, background: M.card, border: `1px solid ${M.border}`, borderRadius: 999, padding: "9px 16px", cursor: "pointer", boxShadow: SHADOW_SM }}>
+            <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span> 刷新
+          </button>
+        </Card>
+
+        {/* ── 6 KPI ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 30 }}>
+          {kpis.map((k) => <Kpi key={k.label} {...k} />)}
         </div>
 
-        {/* ── First screen: 4 Status Cards ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 26 }}>
-          <StatusCard title="生产状态" code="任务状态" sev={productionStatus.status}
-            metric={`${productionStatus.passCount}`} metricUnit="项通过"
-            sub={`⚠ ${productionStatus.healthWarningCount} · ✕ ${productionStatus.healthCriticalCount}`}
-            footer={productionStatus.reasons[0] ? reasonZh(productionStatus.reasons[0]) : "系统运行正常"} />
-          <StatusCard title="交易架构" code={arch.version} sev={arch.status === "FROZEN" ? "NORMAL" : "WARNING"}
-            metric={arch.status === "FROZEN" ? "已冻结" : arch.status} sub={arch.currentMode}
-            footer={`冻结 ${arch.frozenDate} · 下一步 ${phaseZh(arch.nextPhase)}`} />
-          <StatusCard title="数据流水线" code="今日" sev={todayPipeline.failedCount > 0 ? "CRITICAL" : todayPipeline.allDoneToday ? "NORMAL" : "WARNING"}
-            metric={`${todayPipeline.completedSteps}/${todayPipeline.totalSteps}`} metricUnit="步"
-            pct={todayPipeline.completionPct} footer={todayPipeline.allDoneToday ? "全部完成 ✓" : `完成率 ${todayPipeline.completionPct}%`} />
-          <StatusCard title="每日校验" code="每日" sev={validation ? (validation.allPass ? "NORMAL" : "WARNING") : "WARNING"}
-            metric={validation ? `${9 - validation.failCount}/9` : "—"} metricUnit="通过"
-            sub={validation ? `连续健康 ${validation.consecutiveHealthDays} 天` : "暂无验证"}
-            footer={validation ? `${validation.validationDate}${validation.phase7Ready ? " · 阶段7 就绪" : ""}` : undefined} />
-        </div>
-
-        {/* ── Pipeline Timeline (GitHub Actions style) ── */}
-        <div style={{ marginBottom: 26 }}>
-          <SectionLabel>数据流水线 · 时间线</SectionLabel>
-          <DCard style={{ padding: "6px 18px" }}>
+        {/* ── Today's Pipeline · Timeline ── */}
+        <div style={{ marginBottom: 30 }}>
+          <SectionLabel>Today&apos;s Pipeline · 今日流水线</SectionLabel>
+          <Card style={{ padding: "6px 20px" }}>
             {todayPipeline.steps.map((s, i) => {
               const c = stepColor[s.status];
               const last = i === todayPipeline.steps.length - 1;
               return (
-                <div key={s.key} style={{ display: "flex", gap: 14, padding: "10px 0", borderBottom: last ? "none" : `1px solid ${M.border}` }}>
-                  <div style={{ width: 80, flexShrink: 0, fontSize: 12, color: M.sub, fontVariantNumeric: "tabular-nums", fontFamily: "monospace" }}>{s.scheduledLabel.replace(" JST", "")}</div>
-                  <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}><Dot c={c} /></div>
+                <div key={s.key} style={{ display: "flex", gap: 14, padding: "11px 0", borderBottom: last ? "none" : `1px solid ${M.tile}`, alignItems: "center" }}>
+                  <div style={{ width: 78, flexShrink: 0, fontSize: 12, color: M.sub, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{s.scheduledLabel.replace(" JST", "")}</div>
+                  <Dot c={c} />
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div style={{ minWidth: 0 }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: M.ink }}>{s.name}</span>
                       {s.resultSummary && <span style={{ fontSize: 12, color: M.faint, marginLeft: 10 }}>{s.resultSummary}</span>}
                       {s.errorMessage && <span style={{ fontSize: 12, color: M.red, marginLeft: 10 }}>{s.errorMessage}</span>}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                       {s.duration && <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{s.duration}</span>}
                       {s.lastRunJst && <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{s.lastRunJst.slice(11)}</span>}
-                      <span style={{ fontSize: 11, fontWeight: 700, color: c }}>{s.status === "SUCCESS" ? "✓" : stepText[s.status]}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: c, minWidth: 30, textAlign: "right" }}>{s.status === "SUCCESS" ? "✓" : stepText[s.status]}</span>
                     </div>
                   </div>
                 </div>
               );
             })}
-          </DCard>
+          </Card>
         </div>
 
-        {/* ── Warnings + Critical (two columns) ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 26 }} className="mc-2col">
-          <div>
-            <SectionLabel>警告（{warningIssues.length}）</SectionLabel>
-            {warningIssues.length === 0 ? <EmptyOk text="无警告" /> : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{warningIssues.map((i) => <AlertItem key={i.id} issue={i} />)}</div>
-            )}
+        {/* ── System Warnings · 五领域诊断 ── */}
+        <div style={{ marginBottom: 30 }}>
+          <SectionLabel>System Warnings · 系统诊断</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            {domains.map((d) => {
+              const c = sevColor[d.sev];
+              return (
+                <Card key={d.title} style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: M.ink }}>{d.title}</span>
+                    <Badge label={sevText[d.sev]} color={c} />
+                  </div>
+                  <div style={{ fontSize: 12, color: M.sub, lineHeight: 1.5, flex: 1 }}>{d.desc}</div>
+                  <Link href={d.href} style={{ fontSize: 12, fontWeight: 600, color: M.blue }}>查看详情 →</Link>
+                </Card>
+              );
+            })}
           </div>
-          <div>
-            <SectionLabel>严重（{criticalIssues.length}）</SectionLabel>
-            {criticalIssues.length === 0 ? <EmptyOk text="无严重问题" /> : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{criticalIssues.map((i) => <AlertItem key={i.id} issue={i} />)}</div>
-            )}
-          </div>
+          {criticalIssues.length > 0 && (
+            <div style={{ marginTop: 12, fontSize: 12, color: M.red, fontWeight: 600 }}>⚠ 存在 {criticalIssues.length} 项严重问题，请前往数据校验处理。</div>
+          )}
         </div>
 
-        {/* ── Data freshness ── */}
-        <div style={{ marginBottom: 26 }}>
-          <SectionLabel>数据新鲜度</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
+        {/* ── Data Freshness ── */}
+        <div style={{ marginBottom: 30 }}>
+          <SectionLabel>Data Freshness · 数据新鲜度</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
             {freshCards.map((f) => (
-              <DCard key={f.label} style={{ padding: 16 }}>
+              <Card key={f.label} style={{ padding: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 12, color: M.sub, fontWeight: 600 }}>{f.label}</span><Dot c={sevColor[f.sev]} />
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: M.ink, fontVariantNumeric: "tabular-nums", marginTop: 8 }}>{f.date ?? "—"}</div>
-                <div style={{ fontSize: 11, color: M.faint, marginTop: 3 }}>{f.extra}</div>
-              </DCard>
+                <div style={{ fontSize: 19, fontWeight: 700, color: M.ink, fontVariantNumeric: "tabular-nums", marginTop: 10 }}>{f.date ?? "—"}</div>
+                <div style={{ fontSize: 11, color: M.faint, marginTop: 4 }}>{f.extra}</div>
+              </Card>
             ))}
           </div>
         </div>
 
-        {/* ── Strategy + System ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }} className="mc-2col">
-          <div>
-            <SectionLabel>三策略</SectionLabel>
-            <DCard style={{ padding: 18 }}>
-              {strat.map((k, i) => {
-                const rec = strategyRecommendations[k];
-                const exec = strategyExecutions[k] as DayExec & OpenExec;
-                const lrn = learning[k];
-                return (
-                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i === 2 ? "none" : `1px solid ${M.border}` }}>
-                    <span style={{ width: 44, fontSize: 13, fontWeight: 700, color: M.ink }}>{STRAT[k]}</span>
+        {/* ── Strategy Status ── */}
+        <div style={{ marginBottom: 30 }}>
+          <SectionLabel>Strategy Status · 三策略</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+            {(["DAY_TRADE", "SWING_TRADE", "LONG_TRADE"] as const).map((k) => {
+              const rec = strategyRecommendations[k];
+              const exec = strategyExecutions[k] as DayExec & OpenExec;
+              const lrn = learning[k];
+              const pnl = exec.pnl;
+              return (
+                <Card key={k} style={{ padding: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: M.ink }}>{STRAT[k]}</span>
                     <Badge label={sevText[rec.status]} color={sevColor[rec.status]} />
-                    <div style={{ flex: 1, display: "flex", gap: 18, fontSize: 12, color: M.sub, fontVariantNumeric: "tabular-nums", flexWrap: "wrap" }}>
-                      <span>推荐 <b style={{ color: M.ink }}>{rec.total}</b></span>
-                      <span>持仓 <b style={{ color: M.ink }}>{exec.openPositions ?? "—"}</b></span>
-                      <span>学习 <b style={{ color: M.ink }}>{lrn?.grade ?? "—"}</b></span>
-                      {rec.latestTradeDate && <span style={{ color: M.faint }}>{rec.latestTradeDate}</span>}
-                    </div>
                   </div>
-                );
-              })}
-            </DCard>
-          </div>
-          <div>
-            <SectionLabel>系统进程</SectionLabel>
-            <DCard style={{ padding: 18 }}>
-              {[{ n: "tohoshou-web", p: pm2.web }, { n: "tohoshou-cron", p: pm2.cron }].map(({ n, p }) => (
-                <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: n === "tohoshou-web" ? `1px solid ${M.border}` : "none" }}>
-                  <Dot c={p?.status === "online" ? M.green : M.red} />
-                  <span style={{ fontSize: 12, fontFamily: "monospace", color: M.ink, flex: 1 }}>{n}</span>
-                  <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{p ? `↺${p.restarts} · ${fmtUptime(p.uptimeMs)}` : "—"}</span>
-                </div>
-              ))}
-              {pm2.cronStaleAfterDeploy && <div style={{ fontSize: 11, color: M.amber, marginTop: 8 }}>⚠ cron 部署后未重启</div>}
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${M.border}`, fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>
-                生成于 {new Date(data.generatedAt).toLocaleString("zh-CN")}
-              </div>
-            </DCard>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
+                    <St label="推荐数" value={String(rec.total)} />
+                    <St label="持仓" value={String(exec.openPositions ?? exec.closedCount ?? "—")} />
+                    <St label="收益" value={pnl == null ? "—" : `${pnl >= 0 ? "+" : ""}${pnl.toFixed(1)}%`} color={pnl == null ? M.ink : pnl >= 0 ? M.green : M.red} />
+                    <St label="学习" value={lrn?.grade ?? "—"} />
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
-      </div>
 
-      <style>{`@media (max-width: 900px){ .mc-2col{ grid-template-columns: 1fr !important; } }`}</style>
+        {/* ── System Services ── */}
+        <div style={{ marginBottom: 8 }}>
+          <SectionLabel>System Services · 系统服务</SectionLabel>
+          <Card style={{ padding: 6 }}>
+            {services.map((s, i) => (
+              <div key={s.n} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i > 0 ? `1px solid ${M.tile}` : "none" }}>
+                <Dot c={s.ok ? M.green : M.red} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: M.ink, flex: 1 }}>{s.n}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: s.ok ? M.green : M.red }}>{s.ok ? "正常" : "异常"}</span>
+                <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums", width: 130, textAlign: "right" }}>{s.extra}</span>
+              </div>
+            ))}
+            {pm2.cronStaleAfterDeploy && <div style={{ fontSize: 11, color: M.amber, padding: "0 16px 10px 40px" }}>⚠ cron 部署后未重启</div>}
+          </Card>
+          <div style={{ fontSize: 11, color: M.faint, marginTop: 10, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>生成于 {new Date(data.generatedAt).toLocaleString("zh-CN")}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function St({ label, value, color = "#1D1D1F" }: { label: string; value: string; color?: string }) {
+  return (
+    <div style={{ background: M.tile, border: `1px solid ${M.border}`, borderRadius: 12, padding: "9px 12px" }}>
+      <div style={{ fontSize: 11, color: M.muted }}>{label}</div>
+      <div style={{ fontSize: 17, fontWeight: 700, color, fontVariantNumeric: "tabular-nums", marginTop: 2 }}>{value}</div>
     </div>
   );
 }

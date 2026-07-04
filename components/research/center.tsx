@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
-// ── Dark palette (unified with Mission Control / Strategy Center) ──────────────
-const M = { bg: "#111315", card: "#171A1F", cardHi: "#20242B", border: "#2A3038", ink: "#E6E8EB", sub: "#9BA1A9", faint: "#6B7280", green: "#34C759", amber: "#FF9F0A", red: "#FF453A", blue: "#0A84FF", purple: "#5E5CE6" };
+// ── Light palette (Apple Dashboard，与首页/AI选股/策略中心统一) ────────────────
+const M = { bg: "#F7F8FA", card: "#FFFFFF", cardHi: "#F4F5F7", border: "#E7EAF0", ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", blue: "#007AFF", purple: "#5E5CE6" };
+const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
 
 type MC = {
   architectureStatus?: { version: string; status: string; frozenDate: string; currentMode: string; nextPhase: string };
@@ -18,10 +19,10 @@ type MC = {
 type RS = { summary?: { dataConfidence: number; observations: string[] }; quality?: { overallCoverage: number }; readiness?: { tradingDays: number } };
 
 function Pill({ label, color }: { label: string; color: string }) {
-  return <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color, background: `${color}1f` }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />{label}</span>;
+  return <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color, background: `${color}14`, border: `1px solid ${color}29` }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />{label}</span>;
 }
 function DCard({ children, className = "", accent }: { children: React.ReactNode; className?: string; accent?: string }) {
-  return <div className={`rounded-2xl ${className}`} style={{ background: M.card, border: `1px solid ${accent ?? M.border}` }}>{children}</div>;
+  return <div className={`rounded-2xl ${className}`} style={{ background: M.card, border: `1px solid ${accent ?? M.border}`, boxShadow: SHADOW }}>{children}</div>;
 }
 function Label({ children }: { children: React.ReactNode }) {
   return <div className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-3" style={{ color: M.faint }}>{children}</div>;
@@ -79,7 +80,7 @@ export function ResearchCenter({ onTab }: { onTab?: (k: string) => void }) {
     { name: "News Engine", status: "Running", color: M.green, ver: `${df?.news?.todayNewCount ?? "—"} today`, conf: df?.news?.latestAt ? df.news.latestAt.slice(5, 10) : "N/A", tab: null, ext: "/news" },
     { name: "Institution Flow", status: "Data", color: M.amber, ver: "JPX", conf: "N/A", tab: null, ext: null },
     { name: "Macro Engine", status: "Coming Soon", color: M.faint, ver: "—", conf: "N/A", tab: null, ext: null },
-    { name: "Paper Trading", status: "Research", color: M.amber, ver: "Fusion paper", conf: "N/A", tab: null, ext: "/fusion/paper" },
+    { name: "Fusion Research", status: "Research", color: M.amber, ver: "Production × Alpha", conf: "Fusion", tab: "fusion", ext: null },
   ];
 
   const insights = [
@@ -97,7 +98,7 @@ export function ResearchCenter({ onTab }: { onTab?: (k: string) => void }) {
     { name: "Fusion", ver: "Production", status: "Enabled", conf: "Regime", update: df?.stockScore?.latestDate ?? "—", health: M.green },
     { name: "Learning", ver: `Grade ${lu?.grade ?? "—"}`, status: "Running", conf: lu?.integrityScore != null ? `${lu.integrityScore.toFixed(0)}` : "N/A", update: lu?.reportDate ?? "—", health: lu?.grade === "D" ? M.amber : M.green },
     { name: "News", ver: `${df?.news?.todayNewCount ?? "—"}`, status: "Running", conf: "N/A", update: df?.news?.latestAt?.slice(5, 10) ?? "—", health: M.green },
-    { name: "Paper", ver: "Research", status: "Research", conf: "N/A", update: "—", health: M.amber },
+    { name: "Fusion Research", ver: "Research", status: "Research", conf: "N/A", update: "—", health: M.amber },
     { name: "Macro", ver: "—", status: "Coming Soon", conf: "N/A", update: "—", health: M.faint },
     { name: "Institution", ver: "JPX", status: "Data", conf: "N/A", update: "—", health: M.amber },
   ];
@@ -169,7 +170,7 @@ export function ResearchCenter({ onTab }: { onTab?: (k: string) => void }) {
                 </div>
                 {e.ext ? <Link href={e.ext} className="inline-flex items-center justify-center h-8 mt-3 rounded-full text-[12px] font-semibold" style={{ background: M.cardHi, border: `1px solid ${M.border}`, color: M.blue }}>详情 →</Link>
                   : e.tab ? <button onClick={() => onTab?.(e.tab!)} className="inline-flex items-center justify-center h-8 mt-3 rounded-full text-[12px] font-semibold" style={{ background: M.cardHi, border: `1px solid ${M.border}`, color: M.blue }}>详情 →</button>
-                  : <span className="inline-flex items-center justify-center h-8 mt-3 rounded-full text-[12px] font-semibold" style={{ background: "#181B20", color: M.faint }}>Coming Soon</span>}
+                  : <span className="inline-flex items-center justify-center h-8 mt-3 rounded-full text-[12px] font-semibold" style={{ background: M.cardHi, color: M.faint }}>Coming Soon</span>}
               </DCard>
             ))}
           </div>
