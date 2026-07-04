@@ -2,6 +2,19 @@
 
 ---
 
+## [17.84.0] - 2026-07-05 — P5-T2 Explain Engine 接入 Phase 2（策略中心）🧠📊
+
+将统一 Explain Engine 接入策略中心（`/strategy`）。**仅展示层**，未改任何评分 / Strategy / Learning / Backtest / 推荐 / 排序 / DB / Cron / 业务逻辑。
+
+### 接入方式（复用 Phase 1 组件，零新增 UI 版本）
+策略中心每条推荐的「查看原因」打开 `ExplainDrawer`（右侧滑出）——在其内容区**顶部注入 Phase 1 的 `<ExplainPanel symbol={symbol} />`**（读 `/api/explain/[symbol]?provider=rule`，**优先展示**统一 AI决策解释 10 字段），下方**并行保留**原策略专属解释（推荐结论/评分拆解/入选原因/策略适配，走旧 `/api/strategy/explain`）。用户点任一推荐即先看到统一引擎输出。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.0s）；Health ✅ CRITICAL=0；截图 3092.T 抽屉：顶部统一 Explain（买入/综合71/前0%/核心优势6项绿/机会紫/牛市低风险/HIGH 置信）+ 下方旧策略解释并行；No API Regression ✅（旧 `/api/strategy/explain` 仍工作）；No DB / No Logic Change ✅。
+- 改 `components/strategy/ExplainDrawer.tsx`（import + 顶部注入 ExplainPanel）。
+
+---
+
 ## [17.83.0] - 2026-07-05 — P5-T2 Explain Engine 全站接入 Phase 1（股票详情页）🧠📄
 
 将 P5-T1 统一 Explain Engine 接入 `/stocks/[symbol]` 股票详情页——Explain 从后台能力进入产品界面第一步。**仅展示层**，未改任何 AI 评分 / Adaptive / Shadow / Fusion / Strategy / Learning / Backtest / Paper / GPT Score / Recommendation / Ranking / DB / Prisma / Cron / Prompt / 业务逻辑。

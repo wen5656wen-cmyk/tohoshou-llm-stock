@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n";
 import type { StratType, ExplainData } from "./types";
 import { fill, normalizeSymbol, DIM_ORDER, dimValue, SM, SHADOW, SFONT, STRAT_HEX, returnColor, fmtPct, fmtScore, gradeVerdict, retHex, stratShort, stratLabel } from "./utils";
+import { ExplainPanel } from "@/components/stock-detail/ExplainPanel";
 
 export function ExplainDrawer({
   strategyType, symbol, tradeDate, onClose,
@@ -95,6 +96,8 @@ export function ExplainDrawer({
         </div>
 
         <div className="px-5 py-4 space-y-5">
+          {/* P5-T2 Phase 2: 统一 Explain Engine（优先展示）；下方旧策略解释并行保留 */}
+          <ExplainPanel symbol={symbol} />
           {loading && (
             <div className="py-10 text-center text-[#86868B] text-sm">{t("explain.loading")}</div>
           )}
