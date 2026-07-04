@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { ResearchCenter } from "@/components/research/center";
+import { ResearchNav } from "@/components/research/ResearchNav";
 import { AlphaFactorsPanel } from "@/components/research/AlphaFactorsPanel";
 import { AlphaAnalyticsPanel } from "@/components/research/AlphaAnalyticsPanel";
 import { AlphaScorePanel } from "@/components/research/AlphaScorePanel";
@@ -127,41 +128,28 @@ export default function ResearchCenterPage() {
     if (q && CENTER_TABS.some((t) => t.key === q)) setTab(q);
   }, []);
 
-  return (
-    <div style={{ background: "#0a0a0a", minHeight: "100vh" }}>
-      {/* 顶部导航栏 */}
-      <div style={{ position: "sticky", top: 0, zIndex: 30, background: "#0a0a0a", borderBottom: "1px solid #222", padding: "10px 16px" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#eee", marginBottom: 8, fontFamily: "monospace" }}>AI 研究中心</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {CENTER_TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 6, cursor: "pointer",
-                fontFamily: "monospace",
-                border: tab === t.key ? "1px solid #3b82f6" : "1px solid #222",
-                background: tab === t.key ? "#1e3a5f" : "#111",
-                color: tab === t.key ? "#93c5fd" : "#888",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+  const panels: Record<string, React.ReactNode> = {
+    factors: <AlphaFactorsPanel />,
+    analytics: <AlphaAnalyticsPanel />,
+    score: <AlphaScorePanel />,
+    backtest: <AlphaBacktestPanel />,
+    regime: <MarketRegimePanel />,
+    fusion: <FusionReportPanel />,
+    v3: <ScoreV3Panel />,
+    calibration: <CalibrationPanel />,
+    freeze: <FreezeMonitorPanel />,
+  };
 
-      {/* Tab 内容（不跳页，全部内嵌） */}
-      {tab === "overview"  && <ResearchCenter onTab={setTab} />}
-      {tab === "factors"   && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaFactorsPanel /></div>}
-      {tab === "analytics" && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaAnalyticsPanel /></div>}
-      {tab === "score"     && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaScorePanel /></div>}
-      {tab === "backtest"  && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><AlphaBacktestPanel /></div>}
-      {tab === "regime"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><MarketRegimePanel /></div>}
-      {tab === "fusion"    && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><FusionReportPanel /></div>}
-      {tab === "v3"        && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><ScoreV3Panel /></div>}
-      {tab === "calibration" && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><CalibrationPanel /></div>}
-      {tab === "freeze"      && <div style={{ background: "#f8fafc", minHeight: "calc(100vh - 84px)" }}><FreezeMonitorPanel /></div>}
+  return (
+    <div style={{ background: "#111315", minHeight: "100vh" }}>
+      <ResearchNav tab={tab} setTab={setTab} />
+      {tab === "overview" ? (
+        <ResearchCenter onTab={setTab} />
+      ) : (
+        <div style={{ background: "#F5F6F8", minHeight: "calc(100vh - 120px)" }}>
+          <div className="mx-auto max-w-[1600px] px-5 lg:px-8 py-6">{panels[tab]}</div>
+        </div>
+      )}
     </div>
   );
 }

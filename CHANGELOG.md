@@ -2,6 +2,23 @@
 
 ---
 
+## [17.66.0] - 2026-07-05 — 研究中心统一深色终端 Shell + 分组导航 🧭
+
+AI 研究中心从「10 个挤压的 monospace tab」升级为**统一深色 Research Terminal chrome + 两级分组导航**。**纯 UI/信息架构**，未改 API/DB/Alpha/因子/Shadow/V3/Fusion/Calibration/Freeze/Backtest 算法/任何业务逻辑；所有面板继续读原 API。
+
+### 交付（本次）
+- 新组件 `components/research/ResearchNav.tsx`：两级分组导航（深色 #111315/#15181D/#2A3038）——Tier1 组 pills【综合｜因子研究｜Shadow·Alpha｜市场与融合｜V3】+ Tier2 当前组子 tab（segmented）。**解决「Tab 太多太挤、1440 不可读」**，当前组/当前页高亮清晰，不再一排塞 10 个按钮。
+- `app/admin/research/page.tsx`：顶部旧 tab 栏 → `<ResearchNav>`；页面 canvas → 深色 #111315；9 个面板统一放入 `max-w-[1600px]` 居中工作区（消除横向溢出、统一留白），overview 仍为深色 ResearchCenter。
+
+### 范围说明（诚实）
+本次交付**统一页面框架 + 导航优化**（适用于全部 10 个 tab）。9 个子面板正文（Alpha因子库/因子分析/影子评分/Alpha策略回测/市场状态/AI融合策略研究/V3动态评分/V3 Calibration/V3 Freeze Monitor）的逐个 Bloomberg 级 dark 卡片重建（每个需核对各自 API 数据结构 + 重写 ~150 行）为**后续分批推进**，本次未逐一重建——现阶段面板在深色终端 chrome 下的浅色工作区内渲染真实数据（可读、无横向挤压）。未虚报。
+
+### 验收
+Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；/admin/research 200；分组导航 1440 可读、当前页高亮；无 API/算法改动。V3 Freeze 不受影响。
+- 修改：新增 `components/research/ResearchNav.tsx`、`app/admin/research/page.tsx`。
+
+---
+
 ## [17.65.0] - 2026-07-05 — P3-T19 AI 指挥中心（Dashboard + Screener 合并）🎛️
 
 将「今日总览（Dashboard）」+「AI选股（Screener）」合并为唯一首页 **AI 指挥中心（AI Command Center）**。**仅信息架构重组 + 组件组合**，未改 Prisma/DB/Cron/API/Adaptive/Shadow/Fusion/Learning/Strategy/Portfolio/Paper/Backtest/News/评分算法/Prompt/任何 business logic；所有筛选/排序/搜索/收藏/分页/评分/API 逐字节保留。
