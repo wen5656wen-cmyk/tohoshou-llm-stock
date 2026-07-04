@@ -2,6 +2,22 @@
 
 ---
 
+## [17.76.0] - 2026-07-05 — P3-T26 AI 自动交易（Paper Broker）UI V2 统一浅色 Dashboard ☀️
+
+将「AI 自动交易 / Paper Broker」`/portfolio` 从 Bloomberg 深色驾驶舱改为与首页 / AI选股 / 研究中心 / 控制中心 / 策略中心一致的 **Apple Dashboard 浅色**。**纯 UI**，未改任何 Paper Trading Logic / Strategy / AI算法 / Adaptive / Shadow / Fusion / Learning / Backtest / GPT / API / DB / Prisma / Cron / 业务逻辑（`/api/portfolio/paper` + `/api/strategy/explain` 只读逻辑全保留）。统一 token：bg `#F7F8FA`·card `#FFFFFF`·border `#E8EAED`·圆角·阴影 `0 8px 30px rgba(0,0,0,.05)`。
+
+### 一处调色板转全页
+`components/paper-trading/parts.tsx` 的 `M` 调色板深→浅（bg/card/cardHi/border/ink/sub/faint + blue `#0A84FF`→`#007AFF`、red `#FF453A`→`#FF3B30`），新增 `SHADOW` 并应用于 `DCard` 通用卡片 + 持仓表 + 交易流水表容器（3 处）；无 Tailwind slate 深色类（仅 ExplainDrawer 遮罩 `bg-black/60` 保留为 scrim）。`app/portfolio/page.tsx` 容器已用 `M.bg`（自动转浅）。
+
+### 布局（沿用现有结构，改浅色）
+Hero（AI 自动交易驾驶舱 · Paper Broker · Paper Mode badge · 刷新）→ **浅黄色模拟交易 Alert**（`amber` tint）→ 4 KPI（今日表现 / 当前资产 / 累计表现 / 账户状态，大数字 + 状态 chip）→ AI Trading Brief（左：买入/卖出/持仓/盈亏/贡献·拖累；右：风险等级 + AI建议）→ 三策略资金池（allocation bar + 3 白卡：资产/收益率/现金/持仓/买卖）→ 持仓 Apple 白表（蓝代码 + 浮盈绿红 + 风险 chip + 查看原因）→ 交易流水白表（买入绿/卖出红）→ 风险面板白卡 + 策略暴露条。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.3s）；Health ✅ CRITICAL=0；/portfolio 200；响应式；无 API/DB/逻辑改动。**至此 TOHOSHOU AI 全站（首页/AI选股/研究中心/控制中心/策略中心/研发中心/自动交易）统一 Apple Dashboard 单一设计语言。**
+- 修改：`components/paper-trading/parts.tsx`。
+
+---
+
 ## [17.75.0] - 2026-07-05 — P3-T25 策略中心（Strategy Center）UI V2 统一浅色 Dashboard ☀️
 
 将「策略中心」`/strategy` 从 Bloomberg 深色终端改为与首页 / AI选股 / 研究中心 / Mission Control 一致的 **Apple Dashboard 浅色**。**纯 UI**，未改任何 API / DB / Prisma / Cron / Strategy Logic / Adaptive / Shadow / Fusion / Learning / GPT / 业务逻辑（保留 overview fetch + StrategyTab/StabilizationTab/ReportsTab/ExplainDrawer + 表格/图表全部逻辑）。统一 token：bg `#F7F8FA`·card `#FFFFFF`·border `#E8EAED`·圆角·阴影 `0 8px 30px rgba(0,0,0,.05)`。

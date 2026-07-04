@@ -28,8 +28,9 @@ export type PaperData = {
   aiDailySummary?: { marketState: string; todayBuys: number; todaySells: number; currentPositions: number; todayPnl: number; cumulativePnl: number; topContributor: NamedRef; topDetractor: NamedRef; riskLevel: string; suggestion: string; running: boolean };
 };
 
-// ── Palette (dark institutional) ──────────────────────────────────────────────
-export const M = { bg: "#111315", card: "#171A1F", cardHi: "#1C2028", border: "#262B33", ink: "#E6E8EB", sub: "#9BA1A9", faint: "#6B7280", blue: "#0A84FF", green: "#34C759", amber: "#FF9F0A", red: "#FF453A" };
+// ── Palette (Apple Dashboard 浅色，与首页/研究中心/控制中心统一) ────────────────
+export const M = { bg: "#F7F8FA", card: "#FFFFFF", cardHi: "#F4F5F7", border: "#E8EAED", ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6", blue: "#007AFF", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30" };
+export const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
 export const STRAT_HEX: Record<Strat, string> = { DAY_TRADE: "#FF9F0A", SWING_TRADE: "#0A84FF", LONG_TRADE: "#34C759" };
 const STRAT_ZH: Record<Strat, string> = { DAY_TRADE: "日内", SWING_TRADE: "波段", LONG_TRADE: "长线" };
 const RISK_HEX = (r: string | null | undefined) => r === "HIGH" || r === "高" ? M.red : r === "MEDIUM" || r === "中" ? M.amber : r === "LOW" || r === "低" ? M.green : M.faint;
@@ -75,7 +76,7 @@ export function PaperModeBanner() {
 }
 
 function DCard({ children, className = "", accent }: { children: React.ReactNode; className?: string; accent?: string }) {
-  return <div className={`rounded-2xl p-5 ${className}`} style={{ background: M.card, border: `1px solid ${accent ?? M.border}` }}>{children}</div>;
+  return <div className={`rounded-2xl p-5 ${className}`} style={{ background: M.card, border: `1px solid ${accent ?? M.border}` , boxShadow: SHADOW }}>{children}</div>;
 }
 
 // ── Hero KPI ──────────────────────────────────────────────────────────────────
@@ -218,7 +219,7 @@ export function PortfolioPositionsTable({ data, onExplain }: { data: PaperData; 
   return (
     <section className="mb-8">
       <div className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-3" style={{ color: M.faint }}>Portfolio Positions · 当前持仓 ({rows.length})</div>
-      <div className="rounded-2xl overflow-x-auto" style={{ background: M.card, border: `1px solid ${M.border}` }}>
+      <div className="rounded-2xl overflow-x-auto" style={{ background: M.card, border: `1px solid ${M.border}` , boxShadow: SHADOW }}>
         {rows.length === 0 ? <EmptyState text="暂无持仓" /> : (
           <table className="w-full text-[13px]">
             <thead><tr style={{ borderBottom: `1px solid ${M.border}` }}>
@@ -261,7 +262,7 @@ export function TradingTimeline({ data }: { data: PaperData }) {
   return (
     <section className="mb-8">
       <div className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-3" style={{ color: M.faint }}>Trading Flow · 交易流水 ({ex.length})</div>
-      <div className="rounded-2xl overflow-hidden" style={{ background: M.card, border: `1px solid ${M.border}` }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: M.card, border: `1px solid ${M.border}` , boxShadow: SHADOW }}>
         {ex.length === 0 ? <EmptyState text="暂无交易流水" /> : (
           <div className="max-h-[420px] overflow-y-auto">
             {ex.map((e, i) => {
