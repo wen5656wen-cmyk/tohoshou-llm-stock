@@ -2,6 +2,14 @@
 
 ---
 
+## [17.77.0] - 2026-07-05 — P3-T27 学习报告（Learning Report）全面汉化 🈶
+
+将 `/admin/learning-report` 所有用户可见英文业务文案汉化为简体中文。**仅 UI 文案**，未改任何 API / DB / Prisma / Cron / 学习算法 / Adaptive / Shadow / Fusion / GPT / Learning Engine / 回测逻辑（仍只读 `/api/admin/learning-report` + `/api/admin/mission-control` + 60s 刷新，布局/功能不变）。标题 Learning Intelligence→**AI 学习中心**、Learning Report→**学习报告**、Today's AI Learning Summary→AI 每日学习总结、Refresh→刷新；4 KPI（学习评分 / 特征覆盖率 / 数据填充率 / 数据质量，单位 rows→行、trading days→个交易日）；状态映射 PASS→正常 / WARNING→警告 / CRITICAL→严重、Ready→完成 / Partial→部分 / Insufficient→样本不足 / Pending→等待、INSUFFICIENT_DATA→样本不足；今日学习总结 / 学习时间轴（样本数/已完成/填充率/胜率/平均收益/超额收益）/ 回测统计（周期/样本数/完成率/胜率/平均收益/收益中位数/Alpha/最佳/最差/状态）/ 学习进度 / AI 学习结论 / 模型版本（当前版本/回归检测/数据完整性/特征字段数）。**API 生成的 recommendations 英文说明经展示层 `zhReco()` 正则汉化**（不改后端）：Pipeline issues→检测到流水线问题、Feature coverage is X%→特征覆盖率达到 X%、Nd horizon has no filled positions yet→N日周期暂无有效样本、Expected first fill→预计首次有效日期、Look-ahead validation passed→未来数据泄露检测通过、Regression detection requires→回归检测需要 ≥2 个可比版本…、cohort dates available…Statistical reliability→已积累 N 个样本日期…统计可靠性将持续提升。保留术语：Alpha / AI / GPT / V3 / Adaptive / Shadow / Fusion / schemaVersion / 版本号 / JST。
+- 验收：Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；/admin/learning-report 200；页面无英文业务文案。
+- 修改：`app/admin/learning-report/page.tsx`。
+
+---
+
 ## [17.76.0] - 2026-07-05 — P3-T26 AI 自动交易（Paper Broker）UI V2 统一浅色 Dashboard ☀️
 
 将「AI 自动交易 / Paper Broker」`/portfolio` 从 Bloomberg 深色驾驶舱改为与首页 / AI选股 / 研究中心 / 控制中心 / 策略中心一致的 **Apple Dashboard 浅色**。**纯 UI**，未改任何 Paper Trading Logic / Strategy / AI算法 / Adaptive / Shadow / Fusion / Learning / Backtest / GPT / API / DB / Prisma / Cron / 业务逻辑（`/api/portfolio/paper` + `/api/strategy/explain` 只读逻辑全保留）。统一 token：bg `#F7F8FA`·card `#FFFFFF`·border `#E8EAED`·圆角·阴影 `0 8px 30px rgba(0,0,0,.05)`。

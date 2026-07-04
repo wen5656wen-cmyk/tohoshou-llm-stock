@@ -32,12 +32,26 @@ const fmtPct1 = (v: number | null | undefined) => v == null ? "—" : `${v.toFix
 const fmtRet = (v: number | null | undefined) => v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 const retColor = (v: number | null | undefined) => v == null ? C.faint : v > 0 ? C.green : v < 0 ? C.red : C.sub;
 const gradeMap = (g: string): { label: string; color: string } => {
-  if (g === "GREEN" || g === "PASS") return { label: "PASS", color: C.green };
-  if (g === "YELLOW" || g === "WARNING") return { label: "WARNING", color: C.amber };
-  return { label: "CRITICAL", color: C.red };
+  if (g === "GREEN" || g === "PASS") return { label: "正常", color: C.green };
+  if (g === "YELLOW" || g === "WARNING") return { label: "警告", color: C.amber };
+  return { label: "严重", color: C.red };
 };
 const stColor = (s: HorizonStatus) => s === "READY" ? C.green : s === "PARTIAL" ? C.amber : C.faint;
-const stLabel = (s: HorizonStatus) => s === "READY" ? "Ready" : s === "PARTIAL" ? "Partial" : s === "INSUFFICIENT" ? "Insufficient" : "Pending";
+const stLabel = (s: HorizonStatus) => s === "READY" ? "完成" : s === "PARTIAL" ? "部分" : s === "INSUFFICIENT" ? "样本不足" : "等待";
+const regZh: Record<string, string> = { OK: "正常", WARNING: "警告", CRITICAL: "严重", INSUFFICIENT_DATA: "样本不足" };
+// 显示层翻译 learning-report 的 recommendations（API 生成的英文说明 → 自然中文，不改后端）
+function zhReco(s: string): string {
+  let m: RegExpMatchArray | null;
+  if ((m = s.match(/^Pipeline issues detected: (\d+) stale\/failed stages\.?$/))) return `检测到流水线问题：${m[1]} 个阶段停滞/失败。`;
+  if ((m = s.match(/^Feature coverage is ([\d.]+)% — meets the ≥95% threshold\.?$/))) return `特征覆盖率达到 ${m[1]}% — 已满足 ≥95% 阈值。`;
+  if ((m = s.match(/^Feature coverage is ([\d.]+)% — below the ≥95% threshold\.?$/))) return `特征覆盖率为 ${m[1]}% — 低于 ≥95% 阈值。`;
+  if ((m = s.match(/^(\d+)d horizon has no filled positions yet\.?$/))) return `${m[1]}日周期暂无有效样本。`;
+  if ((m = s.match(/^(\d+)d horizon has no filled positions\. Expected first fill: ([\d-]+)\.?$/))) return `${m[1]}日周期暂无有效数据。预计首次有效日期：${m[2]}。`;
+  if (/^Look-ahead validation passed/.test(s)) return "未来数据泄露检测通过 — 未发现时间线违规。";
+  if (/^Regression detection requires/.test(s)) return "回归检测需要 ≥2 个可比版本（相同 schemaVersion）。当前样本不足。";
+  if ((m = s.match(/^(\d+) cohort dates available — growing dataset\. Statistical reliability improves beyond (\d+) trading days\.?$/))) return `已积累 ${m[1]} 个样本日期 — 数据集持续增长。样本超过 ${m[2]} 个交易日后统计可靠性将持续提升。`;
+  return s;
+}
 
 function Ring({ score, size = 78, stroke = 6, color, suffix }: { score: number | null; size?: number; stroke?: number; color: string; suffix?: string }) {
   const s = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null;
@@ -97,7 +111,7 @@ export default function LearningIntelligenceCenter() {
 
   const shell = (inner: React.ReactNode) => <div className="min-h-screen dash-font" style={{ background: C.bg }}><div className="mx-auto max-w-[1600px] px-6 lg:px-10 xl:px-14 py-8 lg:py-10">{inner}</div></div>;
   if (loading) return shell(<div className="py-20 text-center text-[14px]" style={{ color: C.faint }}><span className="animate-pulse">加载学习报告中…</span></div>);
-  if (notFound || error || !report) return shell(<div className="dash-card p-6 text-[14px]" style={{ color: error ? C.red : C.faint }}>{error ? `错误：${error}` : "暂无学习报告 · No learning report yet"}</div>);
+  if (notFound || error || !report) return shell(<div className="dash-card p-6 text-[14px]" style={{ color: error ? C.red : C.faint }}>{error ? `错误：${error}` : "暂无学习报告"}</div>);
 
   const di = report.dataIntegrity;
   const dr = report.dataReadiness;
@@ -108,10 +122,10 @@ export default function LearningIntelligenceCenter() {
   const gen = report.generatedAt ? new Date(new Date(report.generatedAt).getTime() + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ") : report.reportDate;
 
   const cards = [
-    { label: "Learning Score", value: di.score, unit: `/100 · ${grade.label}`, color: grade.color, ring: true },
-    { label: "Feature Coverage", value: dr.featureCoverage.overallPct, unit: `${dr.featureCoverage.totalRows} rows`, color: dr.featureCoverage.overallPct >= 95 ? C.green : C.amber, ring: true, pctSuffix: "%" },
-    { label: "Fill Rate", value: fillRate != null ? Math.round(fillRate) : null, unit: `${totalFilled.toLocaleString()}/${totalSample.toLocaleString()}`, color: fillRate != null && fillRate >= 60 ? C.green : C.amber, ring: true, pctSuffix: "%" },
-    { label: "Data Quality", value: null, textValue: grade.label, unit: `${dr.tradingDays ?? report.dataReadiness.availableHorizons.length} trading days`, color: grade.color, ring: false },
+    { label: "学习评分", value: di.score, unit: `/100 · ${grade.label}`, color: grade.color, ring: true },
+    { label: "特征覆盖率", value: dr.featureCoverage.overallPct, unit: `${dr.featureCoverage.totalRows} 行`, color: dr.featureCoverage.overallPct >= 95 ? C.green : C.amber, ring: true, pctSuffix: "%" },
+    { label: "数据填充率", value: fillRate != null ? Math.round(fillRate) : null, unit: `${totalFilled.toLocaleString()}/${totalSample.toLocaleString()}`, color: fillRate != null && fillRate >= 60 ? C.green : C.amber, ring: true, pctSuffix: "%" },
+    { label: "数据质量", value: null, textValue: grade.label, unit: `${dr.tradingDays ?? report.dataReadiness.availableHorizons.length} 个交易日`, color: grade.color, ring: false },
   ];
 
   const highlights = report.recommendations ?? [];
@@ -127,13 +141,13 @@ export default function LearningIntelligenceCenter() {
       {/* ── Hero ── */}
       <header className="dash-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
         <div>
-          <div className="text-[11px] font-semibold tracking-[0.16em] uppercase" style={{ color: C.faint }}>Learning Intelligence</div>
-          <h1 className="text-[30px] lg:text-[34px] font-semibold tracking-[-0.02em] mt-1.5" style={{ color: C.ink }}>Learning Report</h1>
-          <p className="text-[14px] mt-1.5" style={{ color: C.sub }}>Today&apos;s AI Learning Summary · {report.reportDate}</p>
+          <div className="text-[11px] font-semibold tracking-[0.16em] uppercase" style={{ color: C.faint }}>AI 学习中心</div>
+          <h1 className="text-[30px] lg:text-[34px] font-semibold tracking-[-0.02em] mt-1.5" style={{ color: C.ink }}>学习报告</h1>
+          <p className="text-[14px] mt-1.5" style={{ color: C.sub }}>AI 每日学习总结 · {report.reportDate}</p>
         </div>
         <div className="flex items-center gap-2.5">
           <button onClick={load} disabled={refreshing} className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold dash-card dash-int" style={{ color: C.ink }}>
-            <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span>Refresh
+            <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span>刷新
           </button>
           <div className="hidden lg:flex flex-col items-end leading-tight">
             <span className="text-[12px] font-semibold tabular-nums" style={{ color: C.sub }}>{gen} JST</span>
@@ -158,15 +172,15 @@ export default function LearningIntelligenceCenter() {
       </div>
 
       {/* ── Today's Learning ── */}
-      <Section title="Today's Learning" sub="AI 今日学习摘要 · 来自 learning-report recommendations">
+      <Section title="今日学习总结" sub="AI 今日学习摘要 · 来自学习报告">
         <div className="dash-card p-6">
           {highlights.length === 0 ? (
-            <div className="text-[14px]" style={{ color: C.faint }}>No Significant Learning Today · 今日无显著学习</div>
+            <div className="text-[14px]" style={{ color: C.faint }}>今日无显著学习</div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
               {highlights.map((h, i) => (
                 <div key={i} className="flex items-start gap-2.5 text-[14px]" style={{ color: C.sub }}>
-                  <span className="shrink-0 mt-0.5" style={{ color: C.green }}>✓</span><span>{h}</span>
+                  <span className="shrink-0 mt-0.5" style={{ color: C.green }}>✓</span><span>{zhReco(h)}</span>
                 </div>
               ))}
             </div>
@@ -175,7 +189,7 @@ export default function LearningIntelligenceCenter() {
       </Section>
 
       {/* ── Learning Timeline (segmented) ── */}
-      <Section title="Learning Timeline" sub="按持有周期查看数据成熟度">
+      <Section title="学习时间轴" sub="按持有周期查看数据成熟度">
         <div className="inline-flex p-1 rounded-full mb-5 flex-wrap gap-0.5" style={{ background: "#F0F0F3", border: `1px solid ${C.line}` }}>
           {ALL_HORIZONS.map((h) => {
             const on = h === activeHz;
@@ -184,12 +198,12 @@ export default function LearningIntelligenceCenter() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {[
-            { l: "Samples", v: hzSample.toLocaleString(), c: C.ink },
-            { l: "Filled", v: hzFilled.toLocaleString(), c: C.ink },
-            { l: "Fill Rate", v: `${hzFill.toFixed(0)}%`, c: hzFill >= 60 ? C.green : C.amber },
-            { l: "Win Rate", v: hzRow?.winRate != null ? `${hzRow.winRate.toFixed(1)}%` : "—", c: C.ink },
-            { l: "Avg Return", v: fmtRet(hzRow?.avgReturn), c: retColor(hzRow?.avgReturn) },
-            { l: "Alpha", v: fmtRet(hzRow?.alpha), c: retColor(hzRow?.alpha) },
+            { l: "样本数", v: hzSample.toLocaleString(), c: C.ink },
+            { l: "已完成", v: hzFilled.toLocaleString(), c: C.ink },
+            { l: "填充率", v: `${hzFill.toFixed(0)}%`, c: hzFill >= 60 ? C.green : C.amber },
+            { l: "胜率", v: hzRow?.winRate != null ? `${hzRow.winRate.toFixed(1)}%` : "—", c: C.ink },
+            { l: "平均收益", v: fmtRet(hzRow?.avgReturn), c: retColor(hzRow?.avgReturn) },
+            { l: "超额收益", v: fmtRet(hzRow?.alpha), c: retColor(hzRow?.alpha) },
           ].map((x) => (
             <div key={x.l} className="dash-card p-5">
               <div className="text-[11px] font-medium" style={{ color: C.faint }}>{x.l}</div>
@@ -200,11 +214,11 @@ export default function LearningIntelligenceCenter() {
       </Section>
 
       {/* ── Backtest Summary ── */}
-      <Section title="Backtest Summary" sub="各持有周期回测（数据成熟后生效）">
+      <Section title="回测统计" sub="各持有周期回测（数据成熟后生效）">
         <div className="dash-card overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead><tr style={{ borderBottom: `1px solid ${C.line}` }}>
-              {["Horizon", "Samples", "Fill", "Win Rate", "Avg Return", "Median", "Alpha", "Best", "Worst", "Status"].map((h, i) => (
+              {["周期", "样本数", "完成率", "胜率", "平均收益", "收益中位数", "Alpha", "最佳", "最差", "状态"].map((h, i) => (
                 <th key={h} className={`px-4 py-3 font-semibold text-[11px] uppercase tracking-wide ${i === 0 ? "text-left" : "text-right"}`} style={{ color: C.faint }}>{h}</th>
               ))}
             </tr></thead>
@@ -230,7 +244,7 @@ export default function LearningIntelligenceCenter() {
       </Section>
 
       {/* ── Learning Progress ── */}
-      <Section title="Learning Progress" sub="各周期数据积累进度">
+      <Section title="学习进度" sub="各周期数据积累进度">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
           {ALL_HORIZONS.map((h) => {
             const sample = dr.sampleCounts[h] ?? 0;
@@ -256,21 +270,21 @@ export default function LearningIntelligenceCenter() {
       {/* ── AI Insights ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         <div className="lg:col-span-7">
-          <Section title="AI Insights" sub="来自 learning-report · recommendations">
+          <Section title="AI 学习结论" sub="来自学习报告 · 学习结论">
             <div className="dash-card p-6">
-              {highlights.length === 0 ? <div className="text-[13px]" style={{ color: C.faint }}>No insights</div> : (
-                <ul className="space-y-2.5">{highlights.map((h, i) => <li key={i} className="flex items-start gap-2.5 text-[13px]" style={{ color: C.sub }}><span style={{ color: C.blue }}>›</span>{h}</li>)}</ul>
+              {highlights.length === 0 ? <div className="text-[13px]" style={{ color: C.faint }}>暂无结论</div> : (
+                <ul className="space-y-2.5">{highlights.map((h, i) => <li key={i} className="flex items-start gap-2.5 text-[13px]" style={{ color: C.sub }}><span style={{ color: C.blue }}>›</span>{zhReco(h)}</li>)}</ul>
               )}
             </div>
           </Section>
         </div>
         <div className="lg:col-span-5">
-          <Section title="Model Version" sub="回归检测 · Regression">
+          <Section title="模型版本" sub="回归检测">
             <div className="dash-card p-6 space-y-3">
-              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>Current</span><span className="font-mono font-semibold" style={{ color: C.ink }}>{reg.currentVersion ?? "—"}</span></div>
-              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>Regression</span><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: reg.status === "OK" ? C.green : reg.status === "INSUFFICIENT_DATA" ? C.faint : C.amber, background: `${reg.status === "OK" ? C.green : reg.status === "INSUFFICIENT_DATA" ? C.faint : C.amber}14` }}>{reg.status}</span></div>
-              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>Data Integrity</span><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: grade.color, background: `${grade.color}14` }}>{grade.label}</span></div>
-              {featFields.length > 0 && <div className="flex items-center justify-between text-[13px] pt-2" style={{ borderTop: `1px solid ${C.line}` }}><span style={{ color: C.faint }}>Feature Fields</span><span className="tabular-nums font-semibold" style={{ color: C.ink }}>{featFields.length}</span></div>}
+              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>当前版本</span><span className="font-mono font-semibold" style={{ color: C.ink }}>{reg.currentVersion ?? "—"}</span></div>
+              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>回归检测</span><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: reg.status === "OK" ? C.green : reg.status === "INSUFFICIENT_DATA" ? C.faint : C.amber, background: `${reg.status === "OK" ? C.green : reg.status === "INSUFFICIENT_DATA" ? C.faint : C.amber}14` }}>{regZh[reg.status] ?? reg.status}</span></div>
+              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>数据完整性</span><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: grade.color, background: `${grade.color}14` }}>{grade.label}</span></div>
+              {featFields.length > 0 && <div className="flex items-center justify-between text-[13px] pt-2" style={{ borderTop: `1px solid ${C.line}` }}><span style={{ color: C.faint }}>特征字段数</span><span className="tabular-nums font-semibold" style={{ color: C.ink }}>{featFields.length}</span></div>}
             </div>
           </Section>
         </div>
