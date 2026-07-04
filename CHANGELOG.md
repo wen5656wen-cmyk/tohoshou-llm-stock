@@ -2,6 +2,37 @@
 
 ---
 
+## [17.51.0] - 2026-07-04 — P3-T6 Dashboard Premium UI（Apple × Linear × Vercel × Stripe）✨
+
+### 目标
+纯视觉升级（不改任何业务逻辑/数据/API），把首页打磨到专业 SaaS 产品水准。**page.tsx 数据契约零改动**，仅重写 `components/dashboard/DashboardView.tsx` + 固化设计 token 到 `app/globals.css`。
+
+### 信息层级（Less is More）
+- **首屏仅 2 张卡**（Hero + 系统状态），取代 T5 的 Hero+状态卡+4 运营卡=6 卡的高密度布局；运营指标（健康度/流水线/校验/新鲜度）**收敛进系统状态卡**，第一屏更克制、更透气。
+
+### 组件重构（named components，禁止重复 JSX）
+`DashboardHeader` / `DashboardHero` / `DashboardMetricCard` / `DashboardMarketCard` / `DashboardStatusCard`(+`StatusPill`) / `DashboardTimeline` / `DashboardQuickAction` / `DashboardSection` / `ScoreRing`，`DashboardSidebar`=`components/Sidebar.tsx`。
+- **Hero**：eyebrow「TODAY INTELLIGENCE ● 实时」+ 大标题「日本市场正在持续分析中」+「每日 08:00 自动更新」+ 今日精选（股票/**ScoreRing 环形评分 Apple Health 风**/评级 pill/一句总结/查看分析/参考价）；无推荐→空态。
+- **Metric Cards**：大数字主导（38–40px）+ 小标题在下（14px）+ 右上极简图标；4 项（3719 日本上市公司 / 3069 AI已完成分析 / 359 新闻事件 / 12 今日推荐）。
+- **Market Cards**：Apple Stocks 风（指数/大数值/箭头涨跌 pill/「今日」）。
+- **System Status**：大健康度 88/100 良好 + Healthy pill + 6 个 **Status Pills**（数据同步/AI引擎/策略引擎/Cron/数据库/API 全绿点）+ 页脚 流水线5/5·校验通过·行情日。
+- **Timeline**：GitHub Activity / Apple Health 连线活动流（竖线 + 光晕状态点 + 时间/事件/明细）。
+- **Quick Actions**：Apple Launchpad 圆角图标磁贴（居中图标 + 标题 + 描述，hover 浮起）。
+
+### 设计规范（token 固化于 globals.css）
+- 圆角 22px、极浅阴影（`0 1px 2px / 0 1px 3px`）、1px 描边 #ECECEC、卡片 padding 24–36、Section 间距 64px、Grid gap 24；`.dash-card`/`.dash-int`(hover 上浮 2px+阴影)/`.dash-tile`(hover 上浮 3px + scale1.02) 三类交互原语。
+- **动画**：`.dash-in` fade+slide-up 240ms cubic-bezier；hover 200ms；尊重 `prefers-reduced-motion`。
+- **字号**：Headline 30–34、Section 22、Card Title 15、Body 14、Caption 12，全数字 tabular-nums。
+- **颜色**：#FAFAFA/#FFFFFF/#ECECEC + #007AFF/#34C759/#FF9F0A/#FF3B30，无霓虹/无渐变背景。
+
+### 验收
+- Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；页面 200，**warm TTFB 0.14s**。
+- 响应式 1440 / 1920 均协调（内容 max-w-1440 居中，宽屏留白充足）。
+- **未改任何业务代码**（API/Score/Fusion/Shadow/Paper/Recommendation/Learning/Cron/DB 全未动，page.tsx 数据契约不变），V3 Freeze 不受影响。
+- 修改文件：`app/globals.css`、`components/dashboard/DashboardView.tsx`。
+
+---
+
 ## [17.50.0] - 2026-07-04 — P3-T5 Dashboard Apple UI 重构 + 首页数据修复（Production）🍎
 
 ### 背景 / 根因
