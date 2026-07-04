@@ -2,6 +2,13 @@
 
 ---
 
+## [17.67.1] - 2026-07-05 — 指挥中心搜索去重 🔍
+
+修复用户反馈「指挥中心搜索重复」：首页（AI 指挥中心 `/`）同时出现两个搜索框——`CmdHeader` 顶部右上「搜索股票」全局 typeahead + `ScreenerHeader`「搜索代码/中文/日文/英文」列表过滤搜索。移除 `CmdHeader` 顶部重复的 `<SearchBox/>`（及 import），保留「AI选股」区的**功能性列表过滤搜索**（filters via `/api/screener?q=`）。顶部头部现仅剩 通知 + 账户 图标。纯 UI，未改任何逻辑/API；`SearchBox` 组件本身保留（未来可用）。
+- 修改：`components/dashboard/DashboardView.tsx`。Build ✅ / Health ✅ CRITICAL=0 / `/` 200。
+
+---
+
 ## [17.67.0] - 2026-07-05 — P3-T20 首页信息架构精炼（Home × Screener Unified）📉
 
 对 AI 指挥中心首页做信息架构精炼：**减少信息、提高效率**，整体长度约 -40%、股票卡视觉元素约 -30%。**纯 UI**，未改 API/DB/GPT评分/Adaptive/Shadow/Fusion/Strategy/Explain/Learning/Ranking/Backtest/业务逻辑；`/` 与 `/screener` **共享同一组件**（改一处两端同步，无复制）。

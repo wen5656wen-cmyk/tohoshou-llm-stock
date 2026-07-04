@@ -9,7 +9,6 @@ import {
   ShieldCheck, Activity,
 } from "./icons";
 import { ROUTES, stockDetail, timelineRoute } from "@/lib/routes";
-import { SearchBox } from "./SearchBox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Sev = "NORMAL" | "WARNING" | "CRITICAL";
@@ -110,7 +109,6 @@ export function CmdHeader({ greetKey }: { greetKey: string }) {
         <span className="text-[12px] font-medium truncate" style={{ color: C.faint }}>{GREET[greetKey] ?? "你好"} · 欢迎回来</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="hidden sm:block"><SearchBox /></div>
         <Link href={ROUTES.NEWS} aria-label="通知" title="通知" className="inline-flex items-center justify-center w-9 h-9 rounded-full dash-card dash-int" style={{ color: C.sub }}><Bell size={16} /></Link>
         <Link href={ROUTES.SETTINGS} aria-label="账户" title="系统设置" className="inline-flex items-center justify-center w-9 h-9 rounded-full dash-int" style={{ background: C.ink, color: "#fff" }}><User size={16} /></Link>
       </div>
