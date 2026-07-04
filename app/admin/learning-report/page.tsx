@@ -3,594 +3,278 @@
 import { useEffect, useState, useCallback } from "react";
 
 // ── Types matching generate-learning-report.ts output ─────────────────────────
-
 type HorizonStatus = "READY" | "PARTIAL" | "INSUFFICIENT" | "PENDING";
-
 type BacktestRow = {
-  horizon: string;
-  sampleCount: number;
-  filledCount: number;
-  fillRate: number;
-  winRate: number | null;
-  avgReturn: number | null;
-  medianReturn: number | null;
-  alpha: number | null;
-  bestReturn: number | null;
-  worstReturn: number | null;
-  status: HorizonStatus;
+  horizon: string; sampleCount: number; filledCount: number; fillRate: number;
+  winRate: number | null; avgReturn: number | null; medianReturn: number | null; alpha: number | null;
+  bestReturn: number | null; worstReturn: number | null; status: HorizonStatus;
 };
-
 type ComponentDetail = { score: number; [key: string]: unknown };
-
-type DataIntegrity = {
-  score: number;
-  grade: string; // API returns "GREEN" | "YELLOW" | "WARNING" | "RED" | "CRITICAL"
-  components: Record<string, ComponentDetail | number>;
-};
-
-type FeatureCoverage = {
-  latestDate: string | null;
-  totalRows: number;
-  overallPct: number;
-  note: string | null;
-};
-
-type FeatureField = {
-  field: string;
-  nonNullCount: number;
-  coveragePct: number;
-};
-
-type DataReadiness = {
-  availableHorizons: string[];
-  sampleCounts: Record<string, number>;
-  filledCounts: Record<string, number>;
-  featureCoverage: FeatureCoverage;
-  expectedFillDates: { "30d": string | null; "90d": string | null };
-};
-
-type RegressionDetection = {
-  status: "OK" | "WARNING" | "CRITICAL" | "INSUFFICIENT_DATA";
-  delta: number | null;
-  message?: string;
-};
-
-type VersionComparisonEntry = {
-  versionSnapshotId: string;
-  horizon: string;
-  winRate: number | null;
-  avgReturn: number | null;
-  sampleCount: number;
-};
-
+type DataIntegrity = { score: number; grade: string; components: Record<string, ComponentDetail | number> };
+type FeatureCoverage = { latestDate: string | null; totalRows: number; overallPct: number; note: string | null };
+type FeatureField = { field: string; nonNullCount: number; coveragePct: number };
+type DataReadiness = { tradingDays?: number; availableHorizons: string[]; sampleCounts: Record<string, number>; filledCounts: Record<string, number>; featureCoverage: FeatureCoverage; expectedFillDates: { "30d": string | null; "90d": string | null } };
+type RegressionDetection = { status: "OK" | "WARNING" | "CRITICAL" | "INSUFFICIENT_DATA"; delta: number | null; message?: string; currentVersion?: string; evidence?: string[] };
 type LearningReport = {
-  reportDate: string;
-  generatedAt: string;
-  reportVersion: string;
-  engineVersion: string;
-  dataIntegrity: DataIntegrity;
-  dataReadiness: DataReadiness;
-  backtestSummary: BacktestRow[];
-  versionComparison: VersionComparisonEntry[];
-  regressionDetection: RegressionDetection;
-  experimentSummary: unknown;
-  recommendations: string[];
+  reportDate: string; generatedAt: string; reportVersion: string; engineVersion: string;
+  dataIntegrity: DataIntegrity; dataReadiness: DataReadiness; backtestSummary: BacktestRow[];
+  regressionDetection: RegressionDetection; recommendations: string[];
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
+// ── Palette (Apple × Bloomberg × OpenAI Research) ─────────────────────────────
+const C = {
+  bg: "#FAFAFA", card: "#FFFFFF", line: "#ECECEC", cardSub: "#F7F7F9",
+  ink: "#1D1D1F", sub: "#6E6E73", faint: "#86868B",
+  blue: "#007AFF", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", purple: "#5856D6",
+};
 const ALL_HORIZONS = ["1d", "3d", "5d", "7d", "10d", "20d", "30d", "60d", "90d"];
+const fmtPct1 = (v: number | null | undefined) => v == null ? "—" : `${v.toFixed(1)}%`;
+const fmtRet = (v: number | null | undefined) => v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
+const retColor = (v: number | null | undefined) => v == null ? C.faint : v > 0 ? C.green : v < 0 ? C.red : C.sub;
+const gradeMap = (g: string): { label: string; color: string } => {
+  if (g === "GREEN" || g === "PASS") return { label: "PASS", color: C.green };
+  if (g === "YELLOW" || g === "WARNING") return { label: "WARNING", color: C.amber };
+  return { label: "CRITICAL", color: C.red };
+};
+const stColor = (s: HorizonStatus) => s === "READY" ? C.green : s === "PARTIAL" ? C.amber : C.faint;
+const stLabel = (s: HorizonStatus) => s === "READY" ? "Ready" : s === "PARTIAL" ? "Partial" : s === "INSUFFICIENT" ? "Insufficient" : "Pending";
 
-function fmt(v: number | null, dec = 2, suffix = ""): string {
-  if (v === null || v === undefined) return "—";
-  return `${v > 0 ? "+" : ""}${v.toFixed(dec)}${suffix}`;
+function Ring({ score, size = 78, stroke = 6, color, suffix }: { score: number | null; size?: number; stroke?: number; color: string; suffix?: string }) {
+  const s = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null;
+  const r = (size - stroke) / 2, circ = 2 * Math.PI * r, pct = s ?? 0;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEEEF1" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)} style={{ transition: "stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)" }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="font-semibold tabular-nums leading-none" style={{ fontSize: size * 0.3, color: C.ink }}>{s ?? "—"}{suffix}</span>
+      </div>
+    </div>
+  );
+}
+function Section({ title, sub, right, children }: { title: string; sub?: string; right?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="mb-12 dash-in">
+      <div className="flex items-end justify-between gap-3 mb-5">
+        <div><h2 className="text-[19px] font-semibold tracking-[-0.01em]" style={{ color: C.ink }}>{title}</h2>{sub && <p className="text-[13px] mt-1" style={{ color: C.faint }}>{sub}</p>}</div>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
 }
 
-function fmtPct(v: number | null): string {
-  if (v === null || v === undefined) return "—";
-  return `${v.toFixed(1)}%`;
-}
-
-function statusColor(s: HorizonStatus): string {
-  return s === "READY" ? "#4ade80" : s === "PARTIAL" ? "#fbbf24" : "#64748b";
-}
-
-function statusLabel(s: HorizonStatus): string {
-  return s === "READY" ? "就绪" : s === "PARTIAL" ? "部分" : s === "INSUFFICIENT" ? "不足" : "待机";
-}
-
-function gradeColor(g: string): string {
-  return g === "GREEN" ? "#4ade80" : g === "YELLOW" || g === "WARNING" ? "#fbbf24" : "#f87171";
-}
-
-function regColor(s: RegressionDetection["status"]): string {
-  return s === "OK" ? "#4ade80" : s === "WARNING" ? "#fbbf24" : s === "CRITICAL" ? "#f87171" : "#64748b";
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export default function LearningReportPage() {
+export default function LearningIntelligenceCenter() {
   const [report, setReport] = useState<LearningReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [featFields, setFeatFields] = useState<FeatureField[]>([]);
-  const [stratStats, setStratStats] = useState<{
-    overall: { winRate: number | null; avgReturnPct: number | null; avgAlphaPct: number | null; sampleCount: number; openRows: number } | null;
-    byStrategy: Record<string, { winRate: number | null; avgReturnPct: number | null; avgAlphaPct: number | null; sampleCount: number; openRows: number } | null>;
-    totalRows: number;
-  } | null>(null);
+  const [activeHz, setActiveHz] = useState("1d");
 
   const loadFeatFields = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/mission-control");
-      if (res.ok) {
-        const data = await res.json();
-        setFeatFields(data.featureCoverage?.fields ?? []);
-      }
-    } catch {
-      // non-critical, silently ignore
-    }
+    try { const res = await fetch("/api/admin/mission-control"); if (res.ok) { const data = await res.json(); setFeatFields(data.featureCoverage?.fields ?? []); } } catch { /* non-critical */ }
   }, []);
-
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await fetch("/api/admin/learning-report");
-      if (res.status === 404) {
-        setNotFound(true);
-        setReport(null);
-      } else if (!res.ok) {
-        setError(`HTTP ${res.status}`);
-      } else {
-        const data = await res.json();
-        setReport(data);
-        setNotFound(false);
-        setError(null);
-      }
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-      setLastRefresh(new Date());
-    }
+      if (res.status === 404) { setNotFound(true); setReport(null); }
+      else if (!res.ok) setError(`HTTP ${res.status}`);
+      else { setReport(await res.json()); setNotFound(false); setError(null); }
+    } catch (e) { setError(String(e)); }
+    finally { setLoading(false); setRefreshing(false); setLastRefresh(new Date()); }
   }, []);
-
   useEffect(() => {
-    load();
-    loadFeatFields();
-    fetch("/api/strategy/performance")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setStratStats(d); })
-      .catch(() => null);
+    load(); loadFeatFields();
     const timer = setInterval(() => { load(); loadFeatFields(); }, 60_000);
     return () => clearInterval(timer);
   }, [load, loadFeatFields]);
 
-  const style: React.CSSProperties = {
-    background: "#0a0a0a",
-    color: "#ddd",
-    fontFamily: "monospace",
-    minHeight: "100vh",
-    padding: "24px",
-  };
+  const shell = (inner: React.ReactNode) => <div className="min-h-screen dash-font" style={{ background: C.bg }}><div className="mx-auto max-w-[1600px] px-6 lg:px-10 xl:px-14 py-8 lg:py-10">{inner}</div></div>;
+  if (loading) return shell(<div className="py-20 text-center text-[14px]" style={{ color: C.faint }}><span className="animate-pulse">加载学习报告中…</span></div>);
+  if (notFound || error || !report) return shell(<div className="dash-card p-6 text-[14px]" style={{ color: error ? C.red : C.faint }}>{error ? `错误：${error}` : "暂无学习报告 · No learning report yet"}</div>);
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={style}>
-        <div style={{ color: "#64748b", marginTop: 60, textAlign: "center" }}>
-          加载学习报告中…
-        </div>
-      </div>
-    );
-  }
+  const di = report.dataIntegrity;
+  const dr = report.dataReadiness;
+  const grade = gradeMap(di.grade);
+  const totalSample = ALL_HORIZONS.reduce((a, h) => a + (dr.sampleCounts[h] ?? 0), 0);
+  const totalFilled = ALL_HORIZONS.reduce((a, h) => a + (dr.filledCounts[h] ?? 0), 0);
+  const fillRate = totalSample > 0 ? (totalFilled / totalSample) * 100 : null;
+  const gen = report.generatedAt ? new Date(new Date(report.generatedAt).getTime() + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ") : report.reportDate;
 
-  // ── Not Found ────────────────────────────────────────────────────────────────
-  if (notFound) {
-    return (
-      <div style={style}>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 24, color: "#fff" }}>
-          学习报告
+  const cards = [
+    { label: "Learning Score", value: di.score, unit: `/100 · ${grade.label}`, color: grade.color, ring: true },
+    { label: "Feature Coverage", value: dr.featureCoverage.overallPct, unit: `${dr.featureCoverage.totalRows} rows`, color: dr.featureCoverage.overallPct >= 95 ? C.green : C.amber, ring: true, pctSuffix: "%" },
+    { label: "Fill Rate", value: fillRate != null ? Math.round(fillRate) : null, unit: `${totalFilled.toLocaleString()}/${totalSample.toLocaleString()}`, color: fillRate != null && fillRate >= 60 ? C.green : C.amber, ring: true, pctSuffix: "%" },
+    { label: "Data Quality", value: null, textValue: grade.label, unit: `${dr.tradingDays ?? report.dataReadiness.availableHorizons.length} trading days`, color: grade.color, ring: false },
+  ];
+
+  const highlights = report.recommendations ?? [];
+  const bt = report.backtestSummary ?? [];
+  const hzRow = bt.find((b) => b.horizon === activeHz) ?? null;
+  const hzSample = dr.sampleCounts[activeHz] ?? 0;
+  const hzFilled = dr.filledCounts[activeHz] ?? 0;
+  const hzFill = hzSample > 0 ? (hzFilled / hzSample) * 100 : 0;
+  const reg = report.regressionDetection;
+
+  return shell(
+    <>
+      {/* ── Hero ── */}
+      <header className="dash-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
+        <div>
+          <div className="text-[11px] font-semibold tracking-[0.16em] uppercase" style={{ color: C.faint }}>Learning Intelligence</div>
+          <h1 className="text-[30px] lg:text-[34px] font-semibold tracking-[-0.02em] mt-1.5" style={{ color: C.ink }}>Learning Report</h1>
+          <p className="text-[14px] mt-1.5" style={{ color: C.sub }}>Today&apos;s AI Learning Summary · {report.reportDate}</p>
         </div>
-        <div style={{
-          background: "#1a1200",
-          border: "1px solid #fbbf24",
-          borderRadius: 8,
-          padding: "20px 24px",
-          marginBottom: 24,
-          color: "#fbbf24",
-        }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>⚠ 学习报告尚未生成</div>
-          <div style={{ fontSize: 13, color: "#d97706", lineHeight: 1.6 }}>
-            学习报告由每日 Cron 流水线在 07:30 JST 自动生成。<br />
-            首次报告预计在 2026-06-27 07:30 JST（约 14:00–15:00 CST）后可用。<br />
-            也可手动运行：<code style={{ background: "#111", padding: "2px 6px", borderRadius: 4 }}>npm run learning:report</code>
+        <div className="flex items-center gap-2.5">
+          <button onClick={load} disabled={refreshing} className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold dash-card dash-int" style={{ color: C.ink }}>
+            <span style={{ display: "inline-block", animation: refreshing ? "dash-spin .8s linear infinite" : "none" }}>↻</span>Refresh
+          </button>
+          <div className="hidden lg:flex flex-col items-end leading-tight">
+            <span className="text-[12px] font-semibold tabular-nums" style={{ color: C.sub }}>{gen} JST</span>
+            <span className="text-[11px] font-mono" style={{ color: C.faint }}>{report.engineVersion}</span>
           </div>
         </div>
-        <div style={{ color: "#475569", fontSize: 12 }}>
-          上次检查：{lastRefresh?.toLocaleTimeString("zh-CN")} · 每 60 秒自动重试
-        </div>
-      </div>
-    );
-  }
+      </header>
 
-  // ── Error ────────────────────────────────────────────────────────────────────
-  if (error || !report) {
-    return (
-      <div style={style}>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 24, color: "#fff" }}>学习报告</div>
-        <div style={{ color: "#f87171" }}>错误：{error ?? "未知错误"}</div>
-      </div>
-    );
-  }
-
-  // ── Report ───────────────────────────────────────────────────────────────────
-  const { dataIntegrity, dataReadiness, backtestSummary, regressionDetection, recommendations } = report;
-
-  const th: React.CSSProperties = {
-    padding: "6px 12px",
-    textAlign: "left",
-    color: "#64748b",
-    fontSize: 11,
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    borderBottom: "1px solid #1e293b",
-    whiteSpace: "nowrap",
-  };
-  const td: React.CSSProperties = {
-    padding: "6px 12px",
-    fontSize: 13,
-    borderBottom: "1px solid #0f172a",
-  };
-
-  return (
-    <div style={style}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>学习报告</div>
-        <div style={{ fontSize: 12, color: "#475569" }}>
-          {report.reportDate} · {report.engineVersion} · {report.reportVersion}
-        </div>
-        <div style={{ marginLeft: "auto", fontSize: 12, color: "#475569" }}>
-          生成于 {new Date(report.generatedAt).toLocaleString("zh-CN")} ·
-          刷新 {lastRefresh?.toLocaleTimeString("zh-CN")}
-        </div>
-      </div>
-
-      {/* Section 1: Integrity Score */}
-      <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
-          数据完整性评分
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 36, fontWeight: 700, color: gradeColor(dataIntegrity.grade) }}>
-            {dataIntegrity.score}<span style={{ fontSize: 16, color: "#64748b" }}>/100</span>
+      {/* ── 4 Premium Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-14 dash-in" style={{ animationDelay: "40ms" }}>
+        {cards.map((c) => (
+          <div key={c.label} className="dash-card dash-int p-6 flex items-center gap-4">
+            {c.ring ? <Ring score={c.value} size={74} color={c.color} suffix={c.pctSuffix} /> : (
+              <span className="inline-flex items-center justify-center w-[74px] h-[74px] rounded-full text-[18px] font-bold" style={{ background: `${c.color}14`, color: c.color }}>{c.textValue}</span>
+            )}
+            <div>
+              <div className="text-[13px] font-medium" style={{ color: C.sub }}>{c.label}</div>
+              <div className="text-[12px] mt-1 tabular-nums" style={{ color: C.faint }}>{c.unit}</div>
+            </div>
           </div>
-          <div style={{
-            background: dataIntegrity.grade === "GREEN" ? "#052e16" : (dataIntegrity.grade === "YELLOW" || dataIntegrity.grade === "WARNING") ? "#1a1200" : "#1a0000",
-            border: `1px solid ${gradeColor(dataIntegrity.grade)}`,
-            borderRadius: 6,
-            padding: "4px 12px",
-            color: gradeColor(dataIntegrity.grade),
-            fontSize: 12,
-            fontWeight: 700,
-          }}>
-            {{ GREEN: "良好", YELLOW: "注意", WARNING: "注意", RED: "异常", CRITICAL: "严重异常" }[dataIntegrity.grade] ?? dataIntegrity.grade}
-          </div>
-          {Object.entries(dataIntegrity.components ?? {}).map(([k, v]) => (
-            <div key={k} style={{ fontSize: 12, color: "#64748b" }}>
-              {k}: <span style={{ color: "#94a3b8" }}>
-                {typeof v === "number" ? v : (v as ComponentDetail)?.score ?? "—"}
-              </span>
+        ))}
+      </div>
+
+      {/* ── Today's Learning ── */}
+      <Section title="Today's Learning" sub="AI 今日学习摘要 · 来自 learning-report recommendations">
+        <div className="dash-card p-6">
+          {highlights.length === 0 ? (
+            <div className="text-[14px]" style={{ color: C.faint }}>No Significant Learning Today · 今日无显著学习</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
+              {highlights.map((h, i) => (
+                <div key={i} className="flex items-start gap-2.5 text-[14px]" style={{ color: C.sub }}>
+                  <span className="shrink-0 mt-0.5" style={{ color: C.green }}>✓</span><span>{h}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* ── Learning Timeline (segmented) ── */}
+      <Section title="Learning Timeline" sub="按持有周期查看数据成熟度">
+        <div className="inline-flex p-1 rounded-full mb-5 flex-wrap gap-0.5" style={{ background: "#F0F0F3", border: `1px solid ${C.line}` }}>
+          {ALL_HORIZONS.map((h) => {
+            const on = h === activeHz;
+            return <button key={h} onClick={() => setActiveHz(h)} className="px-3.5 h-8 rounded-full text-[13px] font-semibold transition-all uppercase" style={on ? { background: "#fff", color: C.ink, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" } : { color: C.sub }}>{h}</button>;
+          })}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {[
+            { l: "Samples", v: hzSample.toLocaleString(), c: C.ink },
+            { l: "Filled", v: hzFilled.toLocaleString(), c: C.ink },
+            { l: "Fill Rate", v: `${hzFill.toFixed(0)}%`, c: hzFill >= 60 ? C.green : C.amber },
+            { l: "Win Rate", v: hzRow?.winRate != null ? `${hzRow.winRate.toFixed(1)}%` : "—", c: C.ink },
+            { l: "Avg Return", v: fmtRet(hzRow?.avgReturn), c: retColor(hzRow?.avgReturn) },
+            { l: "Alpha", v: fmtRet(hzRow?.alpha), c: retColor(hzRow?.alpha) },
+          ].map((x) => (
+            <div key={x.l} className="dash-card p-5">
+              <div className="text-[11px] font-medium" style={{ color: C.faint }}>{x.l}</div>
+              <div className="text-[22px] font-semibold tabular-nums tracking-[-0.01em] mt-1.5" style={{ color: x.c }}>{x.v}</div>
             </div>
           ))}
         </div>
-      </div>
+      </Section>
 
-      {/* Section 2: Backtest Summary — 9 Horizon Matrix */}
-      <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12, fontWeight: 600, textTransform: "uppercase" }}>
-          回测摘要 — 9 Horizons（BacktestPositionResult · schema-v2.3）
-        </div>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr>
-                <th style={th}>周期</th>
-                <th style={{ ...th, textAlign: "right" }}>状态</th>
-                <th style={{ ...th, textAlign: "right" }}>样本</th>
-                <th style={{ ...th, textAlign: "right" }}>已填</th>
-                <th style={{ ...th, textAlign: "right" }}>填充率</th>
-                <th style={{ ...th, textAlign: "right" }}>胜率</th>
-                <th style={{ ...th, textAlign: "right" }}>平均收益</th>
-                <th style={{ ...th, textAlign: "right" }}>中位收益</th>
-                <th style={{ ...th, textAlign: "right" }}>Alpha</th>
-                <th style={{ ...th, textAlign: "right" }}>最大</th>
-                <th style={{ ...th, textAlign: "right" }}>最小</th>
-              </tr>
-            </thead>
+      {/* ── Backtest Summary ── */}
+      <Section title="Backtest Summary" sub="各持有周期回测（数据成熟后生效）">
+        <div className="dash-card overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead><tr style={{ borderBottom: `1px solid ${C.line}` }}>
+              {["Horizon", "Samples", "Fill", "Win Rate", "Avg Return", "Median", "Alpha", "Best", "Worst", "Status"].map((h, i) => (
+                <th key={h} className={`px-4 py-3 font-semibold text-[11px] uppercase tracking-wide ${i === 0 ? "text-left" : "text-right"}`} style={{ color: C.faint }}>{h}</th>
+              ))}
+            </tr></thead>
             <tbody>
-              {ALL_HORIZONS.map(h => {
-                const row = backtestSummary.find(r => r.horizon === h);
-                if (!row) return (
-                  <tr key={h}>
-                    <td style={td}>{h}</td>
-                    <td style={{ ...td, textAlign: "right", color: "#475569" }}>待机</td>
-                    <td colSpan={9} style={{ ...td, color: "#475569", textAlign: "right" }}>暂无数据</td>
-                  </tr>
-                );
-                const isPending = row.status === "PENDING" || row.filledCount === 0;
-                return (
-                  <tr key={h} style={{ opacity: isPending ? 0.5 : 1 }}>
-                    <td style={{ ...td, fontWeight: 600, color: "#e2e8f0" }}>{h}</td>
-                    <td style={{ ...td, textAlign: "right" }}>
-                      <span style={{ color: statusColor(row.status), fontSize: 11, fontWeight: 700 }}>
-                        {statusLabel(row.status)}
-                      </span>
-                    </td>
-                    <td style={{ ...td, textAlign: "right", color: "#94a3b8" }}>{row.sampleCount.toLocaleString()}</td>
-                    <td style={{ ...td, textAlign: "right", color: "#94a3b8" }}>{row.filledCount.toLocaleString()}</td>
-                    <td style={{ ...td, textAlign: "right" }}>{fmtPct(row.fillRate)}</td>
-                    <td style={{ ...td, textAlign: "right", color: isPending ? "#475569" : row.winRate && row.winRate >= 50 ? "#4ade80" : "#f87171" }}>
-                      {isPending ? "待数据" : fmtPct(row.winRate)}
-                    </td>
-                    <td style={{ ...td, textAlign: "right", color: isPending ? "#475569" : row.avgReturn && row.avgReturn > 0 ? "#4ade80" : "#f87171" }}>
-                      {isPending ? "待数据" : fmt(row.avgReturn, 2, "%")}
-                    </td>
-                    <td style={{ ...td, textAlign: "right", color: "#94a3b8" }}>
-                      {isPending ? "—" : fmt(row.medianReturn, 2, "%")}
-                    </td>
-                    <td style={{ ...td, textAlign: "right", color: isPending ? "#475569" : row.alpha && row.alpha > 0 ? "#4ade80" : "#f87171" }}>
-                      {isPending ? "待数据" : fmt(row.alpha, 2, "%")}
-                    </td>
-                    <td style={{ ...td, textAlign: "right", color: "#4ade80" }}>{isPending ? "—" : fmt(row.bestReturn, 2, "%")}</td>
-                    <td style={{ ...td, textAlign: "right", color: "#f87171" }}>{isPending ? "—" : fmt(row.worstReturn, 2, "%")}</td>
-                  </tr>
-                );
-              })}
+              {bt.map((b) => (
+                <tr key={b.horizon} className="transition-colors hover:bg-[#F7F7F9]" style={{ borderBottom: `1px solid ${C.line}` }}>
+                  <td className="px-4 py-3 font-semibold uppercase" style={{ color: C.ink }}>{b.horizon}</td>
+                  <td className="px-4 py-3 text-right tabular-nums" style={{ color: C.sub }}>{b.sampleCount.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right tabular-nums" style={{ color: C.sub }}>{fmtPct1(b.fillRate)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: b.winRate != null && b.winRate >= 50 ? C.green : C.ink }}>{b.winRate != null ? `${b.winRate.toFixed(1)}%` : "—"}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: retColor(b.avgReturn) }}>{fmtRet(b.avgReturn)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums" style={{ color: retColor(b.medianReturn) }}>{fmtRet(b.medianReturn)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: retColor(b.alpha) }}>{fmtRet(b.alpha)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums" style={{ color: C.green }}>{fmtRet(b.bestReturn)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums" style={{ color: C.red }}>{fmtRet(b.worstReturn)}</td>
+                  <td className="px-4 py-3 text-right"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: stColor(b.status), background: `${stColor(b.status)}14` }}>{stLabel(b.status)}</span></td>
+                </tr>
+              ))}
+              {bt.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-[13px]" style={{ color: C.faint }}>暂无回测数据</td></tr>}
             </tbody>
           </table>
         </div>
+      </Section>
 
-        {/* Data pending explanation */}
-        {backtestSummary.some(r => r.status === "PENDING" || r.filledCount === 0) && (
-          <div style={{ marginTop: 12, padding: "10px 14px", background: "#0a0a0a", borderRadius: 6, fontSize: 12, color: "#64748b" }}>
-            <strong style={{ color: "#94a3b8" }}>数据状态说明：</strong>
-            「待数据」= 持仓建仓于 2026-06-26，等待 DailyPrice 收盘数据填充。
-            30d 预计可用：{dataReadiness.expectedFillDates?.["30d"] ?? "—"} ·
-            90d 预计可用：{dataReadiness.expectedFillDates?.["90d"] ?? "—"}
-          </div>
-        )}
-      </div>
-
-      {/* Section 3: Data Readiness */}
-      <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12, fontWeight: 600, textTransform: "uppercase" }}>
-          数据就绪度
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          {ALL_HORIZONS.map(h => {
-            const filled = dataReadiness.filledCounts?.[h] ?? 0;
-            const total  = dataReadiness.sampleCounts?.[h] ?? 0;
-            const ready  = dataReadiness.availableHorizons.includes(h);
+      {/* ── Learning Progress ── */}
+      <Section title="Learning Progress" sub="各周期数据积累进度">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
+          {ALL_HORIZONS.map((h) => {
+            const sample = dr.sampleCounts[h] ?? 0;
+            const filled = dr.filledCounts[h] ?? 0;
+            const pct = sample > 0 ? (filled / sample) * 100 : 0;
+            const ready = dr.availableHorizons.includes(h);
+            const col = ready ? C.green : pct > 0 ? C.amber : C.faint;
             return (
-              <div key={h} style={{
-                background: ready ? "#052e16" : "#0f172a",
-                border: `1px solid ${ready ? "#4ade80" : "#1e293b"}`,
-                borderRadius: 6,
-                padding: "8px 14px",
-                textAlign: "center",
-                minWidth: 80,
-              }}>
-                <div style={{ color: ready ? "#4ade80" : "#475569", fontWeight: 700, fontSize: 14 }}>{h}</div>
-                <div style={{ color: "#64748b", fontSize: 11, marginTop: 2 }}>
-                  {filled}/{total}
+              <div key={h} className="dash-card dash-int p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-bold uppercase" style={{ color: C.ink }}>{h}</span>
+                  <span className="w-2 h-2 rounded-full" style={{ background: col }} />
                 </div>
+                <div className="text-[18px] font-semibold tabular-nums mt-2" style={{ color: col }}>{pct.toFixed(0)}%</div>
+                <div className="text-[10px] mt-0.5 tabular-nums" style={{ color: C.faint }}>{filled.toLocaleString()}/{sample.toLocaleString()}</div>
+                <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "#EEEEF1" }}><div className="h-full rounded-full" style={{ width: `${pct}%`, background: col }} /></div>
               </div>
             );
           })}
         </div>
-        <div style={{ fontSize: 12, color: "#64748b" }}>
-          30d 成熟日期：<span style={{ color: "#94a3b8" }}>{dataReadiness.expectedFillDates?.["30d"] ?? "—"}</span>
-          &nbsp;·&nbsp;
-          90d 成熟日期：<span style={{ color: "#94a3b8" }}>{dataReadiness.expectedFillDates?.["90d"] ?? "—"}</span>
+      </Section>
+
+      {/* ── AI Insights ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        <div className="lg:col-span-7">
+          <Section title="AI Insights" sub="来自 learning-report · recommendations">
+            <div className="dash-card p-6">
+              {highlights.length === 0 ? <div className="text-[13px]" style={{ color: C.faint }}>No insights</div> : (
+                <ul className="space-y-2.5">{highlights.map((h, i) => <li key={i} className="flex items-start gap-2.5 text-[13px]" style={{ color: C.sub }}><span style={{ color: C.blue }}>›</span>{h}</li>)}</ul>
+              )}
+            </div>
+          </Section>
+        </div>
+        <div className="lg:col-span-5">
+          <Section title="Model Version" sub="回归检测 · Regression">
+            <div className="dash-card p-6 space-y-3">
+              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>Current</span><span className="font-mono font-semibold" style={{ color: C.ink }}>{reg.currentVersion ?? "—"}</span></div>
+              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>Regression</span><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: reg.status === "OK" ? C.green : reg.status === "INSUFFICIENT_DATA" ? C.faint : C.amber, background: `${reg.status === "OK" ? C.green : reg.status === "INSUFFICIENT_DATA" ? C.faint : C.amber}14` }}>{reg.status}</span></div>
+              <div className="flex items-center justify-between text-[13px]"><span style={{ color: C.faint }}>Data Integrity</span><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: grade.color, background: `${grade.color}14` }}>{grade.label}</span></div>
+              {featFields.length > 0 && <div className="flex items-center justify-between text-[13px] pt-2" style={{ borderTop: `1px solid ${C.line}` }}><span style={{ color: C.faint }}>Feature Fields</span><span className="tabular-nums font-semibold" style={{ color: C.ink }}>{featFields.length}</span></div>}
+            </div>
+          </Section>
         </div>
       </div>
-
-      {/* Section 4: Feature Coverage */}
-      {(() => {
-        const fc = dataReadiness.featureCoverage;
-        if (!fc) return null;
-        const TOTAL_FEAT = 30;
-        const coveredFields = featFields.filter(f => f.coveragePct > 0).length;
-        const isZero = fc.overallPct === 0 && fc.totalRows > 0;
-        return (
-          <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
-              特征覆盖率（feat_* · {TOTAL_FEAT} 字段）
-            </div>
-
-            {/* WARNING banner */}
-            {isZero && (
-              <div style={{
-                background: "#1a1200",
-                border: "1px solid #fbbf24",
-                borderRadius: 6,
-                padding: "8px 14px",
-                marginBottom: 12,
-                fontSize: 12,
-                color: "#fbbf24",
-              }}>
-                ⚠ WARNING — feat_* 覆盖率 0%：现有 {fc.totalRows} 行均创建于 Step 2 部署前（2026-06-26），下次 cron 运行后新 DR 行开始填充。
-                {fc.note && <span style={{ color: "#d97706", marginLeft: 6 }}>{fc.note}</span>}
-              </div>
-            )}
-
-            {/* Summary stats */}
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 14 }}>
-              {[
-                ["总 DR 行数", fc.totalRows.toLocaleString()],
-                ["字段总数", TOTAL_FEAT],
-                ["已覆盖字段", featFields.length > 0 ? coveredFields : "—"],
-                ["整体覆盖率", `${fc.overallPct}%`],
-                ["最新日期", fc.latestDate ?? "—"],
-              ].map(([label, val]) => (
-                <div key={String(label)}>
-                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>{label}</div>
-                  <div style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    color: label === "整体覆盖率" && fc.overallPct === 0 ? "#fbbf24" : "#e2e8f0",
-                  }}>{val}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Per-field breakdown */}
-            {featFields.length > 0 ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {featFields.map(f => {
-                  const covered = f.coveragePct > 0;
-                  return (
-                    <div key={f.field} style={{
-                      background: covered ? "#052e16" : "#1e1e1e",
-                      border: `1px solid ${covered ? "#4ade80" : "#334155"}`,
-                      borderRadius: 4,
-                      padding: "3px 8px",
-                      fontSize: 11,
-                      color: covered ? "#4ade80" : "#475569",
-                      fontFamily: "monospace",
-                    }}>
-                      {f.field.replace("feat_", "")}
-                      <span style={{ marginLeft: 4, color: covered ? "#86efac" : "#334155" }}>
-                        {f.coveragePct}%
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ fontSize: 12, color: "#475569" }}>加载字段明细中…</div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Section 5: Regression Detection */}
-      <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
-          回归检测
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{
-            background: "#0a0a0a",
-            border: `1px solid ${regColor(regressionDetection.status)}`,
-            color: regColor(regressionDetection.status),
-            borderRadius: 6,
-            padding: "4px 14px",
-            fontSize: 12,
-            fontWeight: 700,
-          }}>
-            {{ OK: "正常", WARNING: "注意", CRITICAL: "严重", INSUFFICIENT_DATA: "数据不足" }[regressionDetection.status] ?? regressionDetection.status}
-          </span>
-          {regressionDetection.delta !== null && (
-            <span style={{ fontSize: 13, color: "#94a3b8" }}>
-              7日胜率变化：{regressionDetection.delta > 0 ? "+" : ""}{regressionDetection.delta?.toFixed(1)}pp
-            </span>
-          )}
-          {regressionDetection.status === "INSUFFICIENT_DATA" && (
-            <span style={{ fontSize: 12, color: "#475569" }}>
-              需要 ≥2 个相同 schemaVersion 的 VersionSnapshot（当前仅 1 个：20260626-v7.7）
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Section 6: Recommendations */}
-      {recommendations.length > 0 && (
-        <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600, textTransform: "uppercase" }}>
-            建议事项
-          </div>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-            {recommendations.map((rec, i) => (
-              <li key={i} style={{
-                fontSize: 13,
-                color: rec.startsWith("CRITICAL") ? "#f87171" : rec.startsWith("WARNING") ? "#fbbf24" : "#94a3b8",
-                padding: "4px 0",
-                borderBottom: i < recommendations.length - 1 ? "1px solid #0f172a" : "none",
-              }}>
-                {rec}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Section 7: Strategy Performance (v15.0) */}
-      <div style={{ background: "#0f172a", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>
-          三策略性能报告（v15.0）
-        </div>
-        {!stratStats || stratStats.totalRows === 0 ? (
-          <div style={{ fontSize: 12, color: "#334155" }}>
-            尚无策略回测数据 — 运行{" "}
-            <span style={{ fontFamily: "monospace", color: "#64748b" }}>npm run strategy-backtest</span>
-            {" "}填充
-          </div>
-        ) : (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 12 }}>
-              {([
-                { key: "overall", label: "综合", color: "#94a3b8" },
-                { key: "DAY",     label: "日内 (30%)", color: "#f59e0b" },
-                { key: "SWING",   label: "波段 (40%)", color: "#3b82f6" },
-                { key: "POSITION",label: "趋势 (30%)", color: "#10b981" },
-              ]).map(({ key, label, color }) => {
-                const s = key === "overall" ? stratStats.overall : stratStats.byStrategy[key];
-                if (!s) return (
-                  <div key={key} style={{ background: "#0a0a0a", borderRadius: 6, padding: "10px 12px", border: `1px solid ${color}22` }}>
-                    <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 11, color: "#334155" }}>数据积累中</div>
-                  </div>
-                );
-                const winColor = s.winRate == null ? "#475569" : s.winRate >= 55 ? "#4ade80" : s.winRate >= 45 ? "#fbbf24" : "#f87171";
-                const retColor = s.avgReturnPct == null ? "#475569" : s.avgReturnPct > 0 ? "#4ade80" : "#f87171";
-                return (
-                  <div key={key} style={{ background: "#0a0a0a", borderRadius: 6, padding: "10px 12px", border: `1px solid ${color}33` }}>
-                    <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 6 }}>{label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: winColor }}>
-                      {s.winRate != null ? `${s.winRate.toFixed(1)}%` : "—"}
-                    </div>
-                    <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>胜率 · 样本 {s.sampleCount}</div>
-                    <div style={{ fontSize: 11, color: retColor }}>
-                      {s.avgReturnPct != null ? `${s.avgReturnPct > 0 ? "+" : ""}${s.avgReturnPct.toFixed(2)}%` : "—"} 均收益
-                    </div>
-                    {s.avgAlphaPct != null && (
-                      <div style={{ fontSize: 10, color: s.avgAlphaPct > 0 ? "#4ade80" : "#94a3b8", marginTop: 2 }}>
-                        Alpha {s.avgAlphaPct > 0 ? "+" : ""}{s.avgAlphaPct.toFixed(2)}%
-                      </div>
-                    )}
-                    {s.openRows > 0 && (
-                      <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>持仓中 {s.openRows}</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ fontSize: 11, color: "#334155" }}>
-              共 {stratStats.totalRows} 条策略回测记录 · 止盈+止损+时间止出场模拟
-            </div>
-          </>
-        )}
-      </div>
-
-      <div style={{ fontSize: 11, color: "#334155", marginTop: 8 }}>
-        数据来源：BacktestPositionResult（不可变）· StrategyBacktestResult · VersionSnapshot · pipeline-runs.jsonl ·
-        reports/ 目录快照 · 不读 StockScore（可变表）
-      </div>
-    </div>
+    </>
   );
 }

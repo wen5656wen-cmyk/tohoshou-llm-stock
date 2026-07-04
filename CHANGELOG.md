@@ -2,6 +2,29 @@
 
 ---
 
+## [17.59.0] - 2026-07-04 — 学习报告 → Learning Intelligence Center 重构 🧠
+
+`/admin/learning-report` 从深色 monospace 数据库报表 → **Learning Intelligence Center**（AI 学习驾驶舱，Apple × Bloomberg × OpenAI Research 浅色）。**纯 UI**，未改 Prisma/DB/Cron/Learning Engine/Shadow/Fusion/Adaptive/Strategy/Recommendation/Backtest/Feature/API/计算逻辑；所有数字来自现有 `/api/admin/learning-report` + `/api/admin/mission-control`（featFields）；**零假数据**。
+
+### 内容（全部来自现有 API）
+- **Hero**：LEARNING INTELLIGENCE · Learning Report · Today's AI Learning Summary + Refresh + generatedAt + engineVersion（第一屏无 Table）。
+- **4 Premium Cards**（ScoreRing）：Learning Score(dataIntegrity.score 60·WARNING) / Feature Coverage(featureCoverage.overallPct 100%) / Fill Rate(Σfilled/Σsample) / Data Quality(grade)。
+- **Today's Learning**：`recommendations[]` 逐条 ✓ 摘要；无则 "No Significant Learning Today"（**禁止 GPT 编造**）。
+- **Learning Timeline**：Apple Segmented(1D~90D) + 所选周期 Samples/Filled/Fill Rate/Win/Avg/Alpha（读 sampleCounts/filledCounts/backtestSummary）。
+- **Backtest Summary**：Bloomberg 风 Apple Table（Horizon/Samples/Fill/Win/Avg/Median/Alpha/Best/Worst/Status，tabular-nums，Ready/Pending）。
+- **Learning Progress**：9 周期进度卡（Coverage/Samples/Completion/Status，读 sampleCounts/filledCounts）。
+- **AI Insights + Model Version**：recommendations + regressionDetection(currentVersion/status) + dataIntegrity grade。
+- Feature Importance 段：API 无 importance 字段 → 未展示（不伪造），仅在 Model Version 显示 Feature Fields 数。
+
+### Learning API Before/After 一致性
+`/api/admin/learning-report` 部署前后逐字段一致：dataIntegrity.score=60 · grade=WARNING · backtest[1d].winRate=50.9 · recommendations=11（未改任何后端）。
+
+### 验收
+Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；/admin/learning-report 200；Learning 逻辑/API 100% 未变。V3 Freeze 不受影响。
+- 修改：`app/admin/learning-report/page.tsx`。
+
+---
+
 ## [17.58.0] - 2026-07-04 — P3-T16 实验管理 → AI Research Lab（研发中心）重构 🔬
 
 `/admin/experiments`（原空的「实验管理」+ Prisma Studio 教程）→ **AI Research Lab**（研发驾驶舱，Apple/Linear/Vercel/Stripe 浅色）。**纯展示层**，未改任何 Prisma/DB/API/Shadow/Fusion/Learning/Strategy/GPT/Ranking/算法；仅读只读 `/api/health/status` 取真实 Research Health。路由 `/admin/experiments` 不变，左侧导航「实验管理」保持跳转一致。
