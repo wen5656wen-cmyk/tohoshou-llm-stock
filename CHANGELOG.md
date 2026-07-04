@@ -2,6 +2,32 @@
 
 ---
 
+## [17.55.0] - 2026-07-04 — P3-T10 股票详情页 Apple Premium AI 决策页重构 📊
+
+### 目标
+`/stocks/[symbol]` 从"数据堆叠后台页"重构为 **AI 股票决策页**（Apple × Linear × Vercel × Stripe × Apple Stocks × Bloomberg Lite）。保持数据/评分/推荐/图表/API 完全不变，仅重构展示层。
+
+### 逻辑 100% 保留
+`/intelligence`（完整 IntelData）+ `/watchlist` + `/indicators`(图表) + `/financials`(懒加载) + `/admin/stocks/:s/ai-universe`（AiUniverseControl）全部 endpoint 与 fetch 不变；aiConclusion/topReasons/topRisks/stratKey 等派生逻辑逐字保留。实测 intelligence API 不变（adaptiveScore 73 / BUY / rank 1）。
+
+### 组件拆分（<500 行/文件，禁复制 JSX）
+`components/stock-detail/`：ui.tsx（types + palette + ScoreRing + Card + MetricCell + ScoreBar + AiUniverseControl）/ panels.tsx（Toolbar / Hero / MetricStrip / DecisionPanel / RiskPanel / CompanyPanel）/ ChartTabs.tsx（5 Tab + 图表周期）；page.tsx 164 行仅做 fetch/state/派生/编排（0 中文字面量）。
+
+### 布局（左主 8 / 右决策栏 4，max-w-1600）
+- **顶部工具栏**（压缩）：返回（支持 returnTo/source）+ 查看报告 + 分享 + 自选股。
+- **Hero**（≤260px）：#排名 + 名称 + 代码/市场/行业/风格 chips + 评级 + 策略 + 高风险 + 价格 + 5D/20D + **ScoreRing 环形 AI 评分**。
+- **指标条**（横向紧凑 10 格）：52周高/低/52W位置/RSI/5·20·60日/量比/机会分/百分位（**仅展示数据真实存在字段；PE/PB/股息/Beta/市值 数据源无 → 不伪造、不展示**）。
+- **左栏 ChartTabs**：Tab（价格走势/技术指标/财务数据/公司新闻/AI分析）+ 图表周期 1M/3M/6M/1Y/3Y/全部（对完整 series 切片，无数据改动）+ Apple Stocks 风 K线/量能/MA/RSI。
+- **右栏 sticky AI 决策栏**（第一屏完整）：立即买入/观察/回避 + 策略置信度 + 一句 AI 结论 + 目标收益/止损/最长持仓/建议仓位 + 买卖价位 + 核心理由 + 主要风险；下接 AI 风险分析（技术/新闻/基本面/波动 4 维）+ 同行比较（行业排名/均分/相对强度/前列个股，可跳转）。
+
+### 交互（全部真实可用）
+返回（returnTo/history/back）、自选（watchlist POST/DELETE）、**分享**（`navigator.share` → 回退 clipboard）、**查看报告**（切 AI分析 Tab）、Tab 切换、图表周期切换、AiUniverseControl（移出AI评分/成长性不足下拉/加入）——无 `href="#"`/空 onClick/假按钮。
+
+### 验收
+Build ✅ PASS（tsc 0 error，4 文件均 <500 行）；Health ✅ CRITICAL=0；/stocks/4318.T 200；**intelligence API 逐字段不变**；响应式 1440/1920 左主+右栏。未改任何评分/推荐/图表计算/API/schema，V3 Freeze 不受影响。
+
+---
+
 ## [17.54.1] - 2026-07-04 — P0 修复：AI选股 Dropdown 层级被卡片遮挡 🐛
 
 ### 根因
