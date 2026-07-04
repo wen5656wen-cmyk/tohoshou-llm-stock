@@ -2,6 +2,29 @@
 
 ---
 
+## [17.80.0] - 2026-07-05 — P4-T3 Strategy 模块工程化拆分（Module Refactor）🧩
+
+将全站最大单文件 `app/strategy/page.tsx`（**1837 行**）拆分为模块化结构。**纯工程化重构**（byte-preserving，逐字节移动，不重写/不重设计），未改任何布局 / 视觉 / API / DB / Prisma / Cron / AI评分 / Adaptive / Shadow / Fusion / Learning / Strategy Logic / Paper Trading / GPT / 业务逻辑 —— 实测重构前后 `/strategy` 截图逐像素一致（同高度 2370）。
+
+### 新增 `components/strategy/` 模块（8 文件）
+- `types.ts`（199）— 18 个类型/常量（StratType/ALL_TYPES/OverviewData/LearningReport/BacktestSummary/Recommendation/OpenPosition/RecentTrade/StrategyDetail/ExplainData/ValidationData/ReportData/ActiveTab/PHASE7_LABEL_MAP…）
+- `utils.ts`（107）— 18 个工具/色值（SM[token 派生]/SHADOW/STRAT_HEX/SFONT/stratLabel/stratShort/returnColor/fmtPct/fmtScore/maturity/EXIT_REASON_KEYS/fill/normalizeSymbol/DIM_ORDER/dimValue/gradeVerdict/retHex/STRAT_COLOR）
+- `primitives.tsx`（121）— GradeBadge/RecBadge/StatusChip/SRing/SBadge/MissionCard/StratPremiumCard
+- `sections.tsx`（636）— OverviewCard/LearningSection/BacktestSection/PositionsSection/TradesSection/RecommendationSection/CapitalSection/ReportSection/SystemStatusCard/TodayExecutionCard/StabilizationStatusCard（11 组件，各 <90 行）
+- `ExplainDrawer.tsx`（289）— Explain 抽屉（**Explain API/逻辑/数据完全不变**）
+- `tabs.tsx`（408）— StrategyTab/StabilizationTab/ReportsTab（3 组件，最大 StabilizationTab ~178）
+- `hooks.ts`（21）— `useStrategyOverview`（overview fetch 逐字保留）/ `useStrategyTabs`
+- `index.ts` — 统一 barrel
+
+### 页面瘦身
+`app/strategy/page.tsx`：**1837 → 119 行（−94%）**，仅负责 Layout + Data Fetch(hook) + Component Composition，不含复杂计算/复杂 JSX（Hero/KPI/策略卡/资金分配/Tabs 渲染逐字保留）。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.8s）；Health ✅ CRITICAL=0；/strategy 200；**page.tsx 119 ≤300**；**最大单组件 ExplainDrawer 289 ≤350**；Explain/Recommendation/Strategy 功能一致；**零视觉/数据/布局/性能变化**（byte-preserving 移动，无新增 memo）。最大文件排行更新：strategy/page.tsx 由 #1(1837) 降至 119；现最大文件为 `lib/i18n/types.ts`(1478)。
+- 新增 `components/strategy/*`（8 文件）；重写 `app/strategy/page.tsx`（slim compose）。
+
+---
+
 ## [17.79.0] - 2026-07-05 — P4-T2 Design Token + UI Kit 工程化统一（Foundation）🎨
 
 建立 TOHOSHOU AI 全站统一 Design System 基础设施。**仅 UI 基础组件重构**，未改任何 API / DB / Prisma / Cron / AI评分 / Adaptive / Shadow / Fusion / Learning / Strategy / Paper Broker / Backtest / GPT / 业务逻辑 / **页面布局**。核心手法：**canonical tokens = 全站已统一的 Apple 值**，各页调色板改为从 token 派生 → 纯 no-op 去重（零视觉变化，实测 Mission Control 截图逐像素一致）。
