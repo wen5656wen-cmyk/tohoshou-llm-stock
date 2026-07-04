@@ -38,7 +38,7 @@ if (!OPENAI_KEY) {
   process.exit(1);
 }
 const oai = new OpenAI({ apiKey: OPENAI_KEY, baseURL: "https://api.openai.com/v1" });
-const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type GPTResponse = {
@@ -268,8 +268,9 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
       const resp = await oai.chat.completions.create({
         model: GPT_MODEL,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.6,
-        max_tokens: 1100,   // Extra tokens for 7 sub-scores
+        // gpt-5.5 requires max_completion_tokens (not max_tokens) and only default temperature (1).
+        // Token budget value (1100) unchanged; prompt / schema / response_format untouched.
+        max_completion_tokens: 1100,   // Extra tokens for 7 sub-scores
         response_format: { type: "json_object" },
       });
       const raw = resp.choices[0]?.message?.content ?? "";

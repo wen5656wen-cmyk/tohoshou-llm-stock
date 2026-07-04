@@ -1,5 +1,5 @@
 /**
- * lib/openai.ts — GPT-4o-mini client (read-only, DB-grounded)
+ * lib/openai.ts — GPT-5.5 client (read-only, DB-grounded)
  *
  * Rules:
  *  - GPT only interprets intent, calls DB helpers, and formats replies
@@ -21,7 +21,7 @@ export function openaiClient(): OpenAI {
   return _client;
 }
 
-export const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+export const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
 
 export function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);

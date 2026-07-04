@@ -46,7 +46,7 @@ if (!OPENAI_KEY && !DRY_RUN) {
 const oai = OPENAI_KEY
   ? new OpenAI({ apiKey: OPENAI_KEY, baseURL: "https://api.openai.com/v1" })
   : null;
-const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
 
 // ── Rating thresholds (same as compute-scores.ts) ────────────────────────────
 function computeRating(finalScore: number, percentileRank: number | null): string {
@@ -271,8 +271,9 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
       const resp = await oai.chat.completions.create({
         model: GPT_MODEL,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.6,
-        max_tokens: 1100,
+        // gpt-5.5 requires max_completion_tokens (not max_tokens) and only default temperature (1).
+        // Token budget value (1100) unchanged; prompt / schema / response_format untouched.
+        max_completion_tokens: 1100,
         response_format: { type: "json_object" },
       });
       const raw = resp.choices[0]?.message?.content ?? "";

@@ -2,6 +2,28 @@
 
 ---
 
+## [17.63.0] - 2026-07-04 — OpenAI 模型升级 GPT-4o-mini → GPT-5.5 🧠⬆️
+
+将所有 OpenAI GPT 推理从 `gpt-4o-mini` 升级为 `gpt-5.5`（解析为 `gpt-5.5-2026-04-23`）。仅升级模型 + gpt-5.5 强制的最小参数适配，**未改任何 Prompt / JSON Schema / response_format / 评分算法 / 权重 / adaptive-v3 / Shadow / Fusion / Learning / Strategy / Explain / API / DB / Prisma / UI / Cron 调度**。
+
+### 统一配置源
+`OPENAI_MODEL` env（生产 .env 已设 `gpt-5.5`，单一配置源）+ 代码默认值同步：`lib/openai.ts`、`lib/safety-rules.ts`(LLM_MODEL_VERSION 版本戳)、`scripts/gpt-score-overlay.ts`、`scripts/rerank-top500.ts`。`lib/ai.ts` 用 `AI_MODEL=deepseek-chat`（DeepSeek 路径，非 OpenAI，**未动**）。
+
+### gpt-5.5 强制的最小参数适配（必需，否则运行时 400）
+gpt-5.5 要求 `max_completion_tokens`（拒绝 `max_tokens`）且只支持 `temperature: 1`。故 `rerank-top500.ts` + `gpt-score-overlay.ts` 的 create 调用：`max_tokens: 1100` → `max_completion_tokens: 1100`（**数值不变**）、移除 `temperature: 0.6`（用 gpt-5.5 默认 1）。经用户确认采纳「最小兼容升级」。**参数值、prompt、schema 均未改**，仅参数名适配 + temperature 归默认。
+
+### 受影响模块
+OpenAI GPT 实际调用点 = GPT 评分叠加（gpt-score-overlay）+ Top500 重排（rerank-top500，07:30 管线）。News/Explain/Learning/Daily/Strategy 摘要为 DB/规则派生，不直接调 OpenAI（随评分层间接受益）。
+
+### 上线前验证（de-risk）
+生产 API 实测 gpt-5.5 + 脚本同参（`response_format json_object` + `max_completion_tokens:1100`）→ 返回干净可解析 JSON（`{"gptScore":75,"confidence":"MEDIUM"}`，finish=stop，仅 50 token，无推理占尽）。
+
+### 验收
+Build ✅ PASS（tsc 0，SDK 支持 max_completion_tokens）；Health ✅ CRITICAL=0；站点 200；服务器脚本已核实 gpt-5.5 + max_completion_tokens。**Rollback**：服务器 `.env` 恢复 `OPENAI_MODEL=gpt-4o-mini`（备份 `.env.bak.pre-gpt55`）+ `pm2 restart --update-env`（参数改动向后兼容 4o-mini），或 `git revert`。**V3 Shadow Freeze 保持有效**。
+- 修改：`lib/openai.ts`、`lib/safety-rules.ts`、`scripts/gpt-score-overlay.ts`、`scripts/rerank-top500.ts`（+ 生产 .env，不提交）。
+
+---
+
 ## [17.62.0] - 2026-07-04 — P3-T19 AI历史回测 → AI Backtest Intelligence 重构 📈
 
 `/backtest` 从深色表格后台页 → **AI Backtest Intelligence**（AI 历史回测分析中心，浅色 Apple × Bloomberg × TradingView）。**纯 UI**，未改 Backtest Engine/回测算法/收益率·Alpha·TOPIX 计算/Strategy Backtest/DB/Prisma/API/Cron/任何计算逻辑；全部只读现有 API（`learning-report` backtestSummary + `backtest/summary` + `mission-control` backtest + `backtest/strategy`）。
