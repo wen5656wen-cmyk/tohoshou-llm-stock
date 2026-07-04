@@ -157,12 +157,12 @@ async function getDashboardData(): Promise<DashboardData> {
   const cronSev: Sev = scoresToday > 0 && globalOk ? "NORMAL" : "WARNING";
 
   const systemStatus = [
-    { key: "datasync", label: "数据同步", status: dataSyncSev, detail: `覆盖率 ${coveragePct}%` },
-    { key: "aimodel", label: "AI模型", status: aiModelSev, detail: `今日评分 ${scoresToday.toLocaleString()}` },
-    { key: "strategy", label: "策略引擎", status: strategySev, detail: `推荐 ${recsToday.toLocaleString()}` },
-    { key: "cron", label: "Cron 调度", status: cronSev, detail: globalOk ? "按时运行" : "等待更新" },
-    { key: "database", label: "数据库", status: "NORMAL" as Sev, detail: "PostgreSQL" },
-    { key: "api", label: "API 服务", status: "NORMAL" as Sev, detail: "在线" },
+    { key: "datasync", status: dataSyncSev },
+    { key: "aimodel", status: aiModelSev },
+    { key: "strategy", status: strategySev },
+    { key: "cron", status: cronSev },
+    { key: "database", status: "NORMAL" as Sev },
+    { key: "api", status: "NORMAL" as Sev },
   ];
 
   // ── Pipeline (5 key daily steps) ────────────────────────────────────────────
@@ -175,47 +175,40 @@ async function getDashboardData(): Promise<DashboardData> {
   ];
   const pipelineDone = pipelineChecks.filter(Boolean).length;
 
-  // ── Data freshness ──────────────────────────────────────────────────────────
-  const freshness = [
-    { label: "行情", date: fmtDate(latestPriceRow?.date), days: daysAgo(latestPriceRow?.date, today) },
-    { label: "评分", date: fmtDate(latestScoreRow?.computedAt), days: daysAgo(latestScoreRow?.computedAt, today) },
-    { label: "新闻", date: fmtDate(latestNewsSync?.finishedAt), days: daysAgo(latestNewsSync?.finishedAt, today) },
-    { label: "全球指数", date: fmtDate(latestGm?.date), days: daysAgo(latestGm?.date, today) },
-  ];
-
-  // ── Timeline (real timestamps → JST clock) ──────────────────────────────────
+  // ── Timeline (real timestamps → JST clock; labels resolved in the view) ─────
   const timelineRaw = [
-    { at: latestScoreRow?.computedAt ?? null, label: "完成综合评分", detail: `${scoresToday.toLocaleString()} 只股票` },
-    { at: latestNewsSync?.finishedAt ?? null, label: "同步新闻资讯", detail: `${newsToday.toLocaleString()} 条` },
-    { at: latestPriceSync?.finishedAt ?? null, label: "同步股票行情", detail: `覆盖率 ${coveragePct}%` },
-    { at: latestGm?.createdAt ?? null, label: "同步全球指数", detail: "Nikkei · TOPIX · VIX" },
+    { at: latestScoreRow?.computedAt ?? null, type: "scores", n: scoresToday },
+    { at: latestNewsSync?.finishedAt ?? null, type: "news", n: newsToday },
+    { at: latestPriceSync?.finishedAt ?? null, type: "prices", n: coveragePct },
+    { at: latestGm?.createdAt ?? null, type: "global", n: 0 },
   ];
   const timeline = timelineRaw
-    .map((e) => ({ time: jstClock(e.at), label: e.label, detail: e.detail, ts: e.at ? e.at.getTime() : 0 }))
+    .map((e) => ({ time: jstClock(e.at), type: e.type, n: e.n, ts: e.at ? e.at.getTime() : 0 }))
     .filter((e) => e.time !== null)
     .sort((a, b) => b.ts - a.ts)
-    .map(({ time, label, detail }) => ({ time: time as string, label, detail }));
+    .map(({ time, type, n }) => ({ time: time as string, type, n }));
 
-  // ── Market cards (only surface indices that actually have data) ─────────────
+  // ── Market cards (labels resolved in the view; only indices with data) ──────
   const market = [
-    { key: "nikkei", label: "日经225", value: num(latestGm?.nikkei), change: num(latestGm?.nikkeiChange), decimals: 2 },
-    { key: "topix", label: "TOPIX", value: num(latestGm?.topix), change: num(latestGm?.topixChange), decimals: 2 },
-    { key: "usdjpy", label: "美元/日元", value: num(latestGm?.usdjpy), change: null, decimals: 2 },
-    { key: "vix", label: "VIX 恐慌指数", value: num(latestGm?.vix), change: null, decimals: 2 },
-    { key: "nasdaq", label: "纳斯达克", value: num(latestGm?.nasdaq), change: num(latestGm?.nasdaqChange), decimals: 2 },
+    { key: "nikkei", value: num(latestGm?.nikkei), change: num(latestGm?.nikkeiChange), decimals: 2 },
+    { key: "topix", value: num(latestGm?.topix), change: num(latestGm?.topixChange), decimals: 2 },
+    { key: "usdjpy", value: num(latestGm?.usdjpy), change: null, decimals: 2 },
+    { key: "vix", value: num(latestGm?.vix), change: null, decimals: 2 },
+    { key: "nasdaq", value: num(latestGm?.nasdaq), change: num(latestGm?.nasdaqChange), decimals: 2 },
   ].filter((m) => m.value != null);
 
-  const greeting = (() => {
+  const greetKey = (() => {
     const h = jstHour();
-    if (h < 5) return "夜深了";
-    if (h < 11) return "早上好";
-    if (h < 14) return "中午好";
-    if (h < 18) return "下午好";
-    return "晚上好";
+    if (h < 5) return "night";
+    if (h < 11) return "morning";
+    if (h < 14) return "noon";
+    if (h < 18) return "afternoon";
+    return "evening";
   })();
 
   return {
-    greeting,
+    greetKey,
+    sys: { coveragePct, scoresToday, recsToday, globalOk },
     hero: heroRec
       ? {
           symbol: heroRec.symbol,
@@ -240,7 +233,6 @@ async function getDashboardData(): Promise<DashboardData> {
       aiAnalysis: scoresToday,
       news: newsToday,
     },
-    freshness,
     timeline,
     lastTradingDate: fmtDate(latestPriceRow?.date),
     generatedAt: jstClock(new Date()) ?? "",

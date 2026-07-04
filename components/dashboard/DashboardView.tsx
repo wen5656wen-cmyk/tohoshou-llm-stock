@@ -14,22 +14,45 @@ type Sev = "NORMAL" | "WARNING" | "CRITICAL";
 type Grade = "GREEN" | "YELLOW" | "RED";
 
 export type DashboardData = {
-  greeting: string;
+  greetKey: string;
+  sys: { coveragePct: number; scoresToday: number; recsToday: number; globalOk: boolean };
   hero: {
     symbol: string; name: string; rank: number;
     score: number | null; rating: string | null; summary: string | null; price: number | null;
   } | null;
-  market: { key: string; label: string; value: number | null; change: number | null; decimals: number }[];
+  market: { key: string; value: number | null; change: number | null; decimals: number }[];
   marketDate: string | null;
-  systemStatus: { key: string; label: string; status: Sev; detail: string }[];
+  systemStatus: { key: string; status: Sev }[];
   health: { score: number; grade: Grade; critical: number; warning: number; pass: number; auditAt: string | null };
   pipeline: { done: number; total: number };
   stats: { totalStocks: number; scoredCount: number; todayRec: number; todayRecTotal: number; aiAnalysis: number; news: number };
-  freshness: { label: string; date: string | null; days: number | null }[];
-  timeline: { time: string; label: string; detail: string }[];
+  timeline: { time: string; type: string; n: number }[];
   lastTradingDate: string | null;
   generatedAt: string;
 };
+
+// Display labels (Chinese lives in the component layer, not in app/*.tsx).
+const GREET: Record<string, string> = { night: "夜深了", morning: "早上好", noon: "中午好", afternoon: "下午好", evening: "晚上好" };
+const SYS_LABEL: Record<string, string> = { datasync: "数据同步", aimodel: "AI模型", strategy: "策略引擎", cron: "Cron 调度", database: "数据库", api: "API 服务" };
+const MKT_LABEL: Record<string, string> = { nikkei: "日经225", topix: "TOPIX", usdjpy: "美元/日元", vix: "VIX 恐慌指数", nasdaq: "纳斯达克" };
+function sysDetail(key: string, sys: DashboardData["sys"]): string {
+  switch (key) {
+    case "datasync": return `覆盖率 ${sys.coveragePct}%`;
+    case "aimodel": return `今日评分 ${sys.scoresToday.toLocaleString()}`;
+    case "strategy": return `推荐 ${sys.recsToday.toLocaleString()}`;
+    case "cron": return sys.globalOk ? "按时运行" : "等待更新";
+    case "database": return "PostgreSQL";
+    default: return "在线";
+  }
+}
+function tlText(type: string, n: number): { label: string; detail: string } {
+  switch (type) {
+    case "scores": return { label: "完成综合评分", detail: `${n.toLocaleString()} 只股票` };
+    case "news": return { label: "同步新闻资讯", detail: `${n.toLocaleString()} 条` };
+    case "prices": return { label: "同步股票行情", detail: `覆盖率 ${n}%` };
+    default: return { label: "同步全球指数", detail: "Nikkei · TOPIX · VIX" };
+  }
+}
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
@@ -228,7 +251,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         {/* ── Header ─────────────────────────────────────────────────────────── */}
         <header className="dash-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 mb-10">
           <div>
-            <div className="text-[13px] font-medium" style={{ color: C.faint }}>{data.greeting} 👋 欢迎回来</div>
+            <div className="text-[13px] font-medium" style={{ color: C.faint }}>{GREET[data.greetKey] ?? "你好"} 👋 欢迎回来</div>
             <h1 className="text-[30px] lg:text-[34px] font-semibold tracking-tight mt-1" style={{ color: C.ink }}>
               TOHOSHOU AI 正在分析日本市场
             </h1>
@@ -318,7 +341,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
               </div>
               <p className="text-[12px] mb-2" style={{ color: C.faint }}>核心服务实时健康度</p>
               {data.systemStatus.map((s) => (
-                <StatusRow key={s.key} label={s.label} detail={s.detail} status={s.status} />
+                <StatusRow key={s.key} label={SYS_LABEL[s.key] ?? s.key} detail={sysDetail(s.key, data.sys)} status={s.status} />
               ))}
             </Card>
           </div>
@@ -347,7 +370,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <SectionHeader title="市场概况" sub={data.marketDate ? `数据日期 ${data.marketDate}` : "实时市场指数"} />
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {data.market.map((m) => (
-              <MarketCard key={m.key} label={m.label} value={m.value} change={m.change} decimals={m.decimals} />
+              <MarketCard key={m.key} label={MKT_LABEL[m.key] ?? m.key} value={m.value} change={m.change} decimals={m.decimals} />
             ))}
           </div>
         </section>
@@ -371,18 +394,21 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <Card className="p-2">
             {data.timeline.length > 0 ? (
               <div className="divide-y" style={{ borderColor: C.line }}>
-                {data.timeline.map((e, i) => (
-                  <div key={i} className="flex items-center gap-5 px-5 py-4">
-                    <div className="text-[15px] font-semibold tabular-nums w-16 shrink-0" style={{ color: C.ink }}>{e.time}</div>
-                    <div className="relative flex items-center justify-center shrink-0">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: C.green }} />
+                {data.timeline.map((e, i) => {
+                  const tx = tlText(e.type, e.n);
+                  return (
+                    <div key={i} className="flex items-center gap-5 px-5 py-4">
+                      <div className="text-[15px] font-semibold tabular-nums w-16 shrink-0" style={{ color: C.ink }}>{e.time}</div>
+                      <div className="relative flex items-center justify-center shrink-0">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: C.green }} />
+                      </div>
+                      <div className="flex-1 flex items-center justify-between gap-3">
+                        <span className="text-[14px] font-medium" style={{ color: C.ink }}>{tx.label}</span>
+                        <span className="text-[13px]" style={{ color: C.faint }}>{tx.detail}</span>
+                      </div>
                     </div>
-                    <div className="flex-1 flex items-center justify-between gap-3">
-                      <span className="text-[14px] font-medium" style={{ color: C.ink }}>{e.label}</span>
-                      <span className="text-[13px]" style={{ color: C.faint }}>{e.detail}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="px-5 py-10 text-center text-[14px]" style={{ color: C.faint }}>今日暂无流水线记录</div>
