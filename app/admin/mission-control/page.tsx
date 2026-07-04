@@ -47,14 +47,15 @@ interface MissionControlV2 {
   generatedAt: string;
 }
 
-// ── Palette (Apple Dashboard 浅色，与首页/研究中心统一) ─────────────────────────
+// ── 调色板由全站 Design Tokens 派生（单一来源，P4-T2）─────────────────────────
+import { COLORS, SHADOW as TOK } from "@/lib/design-tokens";
 const M = {
-  bg: "#F7F8FA", card: "#FFFFFF", tile: "#F4F5F7", track: "#EEF0F4", border: "#E7EAF0",
-  ink: "#1D1D1F", sub: "#6E6E73", muted: "#86868B", faint: "#A1A1A6",
-  green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", blue: "#007AFF", purple: "#5E5CE6",
+  bg: COLORS.background, card: COLORS.card, tile: COLORS.tile, track: COLORS.track, border: COLORS.border,
+  ink: COLORS.text, sub: COLORS.textSecondary, muted: COLORS.textMuted, faint: COLORS.textFaint,
+  green: COLORS.success, amber: COLORS.warning, red: COLORS.danger, blue: COLORS.primary, purple: COLORS.purple,
 };
-const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
-const SHADOW_SM = "0 1px 3px rgba(0,0,0,0.04)";
+const SHADOW = TOK.md;
+const SHADOW_SM = TOK.sm;
 const sevColor: Record<Severity, string> = { NORMAL: M.green, WARNING: M.amber, CRITICAL: M.red };
 const sevText: Record<Severity, string> = { NORMAL: "正常", WARNING: "注意", CRITICAL: "异常" };
 const stepColor: Record<StepStatus, string> = { SUCCESS: M.green, WAITING: M.amber, FAILED: M.red, SKIPPED: M.faint };

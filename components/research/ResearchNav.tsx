@@ -3,8 +3,9 @@
 // ── AI 研究中心 · 两级分组导航（Apple Dashboard 浅色）──────────────────────────
 // 展示层，仅路由现有 `tab` state；未改任何数据/逻辑。
 
-const M = { bg: "#F7F8FA", panel: "#FFFFFF", track: "#EEF0F4", border: "#E7EAF0", ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6", blue: "#007AFF" };
-const SHADOW_SM = "0 1px 3px rgba(0,0,0,0.04)";
+import { COLORS, SHADOW as TOK } from "@/lib/design-tokens";
+const M = { bg: COLORS.background, panel: COLORS.card, track: COLORS.track, border: COLORS.border, ink: COLORS.text, sub: COLORS.textSecondary, faint: COLORS.textFaint, blue: COLORS.primary };
+const SHADOW_SM = TOK.sm;
 
 export type NavTab = { key: string; label: string };
 export const NAV_GROUPS: { label: string; tabs: NavTab[] }[] = [

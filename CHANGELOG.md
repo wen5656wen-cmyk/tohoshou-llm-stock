@@ -2,6 +2,34 @@
 
 ---
 
+## [17.79.0] - 2026-07-05 — P4-T2 Design Token + UI Kit 工程化统一（Foundation）🎨
+
+建立 TOHOSHOU AI 全站统一 Design System 基础设施。**仅 UI 基础组件重构**，未改任何 API / DB / Prisma / Cron / AI评分 / Adaptive / Shadow / Fusion / Learning / Strategy / Paper Broker / Backtest / GPT / 业务逻辑 / **页面布局**。核心手法：**canonical tokens = 全站已统一的 Apple 值**，各页调色板改为从 token 派生 → 纯 no-op 去重（零视觉变化，实测 Mission Control 截图逐像素一致）。
+
+### 新增 Design Tokens · `lib/design-tokens.ts`（单一来源）
+`COLORS`（background/card/tile/track/border/text/textSecondary/textMuted/textFaint/primary/success/warning/danger/purple）· `STATUS_COLORS`（SUCCESS绿/WARNING橙/ERROR红/INFO蓝/COMING_SOON灰）· `RADIUS` · `SHADOW`(sm/md) · `SPACING` · `FONT`(pageTitle/sectionTitle/cardTitle/metric/description/label/caption) · `FONT_FAMILY` · `TRANSITION` · `Z` · `BORDER` · `toneColor()` · `retColor()`。
+
+### 新增 UI Kit · `components/ui/`（17 组件，构建于 tokens）
+`primitives.tsx`：AppCard / AppSection / AppHeader / AppBadge / AppStatusChip / AppButton(primary·secondary·ghost·danger + icon·loading·disabled) / AppDivider / AppMetric / AppDot。`data.tsx`：AppKpiCard / AppKpiGrid / AppTable(+AppTh/AppTd + appRowHover) / AppEmptyState / AppLoading / AppTimeline / AppStackBar。`index.ts` 统一入口。**新页面标准**：`import { AppCard, COLORS } from "@/components/ui"`。
+
+### 迁移（8 调色板 → tokens，零视觉变化）
+Mission Control（`M`）· Research Center 概览（`center.tsx M`）+ 导航（`ResearchNav M`）+ **kit.tsx `RM`（覆盖全部 9 研究面板）** · Strategy（`SM`）· Paper Broker（`parts.tsx M`）· Learning Report（`C` 共享色）· Version Center（`C` 共享色）——各页调色板对象改为 `COLORS.*` 派生，值不变（含 `#E7EAF0→#E8EAED` 亚感知边框归一）。dash-card 系页面仅共享 accent 接入 tokens，保留专有 `#FAFAFA/#ECECEC/#5856D6` 本地（逐像素不变）。
+
+### 成效
+去重 8 个调色板约 **90+ 处 hex 字面量** → 各 0–1，统一到 1 处 token 源；research/kit（9 面板）+ 新增 App* Kit 为全站 go-forward 标准。残留 Strategy 页 ~225 处为 T25 引入的 Tailwind `bg-[#…]` 任意值 class（后续单独治理）。
+
+### 验收
+Build ✅ PASS（tsc 0）；Health ✅ CRITICAL=0；6 页面 200；**零布局/视觉变化**；无 API/DB/逻辑改动。
+- 新增 `lib/design-tokens.ts`、`components/ui/{primitives,data,index}`；修改（仅调色板派生）`components/research/{kit,center,ResearchNav}`、`app/admin/mission-control/page.tsx`、`components/paper-trading/parts.tsx`、`app/strategy/page.tsx`、`app/admin/{learning-report,versions}/page.tsx`。
+
+---
+
+## [17.78.0] - 2026-07-05 — P4-T1 CI/CD 自动部署基础 + PM2 幽灵进程清理 🔧
+
+P4 工程化治理第一步（无业务逻辑改动）。新增 `.github/workflows/ci.yml`（push/PR：build+typecheck+lint，不连生产DB/不部署）+ `deploy.yml`（workflow_dispatch 手动触发，cron 重启受控，health 门槛 CRITICAL=0）；删除 PM2 幽灵进程 `tohoshou-ai-daily-pipeline`（`pm2 delete`+`save`）并从 `ecosystem.config.js` 移除定义防复活；新增 `npm run typecheck`；新增 `docs/DEPLOYMENT.md`。Secrets（未提交）：SSH_HOST/SSH_USER/SSH_PRIVATE_KEY/SSH_PORT/REMOTE_APP_PATH。commit `bdf8674`，deployment #138。
+
+---
+
 ## [17.77.0] - 2026-07-05 — P3-T27 学习报告（Learning Report）全面汉化 🈶
 
 将 `/admin/learning-report` 所有用户可见英文业务文案汉化为简体中文。**仅 UI 文案**，未改任何 API / DB / Prisma / Cron / 学习算法 / Adaptive / Shadow / Fusion / GPT / Learning Engine / 回测逻辑（仍只读 `/api/admin/learning-report` + `/api/admin/mission-control` + 60s 刷新，布局/功能不变）。标题 Learning Intelligence→**AI 学习中心**、Learning Report→**学习报告**、Today's AI Learning Summary→AI 每日学习总结、Refresh→刷新；4 KPI（学习评分 / 特征覆盖率 / 数据填充率 / 数据质量，单位 rows→行、trading days→个交易日）；状态映射 PASS→正常 / WARNING→警告 / CRITICAL→严重、Ready→完成 / Partial→部分 / Insufficient→样本不足 / Pending→等待、INSUFFICIENT_DATA→样本不足；今日学习总结 / 学习时间轴（样本数/已完成/填充率/胜率/平均收益/超额收益）/ 回测统计（周期/样本数/完成率/胜率/平均收益/收益中位数/Alpha/最佳/最差/状态）/ 学习进度 / AI 学习结论 / 模型版本（当前版本/回归检测/数据完整性/特征字段数）。**API 生成的 recommendations 英文说明经展示层 `zhReco()` 正则汉化**（不改后端）：Pipeline issues→检测到流水线问题、Feature coverage is X%→特征覆盖率达到 X%、Nd horizon has no filled positions yet→N日周期暂无有效样本、Expected first fill→预计首次有效日期、Look-ahead validation passed→未来数据泄露检测通过、Regression detection requires→回归检测需要 ≥2 个可比版本…、cohort dates available…Statistical reliability→已积累 N 个样本日期…统计可靠性将持续提升。保留术语：Alpha / AI / GPT / V3 / Adaptive / Shadow / Fusion / schemaVersion / 版本号 / JST。

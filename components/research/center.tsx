@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
-// ── Light palette (Apple Dashboard，与首页/AI选股/策略中心统一) ────────────────
-const M = { bg: "#F7F8FA", card: "#FFFFFF", cardHi: "#F4F5F7", border: "#E7EAF0", ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", blue: "#007AFF", purple: "#5E5CE6" };
-const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
+// ── 调色板由全站 Design Tokens 派生（单一来源，P4-T2）─────────────────────────
+import { COLORS, SHADOW as TOK } from "@/lib/design-tokens";
+const M = { bg: COLORS.background, card: COLORS.card, cardHi: COLORS.tile, border: COLORS.border, ink: COLORS.text, sub: COLORS.textSecondary, faint: COLORS.textFaint, green: COLORS.success, amber: COLORS.warning, red: COLORS.danger, blue: COLORS.primary, purple: COLORS.purple };
+const SHADOW = TOK.md;
 
 type MC = {
   architectureStatus?: { version: string; status: string; frozenDate: string; currentMode: string; nextPhase: string };

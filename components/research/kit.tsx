@@ -6,28 +6,30 @@
 // 所有面板复用这里的组件，禁止复制 JSX。
 
 import type { ReactNode, CSSProperties } from "react";
+import { COLORS, SHADOW as TOK_SHADOW } from "@/lib/design-tokens";
 
+// 研究中心调色板 —— 现由全站 Design Tokens 派生（单一来源，P4-T2），值不变。
 export const RM = {
-  bg: "#F7F8FA",
-  panel: "#FFFFFF",
-  card: "#FFFFFF",
-  tile: "#F4F5F7",
-  track: "#EEF0F4",
-  border: "#E7EAF0",
-  borderSoft: "#EEF0F4",
-  blue: "#007AFF",
-  green: "#34C759",
-  amber: "#FF9F0A",
-  red: "#FF3B30",
-  purple: "#5E5CE6",
-  ink: "#1D1D1F",
-  sub: "#6E6E73",
-  muted: "#86868B",
-  faint: "#A1A1A6",
+  bg: COLORS.background,
+  panel: COLORS.card,
+  card: COLORS.card,
+  tile: COLORS.tile,
+  track: COLORS.track,
+  border: COLORS.border,
+  borderSoft: COLORS.borderSoft,
+  blue: COLORS.primary,
+  green: COLORS.success,
+  amber: COLORS.warning,
+  red: COLORS.danger,
+  purple: COLORS.purple,
+  ink: COLORS.text,
+  sub: COLORS.textSecondary,
+  muted: COLORS.textMuted,
+  faint: COLORS.textFaint,
 } as const;
 
-export const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
-export const SHADOW_SM = "0 1px 3px rgba(0,0,0,0.04)";
+export const SHADOW = TOK_SHADOW.md;
+export const SHADOW_SM = TOK_SHADOW.sm;
 const R_CARD = 22;
 const R_TILE = 16;
 

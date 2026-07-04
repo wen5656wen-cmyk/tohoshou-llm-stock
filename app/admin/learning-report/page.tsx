@@ -21,11 +21,12 @@ type LearningReport = {
   regressionDetection: RegressionDetection; recommendations: string[];
 };
 
-// ── Palette (Apple × Bloomberg × OpenAI Research) ─────────────────────────────
+// ── Palette (dash-card 系；共享色由 Design Tokens 派生，P4-T2) ─────────────────
+import { COLORS } from "@/lib/design-tokens";
 const C = {
-  bg: "#FAFAFA", card: "#FFFFFF", line: "#ECECEC", cardSub: "#F7F7F9",
-  ink: "#1D1D1F", sub: "#6E6E73", faint: "#86868B",
-  blue: "#007AFF", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", purple: "#5856D6",
+  bg: "#FAFAFA", card: COLORS.card, line: "#ECECEC", cardSub: "#F7F7F9",
+  ink: COLORS.text, sub: COLORS.textSecondary, faint: COLORS.textMuted,
+  blue: COLORS.primary, green: COLORS.success, amber: COLORS.warning, red: COLORS.danger, purple: "#5856D6",
 };
 const ALL_HORIZONS = ["1d", "3d", "5d", "7d", "10d", "20d", "30d", "60d", "90d"];
 const fmtPct1 = (v: number | null | undefined) => v == null ? "—" : `${v.toFixed(1)}%`;

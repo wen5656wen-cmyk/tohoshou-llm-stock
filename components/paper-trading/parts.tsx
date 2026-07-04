@@ -28,9 +28,10 @@ export type PaperData = {
   aiDailySummary?: { marketState: string; todayBuys: number; todaySells: number; currentPositions: number; todayPnl: number; cumulativePnl: number; topContributor: NamedRef; topDetractor: NamedRef; riskLevel: string; suggestion: string; running: boolean };
 };
 
-// ── Palette (Apple Dashboard 浅色，与首页/研究中心/控制中心统一) ────────────────
-export const M = { bg: "#F7F8FA", card: "#FFFFFF", cardHi: "#F4F5F7", border: "#E8EAED", ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6", blue: "#007AFF", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30" };
-export const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
+// ── 调色板由全站 Design Tokens 派生（单一来源，P4-T2）─────────────────────────
+import { COLORS, SHADOW as TOK } from "@/lib/design-tokens";
+export const M = { bg: COLORS.background, card: COLORS.card, cardHi: COLORS.tile, border: COLORS.border, ink: COLORS.text, sub: COLORS.textSecondary, faint: COLORS.textFaint, blue: COLORS.primary, green: COLORS.success, amber: COLORS.warning, red: COLORS.danger };
+export const SHADOW = TOK.md;
 export const STRAT_HEX: Record<Strat, string> = { DAY_TRADE: "#FF9F0A", SWING_TRADE: "#0A84FF", LONG_TRADE: "#34C759" };
 const STRAT_ZH: Record<Strat, string> = { DAY_TRADE: "日内", SWING_TRADE: "波段", LONG_TRADE: "长线" };
 const RISK_HEX = (r: string | null | undefined) => r === "HIGH" || r === "高" ? M.red : r === "MEDIUM" || r === "中" ? M.amber : r === "LOW" || r === "低" ? M.green : M.faint;

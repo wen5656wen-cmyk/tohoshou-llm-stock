@@ -22,10 +22,12 @@ type TimelineEntry =
   | { type: "EXPERIMENT"; date: string; id: string; status: string; hypothesis: string; decision: string | null; versionSnapshotId: string | null }
   | { type: "DEPLOYMENT"; date: string; id: number; commitHash: string; summary: string; buildStatus: string; healthStatus: string; productionReady: boolean };
 
+// dash-card 系；共享色由 Design Tokens 派生（单一来源，P4-T2）
+import { COLORS } from "@/lib/design-tokens";
 const C = {
-  bg: "#FAFAFA", card: "#FFFFFF", line: "#ECECEC", cardSub: "#F7F7F9",
-  ink: "#1D1D1F", sub: "#6E6E73", faint: "#86868B",
-  blue: "#007AFF", green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", purple: "#5856D6",
+  bg: "#FAFAFA", card: COLORS.card, line: "#ECECEC", cardSub: "#F7F7F9",
+  ink: COLORS.text, sub: COLORS.textSecondary, faint: COLORS.textMuted,
+  blue: COLORS.primary, green: COLORS.success, amber: COLORS.warning, red: COLORS.danger, purple: "#5856D6",
 };
 const roleHex = (r: string) => r === "current" ? C.green : r === "baseline" ? C.blue : C.faint;
 const roleLabel = (r: string) => r === "current" ? "当前" : r === "baseline" ? "基准" : "历史";

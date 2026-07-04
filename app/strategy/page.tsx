@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n";
+import { COLORS, SHADOW as TOK } from "@/lib/design-tokens";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1633,12 +1634,13 @@ function StabilizationStatusCard({ val, t }: { val: RecentValidationSummary | nu
 type ActiveTab = StratType | "STABILIZATION" | "REPORTS";
 
 // ── Premium dark primitives (P3-T15 · Bloomberg × Aladdin) ────────────────────
+// 调色板由全站 Design Tokens 派生（单一来源，P4-T2），值不变。
 const SM = {
-  bg: "#F7F8FA", card: "#FFFFFF", cardHi: "#F4F5F7", border: "#E8EAED",
-  ink: "#1D1D1F", sub: "#6E6E73", faint: "#A1A1A6",
-  green: "#34C759", amber: "#FF9F0A", red: "#FF3B30", blue: "#007AFF",
+  bg: COLORS.background, card: COLORS.card, cardHi: COLORS.tile, border: COLORS.border,
+  ink: COLORS.text, sub: COLORS.textSecondary, faint: COLORS.textFaint,
+  green: COLORS.success, amber: COLORS.warning, red: COLORS.danger, blue: COLORS.primary,
 };
-const SHADOW = "0 8px 30px rgba(0,0,0,0.05)";
+const SHADOW = TOK.md;
 const STRAT_HEX: Record<StratType, string> = { DAY_TRADE: "#FF9F0A", SWING_TRADE: "#0A84FF", LONG_TRADE: "#34C759" };
 const SFONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif";
 const gradeVerdict = (g: string | null): string => g === "A" ? "强势" : g === "B" ? "稳健" : g === "C" ? "观察" : g === "D" ? "等待" : "—";
