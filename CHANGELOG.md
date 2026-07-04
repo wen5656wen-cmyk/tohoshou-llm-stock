@@ -2,6 +2,24 @@
 
 ---
 
+## [17.57.0] - 2026-07-04 — P3-T15 策略中心 Strategy Intelligence Center Premium 重构 🏦
+
+`/strategy` 升级为 Bloomberg × BlackRock Aladdin × Bridgewater × Apple Stocks Pro 风格的机构级策略情报中心。**纯 UI**，未改任何策略/评分/推荐/AI 算法/持仓/API/计算公式。保留 `overview` fetch + `StrategyTab`/`StabilizationTab`/`ReportsTab`/`ExplainDrawer` 全部逻辑。
+
+### 重构（主渲染 · 深色 #111315/#171A1F/#262B33）
+- **Hero**：STRATEGY INTELLIGENCE + 今日策略情报 + 3 策略判断芯片（日内/波段/长线 · 强势/稳健/观察/等待，读 learning.grade）+ 右侧综合评分 ScoreRing(unified.integrityScore) + 等级 + recommendation。
+- **4 Mission Cards**（统一高度/宽度/数字）：Overall Score(integrity+进度条) / Execution(今日 N/6 OK) / Stability(稳定天数) / Learning(AI 等级)。
+- **3 Premium 策略卡**：ScoreRing + 累计收益/胜率/Alpha + 持仓/已平/Top10/仓位 + AI 一句总结 + 等级 badge；**日内=橙 #FF9F0A / 波段=蓝 #0A84FF / 长线=绿 #34C759**，选中态彩色描边+光晕。
+- **资金分配关系**：3:4:3 三段彩条（日内30/波段40/长线30，独立资金池 ¥100M，静态展示既有分配）。
+- **Segmented Control** tabs（日内/波段/长线/稳定化/报告，Apple 药丸 + 彩点）。
+- 推荐股票表(Bloomberg 风 dark：#/銘柄/AI/技术/新闻/策略分/查看原因)、成交记录、学习等级、回测统计 = 既有 `StrategyTab` 内容保留；「查看原因」→ 既有 `ExplainDrawer` 右侧抽屉。tabular-nums 全局。
+
+### 验收
+Build ✅ PASS（tsc 0 error）；Health ✅ CRITICAL=0；/strategy 200；**策略逻辑/评分/推荐/API 100% 未改**（仅展示层，overview/[type]/explain/validation Response 一致）。V3 Freeze 不受影响。
+- 修改：`app/strategy/page.tsx`。
+
+---
+
 ## [17.56.0] - 2026-07-04 — P3-T12/T13/T14 三大运维页 Premium UI 重构 🛰️
 
 纯 UI 重构，**未改任何 API/Cron/DB/Prisma/Health·Pipeline·Sync 逻辑/检测算法/数据源**。三页全部消费现有 endpoint。

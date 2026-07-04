@@ -1632,6 +1632,89 @@ function StabilizationStatusCard({ val, t }: { val: RecentValidationSummary | nu
 
 type ActiveTab = StratType | "STABILIZATION" | "REPORTS";
 
+// ── Premium dark primitives (P3-T15 · Bloomberg × Aladdin) ────────────────────
+const SM = {
+  bg: "#111315", card: "#171A1F", cardHi: "#1C2028", border: "#262B33",
+  ink: "#E6E8EB", sub: "#9BA1A9", faint: "#6B7280",
+  green: "#34C759", amber: "#FF9F0A", red: "#FF453A", blue: "#0A84FF",
+};
+const STRAT_HEX: Record<StratType, string> = { DAY_TRADE: "#FF9F0A", SWING_TRADE: "#0A84FF", LONG_TRADE: "#34C759" };
+const SFONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif";
+const gradeVerdict = (g: string | null): string => g === "A" ? "强势" : g === "B" ? "稳健" : g === "C" ? "观察" : g === "D" ? "等待" : "—";
+const retHex = (v: number | null | undefined) => v == null ? SM.faint : v > 0 ? SM.green : v < 0 ? SM.red : SM.sub;
+
+function SRing({ score, size = 62, stroke = 5, color }: { score: number | null; size?: number; stroke?: number; color: string }) {
+  const s = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null;
+  const r = (size - stroke) / 2, circ = 2 * Math.PI * r, pct = s ?? 0;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#23272E" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)} style={{ transition: "stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: size * 0.34, fontWeight: 700, color: SM.ink, fontVariantNumeric: "tabular-nums" }}>{s ?? "—"}</span>
+      </div>
+    </div>
+  );
+}
+function SBadge({ label, color }: { label: string; color: string }) {
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color, background: `${color}1f`, padding: "3px 9px", borderRadius: 999 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: color }} />{label}</span>;
+}
+function MissionCard({ label, code, value, unit, sub, color, pct }: { label: string; code: string; value: string; unit?: string; sub?: string; color: string; pct?: number }) {
+  return (
+    <div style={{ background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 16, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: SM.ink }}>{label}</span>
+        <span style={{ fontSize: 10, color: SM.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>{code}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginTop: 12 }}>
+        <span style={{ fontSize: 30, fontWeight: 700, color, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", lineHeight: 1 }}>{value}</span>
+        {unit && <span style={{ fontSize: 12, color: SM.faint, fontWeight: 600 }}>{unit}</span>}
+      </div>
+      {sub && <div style={{ fontSize: 11, color: SM.sub, marginTop: 5 }}>{sub}</div>}
+      {pct != null && <div style={{ marginTop: 10, height: 5, borderRadius: 999, background: "#0d0f12", overflow: "hidden" }}><div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: "100%", background: color, transition: "width .4s ease" }} /></div>}
+    </div>
+  );
+}
+
+function StratPremiumCard({ type, data, active, onClick, label }: { type: StratType; data: OverviewStrategy; active: boolean; onClick: () => void; label: string }) {
+  const c = STRAT_HEX[type];
+  const lrn = data.learning;
+  const snap = data.latestSnapshot;
+  const ret = snap?.cumulativeReturnPct ?? null;
+  const win = snap?.winRate ?? lrn?.winRate ?? null;
+  const ringScore = lrn?.integrityScore ?? lrn?.confidenceScore ?? null;
+  return (
+    <button onClick={onClick} style={{ textAlign: "left", background: SM.card, border: `1px solid ${active ? c : SM.border}`, boxShadow: active ? `0 0 0 1px ${c}, 0 8px 30px -16px ${c}88` : "none", borderRadius: 18, padding: 18, cursor: "pointer", transition: "border-color .2s, box-shadow .2s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 999, background: c }} />
+          <span style={{ fontSize: 16, fontWeight: 700, color: SM.ink }}>{label}</span>
+        </span>
+        <SBadge label={`${lrn?.grade ?? "—"} · ${gradeVerdict(lrn?.grade ?? null)}`} color={c} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14 }}>
+        <SRing score={ringScore} size={64} color={c} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div><div style={{ fontSize: 10, color: SM.faint }}>累计收益</div><div style={{ fontSize: 17, fontWeight: 700, color: retHex(ret), fontVariantNumeric: "tabular-nums" }}>{fmtPct(ret)}</div></div>
+            <div><div style={{ fontSize: 10, color: SM.faint }}>胜率</div><div style={{ fontSize: 17, fontWeight: 700, color: SM.ink, fontVariantNumeric: "tabular-nums" }}>{win != null ? `${win.toFixed(0)}%` : "—"}</div></div>
+            <div><div style={{ fontSize: 10, color: SM.faint }}>Alpha</div><div style={{ fontSize: 17, fontWeight: 700, color: retHex(lrn?.alpha ?? null), fontVariantNumeric: "tabular-nums" }}>{fmtPct(lrn?.alpha ?? null)}</div></div>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 16, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${SM.border}`, fontSize: 12, color: SM.sub, fontVariantNumeric: "tabular-nums", flexWrap: "wrap" }}>
+        <span>持仓 <b style={{ color: SM.ink }}>{data.openPositions}</b></span>
+        <span>已平 <b style={{ color: SM.ink }}>{data.closedTrades}</b></span>
+        <span>Top10 <b style={{ color: SM.ink }}>{data.recommendations?.top10Count ?? "—"}</b></span>
+        <span>仓位 <b style={{ color: SM.ink }}>{type === "SWING_TRADE" ? "40%" : "30%"}</b></span>
+      </div>
+      {lrn?.summary && <div style={{ fontSize: 11, color: SM.faint, marginTop: 10, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{lrn.summary}</div>}
+    </button>
+  );
+}
+
 export default function StrategyPage() {
   const { t } = useI18n();
   const [overview, setOverview] = useState<OverviewData | null>(null);
@@ -1647,116 +1730,105 @@ export default function StrategyPage() {
 
   const unified = overview?.unified;
 
+  const execOk = overview?.todayExecution
+    ? [overview.todayExecution.dayRecOk, overview.todayExecution.swingRecOk, overview.todayExecution.longRecOk, overview.todayExecution.backtestOk, overview.todayExecution.learningOk, overview.todayExecution.healthOk].filter(Boolean).length
+    : null;
+  const val = overview?.recentValidation;
+  const tabDefs: { key: ActiveTab; label: string; color?: string }[] = [
+    { key: "DAY_TRADE", label: stratShort("DAY_TRADE", t), color: STRAT_HEX.DAY_TRADE },
+    { key: "SWING_TRADE", label: stratShort("SWING_TRADE", t), color: STRAT_HEX.SWING_TRADE },
+    { key: "LONG_TRADE", label: stratShort("LONG_TRADE", t), color: STRAT_HEX.LONG_TRADE },
+    { key: "STABILIZATION", label: t("strategy.stabilization.tab") },
+    { key: "REPORTS", label: t("strategy.reports.tab") },
+  ];
+  const alloc = [{ t: "DAY_TRADE" as StratType, pct: 30 }, { t: "SWING_TRADE" as StratType, pct: 40 }, { t: "LONG_TRADE" as StratType, pct: 30 }];
+
   return (
-    <div className="p-4 md:p-6 max-w-6xl bg-[#0f172a] min-h-screen">
-      {/* Header */}
-      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t("strategy.center.title")}</h1>
-          <p className="text-slate-400 text-sm mt-0.5">{t("strategy.center.subtitle")}</p>
-        </div>
-        {unified && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-xs text-slate-500">{t("strategy.learning.integrity")}</span>
-            <span className="text-lg font-bold text-slate-100 tabular-nums">
-              {unified.integrityScore?.toFixed(1) ?? "—"}
-            </span>
-            <GradeBadge grade={unified.grade ?? null} />
-            <RecBadge rec={unified.recommendation ?? null} t={t} />
+    <div style={{ background: SM.bg, minHeight: "100vh", color: SM.ink, fontFamily: SFONT }}>
+      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "20px 24px 40px" }}>
+
+        {/* ── Hero ── */}
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "stretch", marginBottom: 20 }}>
+          <div style={{ flex: 1, minWidth: 320, background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 18, padding: "18px 20px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: SM.faint, textTransform: "uppercase" }}>Strategy Intelligence</div>
+            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 6 }}>今日策略情报</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+              {ALL_TYPES.map((s) => {
+                const g = overview?.strategies[s]?.learning?.grade ?? null;
+                const c = STRAT_HEX[s];
+                return <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: SM.ink, background: SM.cardHi, border: `1px solid ${SM.border}`, borderRadius: 999, padding: "5px 11px" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: c }} />{stratShort(s, t)} · <span style={{ color: c }}>{gradeVerdict(g)}</span></span>;
+              })}
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Three status cards */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <SystemStatusCard unified={overview?.unified ?? null} t={t} />
-        <TodayExecutionCard exec={overview?.todayExecution} t={t} />
-        <StabilizationStatusCard val={overview?.recentValidation} t={t} />
-      </div>
-
-      {/* Overview cards */}
-      <div className="mb-6">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-          {t("strategy.center.overview")}
+          <div style={{ width: 260, minWidth: 220, background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 18, padding: 18, display: "flex", alignItems: "center", gap: 16 }}>
+            <SRing score={unified?.integrityScore ?? null} size={78} stroke={6} color={SM.blue} />
+            <div>
+              <div style={{ fontSize: 11, color: SM.faint }}>综合评分 · Integrity</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <SBadge label={unified?.grade ?? "—"} color={unified?.grade === "A" ? SM.green : unified?.grade === "D" ? SM.red : SM.amber} />
+              </div>
+              <div style={{ fontSize: 11, color: SM.sub, marginTop: 8 }}>{unified?.recommendation ?? "—"}</div>
+              <div style={{ fontSize: 10, color: SM.faint, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{unified?.reportDate ?? ""}</div>
+            </div>
+          </div>
         </div>
+
+        {/* ── Mission Cards ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 24 }}>
+          <MissionCard label="Overall Score" code="Integrity" value={unified?.integrityScore != null ? unified.integrityScore.toFixed(0) : "—"} unit="/100" sub={`等级 ${unified?.grade ?? "—"}`} color={SM.blue} pct={unified?.integrityScore ?? 0} />
+          <MissionCard label="Execution" code="Today" value={execOk != null ? `${execOk}/6` : "—"} unit="OK" sub={overview?.todayExecution?.isToday ? "今日流水线" : "最近执行"} color={execOk === 6 ? SM.green : SM.amber} pct={execOk != null ? (execOk / 6) * 100 : 0} />
+          <MissionCard label="Stability" code="Validation" value={val ? `${val.stableDays}` : "—"} unit="天" sub={val ? `健康 ${val.healthDays}/${val.totalDays}${val.phase7Ready ? " · Phase7" : ""}` : undefined} color={SM.green} />
+          <MissionCard label="Learning" code="AI Grade" value={unified?.grade ?? "—"} sub={unified?.recommendation ?? "AI 学习评级"} color={unified?.grade === "A" ? SM.green : unified?.grade === "D" ? SM.red : SM.amber} />
+        </div>
+
+        {/* ── 3 Strategy Premium Cards ── */}
+        <div style={{ fontSize: 11, fontWeight: 700, color: SM.faint, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>三策略 · Strategies</div>
         {overviewLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => <div key={i} className="h-32 bg-slate-800/30 rounded-xl animate-pulse" />)}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 24 }}>
+            {[1, 2, 3].map((i) => <div key={i} style={{ height: 200, background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 18 }} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 20 }}>
             {ALL_TYPES.map((s) => (
-              <OverviewCard
-                key={s}
-                strategyType={s}
-                data={overview?.strategies[s] ?? {
-                  openPositions: 0, closedTrades: 0,
-                  learning: null, bestBacktest: null, latestSnapshot: null, recommendations: null,
-                }}
-                t={t}
-                active={activeTab === s}
-                onClick={() => setActiveTab(s)}
-              />
+              <StratPremiumCard key={s} type={s} data={overview?.strategies[s] ?? { openPositions: 0, closedTrades: 0, learning: null, bestBacktest: null, latestSnapshot: null, recommendations: null }} active={activeTab === s} onClick={() => setActiveTab(s)} label={stratLabel(s, t)} />
             ))}
           </div>
         )}
-      </div>
 
-      {/* Tabs */}
-      <div className="mb-4 flex items-center gap-1 border-b border-slate-700/50">
-        {ALL_TYPES.map((s) => {
-          const c = STRAT_COLOR[s];
-          return (
-            <button
-              key={s}
-              onClick={() => setActiveTab(s)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === s
-                  ? `${c.text} border-current`
-                  : "text-slate-500 border-transparent hover:text-slate-300"
-              }`}
-            >
-              {stratShort(s, t)}
-            </button>
-          );
-        })}
-        {/* Stabilization tab */}
-        <button
-          onClick={() => setActiveTab("STABILIZATION")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ml-auto ${
-            activeTab === "STABILIZATION"
-              ? "text-violet-400 border-violet-400"
-              : "text-slate-500 border-transparent hover:text-slate-300"
-          }`}
-        >
-          {t("strategy.stabilization.tab")}
-        </button>
-        {/* Reports tab */}
-        <button
-          onClick={() => setActiveTab("REPORTS")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            activeTab === "REPORTS"
-              ? "text-teal-400 border-teal-400"
-              : "text-slate-500 border-transparent hover:text-slate-300"
-          }`}
-        >
-          {t("strategy.reports.tab")}
-        </button>
-      </div>
+        {/* ── Fund allocation relationship (3:4:3) ── */}
+        <div style={{ background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 16, padding: "14px 18px", marginBottom: 26 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: SM.ink }}>资金分配 · Capital Allocation <span style={{ color: SM.faint, fontWeight: 500 }}>独立资金池 ¥100M</span></span>
+            <div style={{ display: "flex", gap: 14 }}>
+              {alloc.map((a) => <span key={a.t} style={{ fontSize: 11, color: SM.sub, display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: STRAT_HEX[a.t] }} />{stratShort(a.t, t)} {a.pct}%</span>)}
+            </div>
+          </div>
+          <div style={{ display: "flex", height: 10, borderRadius: 999, overflow: "hidden", gap: 2 }}>
+            {alloc.map((a) => <div key={a.t} style={{ width: `${a.pct}%`, background: STRAT_HEX[a.t] }} title={`${stratShort(a.t, t)} ${a.pct}%`} />)}
+          </div>
+        </div>
 
-      {/* Active tab content */}
-      {activeTab === "STABILIZATION" ? (
-        <StabilizationTab t={t} />
-      ) : activeTab === "REPORTS" ? (
-        <ReportsTab t={t} />
-      ) : (
-        <StrategyTab
-          key={activeTab}
-          strategyType={activeTab as StratType}
-          overview={overview?.strategies[activeTab as StratType] ?? null}
-          t={t}
-        />
-      )}
+        {/* ── Segmented tabs ── */}
+        <div style={{ display: "inline-flex", padding: 4, background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 999, gap: 2, marginBottom: 18, flexWrap: "wrap" }}>
+          {tabDefs.map((tb) => {
+            const on = activeTab === tb.key;
+            return (
+              <button key={tb.key} onClick={() => setActiveTab(tb.key)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 15px", borderRadius: 999, fontSize: 13, fontWeight: 600, color: on ? SM.ink : SM.sub, background: on ? SM.cardHi : "transparent", border: "none", cursor: "pointer", transition: "background .2s, color .2s" }}>
+                {tb.color && <span style={{ width: 7, height: 7, borderRadius: 999, background: tb.color }} />}{tb.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Active tab content (unchanged logic) ── */}
+        {activeTab === "STABILIZATION" ? (
+          <StabilizationTab t={t} />
+        ) : activeTab === "REPORTS" ? (
+          <ReportsTab t={t} />
+        ) : (
+          <StrategyTab key={activeTab} strategyType={activeTab as StratType} overview={overview?.strategies[activeTab as StratType] ?? null} t={t} />
+        )}
+      </div>
     </div>
   );
 }
