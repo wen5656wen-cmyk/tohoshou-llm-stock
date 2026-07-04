@@ -91,7 +91,8 @@
     "research-fusion:dry": "DRY_RUN=1 npx tsx scripts/research-fusion.ts",
     "fusion-paper-trade": "npx tsx scripts/fusion-paper-trade.ts",
     "fusion-paper-trade:dry": "DRY_RUN=1 npx tsx scripts/fusion-paper-trade.ts",
-    "smoke:links": "npx tsx scripts/smoke-dashboard-links.ts"
+    "smoke:links": "npx tsx scripts/smoke-dashboard-links.ts",
+    "smoke:legacy": "npx tsx scripts/smoke-legacy-routes.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

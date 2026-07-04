@@ -92,7 +92,7 @@ export function HomeDashboardClient({
             <span className="text-yellow-400 text-base">✦</span>
             <h2 className="font-bold text-[14px] text-white">{t("home.ai_top3")}</h2>
           </div>
-          <Link href="/ai-picks" className="text-xs text-slate-400 hover:text-white transition-colors">
+          <Link href="/" className="text-xs text-slate-400 hover:text-white transition-colors">
             {t("home.view_all")} →
           </Link>
         </div>
@@ -109,11 +109,11 @@ export function HomeDashboardClient({
       {/* 3 mini stat cards: buy / watch / scored */}
       {scores.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-4">
-          <Link href="/ai-picks?filter=BUY" className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 hover:border-emerald-300 transition-colors flex items-center justify-between">
+          <Link href="/" className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 hover:border-emerald-300 transition-colors flex items-center justify-between">
             <div className="text-xs font-medium text-emerald-600">{t("home.buy_picks")}</div>
             <div className="text-2xl font-bold text-emerald-700 tabular-nums">{buyCount}</div>
           </Link>
-          <Link href="/ai-picks?filter=WATCH" className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 hover:border-amber-300 transition-colors flex items-center justify-between">
+          <Link href="/" className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 hover:border-amber-300 transition-colors flex items-center justify-between">
             <div className="text-xs font-medium text-amber-600">{t("home.watch_label")}</div>
             <div className="text-2xl font-bold text-amber-600 tabular-nums">{watchCount}</div>
           </Link>

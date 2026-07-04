@@ -29,7 +29,7 @@ export const ROUTES = {
   FUSION_REPORT: "/admin/research?tab=fusion",
   FACTORS: "/admin/research?tab=factors",
   ANALYTICS: "/admin/research?tab=analytics",
-  PAPER_TRADING: "/fusion/paper",
+  PAPER_TRADING: "/admin/research?tab=fusion", // P4-T4: legacy /fusion/paper 收敛至研究中心
   // Fallback
   COMING_SOON: "/coming-soon",
 } as const;

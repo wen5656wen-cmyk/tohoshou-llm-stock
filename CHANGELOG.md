@@ -2,6 +2,25 @@
 
 ---
 
+## [17.81.0] - 2026-07-05 — P4-T4 Legacy 路由收敛（Redirect First，不删除）🔀
+
+将审计（PROJECT_AUDIT）识别的 7 条历史遗留路由统一 **307 临时重定向**到 AI 研究中心/首页。**仅路由层**，未改任何 API / DB / Prisma / Cron / Alpha·Fusion 计算 / AI评分 / Shadow / Learning / Strategy / Backtest / GPT / 业务逻辑；**不删除**任何旧页面文件/API/脚本/表（安全收敛，非激进删除，观察 2 周后由 P4-T5/T6 再评估物理删除）。
+
+### 重定向（`next.config.ts` redirects，`permanent:false`=307，先于文件系统匹配）
+`/alpha`→`?tab=factors` · `/alpha/score`→`?tab=score` · `/alpha/backtest`→`?tab=backtest` · `/alpha/report`→`?tab=analytics` · `/fusion/paper`→`?tab=fusion` · `/fusion/report`→`?tab=fusion` · `/ai-picks`→`/`（均 `/admin/research?tab=<key>`）。目标采用研究中心**真实 tab key**（页面读 `?tab=`），确保落到正确功能 tab，无需改研究中心页面（审计的 `group/alpha-factors` 等为语义别名，对应真实 key）。
+
+### 导航清理
+活跃导航（Sidebar/CommandCenter/研究卡/版本中心/学习报告/策略/控制中心）**均无** legacy 链接（首页现为 CommandCenter，已无含 legacy 的 QuickActions）。历史链接均在**死组件**，一并清理：`lib/routes.ts` `PAPER_TRADING`(/fusion/paper→?tab=fusion)、`app/HomeDashboardClient.tsx`(3×/ai-picks→/)、`app/SystemDashboard.tsx`(/fusion/paper→?tab=fusion)。`MobileHeader` 的 route→标题映射键 + `app-url.ts aiPicksUrl` 保留（非 href/外链工具，重定向覆盖，无害）。
+
+### Smoke + 文档
+新增 `scripts/smoke-legacy-routes.ts` + `npm run smoke:legacy`（fetch redirect:manual 断言 307/308 + Location）；新增 `docs/LEGACY_ROUTES.md`（映射/实现/导航/观察期/建议删除日期 ~2026-07-19）。
+
+### 验收
+Build ✅ PASS（tsc 0，Compiled 3.6s）；Health ✅ CRITICAL=0；**smoke:legacy 7/7 PASS**（全 307 + Location 正确，-L 跟随均 200 单跳）；无 API/DB/逻辑改动。
+- 修改：`next.config.ts`、`lib/routes.ts`、`app/HomeDashboardClient.tsx`、`app/SystemDashboard.tsx`、`package.json`；新增 `scripts/smoke-legacy-routes.ts`、`docs/LEGACY_ROUTES.md`。
+
+---
+
 ## [17.80.0] - 2026-07-05 — P4-T3 Strategy 模块工程化拆分（Module Refactor）🧩
 
 将全站最大单文件 `app/strategy/page.tsx`（**1837 行**）拆分为模块化结构。**纯工程化重构**（byte-preserving，逐字节移动，不重写/不重设计），未改任何布局 / 视觉 / API / DB / Prisma / Cron / AI评分 / Adaptive / Shadow / Fusion / Learning / Strategy Logic / Paper Trading / GPT / 业务逻辑 —— 实测重构前后 `/strategy` 截图逐像素一致（同高度 2370）。
