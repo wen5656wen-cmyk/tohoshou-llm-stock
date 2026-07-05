@@ -19,7 +19,7 @@ export const RULE_ENGINE_VERSION         = "v7.7";
 export const GLOBAL_EVENT_ENGINE_VERSION = "v0.1";
 export const SCORING_SCHEMA_VERSION      = "adaptive-v3";
 export const TOHOSHOU_MODEL_VERSION      = "disabled"; // Rule 6: Shadow Mode
-export const LLM_MODEL_VERSION          = process.env.OPENAI_MODEL ?? "gpt-5.5";
+export const LLM_MODEL_VERSION          = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
 // schemaVersion tracks the feat_* feature schema (see ARCHITECTURE.md §4.2).
 // Increment MINOR when adding feat_* fields; MAJOR when removing or changing semantics.

@@ -46,7 +46,7 @@ if (!OPENAI_KEY && !DRY_RUN) {
 const oai = OPENAI_KEY
   ? new OpenAI({ apiKey: OPENAI_KEY, baseURL: "https://api.openai.com/v1" })
   : null;
-const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
+const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
 // ── Rating thresholds (same as compute-scores.ts) ────────────────────────────
 function computeRating(finalScore: number, percentileRank: number | null): string {

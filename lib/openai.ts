@@ -21,7 +21,7 @@ export function openaiClient(): OpenAI {
   return _client;
 }
 
-export const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
+export const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
 export function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);

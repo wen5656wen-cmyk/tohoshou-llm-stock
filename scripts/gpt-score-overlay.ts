@@ -38,7 +38,7 @@ if (!OPENAI_KEY) {
   process.exit(1);
 }
 const oai = new OpenAI({ apiKey: OPENAI_KEY, baseURL: "https://api.openai.com/v1" });
-const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
+const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type GPTResponse = {
