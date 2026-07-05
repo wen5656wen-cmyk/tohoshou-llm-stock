@@ -78,6 +78,13 @@ export const FEATURE_CATALOG: Feature[] = [
   // ── TDNET（开示，源 TDnet → Disclosure）───────────────────────────────────
   f("catalystScore", "催化剂得分", "TDNET", "TDnet", "PRODUCTION", V77, BASE, "由开示事件派生的催化剂强度"),
   f("disclosureEvents", "开示事件", "TDNET", "TDnet", "SHADOW", "v1", "2026-06-26", "TDnet 开示事件计数/类型（观测）"),
+  // ── P6-T2 TDnet Event Feature Engine（第一批 6 事件，全部 SHADOW，禁止进入 Production）──
+  f("tdnet_buyback", "回购 BUYBACK", "TDNET", "TDnet", "SHADOW", "P6-T2", "2026-07-05", "自己株式取得（回购）事件因子（影子，待 Backtest/Learning 验证）"),
+  f("tdnet_dividend_increase", "提高分红 DIVIDEND_INCREASE", "TDNET", "TDnet", "SHADOW", "P6-T2", "2026-07-05", "増配・復配・配当予想増額 事件因子（影子）"),
+  f("tdnet_earnings_up_revision", "业绩上修 EARNINGS_UP_REVISION", "TDNET", "TDnet", "SHADOW", "P6-T2", "2026-07-05", "業績予想上方修正 事件因子（影子）"),
+  f("tdnet_earnings_down_revision", "业绩下修 EARNINGS_DOWN_REVISION", "TDNET", "TDnet", "SHADOW", "P6-T2", "2026-07-05", "業績予想下方修正 事件因子（影子）"),
+  f("tdnet_stock_split", "拆股 STOCK_SPLIT", "TDNET", "TDnet", "SHADOW", "P6-T2", "2026-07-05", "株式分割 事件因子（影子）"),
+  f("tdnet_treasury_cancellation", "注销库存股 TREASURY_SHARE_CANCELLATION", "TDNET", "TDnet", "SHADOW", "P6-T2", "2026-07-05", "自己株式消却 事件因子（影子）"),
 
   // ── GLOBAL（全球市场，源 Yahoo → GlobalMarket）────────────────────────────
   f("globalTrendScore", "全球趋势得分(10)", "GLOBAL", "GlobalMarket", "PRODUCTION", V77, BASE, "AI 评分 5 维之一，满分 10"),
