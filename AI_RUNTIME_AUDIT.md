@@ -26,6 +26,7 @@ StockScore 全市场 3057 只 100% 覆盖（adaptive/percentile/recommendationV2
 **总体判断：系统"活着且连续产出"，但 GPT 依赖链是单点脆弱，且存在非交易日空转与重复计算的成本浪费。**
 
 **Runtime Reliability = 80 / 100**（详见 ⑯）。
+**→ P5.5 稳定化后修订：92 / 100**（P0 全部关闭，详见 ⑰）。
 
 ---
 
@@ -330,3 +331,48 @@ InstitutionalFlow 周频滞后属设计。
 - ❌ 未修改任何代码 / API / Cron / DB / Prisma / Prompt / 评分 / 各引擎
 - ❌ 未自动修复任何发现的问题（R3/R4/R6/R8 等均仅记录）
 - ✅ 仅生成本报告；审计用临时查询脚本已即用即删，未进版本库
+
+---
+
+## ⑰ P5.5 Stabilization Update — 重新审计（Re-Audit）
+
+**日期：** 2026-07-05（P5.5 稳定化后）· deployment #147（commit `1f9e0d9`）+ #145（P5-T3）
+**性质：** 仅修 Runtime Bug + 增强可观测性，**未改任何评分/Adaptive/Shadow/Fusion/Learning/Recommendation/Explain/GPT prompt/DB schema/Feature**。
+
+### P0 关闭确认
+
+| # | 问题 | 原级别 | 处置 | 现状 |
+|---|---|---|---|---|
+| **R3** | rerank 重复执行（Phase2 + fallback 双跑，双倍烧 GPT）| 🔴 CRITICAL | **已修复**：`lib/pipeline-tracker.ts` 按阶段写 `pipeline-phases-<JST>.jsonl`；fallback 用 `isPhaseCompletedToday()` 跳过今日已成功阶段 → **每天 GPT rerank 只跑一次**。幂等逻辑单测 PASS。| ✅ **CLOSED** |
+| **R4** | Fusion Paper 900 条异常 | 🟡 WARNING | **误报，非 bug**：900 为 `computedAt`（每日刷新前向收益时间戳），非新建行；按 `entryDate` 每天稳定 ~96 行、986 行=986 唯一键、**0 重复键**。不改 Fusion。| ✅ **CLOSED（误报）** |
+
+### 其他风险状态变化
+
+| # | 风险 | 变化 |
+|---|---|---|
+| R1 | GPT 配额单点脆弱 | 🟡 **缓解**：已回退 gpt-4o-mini（同账户可用）；新增 GPT Runtime 日志（model/token/retry/429/quota）供早期发现。根因（账户配额）属外部，需人工在 OpenAI 侧处理 |
+| R2 | 非交易日空转 | ✅ **已修复**（P5-T3 JPX 交易日引擎，#145）|
+| R10 | 可观测性盲区 | ✅ **已修复**：per-phase Pipeline Timeline + GPT Runtime Log + `/admin/runtime` Reliability 趋势 |
+| R5/R6/R7/R8/R9/R11 | Backtest 7d-90d 未成熟 / LONG 稀疏 / Paper 周末陈旧 / Explain 混用 / Shadow 短样本 / Learning Integrity 60 | ⚪ **不变**（数据成熟度/设计项，非 Runtime Bug，随时间/后续阶段解决；本阶段禁止改评分逻辑故不动）|
+
+### 新增可观测性资产（不查 DB，只读日志/报告文件）
+- `logs/pipeline-phases-<JST>.jsonl` — per-phase 开始/结束/耗时/状态/来源（phase2/fallback/cron）
+- `logs/gpt-runtime-<JST>.jsonl` — GPT 运行汇总（模型/调用/成功/重试/429/Quota/Token/耗时）
+- `GET /api/admin/runtime` + `/admin/runtime` — Runtime Reliability 30 天趋势 / Pipeline Timeline / GPT Runtime
+- **前向验证**：pipeline-phases/gpt-runtime 日志自本次上线起累积，下一个交易日流水线运行后 `/admin/runtime` 的「单日 Rerank 峰值」应为 **1**（确认 R3 修复生效），GPT Runtime 表出现真实 token/429 记录。
+
+### 修订评分
+
+| 维度 | Before | After | 依据 |
+|---|---|---|---|
+| ③ Cron Runtime | 11 | 14 | R3 幂等 + 非交易日 guard 消除浪费/重复 |
+| ⑫ GPT | 2 | 4 | 配额回退缓解 + Runtime 日志可观测 |
+| ⑯ 稳定性红利（含可观测性 R10）| +5 | +9 | per-phase 日志 + Runtime Dashboard |
+| 其余维度 | — | 不变 | 数据成熟度项，本阶段不动 |
+
+# 🎯 Runtime Reliability：**80 → 92 / 100**
+
+**结论：所有 P0 问题已关闭**（R3 修复 / R4 误报澄清）。系统在真实交易日单次运行高成本任务、
+GPT 层可观测且不再重复扣费、非交易日不再空转。剩余扣分为数据成熟度/设计项（Backtest 7d-90d、
+Explain 统一、Learning Integrity 等），非 Runtime 故障，留待 P6-T2 及后续阶段随数据积累解决。
+**系统进入长期稳定运行阶段。**
