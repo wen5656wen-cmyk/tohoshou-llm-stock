@@ -10,6 +10,7 @@ import {
   AppStatusChip, AppBadge, AppButton, appRowHover, COLORS,
 } from "@/components/ui";
 import type { StatusKind } from "@/lib/design-tokens";
+import ValidationPanel from "@/components/features/ValidationPanel";
 import {
   getAllFeatures, getSummary, categoryDistribution, sourceDistribution,
   CATEGORY_LABEL, STATUS_LABEL, FEATURE_STATUSES,
@@ -38,6 +39,7 @@ export default function FeaturesPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<FeatureStatus | "ALL">("ALL");
   const [catFilter, setCatFilter] = useState<FeatureCategory | "ALL">("ALL");
+  const [view, setView] = useState<"registry" | "validation">("registry");
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
@@ -71,6 +73,22 @@ export default function FeaturesPage() {
           statusTone="blue"
         />
 
+        {/* Tab: 注册视图 / 验证视图 */}
+        <div className="flex items-center gap-1.5">
+          {([["registry", "因子注册"], ["validation", "验证 Validation"]] as const).map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              style={{
+                height: 34, padding: "0 16px", fontSize: 13, fontWeight: 600, borderRadius: 9999, cursor: "pointer",
+                border: `1px solid ${view === v ? COLORS.primary : COLORS.border}`,
+                background: view === v ? `${COLORS.primary}12` : COLORS.card,
+                color: view === v ? COLORS.primary : COLORS.textSecondary,
+              }}>{label}</button>
+          ))}
+        </div>
+
+        {view === "validation" && <ValidationPanel />}
+
+        {view === "registry" && (<>
         {/* 原则声明 */}
         <AppCard accent={`${COLORS.primary}33`} style={{ background: `${COLORS.primary}08` }}>
           <div style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.7 }}>
@@ -191,6 +209,7 @@ export default function FeaturesPage() {
             </tbody>
           </AppTable>
         </div>
+        </>)}
       </div>
     </div>
   );
