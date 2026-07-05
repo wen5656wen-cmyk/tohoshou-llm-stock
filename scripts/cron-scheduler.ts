@@ -38,6 +38,7 @@ import cron from "node-cron";
 import { appendFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { spawn } from "child_process";
+import { getJPXTradingDayStatus } from "../lib/trading-calendar/jpx";
 
 const LOG_DIR = join(process.cwd(), "logs");
 const LOG_FILE = join(LOG_DIR, "cron-scheduler.log");
@@ -141,6 +142,25 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
       resolve(success);
     });
   });
+}
+
+/**
+ * JPX Trading Day Guard（P5-T3）
+ * ────────────────────────────────────────────────────────────────────────────
+ * 在高成本任务（评分 / GPT rerank / 策略生成 / Paper Broker 等）执行前调用。
+ * 返回 true 表示今天（日本时间）是 JPX 交易日，可以继续；false 表示休市，应跳过。
+ * 无论交易与否都输出统一 [JPX_CALENDAR] 日志，便于 grep 审计。
+ *
+ * 不跳过的任务（新闻 / 全球市场 / 健康检查 / 周报月报 等）不调用本函数。
+ */
+function isTradingDayGuard(task: string): boolean {
+  const status = getJPXTradingDayStatus(new Date());
+  if (!status.isTradingDay) {
+    log("INFO", `[JPX_CALENDAR] SKIP_NON_TRADING_DAY task=${task} date=${status.date} reason=${status.reason}`);
+    return false;
+  }
+  log("INFO", `[JPX_CALENDAR] TRADING_DAY task=${task} date=${status.date}`);
+  return true;
 }
 
 // 跨 cron slot 的价格同步 Promise（06:00 写入，07:30 await）；值为同步+评分是否成功
@@ -263,6 +283,10 @@ cron.schedule("45 16 * * 5", async () => {
 //   Promise 存入 syncPricesPromise，07:30 slot await 它后再启动评分流水线。
 //
 cron.schedule("0 6 * * *", () => {
+  // JPX Trading Day Guard (P5-T3): 非交易日跳过整条评分流水线
+  // （sync-all-prices → compute-scores → rerank → portfolio → signal-stats
+  //  → update-backtest → learning → data-health-guard 均内嵌在 sync-all-prices Phase2）
+  if (!isTradingDayGuard("sync-all-prices")) return;
   log("INFO", "⏰ 06:00 触发：株価同期（子进程，不阻塞事件循环）");
   syncPricesPromise = runAsync(
     "sync-all-prices.ts",
@@ -309,6 +333,9 @@ cron.schedule("0 7 * * 1-5", async () => {
 //           syncPricesPromise が null になるので手動で流水線を実行する。
 //
 cron.schedule("30 7 * * *", async () => {
+  // JPX Trading Day Guard (P5-T3): 非交易日跳过 fallback 流水线 + Day Trade(T+1) + 策略推荐 + Paper Broker
+  // （day-strategy 具备断点续跑，会在下一交易日补齐被跳过日的结算）
+  if (!isTradingDayGuard("scoring-pipeline")) return;
   // P1-4 fix: act on the real success of the 06:00 sync+scoring, not merely on
   // whether the promise was set. A failed/partial sync-all-prices (non-zero exit
   // or timeout) now triggers the degraded pipeline instead of being logged as
@@ -365,6 +392,7 @@ cron.schedule("30 7 * * *", async () => {
 // Failure is isolated — does not affect Day or other pipeline stages.
 //
 cron.schedule("35 16 * * 1-5", async () => {
+  if (!isTradingDayGuard("swing-strategy")) return; // P5-T3: 祝日跳过（周末已由 1-5 排除）
   log("INFO", "⏰ 16:35 触发：Swing Trade Strategy Engine");
   await runAsync("swing-strategy.ts", "Swing Trade Strategy", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
@@ -374,6 +402,7 @@ cron.schedule("35 16 * * 1-5", async () => {
 // Long runs 5 minutes after Swing. Failure is isolated.
 //
 cron.schedule("40 16 * * 1-5", async () => {
+  if (!isTradingDayGuard("long-strategy")) return; // P5-T3: 祝日跳过
   log("INFO", "⏰ 16:40 触发：Long Trade Strategy Engine");
   await runAsync("long-strategy.ts", "Long Trade Strategy", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
@@ -386,6 +415,7 @@ cron.schedule("40 16 * * 1-5", async () => {
 // for today are already settled before the summary is computed.
 //
 cron.schedule("45 16 * * 1-5", async () => {
+  if (!isTradingDayGuard("strategy-backtest")) return; // P5-T3: 祝日跳过
   log("INFO", "⏰ 16:45 触发：Strategy Backtest Engine");
   await runAsync("strategy-backtest.ts", "Strategy Backtest Engine", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
@@ -398,6 +428,7 @@ cron.schedule("45 16 * * 1-5", async () => {
 // upserts to StrategyLearningReport + StrategyLearningSummary.
 //
 cron.schedule("0 17 * * 1-5", async () => {
+  if (!isTradingDayGuard("strategy-learning")) return; // P5-T3: 祝日跳过
   log("INFO", "⏰ 17:00 触发：Strategy Learning Engine");
   await runAsync("strategy-learning.ts", "Strategy Learning Engine", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
@@ -409,6 +440,7 @@ cron.schedule("0 17 * * 1-5", async () => {
 // Phase 7 readiness conditions. Retains last 30 trading days (~45 calendar days).
 //
 cron.schedule("15 17 * * 1-5", async () => {
+  if (!isTradingDayGuard("strategy-daily-validation")) return; // P5-T3: 祝日跳过
   log("INFO", "⏰ 17:15 触发：Strategy Daily Validation");
   await runAsync("strategy-daily-validation.ts", "Strategy Daily Validation", 5 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
