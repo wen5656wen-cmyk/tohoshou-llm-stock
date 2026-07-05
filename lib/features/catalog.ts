@@ -60,6 +60,17 @@ export const FEATURE_CATALOG: Feature[] = [
   f("fundamentalScore", "基本面得分(25)", "FUNDAMENTAL", "System", "PRODUCTION", V77, BASE, "AI 评分 5 维之一，满分 25"),
   f("dividendYield", "股息率", "FUNDAMENTAL", "JQuants", "PRODUCTION", V77, BASE, "年化股息 / 现价"),
   f("payoutRatio", "派息率", "FUNDAMENTAL", "JQuants", "SHADOW", "v1", "2026-06-28", "分红 / 净利润（观测）"),
+  // ── P6-T3 Financial Quality Feature Engine（第二批 10 因子，全部 SHADOW，禁止进入 Production）──
+  f("fin_roe_trend", "ROE 改善趋势", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "ROE(netProfit/equity派生) 改善趋势 事件因子（影子）"),
+  f("fin_eps_growth", "EPS 增长", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "EPS YoY 增长（影子，缺失N/A）"),
+  f("fin_revenue_growth", "营收增长", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "营收 YoY 增长（影子）"),
+  f("fin_operating_margin", "营业利润率", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "operatingProfit/revenue 营业利润率（影子）"),
+  f("fin_profit_margin_improvement", "利润率改善", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "净利率 YoY 变化(pp) 改善（影子）"),
+  f("fin_equity_ratio", "自己资本比率", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "自己资本比率/财务安全性（影子）"),
+  f("fin_dividend_growth", "分红增长", "FUNDAMENTAL", "JQuants", "SHADOW", "P6-T3", "2026-07-05", "每股分红 YoY 增长（影子，Financial 多缺→N/A）"),
+  f("fin_cash_flow_quality", "现金流质量", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "现金流质量（影子，Financial 表无现金流字段→恒 N/A）"),
+  f("fin_debt_risk", "负债风险", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "负债率(1-自己资本比率)派生 风险（影子）"),
+  f("fin_quality_composite", "财务质量综合", "FUNDAMENTAL", "Financial", "SHADOW", "P6-T3", "2026-07-05", "可用子因子均值 综合质量分（影子）"),
 
   // ── NEWS（新闻情绪，源 Kabutan/TDnet → News）──────────────────────────────
   f("newsSentimentScore", "新闻情绪得分(15)", "NEWS", "Kabutan", "PRODUCTION", V77, BASE, "AI 评分 5 维之一，满分 15"),
