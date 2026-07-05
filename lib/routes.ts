@@ -22,6 +22,7 @@ export const ROUTES = {
   CONTROL_CENTER: "/admin/mission-control",
   MISSION_CONTROL: "/admin/mission-control",
   VERIFY: "/admin/verify",
+  RUNTIME: "/admin/runtime",
   VERSIONS: "/admin/versions",
   NEWS: "/news",
   MARKET: "/market-regime",

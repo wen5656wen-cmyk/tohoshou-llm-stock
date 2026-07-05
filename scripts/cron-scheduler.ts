@@ -39,6 +39,7 @@ import { appendFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { spawn } from "child_process";
 import { getJPXTradingDayStatus } from "../lib/trading-calendar/jpx";
+import { recordPhase, recordSkip, isPhaseCompletedToday } from "../lib/pipeline-tracker";
 
 const LOG_DIR = join(process.cwd(), "logs");
 const LOG_FILE = join(LOG_DIR, "cron-scheduler.log");
@@ -116,6 +117,11 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
         durationMs: finishedAt.getTime() - startedAt.getTime(),
         status: "FAILED", exitCode: 1, errorMessage,
       });
+      recordPhase({
+        phase: stage, label, source: label.includes("[fallback]") ? "fallback" : "cron",
+        startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(), status: "FAILED", error: errorMessage,
+      });
       resolve(false);
     });
 
@@ -139,9 +145,31 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
         status: success ? "SUCCESS" : "FAILED",
         exitCode, errorMessage,
       });
+      recordPhase({
+        phase: stage, label, source: label.includes("[fallback]") ? "fallback" : "cron",
+        startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        status: success ? "SUCCESS" : "FAILED", error: errorMessage,
+      });
       resolve(success);
     });
   });
+}
+
+/**
+ * P5.5 R3 修复：fallback 阶段幂等执行。
+ * Phase2（sync-all-prices 内）今日已成功的阶段，07:30 fallback 不再重复执行——
+ * 尤其 GPT rerank，避免重复 GPT 调用 / 重复覆盖 / 重复扣费。
+ * 保守策略：仅当 pipeline-phases 明确记录该阶段今日 SUCCESS 才跳过（读不到则照常执行）。
+ */
+async function fallbackStage(script: string, label: string, timeoutMs?: number): Promise<boolean> {
+  const phase = script.replace(/\.ts$/, "");
+  if (isPhaseCompletedToday(phase)) {
+    log("INFO", `[PIPELINE_GUARD] SKIP_ALREADY_DONE phase=${phase} — Phase2 今日已成功，跳过 fallback 重复执行`);
+    recordSkip(phase, label, "fallback");
+    return true;
+  }
+  return runAsync(script, label, timeoutMs);
 }
 
 /**
@@ -355,13 +383,14 @@ cron.schedule("30 7 * * *", async () => {
   }
 
   if (!pipelineOk) {
-    await runAsync("compute-scores.ts",           "AI 評分計算 [fallback]",               90 * 60 * 1000);
-    await runAsync("rerank-top500.ts",            "GPT Rerank Top500 [fallback]",          5 * 60 * 60 * 1000);
-    await runAsync("create-portfolio-snapshot.ts","AI 組合スナップショット生成 [fallback]");
-    await runAsync("update-ai-signal-stats.ts",   "AI シグナル統計更新 [fallback]");
-    await runAsync("update-backtest.ts",          "バックテスト更新 [fallback]",           20 * 60 * 1000);
-    await runAsync("generate-learning-report.ts", "Learning Engine レポート生成 [fallback]");
-    await runAsync("data-health-guard.ts",        "データ健全性チェック [fallback]");
+    // R3 修复：每个阶段先查「今日 Phase2 是否已成功」，已成功则跳过（不重复跑 rerank 等）。
+    await fallbackStage("compute-scores.ts",           "AI 評分計算 [fallback]",               90 * 60 * 1000);
+    await fallbackStage("rerank-top500.ts",            "GPT Rerank Top500 [fallback]",          5 * 60 * 60 * 1000);
+    await fallbackStage("create-portfolio-snapshot.ts","AI 組合スナップショット生成 [fallback]");
+    await fallbackStage("update-ai-signal-stats.ts",   "AI シグナル統計更新 [fallback]");
+    await fallbackStage("update-backtest.ts",          "バックテスト更新 [fallback]",           20 * 60 * 1000);
+    await fallbackStage("generate-learning-report.ts", "Learning Engine レポート生成 [fallback]");
+    await fallbackStage("data-health-guard.ts",        "データ健全性チェック [fallback]");
   }
 
   // Day Trade Strategy Engine — T+1 settlement (P0 fix, 2026-07-01)

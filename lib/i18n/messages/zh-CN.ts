@@ -402,6 +402,7 @@ const zhCN: Messages = {
   "nav.features": "因子中心",
   "nav.syncStatus": "同步状态",
   "nav.dataVerify": "数据校验",
+  "nav.runtime": "运行监控",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

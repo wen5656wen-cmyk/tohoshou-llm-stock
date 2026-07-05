@@ -46,6 +46,7 @@ export type Messages = {
   "nav.features": string;
   "nav.syncStatus": string;
   "nav.dataVerify": string;
+  "nav.runtime": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

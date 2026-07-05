@@ -40,6 +40,7 @@
 
 import "dotenv/config";
 import { execSync } from "child_process";
+import { recordPhase } from "../lib/pipeline-tracker";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { PrismaClient } from "@prisma/client";
@@ -250,21 +251,30 @@ async function syncWithRetry(
 
 // ── Pipeline stage runner (sync-all-prices はすでに子プロセス内なので execSync OK) ──
 function runPipelineStage(scriptFile: string, label: string, timeoutMs = 10 * 60 * 1000): boolean {
+  const phase = scriptFile.replace(/\.ts$/, ""); // 与 cron fallback 幂等判定同名
   const scriptPath = join(process.cwd(), "scripts", scriptFile);
   const timeoutSec = Math.floor(timeoutMs / 1000);
   // timeout -k 15: send SIGTERM at N sec, SIGKILL 15s later — prevents tsx orphans
   const cmd  = `timeout -k 15 ${timeoutSec} npx tsx ${scriptPath}`;
   const t0   = Date.now();
   console.log(`\n▶ [pipeline] ${label}`);
+  let ok = false;
+  let err: string | null = null;
   try {
     execSync(cmd, { stdio: "inherit", env: { ...process.env, TZ: "Asia/Tokyo" } });
+    ok = true;
     console.log(`✅ [pipeline] ${label} (${Math.round((Date.now() - t0) / 1000)}s)`);
-    return true;
   } catch (e) {
-    const msg = e instanceof Error ? e.message.slice(0, 200) : String(e);
-    console.error(`❌ [pipeline] ${label} FAILED: ${msg}`);
-    return false;
+    err = e instanceof Error ? e.message.slice(0, 200) : String(e);
+    console.error(`❌ [pipeline] ${label} FAILED: ${err}`);
   }
+  // P5.5：记录 Phase2 阶段完成，供 07:30 fallback 幂等跳过（R3 修复）+ Pipeline Timeline。
+  recordPhase({
+    phase, label, source: "phase2",
+    startedAt: new Date(t0).toISOString(), finishedAt: new Date().toISOString(),
+    durationMs: Date.now() - t0, status: ok ? "SUCCESS" : "FAILED", error: err,
+  });
+  return ok;
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────

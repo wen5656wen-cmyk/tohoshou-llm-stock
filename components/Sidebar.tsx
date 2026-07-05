@@ -8,7 +8,7 @@ import { ROUTES } from "@/lib/routes";
 import {
   LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
   GraduationCap, Layers, FlaskConical, Newspaper, Boxes,
-  Settings, CircleCheck, RefreshCw,
+  Settings, CircleCheck, RefreshCw, Activity,
 } from "./dashboard/icons";
 
 type IconCmp = (p: { size?: number }) => React.ReactElement;
@@ -45,6 +45,7 @@ export default function Sidebar() {
       labelKey: "nav.systemMgmt",
       items: [
         { href: ROUTES.MISSION_CONTROL,   label: t("nav.missionControl"), Icon: Settings },
+        { href: ROUTES.RUNTIME,           label: t("nav.runtime"),        Icon: Activity },
         { href: ROUTES.VERIFY,            label: t("nav.dataVerify"),     Icon: CircleCheck },
         { href: ROUTES.DATA_CENTER,       label: t("nav.syncStatus"),     Icon: RefreshCw },
       ],

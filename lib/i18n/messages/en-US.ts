@@ -402,6 +402,7 @@ const enUS: Messages = {
   "nav.features": "Feature Registry",
   "nav.syncStatus": "Sync Status",
   "nav.dataVerify": "Data Verify",
+  "nav.runtime": "Runtime",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

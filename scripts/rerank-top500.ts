@@ -19,6 +19,7 @@
 import "dotenv/config";
 import crypto from "crypto";
 import OpenAI from "openai";
+import { newGptStat, flushGptRun, classifyGptError } from "../lib/gpt-runtime";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { VERSION_SNAPSHOT } from "../lib/safety-rules";
@@ -47,6 +48,10 @@ const oai = OPENAI_KEY
   ? new OpenAI({ apiKey: OPENAI_KEY, baseURL: "https://api.openai.com/v1" })
   : null;
 const GPT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+
+// P5.5 GPT 运行时计量（观测层，全程 guarded，绝不影响评分/prompt/参数）。进程退出时 flush 汇总到 logs/gpt-runtime-<date>.jsonl。
+const gptStat = newGptStat("rerank-top500", GPT_MODEL);
+process.on("exit", () => flushGptRun(gptStat));
 
 // ── Rating thresholds (same as compute-scores.ts) ────────────────────────────
 function computeRating(finalScore: number, percentileRank: number | null): string {
@@ -267,6 +272,8 @@ ${newsStr}
 async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
   if (!oai) throw new Error("No OpenAI client (dry-run mode)");
   for (let attempt = 0; attempt <= retries; attempt++) {
+    try { gptStat.calls++; } catch { /* obs only */ }
+    const _t0 = Date.now();
     try {
       const resp = await oai.chat.completions.create({
         model: GPT_MODEL,
@@ -276,6 +283,11 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
         max_completion_tokens: 1100,
         response_format: { type: "json_object" },
       });
+      try {
+        gptStat.totalMs += Date.now() - _t0;
+        gptStat.promptTokens += resp.usage?.prompt_tokens ?? 0;
+        gptStat.completionTokens += resp.usage?.completion_tokens ?? 0;
+      } catch { /* obs only */ }
       const raw = resp.choices[0]?.message?.content ?? "";
       const parsed = JSON.parse(raw) as GPTResponse;
       if (typeof parsed.gptScore !== "number") throw new Error("gptScore missing");
@@ -293,8 +305,15 @@ async function callGPT(prompt: string, retries = 2): Promise<GPTResponse> {
       parsed.catalysts = Array.isArray(parsed.catalysts) ? parsed.catalysts.slice(0, 5) : [];
       if (!["LOW","MEDIUM","HIGH"].includes(parsed.confidence))      parsed.confidence = "MEDIUM";
       if (!["POSITIVE","NEUTRAL","NEGATIVE"].includes(parsed.action)) parsed.action    = "NEUTRAL";
+      try { gptStat.ok++; } catch { /* obs only */ }
       return parsed;
     } catch (e) {
+      try {
+        const { is429, isQuota } = classifyGptError(e);
+        if (is429) gptStat.err429++;
+        if (isQuota) gptStat.quota++;
+        if (attempt < retries) gptStat.retries++; else gptStat.fail++;
+      } catch { /* obs only */ }
       if (attempt === retries) throw e;
       console.warn(`  ⚠ GPT parse error (attempt ${attempt + 1}), retrying...`);
       await new Promise((r) => setTimeout(r, 1500));

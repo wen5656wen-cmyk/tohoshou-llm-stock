@@ -402,6 +402,7 @@ const jaJP: Messages = {
   "nav.features": "ファクター管理",
   "nav.syncStatus": "同期状態",
   "nav.dataVerify": "データ検証",
+  "nav.runtime": "ランタイム監視",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",
