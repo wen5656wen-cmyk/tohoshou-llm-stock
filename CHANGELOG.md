@@ -2,6 +2,42 @@
 
 ---
 
+## 🏁 P5 Final — Explain / Runtime / Stabilization 阶段收尾（2026-07-05）
+
+**P5 Status: ✅ COMPLETE** · **Runtime Reliability: 92 / 100** · **Baseline Frozen**
+
+P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修改，新增能力必须走 P6 Feature Pipeline
+（Registry → Shadow → Backtest → Learning → Production）。
+
+### P5 交付全景
+
+| 阶段 | 内容 | Deployment / Commit |
+|---|---|---|
+| **P5-T1** | Explain AI Engine V1（`lib/explain/` 10 文件 + `GET /api/explain/[symbol]`，纯派生只读，绝不重算）| #142 `c71cebf` |
+| **P5-T2** | Explain UI 接入（股票详情页 `ExplainPanel` Phase 1 + 策略中心抽屉 Phase 2，旧 `/api/strategy/explain` 并行保留）| #143 `aef5d25` / #144 `5fba99f` |
+| **P5-T3** | JPX Trading Calendar（`lib/trading-calendar/jpx.ts` + cron 7 slot 交易日 guard，周末/日本祝日/年末年初跳过；14/14 测试）| #145 `d9c444c` |
+| **P5-T4** | AI Runtime Audit（`AI_RUNTIME_AUDIT.md` 13 域只读审计，Runtime 80/100）| `d35eb90` |
+| **P5.5** | Runtime Stabilization（R3 rerank 幂等修复 + R4 误报澄清 + Pipeline Tracker + GPT Runtime Logger + `/admin/runtime`）| #147 `1f9e0d9` / `52ac8da` |
+| **P6-T1** | Feature Registry V1（**P6 起点**，`lib/features/` + `/admin/features`，因子登记中心，不参与计算）| #146 `7e07d0e` |
+
+外加会话内 P0 处置：OpenAI 配额耗尽 → 回退 `OPENAI_MODEL=gpt-4o-mini`（同账户可用）+ 重建今日 DR 36→500 + 版本中心 llmModelVer 修正（#145 `c28fca3`）。
+
+### Runtime Freeze — 标记为 **P5 Stable**（除 Bug Fix 外禁改）
+`Adaptive Engine` · `Shadow Engine` · `Fusion Engine` · `Strategy Engine` · `Learning Engine` · `Explain Engine` · `Pipeline Tracker`
+
+### P6 Baseline — Feature Registry 基线（未来所有新增 Feature 的对照基准）
+- **Feature Total: 57** · Production: **46** · Shadow: **11** · Disabled: **0**
+- **Category: 9**（TECHNICAL 16 / AI 11 / FUNDAMENTAL 10 / PRICE 5 / GLOBAL 5 / MONEY_FLOW 4 / NEWS 2 / MARKET 2 / TDNET 2）
+- **Source: 10**（DailyPrice 21 / System 12 / Financial 7 / Yahoo 4 / JQuants 3 / TDnet 2 / Kabutan 2 / GlobalMarket 2 / InstitutionalFlow 2 / OpenAI 2）
+
+### P0 关闭确认
+- **R3 rerank 重复执行** → ✅ 修复（幂等，每天 rerank 只跑一次）
+- **R4 Fusion Paper 900** → ✅ 误报澄清（`computedAt` 刷新非新建，0 重复键）
+
+**Next Phase: P6 Feature Platform**
+
+---
+
 ## [17.84.0] - 2026-07-05 — P5-T2 Explain Engine 接入 Phase 2（策略中心）🧠📊
 
 将统一 Explain Engine 接入策略中心（`/strategy`）。**仅展示层**，未改任何评分 / Strategy / Learning / Backtest / 推荐 / 排序 / DB / Cron / 业务逻辑。

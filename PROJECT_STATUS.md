@@ -1,9 +1,21 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-03（P3-T4 V3 Shadow Freeze 冻结验证期开始 🔒）
-> **版本：** v17.49.0（🔒 V3 Shadow Freeze v1，冻结至 2026-07-10；基线 `v2.0.0-universe-stable` 生产完全不变）
+> **最后更新：** 2026-07-05（🏁 **P5 Final — COMPLETE**，进入 P6）
+> **版本：** v17.84.0（CHANGELOG）；最新部署 **#147**，commit `52ac8da`
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
-> **下次启动继续位置：** [→ 见最下方 NEXT SESSION](#next-session)
+> **下次启动继续位置：** P6-T2 Feature Platform（P5 已冻结，除 Bug Fix 外禁改 P5 模块）
+
+## 🏁 P5 Final — COMPLETE（2026-07-05）
+
+- **P5 Status：✅ COMPLETE** · **Runtime Reliability：92 / 100** · **Baseline Frozen**
+- **交付**：P5-T1 Explain Engine（#142）/ P5-T2 Explain UI 接入（#143·#144）/ P5-T3 JPX 交易日引擎（#145）/ P5-T4 Runtime Audit（`AI_RUNTIME_AUDIT.md`）/ P5.5 Runtime 稳定化（#147）；**P6-T1 Feature Registry**（#146，P6 起点）。
+- **会话 P0 处置**：OpenAI 配额耗尽 → 回退 `OPENAI_MODEL=gpt-4o-mini`（同账户可用）+ DR 36→500 重建 + 版本中心 llmModelVer 修正（#145 `c28fca3`）。
+- **Runtime Freeze（P5 Stable，除 Bug Fix 外禁改）**：Adaptive / Shadow / Fusion / Strategy / Learning / Explain Engine + **Pipeline Tracker**。新增能力必须走 P6 Feature Pipeline（Registry → Shadow → Backtest → Learning → Production）。
+- **P0 关闭**：R3 rerank 重复执行 ✅ 幂等修复（每天只跑一次）；R4 Fusion 900 ✅ 误报澄清（`computedAt` 刷新非新建，0 重复键）。
+- **P6 Baseline（Feature Registry）**：Total **57** / Production **46** / Shadow **11** / Disabled **0** / Category **9** / Source **10**。
+- **新增可观测性**：`/admin/runtime`（Reliability 30天趋势 + Pipeline Timeline + GPT Runtime）；`logs/pipeline-phases-<JST>.jsonl` + `logs/gpt-runtime-<JST>.jsonl`。
+
+## 🔒 V3 Shadow Freeze v1（进行中）
 
 ## 🔒 V3 Shadow Freeze v1（进行中）
 - **冻结开始 2026-07-03，到期评审 2026-07-10（下周五）。冻结 Commit `ca95896`。**
