@@ -399,6 +399,7 @@ const enUS: Messages = {
   "nav.learningReport": "Learning Report",
   "nav.versionCenter": "Versions",
   "nav.experiments": "Experiments",
+  "nav.features": "Feature Registry",
   "nav.syncStatus": "Sync Status",
   "nav.dataVerify": "Data Verify",
 

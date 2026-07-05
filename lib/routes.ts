@@ -17,6 +17,7 @@ export const ROUTES = {
   LEARNING_REPORT: "/admin/learning-report",
   DATA_CENTER: "/sync",
   LABS: "/admin/experiments",
+  FEATURES: "/admin/features",
   SETTINGS: "/admin/mission-control",
   CONTROL_CENTER: "/admin/mission-control",
   MISSION_CONTROL: "/admin/mission-control",

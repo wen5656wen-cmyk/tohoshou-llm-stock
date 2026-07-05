@@ -399,6 +399,7 @@ const zhCN: Messages = {
   "nav.learningReport": "学习报告",
   "nav.versionCenter": "版本中心",
   "nav.experiments": "实验管理",
+  "nav.features": "因子中心",
   "nav.syncStatus": "同步状态",
   "nav.dataVerify": "数据校验",
 

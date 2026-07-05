@@ -399,6 +399,7 @@ const jaJP: Messages = {
   "nav.learningReport": "学習レポート",
   "nav.versionCenter": "バージョン管理",
   "nav.experiments": "実験管理",
+  "nav.features": "ファクター管理",
   "nav.syncStatus": "同期状態",
   "nav.dataVerify": "データ検証",
 

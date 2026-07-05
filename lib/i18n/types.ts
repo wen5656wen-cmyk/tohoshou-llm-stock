@@ -43,6 +43,7 @@ export type Messages = {
   "nav.learningReport": string;
   "nav.versionCenter": string;
   "nav.experiments": string;
+  "nav.features": string;
   "nav.syncStatus": string;
   "nav.dataVerify": string;
 
