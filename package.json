@@ -95,7 +95,8 @@
     "smoke:legacy": "npx tsx scripts/smoke-legacy-routes.ts",
     "test:jpx-calendar": "npx tsx scripts/test-jpx-calendar.ts",
     "test:tdnet-features": "npx tsx scripts/test-tdnet-features.ts",
-    "test:financial-features": "npx tsx scripts/test-financial-features.ts"
+    "test:financial-features": "npx tsx scripts/test-financial-features.ts",
+    "test:institution-features": "npx tsx scripts/test-institution-features.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

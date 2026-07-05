@@ -85,6 +85,17 @@ export const FEATURE_CATALOG: Feature[] = [
   f("institutionalFlow", "机构资金流向", "MONEY_FLOW", "InstitutionalFlow", "PRODUCTION", V77, BASE, "JPX 投资主体买卖净额"),
   f("turnover", "成交额", "MONEY_FLOW", "DailyPrice", "PRODUCTION", V77, BASE, "日次成交金额"),
   f("shortSellingRatio", "空売り比率", "MONEY_FLOW", "JQuants", "SHADOW", "v1", "2026-06-28", "JPX 空売り比率（观测）"),
+  // ── P6-T4 Institution Flow Feature Engine（第一批 10 因子，市场级信号，全部 SHADOW，禁止进入 Production）──
+  f("inst_foreign_buy", "外资净买入", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "外资本周净买入强度（市场级，影子）"),
+  f("inst_foreign_sell", "外资净卖出", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "外资本周净卖出/卖压（市场级，影子）"),
+  f("inst_foreign_buy_streak", "外资连续买入周数", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "外资连续買越周数（市场级，历史仅~10周，影子）"),
+  f("inst_trust_bank_flow", "信托银行资金流", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "信托银行净流（长线资金，市场级，影子）"),
+  f("inst_dealer_flow", "券商自营资金流", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "券商自营净流（市场级，影子）"),
+  f("inst_retail_flow", "个人投资者资金流", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "个人投资者净流（常为反向指标，市场级，影子）"),
+  f("inst_net_flow_momentum", "机构资金趋势", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "smart money 净流动量（最新vs前均值，影子）"),
+  f("inst_flow_reversal", "资金反转信号", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "机构净流方向翻转（看多/看空反转，影子）"),
+  f("inst_smart_money_score", "机构资金综合评分", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "外资+信托+保险 净流综合分（市场级，影子）"),
+  f("inst_flow_stability", "资金稳定性", "MONEY_FLOW", "InstitutionalFlow", "SHADOW", "P6-T4", "2026-07-05", "外资净流方向一致度（需≥3周，影子）"),
 
   // ── TDNET（开示，源 TDnet → Disclosure）───────────────────────────────────
   f("catalystScore", "催化剂得分", "TDNET", "TDnet", "PRODUCTION", V77, BASE, "由开示事件派生的催化剂强度"),
