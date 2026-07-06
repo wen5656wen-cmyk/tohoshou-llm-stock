@@ -40,8 +40,10 @@ function perfOf(rows: StatRow[], rec: string) {
 
 export function computeWatchlistStats(rows: StatRow[]): WatchlistStats {
   const withRet = rows.filter((r) => r.returnPct != null) as (StatRow & { returnPct: number })[];
-  const up = withRet.filter((r) => r.returnPct > 0).length;
-  const down = withRet.filter((r) => r.returnPct < 0).length;
+  // 上涨/下跌 = 今日涨跌方向（currentPrice vs previousClose）— realtime board semantics
+  const withChg = rows.filter((r) => r.changePct != null) as (StatRow & { changePct: number })[];
+  const up = withChg.filter((r) => r.changePct > 0).length;
+  const down = withChg.filter((r) => r.changePct < 0).length;
   const sorted = [...withRet].sort((a, b) => b.returnPct - a.returnPct);
   const lead = (r?: StatRow & { returnPct: number }): PerfLeader =>
     r ? { symbol: r.symbol, name: r.name ?? null, returnPct: r.returnPct } : null;
@@ -50,7 +52,7 @@ export function computeWatchlistStats(rows: StatRow[]): WatchlistStats {
     total: rows.length,
     up,
     down,
-    flat: withRet.length - up - down,
+    flat: withChg.length - up - down,
     avgReturnPct: avg(withRet.map((r) => r.returnPct)),
     avgChangePct: avg(rows.map((r) => r.changePct).filter((v): v is number => v != null)),
     topWinner: lead(sorted[0]),

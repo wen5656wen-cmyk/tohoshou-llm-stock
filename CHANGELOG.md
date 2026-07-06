@@ -38,6 +38,27 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.86.1] - 2026-07-06 — 🟢 P6-T7.1 Daily AI Watchlist 实时盯盘优化（Realtime Dashboard）
+
+将「每日 AI 关注池」从列表管理页升级为**盘中实时盯盘 Dashboard**。**仅优化行情展示**，未改 AI评分 / Recommendation / DailyRecommendation / Adaptive / Shadow / Fusion / Learning / GPT / Feature / Backtest / Paper Broker / Cron / **DB Schema**；未新增任何付费/外部行情 API（复用系统现有 Yahoo Finance quote 能力）。
+
+### 实时行情（现价/今日涨跌/推荐后涨跌全部实时）
+- `lib/yahoo.ts` 新增 `fetchQuotesBatch(symbols)`：单请求批量拉 Yahoo 近实时报价（`regularMarketPrice` + `regularMarketPreviousClose` + 报价时间），无 per-symbol 节流。
+- `GET /api/watchlist/daily` 改为**并行** Yahoo 批量报价（6s 超时）+ EOD 兜底：`currentPrice`＝实时价，`intradayChangePct`＝(现价−前收)/前收，`returnPctFromEntry`＝(现价−entryPrice)/entryPrice，均实时重算；**entryPrice 保持生成时冻结不被覆盖**。新增返回字段 `intradayChangePct / returnPctFromEntry / quoteUpdatedAt / quoteSource`（每只）+ 顶层 `quoteSource / quoteUpdatedAt / realtime`；**旧字段 `currentPrice/changePct/returnPct/status` 全部保留（无回归）**。Provider 抽象化——未来换 JPX/Polygon/IEX 等只需替换 provider，页面无需改。
+- 统计 `stats.ts`：上涨/下跌按 `currentPrice vs previousClose`（今日方向）实时计；Top Winner/Loser、STRONG_BUY/BUY 平均按 `returnPctFromEntry` 实时计。
+
+### 页面（`/watchlist/daily`）
+- 顶部右上：🟢 **实时** / ⚪ 已收盘 徽章 + 最后更新 `HH:mm:ss` + 立即刷新 + 「交易时段每 60 秒自动刷新（Yahoo Finance）」说明。
+- **自动刷新**：交易时段（JST 09:00–11:30 / 12:30–15:30 且 JPX 交易日，客户端 `isJPXTradingDay` 判定）内每 60 秒刷新；**非交易时段停止刷新**（徽章转「已收盘」，不再请求）。
+- 表格主列：股票 / 推荐等级 / AI评分 / 推荐价 / 当前价 / 今日涨跌 / 推荐后涨跌 / 加星 / 重点 / 备注 / 操作。**移除「状态」主列**，取消/恢复关注弱化进「操作」列。
+- 底部：`Quote Source` + `Last Updated`（YYYY-MM-DD HH:mm:ss JST）。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**；Realtime Quote ✅（`quoteSource=Yahoo Finance`, `realtime=true`, 现价脱离 entry：9450 754→757 / 7792 1451→1481 / 2127 657→678）；Top Cards / Table Realtime ✅；60s 自动刷新 + 交易时段 gate + 非交易停止 ✅；Status 弱化 ✅（无状态列，移入操作）；No API Regression ✅（新旧字段并存）；No DB / No Scoring / No Recommendation Change ✅。CDP 截图确认 15:28 盘中 🟢 实时。
+- 改 `lib/yahoo.ts`、`lib/daily-watchlist/stats.ts`、`app/api/watchlist/daily/route.ts`、`components/watchlist-daily/DailyWatchlistView.tsx`。
+
+---
+
 ## [17.86.0] - 2026-07-06 — ⭐ P6-T7 Daily AI Watchlist（每日 AI 关注池）
 
 每个交易日自动把当日 AI 推荐中 **STRONG_BUY / BUY** 的股票固化为一份**按日期独立**的关注池，用户可取消/恢复关注、加星、重点观察、备注，并持续统计表现。**纯新增功能 + 纯派生层**，未改任何 AI评分 / Adaptive / Shadow / Fusion / Learning / Recommendation / GPT / Feature / Backtest / Paper Broker；数据来源为现有 `DailyRecommendation`（推荐）+ `StockScore` / `DailyPrice`（行情），**未新增任何外部行情 API**。

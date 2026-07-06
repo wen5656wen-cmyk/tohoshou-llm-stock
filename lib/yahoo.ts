@@ -150,3 +150,37 @@ export async function fetchMultipleQuotes(
   }
   return results;
 }
+
+// Near-realtime batch quote — single request for many symbols (no per-symbol
+// throttle). Returns current price + previous close (for deterministic today's
+// change) + last-quote time. Used by the Daily AI Watchlist live board.
+export type RealtimeQuote = {
+  symbol: string;
+  price: number | null;
+  previousClose: number | null;
+  time: number | null; // epoch ms of the quote
+};
+
+export async function fetchQuotesBatch(symbols: string[]): Promise<RealtimeQuote[]> {
+  if (!symbols.length) return [];
+  try {
+    const res = (await yahooFinance.quote(symbols)) as RawQuote;
+    const arr: RawQuote[] = Array.isArray(res) ? res : [res];
+    return arr.map((q: RawQuote) => {
+      const raw = q.regularMarketTime;
+      let time: number | null = null;
+      if (raw instanceof Date) time = raw.getTime();
+      else if (typeof raw === "number") time = raw < 1e12 ? raw * 1000 : raw;
+      else if (typeof raw === "string") { const t = Date.parse(raw); time = isNaN(t) ? null : t; }
+      return {
+        symbol: String(q.symbol),
+        price: num(q.regularMarketPrice),
+        previousClose: num(q.regularMarketPreviousClose) ?? num(q.regularMarketPrice),
+        time,
+      };
+    });
+  } catch (e) {
+    console.error("fetchQuotesBatch failed:", e);
+    return [];
+  }
+}
