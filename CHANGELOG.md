@@ -38,6 +38,24 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.84.1] - 2026-07-06 — 🐛 Health Guard 周末误报修复（Day Trade Coverage JPX 日历感知）
+
+修复 Data Health Guard **CHECK S33**（`day_trade_result_recent_coverage`）每逢周一必报**假 CRITICAL** 的缺陷。**仅健康检查逻辑，未改任何评分算法 / STRONG_BUY 门槛 / Strategy 逻辑 / Paper Broker / DB Schema / Cron / Feature / 资金链路。**
+
+### 根因
+DAY_TRADE 推荐在**周末 / 日本祝日也会预生成**（tradeDate=非交易日），但这些日期**永不结算**（无 TradeResult，设计如此）。S33 原逻辑从最近推荐日往回数「连续缺失 TradeResult 的天数」，未用交易日历过滤 → 周六、周日各计一天 → `consecutiveMissingDays=2` → 误判 CRITICAL，`allowRecommendation=false`。实测 2026-07-06（周一）：07-05 Sun / 07-04 Sat 被算作缺失，而 07-03 Fri 实际已正常结算（5/5，P&L +¥1,153,700）。
+
+### 修复
+- **新增 `lib/trading-calendar/coverage.ts`**：纯函数 `countConsecutiveMissingTradingDays(candidates, maxTradingDays=5)`，遍历时用 `isJPXTradingDay()` **跳过周末 / 日本祝日 / 年末年初**（不计入缺失、不中断连续性），只对真实交易日计数；命中首个已结算交易日即停。只读、确定性（JPX 日历离线）、可单测。
+- **`scripts/data-health-guard.ts`** CHECK S33 改为调用该纯函数；`take` 由 5 提升到 10 以容纳被跳过的非交易日候选，逻辑上仍只检查「最近 5 个交易日」。
+- **新增 `scripts/test-daytrade-coverage.ts`** + `npm run test:daytrade-coverage`：9 用例（生产误报场景 / 单日真实缺口 / 双日缺口 CRITICAL / 周末跳过+真实缺口 / 海の日祝日跳过 / 年末跳过 / 全结算 / cap=5 / 空输入），**9/9 PASS**（本地 + 生产）。
+
+### 验收
+Build ✅ PASS（tsc 0）；生产 Health ✅ **CRITICAL=0**（此前 1），S33 → `OK`，`allowRecommendation=true`，`topIssues=[]`；真实交易日缺失仍能正确报错（测试用例 2/3/4 覆盖）；No Business Logic Change ✅（评分 / 门槛 / 策略 / 资金链 / Schema / Cron / Feature 均未动）。无需重启 web/cron（纯 scripts+lib，guard 由 cron 每次读磁盘执行）。
+- 新增 `lib/trading-calendar/coverage.ts`、`scripts/test-daytrade-coverage.ts`；改 `scripts/data-health-guard.ts`、`package.json`。
+
+---
+
 ## [17.84.0] - 2026-07-05 — P5-T2 Explain Engine 接入 Phase 2（策略中心）🧠📊
 
 将统一 Explain Engine 接入策略中心（`/strategy`）。**仅展示层**，未改任何评分 / Strategy / Learning / Backtest / 推荐 / 排序 / DB / Cron / 业务逻辑。

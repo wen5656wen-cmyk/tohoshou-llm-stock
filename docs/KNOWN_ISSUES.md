@@ -51,6 +51,7 @@
 
 | Fixed | Version | Description |
 |-------|---------|-------------|
+| ✅ | v17.84.1 | Health Guard CHECK S33 (`day_trade_result_recent_coverage`) 每周一假 CRITICAL：DAY_TRADE 推荐在周末/祝日预生成但永不结算，旧逻辑把周末算作「连续缺失」→ 接入 JPX 交易日历跳过非交易日（`lib/trading-calendar/coverage.ts` + 9/9 测试） |
 | ✅ | v14.0.1 | `/admin/learning-report` 运行时崩溃：`dataIntegrity.components` 渲染对象为 React child → 修复类型声明 + render 提取 `.score` |
 | ✅ | v14.0.1 | `gradeColor()` 接受 `"WARNING"` 返回 yellow（API 实际返回值） |
 | ✅ | v13.7.1 | deploy 协议：lib/ + scripts/ rsync 补入标准流程（修复 2026-06-26 cron P0 失败） |

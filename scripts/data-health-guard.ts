@@ -11,6 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { countConsecutiveMissingTradingDays } from "../lib/trading-calendar/coverage";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -719,33 +720,35 @@ async function main() {
       pass: invalidDayStatus === 0,
     });
 
-    // CHECK S33: Day Trade TradeResult recent coverage (P0 fix, 2026-07-01)
+    // CHECK S33: Day Trade TradeResult recent coverage (P0 fix, 2026-07-01;
+    //            JPX-calendar-aware since 2026-07-06)
     // A trading day can have a StrategyRecommendation but never get a matching
     // StrategyTradeResult if the settlement cron didn't run or crashed — this
     // is exactly what happened silently from 2026-06-26 onward. Walk backward
-    // from the most recent DAY_TRADE recommendation date (excluding today,
+    // from the most recent past DAY_TRADE recommendation date (excluding today,
     // which can never be settled yet under T+1 timing) and count how many
-    // consecutive trading days in a row are missing a TradeResult.
+    // consecutive JPX TRADING DAYS are missing a TradeResult.
+    // NOTE: DAY_TRADE recs also exist on weekends / Japan holidays (generated
+    // ahead of the next session) but are never settled; those non-trading dates
+    // are skipped via isJPXTradingDay() so they no longer false-positive as
+    // "missing" every Monday. `take` is raised to 10 so enough real trading
+    // days remain after skipping non-trading candidates.
     const recentDayRecDates = await (prisma as any).strategyRecommendation.findMany({
       where: { strategyType: "DAY_TRADE", tradeDate: { lt: todayJst } },
       distinct: ["tradeDate"],
       orderBy: { tradeDate: "desc" },
-      take: 5,
+      take: 10,
       select: { tradeDate: true },
     });
-    let consecutiveMissingDays = 0;
-    const missingDayDates: string[] = [];
+    const dayCoverageCandidates: Array<{ tradeDate: Date; hasResult: boolean }> = [];
     for (const r of recentDayRecDates as Array<{ tradeDate: Date }>) {
       const cnt = await (prisma as any).strategyTradeResult.count({
         where: { strategyType: "DAY_TRADE", tradeDate: r.tradeDate },
       });
-      if (cnt === 0) {
-        consecutiveMissingDays++;
-        missingDayDates.push(r.tradeDate.toISOString().slice(0, 10));
-      } else {
-        break; // stop at the first day (most recent first) that IS settled
-      }
+      dayCoverageCandidates.push({ tradeDate: r.tradeDate, hasResult: cnt > 0 });
     }
+    const { missing: consecutiveMissingDays, missingDates: missingDayDates } =
+      countConsecutiveMissingTradingDays(dayCoverageCandidates);
     const missingLevel: Level = consecutiveMissingDays >= 2 ? "CRITICAL" : "WARNING";
     add({
       id: "day_trade_result_recent_coverage",

@@ -94,6 +94,7 @@
     "smoke:links": "npx tsx scripts/smoke-dashboard-links.ts",
     "smoke:legacy": "npx tsx scripts/smoke-legacy-routes.ts",
     "test:jpx-calendar": "npx tsx scripts/test-jpx-calendar.ts",
+    "test:daytrade-coverage": "npx tsx scripts/test-daytrade-coverage.ts",
     "test:tdnet-features": "npx tsx scripts/test-tdnet-features.ts",
     "test:financial-features": "npx tsx scripts/test-financial-features.ts",
     "test:institution-features": "npx tsx scripts/test-institution-features.ts",
