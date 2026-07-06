@@ -38,6 +38,27 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.85.0] - 2026-07-06 — 📈 P6-T6 Lightweight Charts 接入 V1（股票详情页 K线升级）
+
+接入 TradingView **Lightweight Charts v5.2.0**，将股票详情页 `/stocks/[symbol]` 的价格走势图升级为专业 K线图。**纯展示层升级**，未改数据源 / API / 评分 / Adaptive / Shadow / Fusion / Learning / Feature / Recommendation / Cron / DB Schema / 业务逻辑；未新增任何外部行情 API，数据仍来自现有 `/api/stocks/[symbol]/indicators`（J-Quants / Prisma）。
+
+### 新增 `components/charts/LightweightStockChart.tsx`（Client Component）
+- Candlestick + Volume 直方图（底部叠加）+ MA5 / MA20 / MA60 三条均线；ResizeObserver 响应式；light/dark 主题（默认 light，贴合 Apple Dashboard 白卡）；loading / empty / error 三态（永不白屏）。
+- 只接受父层传入的统一 `ChartBar[]`，**组件内部绝不请求任何 API**。
+- Western 涨跌配色（涨绿 #34C759 / 跌红 #FF3B30），MA5 橙 / MA20 蓝 / MA60 紫（对齐设计 token）。
+- 导出适配层纯函数 `buildChartBars(points, sliceLast?)`：把现有 OHLCV 序列转为统一格式，并**从 close 在完整序列上派生 MA5/20/60 后再切片**（保证缩放窗口左缘 MA 值正确，专业行为）。MA 逐点值 API 不提供 → 仅在展示适配层计算，不改 API 返回结构。
+
+### 接入
+- `components/stock-detail/ChartTabs.tsx`：价格走势 tab 内 `<PriceChart>` → `<LightweightStockChart data={chartData} height={320} theme="light" />`；prop 类型 `PricePoint[]` → `ChartBar[]`。
+- `app/stocks/[symbol]/page.tsx`：`chartFull.slice(-n)` → `buildChartBars(chartFull, n)`（适配层转换）；右侧 Explain Panel / AI评分 / 财务 / 新闻 / 风险模块零改动。
+- 旧 `components/PriceChart.tsx` 保留但已无引用（未删除，零风险）。
+
+### 验收
+Build ✅ PASS（tsc 0）；生产 Health ✅ **CRITICAL=0**；`/stocks/6525.T` HTTP 200；**CDP 截图确认**桌面端 K线 + 成交量 + MA5/20/60 三线 + 周期切换完整渲染，右侧 Explain 面板无回归；移动 430px 单列堆叠、图表随容器宽度自适应 → Responsive ✅。No API / DB / Business Logic / Scoring Change ✅。新依赖 `lightweight-charts@5.2.0`（+ `fancy-canvas@2.1.0`）已在生产安装。
+- 新增 `components/charts/LightweightStockChart.tsx`；改 `components/stock-detail/ChartTabs.tsx`、`app/stocks/[symbol]/page.tsx`、`package.json`、`package-lock.json`。
+
+---
+
 ## [17.84.1] - 2026-07-06 — 🐛 Health Guard 周末误报修复（Day Trade Coverage JPX 日历感知）
 
 修复 Data Health Guard **CHECK S33**（`day_trade_result_recent_coverage`）每逢周一必报**假 CRITICAL** 的缺陷。**仅健康检查逻辑，未改任何评分算法 / STRONG_BUY 门槛 / Strategy 逻辑 / Paper Broker / DB Schema / Cron / Feature / 资金链路。**

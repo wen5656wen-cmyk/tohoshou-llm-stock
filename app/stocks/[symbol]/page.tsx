@@ -11,6 +11,7 @@ import {
 import { Toolbar, Hero, MetricStrip, DecisionPanel, RiskPanel, CompanyPanel, AIScorePanel, FinancialsPanel, NewsPanel } from "@/components/stock-detail/panels";
 import { ExplainPanel } from "@/components/stock-detail/ExplainPanel";
 import { ChartTabs, CHART_PERIODS, type TabKey } from "@/components/stock-detail/ChartTabs";
+import { buildChartBars } from "@/components/charts/LightweightStockChart";
 import type { PricePoint, Financial } from "@/components/stock-detail/ui";
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -117,7 +118,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const topRisks = [...(score?.actionWarnings ?? []), ...(gpt?.risks ?? []).filter((r) => !(score?.actionWarnings ?? []).includes(r))].slice(0, 5);
 
   const period = CHART_PERIODS.find((p) => p.key === chartPeriod) ?? CHART_PERIODS[3];
-  const chartData = chartFull.slice(-period.n);
+  // Adaptation layer (display only): OHLCV → unified ChartBar[] with MA5/20/60
+  // derived from close over the FULL series, then sliced to the visible window.
+  const chartData = buildChartBars(chartFull, period.n);
 
   return (
     <div className="min-h-screen dash-font" style={{ background: "#FAFAFA" }}>

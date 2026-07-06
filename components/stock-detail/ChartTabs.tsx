@@ -1,10 +1,10 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import PriceChart from "@/components/PriceChart";
+import LightweightStockChart, { type ChartBar } from "@/components/charts/LightweightStockChart";
 import { fmtJpy, fmtPct } from "@/lib/rec-config";
 import { C, retColor } from "./ui";
-import type { PricePoint, IndicatorData } from "./ui";
+import type { IndicatorData } from "./ui";
 
 export type TabKey = "price" | "tech";
 export const CHART_PERIODS = [
@@ -28,7 +28,7 @@ export function ChartTabs({
   tab, setTab, ind, chartData, chartPeriod, setChartPeriod, chartLoading, latestClose, latestDate,
 }: {
   tab: TabKey; setTab: (t: TabKey) => void; ind: IndicatorData | null;
-  chartData: PricePoint[]; chartPeriod: string; setChartPeriod: (k: string) => void; chartLoading: boolean;
+  chartData: ChartBar[]; chartPeriod: string; setChartPeriod: (k: string) => void; chartLoading: boolean;
   latestClose: number; latestDate: string;
 }) {
   const { t } = useI18n();
@@ -70,7 +70,7 @@ export function ChartTabs({
               <div className="h-[320px] flex items-center justify-center text-[13px]" style={{ color: C.faint }}><span className="animate-pulse">{t("common.loading")}</span></div>
             ) : (
               <>
-                <PriceChart data={chartData} height={320} showVolume />
+                <LightweightStockChart data={chartData} height={320} theme="light" />
                 <div className="mt-4 pt-3 flex flex-wrap gap-5 text-[12px]" style={{ borderTop: `1px solid ${C.line}`, color: C.faint }}>
                   {[["MA5", ind?.ma5], ["MA20", ind?.ma20], ["MA60", ind?.ma60]].map(([k, v]) => (
                     <span key={k as string}>{k} <b className="tabular-nums" style={{ color: C.sub }}>{v ? `¥${(v as number).toLocaleString()}` : "—"}</b></span>
