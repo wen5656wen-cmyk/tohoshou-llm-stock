@@ -25,6 +25,7 @@ export default function Sidebar() {
       labelKey: "nav.core",
       items: [
         { href: ROUTES.DASHBOARD,         label: t("nav.commandCenter"),  Icon: LayoutGrid },
+        { href: ROUTES.DAILY_WATCHLIST,   label: t("nav.dailyWatchlist"), Icon: Sparkles },
         { href: ROUTES.STRATEGY_CENTER,   label: t("nav.strategyCenter"), Icon: Target },
         { href: ROUTES.AUTO_TRADING,      label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
         { href: ROUTES.BACKTEST,          label: t("nav.backtest"),       Icon: LineChart },

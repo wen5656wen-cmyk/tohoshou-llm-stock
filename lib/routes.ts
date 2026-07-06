@@ -10,6 +10,7 @@ export const ROUTES = {
   DASHBOARD: "/",
   STOCKS: "/stocks",
   AI_SELECTION: "/screener",
+  DAILY_WATCHLIST: "/watchlist/daily",
   STRATEGY_CENTER: "/strategy",
   AUTO_TRADING: "/portfolio",
   BACKTEST: "/backtest",

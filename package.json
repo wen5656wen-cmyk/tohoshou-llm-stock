@@ -59,6 +59,8 @@
     "pipeline:dry-run": "npx tsx scripts/dry-run-pipeline.ts",
     "i18n:scan": "npx tsx scripts/i18n-scan.ts",
     "strategy:init-capital": "npx tsx scripts/init-strategy-capital.ts",
+    "daily-ai-watchlist": "npx tsx scripts/generate-daily-ai-watchlist.ts",
+    "daily-ai-watchlist:dry": "DRY_RUN=1 npx tsx scripts/generate-daily-ai-watchlist.ts",
     "generate-strategy-recs": "npx tsx scripts/generate-strategy-recommendations.ts",
     "generate-strategy-recs:dry": "npx tsx scripts/generate-strategy-recommendations.ts --dry-run",
     "day-strategy": "npx tsx scripts/day-strategy.ts",

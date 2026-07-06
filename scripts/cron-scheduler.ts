@@ -413,6 +413,12 @@ cron.schedule("30 7 * * *", async () => {
   // ¥10M simulated account. Read-only vs strategy tables; runs after day-strategy
   // (and after Swing/Long once activated in Phase 7) so their trades are settled.
   await runAsync("paper-broker.ts", "Paper Broker (模拟账户同期)", 10 * 60 * 1000);
+
+  // P6-T7: Daily AI Watchlist — snapshot today's STRONG_BUY/BUY names into an
+  // independent date-scoped pool. Runs AFTER DailyRecommendation is fresh; the
+  // whole 07:30+ block is already JPX-guarded (non-trading days skipped), and
+  // the script itself re-checks the JPX calendar. Read-only vs scoring.
+  await runAsync("generate-daily-ai-watchlist.ts", "Daily AI Watchlist（每日关注池）", 5 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
 // ── 16:35 JST — Swing Trade Strategy Engine（工作日，Day 结束后）────────────

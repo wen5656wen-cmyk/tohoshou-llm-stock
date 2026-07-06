@@ -38,6 +38,33 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.86.0] - 2026-07-06 — ⭐ P6-T7 Daily AI Watchlist（每日 AI 关注池）
+
+每个交易日自动把当日 AI 推荐中 **STRONG_BUY / BUY** 的股票固化为一份**按日期独立**的关注池，用户可取消/恢复关注、加星、重点观察、备注，并持续统计表现。**纯新增功能 + 纯派生层**，未改任何 AI评分 / Adaptive / Shadow / Fusion / Learning / Recommendation / GPT / Feature / Backtest / Paper Broker；数据来源为现有 `DailyRecommendation`（推荐）+ `StockScore` / `DailyPrice`（行情），**未新增任何外部行情 API**。
+
+### 新增表
+`daily_ai_watchlist`（model `DailyAIWatchlist`）：`date+symbol` 唯一，历史不覆盖；`entryPrice`/`score`/`rank`/`name` 生成时快照冻结；`currentPrice`/`changePct`/`returnPct` 为最近刷新快照（GET 实时重算）；`status`/`isStarred`/`isMuted`/`isFocus`/`note` 为用户操作字段。
+
+### 生成逻辑（幂等）
+`lib/daily-watchlist/`：`generate.ts`（读当日 DailyRecommendation 的 STRONG_BUY/BUY → upsert，**update 不覆盖 entryPrice 与用户操作字段**，history 保留）、`pricing.ts`（`getLiveQuotes` 从 StockScore.latestClose + DailyPrice 最近两日算现价/今日涨跌，无外部 API）、`stats.ts`（`computeWatchlistStats` 纯聚合）。均依赖注入 `prisma`，API 单例与脚本共用。
+
+### 新增脚本 + Cron
+`scripts/generate-daily-ai-watchlist.ts`（`npm run daily-ai-watchlist`，JPX 交易日守卫：非交易日不生成；`--date=` 显式回填绕过守卫；`DRY_RUN=1` 预览）。挂入 `cron-scheduler.ts` 07:30+ 已 JPX 守卫块，排在 `generate-strategy-recommendations` / `paper-broker` 之后（DailyRecommendation 已就绪）。
+
+### 新增 API
+- `GET /api/watchlist/daily?date=YYYY-MM-DD`（当日列表 + 实时重算现价/涨跌 + 统计 + 可选日期列表；默认最新日期）
+- `POST /api/watchlist/daily/generate`（手动生成/重算，幂等）
+- `PATCH /api/watchlist/daily/[id]`（取消关注/恢复/加星/重点观察/备注，只改本行不删历史）
+
+### 新增页面
+`/watchlist/daily`「每日 AI 关注池」：顶部（标题 + 日期选择 + 刷新 + 生成）· 8 张统计卡（当日关注/上涨/下跌/平均推荐后涨跌/Top Winner/Top Loser/强烈买入表现/买入表现）· 表格（排名/股票/推荐等级/AI评分/推荐价/当前价/今日涨跌/推荐后涨跌/状态/操作 + 加星·重点·备注·取消/恢复）。Apple 浅色 Dashboard；`app/watchlist/daily/page.tsx` CJK-free 薄壳，中文标签在 `components/watchlist-daily/DailyWatchlistView.tsx`。导航「每日AI关注池」（`nav.dailyWatchlist` 三语 + Sparkles 图标）。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**；**DB Migration ✅**（`prisma db push` 同步 `daily_ai_watchlist`）；**Daily Generate ✅**（07-06 生成 15 只 STRONG_BUY=0/BUY=15）；**JPX Guard ✅**（Mon=true，Sat/Sun/海の日=false）；**Manual Toggle ✅**（加星/备注/取消→MUTED，重生成后用户操作与 entryPrice 全保留＝幂等）；**Daily Page ✅**（CDP 截图完整渲染，含 today-change 真实值 -1.44%/+9.73%）；**Stats ✅**；No Scoring / No Recommendation Change ✅。新增依赖无。
+- 新增 `prisma`(model) · `lib/daily-watchlist/{generate,pricing,stats}.ts` · `scripts/generate-daily-ai-watchlist.ts` · `app/api/watchlist/daily/{route,generate/route,[id]/route}.ts` · `app/watchlist/daily/page.tsx` · `components/watchlist-daily/DailyWatchlistView.tsx`；改 `cron-scheduler.ts`、`lib/routes.ts`、`components/Sidebar.tsx`、`lib/i18n/*`、`package.json`。
+
+---
+
 ## [17.85.0] - 2026-07-06 — 📈 P6-T6 Lightweight Charts 接入 V1（股票详情页 K线升级）
 
 接入 TradingView **Lightweight Charts v5.2.0**，将股票详情页 `/stocks/[symbol]` 的价格走势图升级为专业 K线图。**纯展示层升级**，未改数据源 / API / 评分 / Adaptive / Shadow / Fusion / Learning / Feature / Recommendation / Cron / DB Schema / 业务逻辑；未新增任何外部行情 API，数据仍来自现有 `/api/stocks/[symbol]/indicators`（J-Quants / Prisma）。

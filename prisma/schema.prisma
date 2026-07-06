@@ -566,6 +566,39 @@ model DailyRecommendation {
   @@map("daily_recommendations")
 }
 
+// P6-T7: Daily AI Watchlist — 每日 AI 关注池
+// 每个交易日把当天 DailyRecommendation 中 STRONG_BUY / BUY 的股票固化为一份独立
+// 关注池（按 date+symbol 唯一，历史不覆盖）。纯派生/展示层：来源为现有
+// DailyRecommendation / StockScore / DailyPrice，不参与也不影响任何评分/推荐逻辑。
+// entryPrice/score/rank/name 在生成时快照冻结；currentPrice/changePct/returnPct
+// 为最近一次刷新的快照（GET 时按现有数据源实时重算）；用户操作只改本行的
+// status/isStarred/isMuted/isFocus/note，不删除历史记录。
+model DailyAIWatchlist {
+  id             Int      @id @default(autoincrement())
+  date           DateTime @db.Date // JST 关注池日期
+  symbol         String
+  name           String? // Stock.nameZh ?? name 快照
+  recommendation String // STRONG_BUY | BUY（生成时快照）
+  rank           Int? // DailyRecommendation.gptRank 快照
+  score          Float? // adaptiveScore 快照
+  entryPrice     Float? // 推荐时价格（DailyRecommendation.buyPrice 快照，冻结）
+  currentPrice   Float? // 最近刷新的现价快照
+  changePct      Float? // 今日涨跌幅 %（EOD，最近刷新快照）
+  returnPct      Float? // 推荐后涨跌 % =(current-entry)/entry（最近刷新快照）
+  status         String   @default("ACTIVE") // ACTIVE | MUTED（取消关注）
+  isStarred      Boolean  @default(false)
+  isMuted        Boolean  @default(false)
+  isFocus        Boolean  @default(false)
+  note           String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date, symbol])
+  @@index([date(sort: Desc)])
+  @@index([symbol])
+  @@map("daily_ai_watchlist")
+}
+
 // Aggregated backtest results per cohort date + horizon (v10.0)
 model BacktestResult {
   id                    Int      @id @default(autoincrement())
