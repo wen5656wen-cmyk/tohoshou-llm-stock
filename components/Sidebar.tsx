@@ -48,6 +48,7 @@ export default function Sidebar() {
     {
       labelKey: "nav.systemMgmt",
       items: [
+        { href: ROUTES.DECISION_CENTER,   label: t("nav.decisionCenter"), Icon: Target, badge: "Cockpit" },
         { href: ROUTES.MISSION_CONTROL,   label: t("nav.missionControl"), Icon: Settings },
         { href: ROUTES.RUNTIME,           label: t("nav.runtime"),        Icon: Activity },
         { href: ROUTES.VERIFY,            label: t("nav.dataVerify"),     Icon: CircleCheck },

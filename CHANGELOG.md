@@ -2,6 +2,29 @@
 
 ---
 
+## [17.91.0] - 2026-07-08 — 🎛️ P6-T11 AI Decision Center（Decision Cockpit）
+
+P6 最后一个展示层：新增 **AI Decision Center** 决策驾驶舱，整合已有数据成一屏总览。**纯展示层聚合**，未新增任何 AI 算法、未修改任何评分/推荐——只读复用 MarketRegime / GlobalMarket / StockScore / DailyAIWatchlist / AiTopPick / Feature Platform / AiTopPickPerf / DeploymentLog / health·pipeline 日志；未改 AI Score / Strong Buy / BUY / Promotion / Factor Alpha / Learning / Explain / Strategy / Watchlist / AI Top Picks。
+
+### 新增页面 `/admin/decision-center` + API `/api/admin/decision-center`（6 区）
+1. **Market Overview**：JP Market Regime（BULL/SIDEWAYS/BEAR）· TOPIX · 日经225 · 市场趋势（trendScore/breadth）· Risk Level（波动率 <20 低 /≤25 中 />25 高）。
+2. **Today's AI Decision**：Today's Top5 · Strong Buy · BUY · Watchlist 数量。
+3. **Feature Platform**：Production · Shadow · Pending · Integrity · Promotion 候选 · 平均 Alpha · 平均 Confidence（复用 `lib/features/platform`）。
+4. **AI Top Picks**：Top5 列表 + 组合收益（实时 Yahoo）· Alpha · 胜率 · 累计 · 更新时间（复用 AiTopPick + AiTopPickPerf）。
+5. **System Status**：Health（CRITICAL/warning）· Cron（今日 SUCCESS/total）· Web · Database · Deployment · Build · Version（读 health/pipeline 日志 + DeploymentLog）。
+6. **Tomorrow Outlook**（纯汇总，不调用 LLM）：Market（regime→Bullish/Neutral/Bearish）· Risk（波动率）· Focus（今日 Top5+STRONG_BUY+BUY 候选的 `Stock.sector` 行业分布 Top3）。
+
+### 设计
+科技感 Apple 浅色 Dashboard：顶部状态条（市场/风险/Health/Cron/Integrity pills）+ 6 分区（编号标题 + KPI 网格 / 卡片）。无复杂动画。导航「决策驾驶舱 · Cockpit」（`nav.decisionCenter` 三语 + Target）。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**；**无 Schema 改动**；API ✅ 200（实测：市场 BULL/低风险/TOPIX 431.8 · 决策 Top5=5/SB=1/BUY=13/关注14 · 平台 Prod46/Shadow37/Pending31/Integrity100 · Top Picks 组合-0.31% · 系统 Health0/Cron35/35/Build PASS/版本31d6833 · 明日 Bullish/LOW/Focus[情報通信12/小売/機械]）；页面 ✅ CDP 截图 6 区完整；**未修改任何核心模块 · Production 不变**。
+- 新增 `app/api/admin/decision-center/route.ts` · `app/admin/decision-center/page.tsx`；改 `lib/routes.ts`、`components/Sidebar.tsx`、`lib/i18n/*`。
+
+**说明**：Decision Center 属**展示层**，不属于 P7，不修改任何 AI。P6 展示层至此完备；P6 Feature Platform 仍处 Freeze 观察、AI Top Picks V1.1 仍处实验验证冻结。
+
+---
+
 ## [17.90.2-exp] - 2026-07-08 — 🧊 AI Top Picks V1.1 FREEZE · Experimental Validation 基础设施
 
 AI Top Picks V1.1 进入**实验验证冻结期（20–30 交易日，算法完全固定）**。本次仅搭建**只读验证报告基础设施**（每日 Performance + 每周 Report），**未改任何算法**：Composite / 权重 / Liquidity·Momentum·News 门槛 / 排序 / Top5 数量 / Gate 全部冻结。仅允许 Bug Fix / 数据修复 / Cron 修复 / 文档。

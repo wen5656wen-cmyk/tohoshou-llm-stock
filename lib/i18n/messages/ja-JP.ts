@@ -402,6 +402,7 @@ const jaJP: Messages = {
   "nav.features": "ファクター管理",
   "nav.featurePromotion": "ファクター昇格",
   "nav.featurePlatform": "ファクター基盤",
+  "nav.decisionCenter": "意思決定コックピット",
   "nav.aiTopPicks": "AI トップ5",
   "nav.dailyWatchlist": "毎日AIウォッチ",
   "nav.syncStatus": "同期状態",
