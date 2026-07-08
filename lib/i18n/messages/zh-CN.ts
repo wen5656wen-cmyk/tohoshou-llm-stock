@@ -400,6 +400,7 @@ const zhCN: Messages = {
   "nav.versionCenter": "版本中心",
   "nav.experiments": "实验管理",
   "nav.features": "因子中心",
+  "nav.featurePromotion": "因子晋升",
   "nav.dailyWatchlist": "每日AI关注池",
   "nav.syncStatus": "同步状态",
   "nav.dataVerify": "数据校验",

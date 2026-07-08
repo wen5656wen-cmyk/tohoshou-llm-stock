@@ -400,6 +400,7 @@ const jaJP: Messages = {
   "nav.versionCenter": "バージョン管理",
   "nav.experiments": "実験管理",
   "nav.features": "ファクター管理",
+  "nav.featurePromotion": "ファクター昇格",
   "nav.dailyWatchlist": "毎日AIウォッチ",
   "nav.syncStatus": "同期状態",
   "nav.dataVerify": "データ検証",

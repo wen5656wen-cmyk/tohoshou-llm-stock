@@ -8,7 +8,7 @@ import { ROUTES } from "@/lib/routes";
 import {
   LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
   GraduationCap, Layers, FlaskConical, Newspaper, Boxes,
-  Settings, CircleCheck, RefreshCw, Activity,
+  Settings, CircleCheck, RefreshCw, Activity, TrendingUp,
 } from "./dashboard/icons";
 
 type IconCmp = (p: { size?: number }) => React.ReactElement;
@@ -38,6 +38,7 @@ export default function Sidebar() {
         { href: ROUTES.LEARNING_REPORT,   label: t("nav.learningReport"), Icon: GraduationCap },
         { href: ROUTES.VERSIONS,          label: t("nav.versionCenter"),  Icon: Layers },
         { href: ROUTES.FEATURES,          label: t("nav.features"),       Icon: Boxes },
+        { href: ROUTES.FEATURE_PROMOTION, label: t("nav.featurePromotion"), Icon: TrendingUp },
         { href: ROUTES.LABS,              label: t("nav.experiments"),    Icon: FlaskConical },
         { href: ROUTES.NEWS,              label: t("nav.news"),           Icon: Newspaper },
       ],

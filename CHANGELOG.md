@@ -38,6 +38,32 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.87.0] - 2026-07-08 — 🎖️ P6-T8 Feature Promotion Engine V1（因子晋升引擎）
+
+对现有 SHADOW 因子做**统一量化评估**，给出 **Promote / Keep Shadow / Disable** 建议与 **1-5 星** rating。补齐 P6 Feature Platform 流水线的倒数第二环：**Registry → Shadow → Backtest → Learning → Promotion → Production**。**纯只读派生层**，未改 AI评分 / Adaptive / Shadow / Fusion / Strategy / Learning / Explain / Recommendation / GPT / Feature Registry / Validation / Cron / **DB Schema**；未切换 OpenAI 模型（保持 `gpt-4o-mini`）；未改 Daily AI Watchlist 行情逻辑；**不自动写 Production、不启用/禁用任何因子、不影响任何推荐结果**。
+
+### 新增计算逻辑 `lib/features/promotion/`（5 文件，纯函数）
+- `types.ts`：`PromotionRawInput` / `PromotionMetrics` / `PromotionEval` / `FeaturePromotion` / `PromotionSummary` + `PROMOTION_RULES`（阈值）+ `RATING_LABEL`（5=Ready for Production / 4=Need More Samples / 3=Observe / 2=Weak / 1=Disable）。
+- `engine.ts`：`evaluatePromotion(raw, status)` — 统一晋升分 `promotionScore`（命中率 35% + Alpha 25% + Sharpe 15% + 覆盖率 10% + 一致性 10% + 样本成熟度 5%，缺失辅助项取中性 50）、`learningScore`（成熟度 50% + 一致性 30% + 覆盖率 20%）、星级与建议。**关键护栏**：5 星 PROMOTE 除综合分≥60、HIGH 置信、Alpha>0 外，**必须命中率≥55%**——防止 AlphaFactorReport 的 `meanExcess`（period 级市场超额，跨因子恒定）把弱因子（命中率<50%）误推入 Production。
+- `factor-map.ts`：Feature id → `AlphaFactorReport.factor`（有效性报告）与 `AlphaFactor` 列（覆盖率）映射。
+- `registry.ts`：`buildFeaturePromotions(inputs)` / `summarizePromotions()` — 注入真实统计后派生全量视图 + 汇总。PRODUCTION 因子作为参考基线，`recommendation=null`，本引擎不重评。
+- `index.ts`：统一入口。
+
+### 指标字段
+hitRate / winRate / alpha / sharpeRatio / maxDrawdown / coverage / consistency / sampleCount / learningScore / promotionScore（因子级无逐笔回撤 → maxDrawdown 为 null，组合级最大回撤见 summary.portfolioMaxDrawdown）。**一致性**＝跨周期（7/30/90/180d）`meanExcess>0 且 winRate≥50` 的周期占比；**覆盖率**＝latest AlphaFactor 日该列非空占比。
+
+### 新增 API `GET /api/admin/feature-promotion`（只读）
+读取 `AlphaFactorReport`（6 因子族×4 周期，主报告优先 90d）+ `AlphaFactor`（覆盖率 count）+ `AlphaBacktestResult`（ALPHA 90/top20/hold10 组合回撤）→ 注入引擎。返回 `summary` / `productionFeatures` / `shadowFeatures` / `promotionCandidates` / `keepShadow` / `disabledCandidates` / `features`（每因子 metrics + recommendation + rating + reason）。
+
+### 新增页面 `/admin/feature-promotion`「因子晋升」
+Apple 浅色 Dashboard：原则声明 + 6 KPI（因子总数 / 建议晋升 / 保持影子 / 建议停用 / 已评估影子 / 影子平均晋升分）+ 4 分区（Promotion Candidates / Keep Shadow / Weak·Disable Candidates / Production Features）。每张因子卡：featureKey / name / category / status / 晋升分 / 星级 / 建议 / 命中率·Alpha·Sharpe·覆盖率·样本数·一致性 / 一句话 reason。导航新增「因子晋升」入口（`nav.featurePromotion` 三语 + TrendingUp 图标）。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**（warning=5，全非阻断）；API ✅ HTTP 200 非空（83 因子＝正式 46+影子 37；6 个已评估影子有真实统计，31 个财务/机构/TDnet 影子无 Backtest→pending 观察）；**引擎护栏验证**：averageTurnover20 综合分最高 76.2 但命中率 53.2%<55% → 正确停留 3 星 Observe/KEEP_SHADOW，未误推晋升；**0 误晋升 / 0 误停用**（符合 V1「只建议」）；页面 ✅ HTTP 200 + CDP 截图确认真实数据渲染 + 侧栏入口高亮；No Scoring / No Recommendation / No Schema / No Model Switch Change ✅。
+- 新增 `lib/features/promotion/{types,engine,factor-map,registry,index}.ts` · `app/api/admin/feature-promotion/route.ts` · `app/admin/feature-promotion/page.tsx`；改 `lib/routes.ts`、`components/Sidebar.tsx`、`lib/i18n/{types,messages/zh-CN,ja-JP,en-US}.ts`。
+
+---
+
 ## [17.86.1] - 2026-07-06 — 🟢 P6-T7.1 Daily AI Watchlist 实时盯盘优化（Realtime Dashboard）
 
 将「每日 AI 关注池」从列表管理页升级为**盘中实时盯盘 Dashboard**。**仅优化行情展示**，未改 AI评分 / Recommendation / DailyRecommendation / Adaptive / Shadow / Fusion / Learning / GPT / Feature / Backtest / Paper Broker / Cron / **DB Schema**；未新增任何付费/外部行情 API（复用系统现有 Yahoo Finance quote 能力）。

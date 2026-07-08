@@ -19,6 +19,7 @@ export const ROUTES = {
   DATA_CENTER: "/sync",
   LABS: "/admin/experiments",
   FEATURES: "/admin/features",
+  FEATURE_PROMOTION: "/admin/feature-promotion",
   SETTINGS: "/admin/mission-control",
   CONTROL_CENTER: "/admin/mission-control",
   MISSION_CONTROL: "/admin/mission-control",

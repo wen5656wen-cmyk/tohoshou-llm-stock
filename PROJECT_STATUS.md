@@ -1,9 +1,15 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-05（🏁 **P5 Final — COMPLETE**，进入 P6）
-> **版本：** v17.84.0（CHANGELOG）；最新部署 **#147**，commit `52ac8da`
+> **最后更新：** 2026-07-08（🎖️ **P6-T8 Feature Promotion Engine V1** 已上线）
+> **版本：** v17.87.0（CHANGELOG）；本次 commit `<见 git log>`
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
-> **下次启动继续位置：** P6-T2 Feature Platform（P5 已冻结，除 Bug Fix 外禁改 P5 模块）
+> **下次启动继续位置：** P6-T9（Feature Platform 收尾：把评估通过的 SHADOW 因子经人工确认后走真实晋升；或补齐财务/机构/TDnet 影子因子的 Backtest 有效性样本）
+
+## 🎖️ P6-T8 — Feature Promotion Engine V1（2026-07-08，v17.87.0）
+
+- **因子晋升引擎**：对 SHADOW 因子统一量化评估 → Promote / Keep Shadow / Disable + 1-5 星。补齐 P6 流水线 **Registry → Shadow → Backtest → Learning → Promotion → Production**。
+- **纯只读派生**：`lib/features/promotion/`（engine 纯函数）+ `GET /api/admin/feature-promotion`（读 AlphaFactorReport/AlphaFactor/AlphaBacktestResult）+ `/admin/feature-promotion` 页面。**不自动改任何 Feature 状态，不影响推荐/评分/schema/模型**。
+- **护栏**：5 星 PROMOTE 需命中率≥55%（防 period 级 Alpha 常数误推）。当前 83 因子（正式 46 / 影子 37），6 个技术影子已评估（全 Observe/KEEP_SHADOW），31 个财务/机构/TDnet 影子待 Backtest 样本。**0 误晋升 / 0 误停用**。
 
 ## 🏁 P5 Final — COMPLETE（2026-07-05）
 

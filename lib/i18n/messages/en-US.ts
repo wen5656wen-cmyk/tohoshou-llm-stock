@@ -400,6 +400,7 @@ const enUS: Messages = {
   "nav.versionCenter": "Versions",
   "nav.experiments": "Experiments",
   "nav.features": "Feature Registry",
+  "nav.featurePromotion": "Feature Promotion",
   "nav.dailyWatchlist": "Daily AI Watchlist",
   "nav.syncStatus": "Sync Status",
   "nav.dataVerify": "Data Verify",
