@@ -402,6 +402,7 @@ const enUS: Messages = {
   "nav.features": "Feature Registry",
   "nav.featurePromotion": "Feature Promotion",
   "nav.featurePlatform": "Feature Platform",
+  "nav.aiTopPicks": "AI Top Picks",
   "nav.dailyWatchlist": "Daily AI Watchlist",
   "nav.syncStatus": "Sync Status",
   "nav.dataVerify": "Data Verify",

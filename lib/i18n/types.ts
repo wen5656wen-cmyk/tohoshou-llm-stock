@@ -46,6 +46,7 @@ export type Messages = {
   "nav.features": string;
   "nav.featurePromotion": string;
   "nav.featurePlatform": string;
+  "nav.aiTopPicks": string;
   "nav.dailyWatchlist": string;
   "nav.syncStatus": string;
   "nav.dataVerify": string;

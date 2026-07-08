@@ -1541,6 +1541,37 @@ model FeaturePlatformSnapshot {
   @@map("feature_platform_snapshots")
 }
 
+// ── AI Top Picks — P7 Preview (Experimental V1) ──────────────────────────────
+// 每日从 STRONG_BUY（不足 5 时补 top BUY）用「AI评分 + 因子Alpha + Contribution +
+// Confidence + Risk」综合重排出 Top5。**独立实验模块 · 纯只读派生**：只读 StockScore /
+// AlphaScore（已有数据），绝不修改 StrongBuy / DailyRecommendation / Promotion / Strategy /
+// Watchlist / 任何评分逻辑。entryPrice 生成时冻结，历史不覆盖。
+model AiTopPick {
+  id             Int      @id @default(autoincrement())
+  date           DateTime @db.Date // JST 生成日
+  rank           Int // 1..5 by compositeScore
+  symbol         String
+  name           String?
+  sourceRating   String // STRONG_BUY | BUY（SB 优先，不足 5 补 BUY）
+  entryPrice     Float? // 生成时收盘价，冻结
+  entryDate      DateTime @db.Date
+  aiScore        Float? // StockScore.adaptiveScore
+  alphaScore     Float? // AlphaScore.alphaScore（因子 alpha per stock）
+  contribution   Float? // AlphaScore.percentile（因子排名强度）
+  confidence     Float? // StockScore.ruleConfidence
+  riskScore      Float? // 风险调整分（highRiskFlag 惩罚）
+  compositeScore Float // 综合重排分 0-100
+  reason         String?
+  currentPrice   Float? // 最近刷新快照（GET 实时重算）
+  returnPct      Float? // 最近刷新快照
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date, symbol])
+  @@index([date, rank])
+  @@map("ai_top_picks")
+}
+
 // ── Market Regime — P2-T3 Adaptive Fusion Research ───────────────────────────
 // Per-day Bull/Sideways/Bear classification (TOPIX MA stack + breadth + volatility).
 // Research-only; never affects production scoring/recommendation.

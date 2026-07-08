@@ -2,6 +2,32 @@
 
 ---
 
+## [17.90.0-exp] - 2026-07-08 — 🧪 P7 Preview · AI Top Picks V1（Experimental）
+
+**独立实验模块**（P7 预览，Freeze 期经用户显式授权例外）：每日从 STRONG_BUY（不足 5 补 top BUY）综合 **AI评分 + 因子Alpha + Contribution + Confidence + Risk** 重排 **Top5**。**纯只读派生 + additive 新表**——只读 StockScore + AlphaScore（已有数据），**绝不修改 Strong Buy / Daily Recommendation / Promotion / Strategy / Watchlist / 任何评分逻辑**。
+
+### 综合重排（每股，非因子级）
+- `lib/ai-top-picks/compose.ts`（纯函数）：compositeScore = **AI评分 0.35 + 因子Alpha 0.25 + Contribution 0.10 + Confidence 0.10 + Risk 0.20**（各 0-100）。AI评分=`StockScore.adaptiveScore`；因子Alpha=`AlphaScore.alphaScore`（每股因子 alpha 复合，50=宇宙均值）；Contribution=`AlphaScore.percentile`（因子排名强度）；Confidence=`StockScore.ruleConfidence`；Risk=`highRiskFlag` 惩罚（高风险 40 / 低风险 85）。
+- 选池：STRONG_BUY 全部保证入选（pin）；不足 5 时按 **compositeScore** 从 BUY 补足；整体按 composite 定 rank。实测 Top5：KDDI(76.1)/贝亲(76.1)/SMC(74.9)/Tobira(74)/**Link-U(64.7 · 唯一 STRONG_BUY，AI75 但因子排名前93%弱→保底#5**）——体现「AI 强但因子弱」被降权、因子均衡股上位的重排价值。
+
+### 新增表（additive · 无 breaking change）
+`AiTopPick`（`@@unique([date,symbol])`）：date/rank/symbol/sourceRating/entryPrice(冻结)/entryDate + 评分构成(aiScore/alphaScore/contribution/confidence/riskScore/compositeScore)/reason + currentPrice/returnPct 快照。
+
+### 脚本 + Cron
+`scripts/generate-ai-top-picks.ts`（`npm run ai-top-picks`，JPX 守卫 / `--date=` 回填 / DRY_RUN；**entryPrice 冻结不覆盖**，同日重跑清理掉出 Top5 的旧行保证恰好 5 只）。Cron **09:35 JST**（AlphaScore 09:15 / Factor Alpha 09:20 后）。
+
+### API + 页面
+- `GET /api/admin/ai-top-picks`：当期 Top5 + **实时行情**（Yahoo 批量 6s 超时，回退 EOD）+ 组合收益（等权）+ **TOPIX 基准**（GlobalMarket.topix，入场基准取 entryDate 当日或之前最近值；跨 2026-03-30 断点窗口标 N/A）+ Alpha + 历史表现（各期 cohort EOD vs entry + TOPIX + Alpha）。
+- 页面 `/admin/ai-top-picks`「AI 五选」：Experimental 声明 + 4 KPI（日期/组合收益/TOPIX/Alpha）+ Top5 卡片（推荐价/当前价/实时收益/评分构成/理由）+ 历史表现表。导航「AI 五选 · Exp」（`nav.aiTopPicks` 三语 + Sparkles）。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**；Schema additive（`prisma db push` 同步 `ai_top_picks`）；生成 ✅（Top5 落库，同日清理掉出 3 只后恰好 5 只）；API ✅ 200（组合 +0.88% / TOPIX 0% / Alpha +0.88%，实时 Yahoo）；页面 ✅ CDP 截图；Cron 09:35 已注册（cron 重启加载，明日首跑）；**未修改 StrongBuy/DR/Promotion/Strategy/Watchlist/评分 · Production 状态不变** ✅。
+- 新增 `prisma`(AiTopPick) · `lib/ai-top-picks/{compose,index}.ts` · `scripts/generate-ai-top-picks.ts` · `app/api/admin/ai-top-picks/route.ts` · `app/admin/ai-top-picks/page.tsx`；改 `scripts/cron-scheduler.ts`(+1 cron)、`package.json`、`lib/routes.ts`、`components/Sidebar.tsx`、`lib/i18n/*`。
+
+**说明**：本模块为 P7 实验预览，**不代表进入 P7 正式开发**；P6 Feature Platform 仍处 Freeze 观察，Freeze Exit 条件不变。
+
+---
+
 ## ❄️ P6 FREEZE — Feature Platform Final Validation（观察期，2026-07-08 起）
 
 **P6 Feature Platform 已封版（v17.89.0）**，进入 **Freeze 冻结观察期（建议 7–14 天）**。本阶段**仅观察，不写任何新功能、不进入 P7**；只允许 Bug Fix（P0/P1）/ 数据修复 / Health 修复 / Cron 修复 / Deployment 修复 / 文档更新。

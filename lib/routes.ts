@@ -21,6 +21,7 @@ export const ROUTES = {
   FEATURES: "/admin/features",
   FEATURE_PROMOTION: "/admin/feature-promotion",
   FEATURE_PLATFORM: "/admin/feature-platform",
+  AI_TOP_PICKS: "/admin/ai-top-picks",
   SETTINGS: "/admin/mission-control",
   CONTROL_CENTER: "/admin/mission-control",
   MISSION_CONTROL: "/admin/mission-control",

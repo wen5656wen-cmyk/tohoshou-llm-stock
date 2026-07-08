@@ -290,6 +290,15 @@ cron.schedule("45 9 * * *", async () => {
   await runAsync("research-fusion.ts", "Adaptive Fusion Research", 15 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:35 JST — AI Top Picks（P7 Preview · Experimental V1）─────────────────
+// AlphaScore(09:15)/Factor Alpha(09:20) 后：从 STRONG_BUY（不足5补top BUY）综合重排 Top5。
+// **独立实验模块 · 纯只读派生**：只读 StockScore+AlphaScore，绝不改 StrongBuy/DR/Promotion/
+// Strategy/Watchlist/评分。JPX 守卫非交易日跳过。
+cron.schedule("35 9 * * *", async () => {
+  log("INFO", "⏰ 09:35 触发：AI Top Picks（P7 Preview 实验 Top5）");
+  await runAsync("generate-ai-top-picks.ts", "AI Top Picks (Experimental)", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────
 // Production(公式推薦) / AlphaScore / Regime Fusion の3戦略で日次 Top10/20 を生成し、
 // 未来 1/3/5/10/20 日リターンを蓄積（2–4週）。READ-ONLY：公式推薦は変更しない。

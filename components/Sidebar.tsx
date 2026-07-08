@@ -40,6 +40,7 @@ export default function Sidebar() {
         { href: ROUTES.FEATURES,          label: t("nav.features"),       Icon: Boxes },
         { href: ROUTES.FEATURE_PROMOTION, label: t("nav.featurePromotion"), Icon: TrendingUp },
         { href: ROUTES.FEATURE_PLATFORM,  label: t("nav.featurePlatform"), Icon: Layers },
+        { href: ROUTES.AI_TOP_PICKS,      label: t("nav.aiTopPicks"),     Icon: Sparkles, badge: "Exp" },
         { href: ROUTES.LABS,              label: t("nav.experiments"),    Icon: FlaskConical },
         { href: ROUTES.NEWS,              label: t("nav.news"),           Icon: Newspaper },
       ],
