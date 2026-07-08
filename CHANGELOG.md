@@ -2,6 +2,22 @@
 
 ---
 
+## ❄️ P6 FREEZE — Feature Platform Final Validation（观察期，2026-07-08 起）
+
+**P6 Feature Platform 已封版（v17.89.0）**，进入 **Freeze 冻结观察期（建议 7–14 天）**。本阶段**仅观察，不写任何新功能、不进入 P7**；只允许 Bug Fix（P0/P1）/ 数据修复 / Health 修复 / Cron 修复 / Deployment 修复 / 文档更新。
+
+**Freeze 禁止**：新增 Feature / AI 模块 / 页面（非 Bug）· 修改 评分 / Promotion 算法 / Learning / Explain / Strategy。
+
+**每日检查项**：Health（CRITICAL=0）· Cron 全 SUCCESS（Price Sync/Recommendation/Watchlist/Backtest/Learning/**Factor Alpha**/**Platform Report**）· Integrity=100 · Daily AI Watchlist（生成/实时价/收益）· Promotion Score · Factor Alpha 每日自动生成 · Platform Report（Pending Trend/Top/Avg Alpha/Contribution）· PM2（mem/restart/error）。
+
+**Freeze Exit 条件**：连续 7–14 天 CRITICAL=0 + Cron 全 SUCCESS + Integrity=100 + Promotion/Factor Alpha/Platform 正常 + 无新 P0 → 宣布 **P6 Feature Platform Stable Release** → 开启 **P7 Adaptive Intelligence Platform**。
+
+### Freeze Daily — Day 1（2026-07-08）✅ PASS
+Health **CRITICAL=0**（warn 5 稳定）· Cron **今日 33/33 SUCCESS** · Integrity **100/100** · Promotion 正常（avgScore 72.2，Top rs5 81.9 / Worst atrPct 51.2）· Factor Alpha fresh（age 0，40 行）· Platform 快照已落（Pending 31：历史不足12/回测未接入10/覆盖率过低8/数据源缺失1，Trend 基线 ±0）· Watchlist 14 只实时（13/14 非零收益，entry 冻结）· PM2 web/cron online 无 error · Deployment #158 PASS · **无新 P0**。
+**Day 2 观察点**：Factor Alpha（09:20 JST）与 Platform Report（09:25 JST）两个新 cron **首次自动触发**（今日 21:18 注册，明日首跑）。
+
+---
+
 ## 🏁 P5 Final — Explain / Runtime / Stabilization 阶段收尾（2026-07-05）
 
 **P5 Status: ✅ COMPLETE** · **Runtime Reliability: 92 / 100** · **Baseline Frozen**
