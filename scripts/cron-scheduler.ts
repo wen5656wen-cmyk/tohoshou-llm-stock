@@ -257,6 +257,23 @@ cron.schedule("15 9 * * *", async () => {
   await runAsync("compute-alpha-score.ts", "Alpha Score (Shadow)");
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:20 JST — Factor Alpha Engine（P6-T9 · T10.1 每日自动化）──────────────
+// Alpha Analytics(09:00) の後：各 Feature × horizon(1/3/5/10/20d) の実 alpha を
+// DailyPrice から回测して FactorAlphaResult へ。READ-ONLY：本番のスコア/推薦/Portfolio
+// には一切触れない。约 5min。Promotion Engine V2 はこの結果を on-demand で消費する。
+cron.schedule("20 9 * * *", async () => {
+  log("INFO", "⏰ 09:20 触发：Factor Alpha Engine（P6-T9 因子级 alpha 回测）");
+  await runAsync("compute-factor-alpha.ts", "Factor Alpha Engine", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+// ── 09:25 JST — Feature Platform Report（P6-T10 T10.2/T10.4/T10.5）──────────
+// Factor Alpha(09:20) の後：统一评估 + Integrity Check + Platform Report + Pending
+// Trend を FeaturePlatformSnapshot へ落とす。READ-ONLY 派生：Feature 状态/评分/推荐は不变。
+cron.schedule("25 9 * * *", async () => {
+  log("INFO", "⏰ 09:25 触发：Feature Platform Report（P6-T10 平台快照）");
+  await runAsync("feature-platform-report.ts", "Feature Platform Report", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 09:30 JST — Alpha Shadow Backtest（P2-T2）───────────────────────────────
 // Production スコア vs AlphaScore を DailyPrice から再構成して検証（AlphaBacktestResult）。
 // READ-ONLY：本番のスコア/推薦/Portfolio には一切影響しない。約 15min timeout。

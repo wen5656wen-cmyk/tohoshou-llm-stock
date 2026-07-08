@@ -20,6 +20,7 @@ export const ROUTES = {
   LABS: "/admin/experiments",
   FEATURES: "/admin/features",
   FEATURE_PROMOTION: "/admin/feature-promotion",
+  FEATURE_PLATFORM: "/admin/feature-platform",
   SETTINGS: "/admin/mission-control",
   CONTROL_CENTER: "/admin/mission-control",
   MISSION_CONTROL: "/admin/mission-control",

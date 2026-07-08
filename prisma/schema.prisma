@@ -1506,6 +1506,41 @@ model FactorAlphaResult {
   @@map("factor_alpha_results")
 }
 
+// ── Feature Platform Snapshot — P6-T10 Feature Platform Finalization ──────────
+// 每日一行的 Feature Platform 状态快照：平台计数 + 晋升统计 + 平均 Alpha/贡献/置信
+// + Integrity Score + Pending 分类 + TOPIX/benchmark 状态。供 Platform Report、
+// Pending Trend、Integrity 历史。READ-ONLY 派生，不参与任何评分/推荐。
+model FeaturePlatformSnapshot {
+  id                    Int      @id @default(autoincrement())
+  date                  DateTime @unique @db.Date // JST 日期
+  production            Int      @default(0)
+  shadow                Int      @default(0)
+  disabled              Int      @default(0)
+  pending               Int      @default(0)
+  evaluated             Int      @default(0)
+  promoteCandidates     Int      @default(0)
+  keepShadow            Int      @default(0)
+  disableCandidates     Int      @default(0)
+  avgAlpha              Float? // 已评估影子因子 10d alpha 均值
+  avgContribution       Float? // 平均贡献 %
+  avgConfidence         Float? // 平均置信（HIGH100/MED65/LOW30）
+  avgPromotionScore     Float?
+  topFeature            String?
+  topFeatureScore       Float?
+  worstFeature          String?
+  worstFeatureScore     Float?
+  integrityScore        Float? // 0-100 链路完整性
+  integrityIssues       Json? // [{code,severity,detail}]
+  pendingByReason       Json? // {reasonCode: count}
+  factorAlphaFresh      Boolean  @default(false) // FactorAlphaResult 今日已刷新
+  factorAlphaComputedAt DateTime?
+  benchmarkMode         String   @default("UNIVERSE") // UNIVERSE | TOPIX
+  topixStatus           String? // BROKEN | RESTORED | FALLBACK
+  createdAt             DateTime @default(now())
+
+  @@map("feature_platform_snapshots")
+}
+
 // ── Market Regime — P2-T3 Adaptive Fusion Research ───────────────────────────
 // Per-day Bull/Sideways/Bear classification (TOPIX MA stack + breadth + volatility).
 // Research-only; never affects production scoring/recommendation.

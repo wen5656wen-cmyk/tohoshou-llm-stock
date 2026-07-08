@@ -1,9 +1,18 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-08（📐 **P6-T9 Factor-level Alpha Engine + Promotion Engine V2** 已上线）
-> **版本：** v17.88.0（CHANGELOG）；本次 commit `<见 git log>`
+> **最后更新：** 2026-07-08（🏁 **P6-T10 Feature Platform Finalization — P6 封版**）
+> **版本：** v17.89.0（CHANGELOG）；本次 commit `<见 git log>`
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
-> **下次启动继续位置：** P6-T10（① 为 Financial/Institution/TDnet 影子因子接入因子级/事件级回测，把 Pending 转为可评估；② `compute-factor-alpha` 挂 cron 定期刷新；③ 待更多再平衡日累积（≥120，HIGH 置信）后由人工确认真实晋升；④ 择机修复 GlobalMarket.topix 量纲断裂 P2-020）
+> **下次启动继续位置：** **🏁 P6 已封版 → P7 Adaptive AI（不得提前开发，等指令）**。P6 遗留优化项（非阻断）：① 为 Financial/Institution/TDnet 影子因子接入因子级/事件级回测（转 31 个 Pending 为可评估）；② 待再平衡日 ≥120（HIGH 置信）后由人工确认真实晋升；③ TOPIX P2-020 待 Yahoo 复权修正后 `repair-topix --apply`。
+
+## 🏁 P6-T10 — Feature Platform Finalization（2026-07-08，v17.89.0，P6 封版）
+
+- **T10.1 Factor Alpha 自动化**：`compute-factor-alpha` 加入每日 cron 09:20 JST（pipeline-tracker 记录 Cron Health）。
+- **T10.2 Pending Trend**：Shadow pending 按类统计 + 每日增减（历史不足12/回测未接入10/覆盖率过低8/数据源缺失1）。
+- **T10.3 TOPIX 修复**：`repair-topix.ts` 重取 1306.T → adjClose 自身仍断裂（ETF 拆股）→ 自动 FALLBACK 等权宇宙，每日记录（P2-020 待 Yahoo 修正）。
+- **T10.4 Integrity Check**：链路 Registry→Shadow→Backtest→FactorAlpha→Promotion→Production，**Integrity=100/100**（修复 volumeRatio5 断链 + atr14 缺 alpha）。
+- **T10.5 Platform Report**：新表 `FeaturePlatformSnapshot` + cron 09:25 JST + `/api/admin/feature-platform` + 页面「因子平台」；T9 promotion API 重构复用 `lib/features/platform`（单一来源）。
+- **验收**：Build tsc0 / Health CRITICAL=0 / Integrity 100 / 2 新 cron 已注册 / API 200 / Production 不变。
 
 ## 📐 P6-T9 — Factor-level Alpha Engine + Promotion Engine V2（2026-07-08，v17.88.0）
 

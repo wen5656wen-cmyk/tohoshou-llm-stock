@@ -27,7 +27,7 @@
 
 | ID | Description | Root Cause | File |
 |----|-------------|------------|------|
-| P2-020 | `GlobalMarket.topix` 点位序列在 **2026-03-30 有量纲断裂**（3827→376.4，指数→ETF代理，topixChange=−90.16%），污染任何跨期 TOPIX 超额收益（含既有 `AlphaFactorReport.meanExcess` 恒 +15% 假象）。P6-T9 因子级 Alpha 已改用**等权宇宙**基准规避；建议后续统一修复 topix 数据源（重采集或按断点重标定）。 | 数据源在断点切换代理标的 | `GlobalMarket` 表 · `scripts/fetch-global-market.ts` |
+| P2-020 | `GlobalMarket.topix` 点位序列在 **2026-03-30 有量纲断裂**（3827→376.4，指数→ETF代理，topixChange=−90.16%），污染任何跨期 TOPIX 超额收益（含既有 `AlphaFactorReport.meanExcess` 恒 +15% 假象）。**P6-T10 修复尝试（`scripts/repair-topix.ts`）：重取 1306.T 真实 adjClose 发现其自身在 2026-04-01 仍跳变（ETF 拆股，Yahoo 未一致复权）→ 无法得到连续真实序列 → 自动 FALLBACK 至等权宇宙 benchmark（Platform Report 每日记录 `topixStatus=BROKEN / benchmarkMode=UNIVERSE`）。** 因子级 Alpha 用等权宇宙基准不受影响。待 Yahoo 复权修正或换 TOPIX 现货源后可重跑 `npm run repair-topix -- --apply`。 | 数据源在断点切换代理标的 + ETF 拆股未复权 | `GlobalMarket` 表 · `scripts/fetch-global-market.ts` · `scripts/repair-topix.ts` |
 | P2-001 | en-US 股票显示名缺失 | `Stock.nameEn` 多数为 null，en-US 界面 fallback 到日文名 | `lib/company-name.ts` |
 | P2-002 | Screener 无 `week52Pct` / `volumeRatio` 字段 | 指标行只有 RSI·MA·5D，与 Watchlist 相比缺少 52W 位置 | `app/api/screener/route.ts` |
 | P2-003 | `week52Pct` 使用 Stock 表 `high52w/low52w`，J-Quants 同步滞后约一周 | J-Quants `high52w` 每周更新一次 | `app/api/watchlist/route.ts` |

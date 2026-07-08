@@ -38,6 +38,37 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.89.0] - 2026-07-08 — 🏁 P6-T10 Feature Platform Finalization（P6 封版）
+
+P6 Feature Platform 基础设施收尾——**自动化 / 数据完整性 / 稳定性**，无新增 AI 功能、无评分逻辑改动。**纯只读派生 + 一张 additive 新表 + cron 自动化**，未改 Adaptive / Explain / Shadow算法 / Learning算法 / Strategy / Daily Recommendation / Daily AI Watchlist / 任何 Production Feature；Promotion Engine V1/V2 保持兼容。
+
+### T10.1 Factor Alpha 自动化（cron）
+- `compute-factor-alpha` 正式加入每日 cron **09:20 JST**（紧随 Alpha Analytics 09:00），`runAsync` 自带 pipeline-tracker 记录 → Cron Health（最后运行/耗时/成功失败）。**禁止人工运行**，每日自动生成 FactorAlphaResult。
+
+### T10.2 Pending Completion + Trend
+- Shadow pending 按真实原因分类（Waiting History / Coverage Low / No Trigger / No Backtest / Data Missing）+ **每日 Trend**（对比昨日快照的增减）。当前：历史不足 12 · 回测未接入 10 · 覆盖率过低 8 · 数据源缺失 1。
+
+### T10.3 TOPIX Data Repair（P2-020）
+- 新增 `scripts/repair-topix.ts`（`npm run repair-topix`，默认 VERIFY / `--apply` 才写）：**重取 1306.T 真实 adjClose**，检查 2026-03-30 断点连续性。**结果：1306.T adjClose 自身在 2026-04-01 仍跳变（ETF 拆股 Yahoo 未一致复权）→ 无法得到连续真实序列 → 自动 FALLBACK 至等权宇宙 benchmark**（禁止人工修正数值；未写任何数据）。Platform Report 每日记录 `topixStatus=BROKEN / benchmarkMode=UNIVERSE`。
+
+### T10.4 Production Integrity Check
+- `lib/features/platform/integrity.ts`：每日检查链路 **Registry → Shadow → Backtest → Factor Alpha → Promotion → Production**，检测 Missing / Duplicate / Broken Link / Missing Alpha / Stale，输出 **Integrity Score 0-100**。**首跑发现并修复 2 个 T9 遗留不一致**：`volumeRatio5`（factor-map 引用非注册因子 → BROKEN_LINK）、`atr14`（映射覆盖率列但未计算 alpha → MISSING_ALPHA）——对齐 factor-map 到实际计算的 8 因子后 **Integrity=100/100**。
+
+### T10.5 Feature Platform Report
+- 新增 `lib/features/platform/`（evaluate 统一评估[T9 API 重构复用，单一来源] + integrity + report + data 加载 + index）；`scripts/feature-platform-report.ts`（每日 cron **09:25 JST**，落 `FeaturePlatformSnapshot`）；`GET /api/admin/feature-platform`（实时报告 + Trend + 快照历史）；页面 `/admin/feature-platform`「因子平台」（平台 KPI + Integrity 链路 + Factor Alpha Cron Health + Benchmark/TOPIX 状态 + 平均指标 + Top/Worst + Pending Trend）。导航新增「因子平台」（`nav.featurePlatform` 三语 + Layers）。
+- 报告含：Production/Shadow/Disabled/Pending/Promotion 计数、平均 Alpha 0.6% / 贡献 12.5% / 置信 65 / 晋升分 72.2、Top rs5(81.9) / Worst atrPct(51.2)、Trend。
+
+### 新增表（additive，无 breaking change）
+`FeaturePlatformSnapshot`（`date` 唯一）：每日平台计数 + 晋升 + 平均指标 + Integrity + Pending 分类 + benchmark/TOPIX 状态。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**（warn 5 非阻断）；**Schema additive**（`prisma db push` 同步 `feature_platform_snapshots`）；**Integrity=100/100 · 0 issues**；Factor Alpha cron 09:20 + Platform Report cron 09:25 已注册（cron 21:18 JST 重启加载）；API `/api/admin/feature-platform` + `/api/admin/feature-promotion` ✅ 200；页面 ✅ CDP 截图确认；TOPIX 修复 → FALLBACK（真实数据不可连续）自动记录；**Production 状态不变 · 不影响推荐** ✅。
+- 新增 `prisma`(FeaturePlatformSnapshot) · `lib/features/platform/{evaluate,integrity,report,data,index}.ts` · `scripts/{feature-platform-report,repair-topix}.ts` · `app/api/admin/feature-platform/route.ts` · `app/admin/feature-platform/page.tsx`；改 `scripts/cron-scheduler.ts`（+2 cron）、`app/api/admin/feature-promotion/route.ts`（重构复用 platform lib）、`lib/features/promotion/factor-map.ts`（对齐 8 因子）、`package.json`、`lib/routes.ts`、`components/Sidebar.tsx`、`lib/i18n/*`、`docs/KNOWN_ISSUES.md`。
+
+**🏁 P6 Feature Platform 正式封版。下一阶段：P7 Adaptive AI（不得提前开发）。**
+
+---
+
 ## [17.88.0] - 2026-07-08 — 📐 P6-T9 Factor-level Alpha Engine + Promotion Engine V2
 
 建立**真正的因子级 Alpha Evaluation Engine**（每个 Feature 独立、真实回测），补齐 Shadow 因子有效性样本，升级 Promotion Engine 到 V2。**纯只读派生 + 一张新增表（additive，无 breaking change）**，未改 AI评分 / Adaptive / Shadow / Fusion / Strategy / Learning / Explain / Recommendation / GPT / Pipeline Tracker（P5 全冻结）；未切 OpenAI 模型；未改 Daily Watchlist；**不自动晋升任何 Feature、所有 Production 状态不变、不影响任何推荐结果**。

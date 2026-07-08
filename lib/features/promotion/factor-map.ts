@@ -4,17 +4,19 @@
 //  · AlphaFactor 表列名（用于统计覆盖率：latest 日非空占比）
 // 未映射的 SHADOW 因子（TDnet/财务/机构事件等）当前无 Backtest 报告 → pending 观察。
 
+// 仅登记「实际计算 FactorAlphaResult 的 8 个注册因子」——与 scripts/compute-factor-alpha.ts
+// 的 FEATURE_SCALARS 严格对齐，保证 Integrity Check（BROKEN_LINK / MISSING_ALPHA）为 0。
+// （atr14/volumeRatio5 曾在 P6-T8 登记，但因子级回测用 atrPct/volumeRatio20，故 P6-T10 移除。）
+
 /** Feature id → AlphaFactorReport.factor（因子族有效性报告名）。 */
 export const FEATURE_TO_ALPHA_FACTOR: Record<string, string> = {
   rs5: "RelativeStrength",
   rs20: "RelativeStrength",
   rs60: "RelativeStrength",
   atrPct: "ATR",
-  atr14: "ATR",
   volumeExpansionDays: "VolumeExpansion",
   averageTurnover20: "AverageTurnover",
   volumeRatio20: "VolumeRatio",
-  volumeRatio5: "VolumeRatio",
   distance52wHigh: "Distance52WeekHigh",
 };
 
@@ -24,11 +26,9 @@ export const FEATURE_TO_ALPHA_COLUMN: Record<string, string> = {
   rs20: "rs20",
   rs60: "rs60",
   atrPct: "atrPct",
-  atr14: "atr14",
   volumeExpansionDays: "volumeExpansionDays",
   averageTurnover20: "averageTurnover20",
   volumeRatio20: "volumeRatio20",
-  volumeRatio5: "volumeRatio5",
   distance52wHigh: "distanceTo52WeekHigh",
 };
 
