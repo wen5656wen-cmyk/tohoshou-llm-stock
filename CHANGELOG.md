@@ -2,6 +2,35 @@
 
 ---
 
+## [17.90.1-exp] - 2026-07-08 — 🧪 AI Top Picks V1.1 · Quality Gates（Experimental Enhancement）
+
+在 AI Top Picks V1 的 Top5 最终输出前增加 **Quality Gates（质量过滤）**，提升实际可交易性。**不是新 AI 功能**——仅增强本实验模块输出。**严格约束**：未改 AI Score / StockScore / Strong Buy / BUY / Daily Recommendation / Promotion / Factor Alpha / Feature Platform / Strategy / Explain / Daily AI Watchlist；仅改 AI Top Picks Experimental。
+
+### Gate 1 — News Gate（重大利空 Reject）
+最近 ~3 交易日（`newsLookbackDays=5` 自然日窗口）从 **Disclosure（TDnet）结构化事件**检测高影响利空 → `NEWS_NEGATIVE` Reject：`FORECAST_REVISION+NEGATIVE`（业绩下修）/ `EQUITY`（增发稀释）/ `MATERIAL+NEGATIVE`（诉讼/退市/审计等重大负面）/ `NEGATIVE+importance≥2`（其他高影响）。**普通新闻不影响**，仅过滤 High Impact Negative。
+
+### Gate 2 — Liquidity Gate（低流动性 Reject）
+20 日均成交额（`AlphaFactor.averageTurnover20`）< **门槛 `liquidityMinYen=5亿`（配置化）** → `LOW_LIQUIDITY` Reject。
+
+### Gate 3 — Momentum Gate（追高 Penalty）
+20 日涨幅（`StockScore.return20d`）> **`momentumThresholdPct=40%`（配置化）** → **不 Reject，compositeScore 扣 `momentumPenalty=10` 分（配置化）**。
+
+### Gate 4/5 — Explain + Statistics（页面）
+`/admin/ai-top-picks` 新增 **Today's Filter Summary**（候选 → News拒 → 流动性拒 → 动量罚 → Final Top 漏斗）+ **Rejected Candidates** 表（股票 / 原因 / 详情 / 成交额 / 20日涨幅 / 原始分）。Top5 卡片显示动量惩罚（综合分 −N）。
+
+### 实现（仅 ai-top-picks 模块）
+- `lib/ai-top-picks/gates.ts`（配置 `TOP_PICK_GATES` + 纯函数 `evaluateGates`）；`compose.ts` 集成门控 → 返回 `{picks, rejected, stats}`（Reject 剔除 + Momentum 扣分 + 存活内 STRONG_BUY 保底）。
+- `AiTopPick` 加列 `momentumPenalty/turnover/momentum20d`（additive）；新表 `AiTopPickFilter`（date 唯一，candidates/newsReject/liquidityReject/momentumPenalty/finalPicks + rejected JSON + config JSON）。
+- `scripts/generate-ai-top-picks.ts` 取 Disclosure 负面 + AlphaFactor turnover + StockScore return20d，应用门控，写 picks + filter log。API/页面读回展示。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**；**隔离校验**：StockScore SB=1/BUY=13、DR 07-08=500、Feature Platform integrity=100 **完全不变**；**过滤前后**：候选 14 → News拒 0 / 流动性拒 **8** / 动量罚 0 → Final **5**（恰好 5 只）；**门控直接消除 Day-1 监测标记的风险**——Link-U（4.17亿 + 20日+50.7%追高）、Tobira（0.26亿）等 8 只低流动性股被 Reject，新 Top5 全高流动性（KDDI 249亿 / SMC 224亿 / ZOZO 59亿 …）；CDP 截图确认 Filter Summary + Rejected 表。
+- 改 `lib/ai-top-picks/{compose,gates,index}.ts` · `scripts/generate-ai-top-picks.ts` · `app/api/admin/ai-top-picks/route.ts` · `app/admin/ai-top-picks/page.tsx` · `prisma`(AiTopPick 加列 + AiTopPickFilter)。
+
+**说明**：AI Top Picks V1.1 属 Experimental Enhancement，**不属于正式 P7**，不修改任何生产推荐逻辑，仅增强 Top Picks 最终质量。
+
+---
+
 ## [17.90.0-exp] - 2026-07-08 — 🧪 P7 Preview · AI Top Picks V1（Experimental）
 
 **独立实验模块**（P7 预览，Freeze 期经用户显式授权例外）：每日从 STRONG_BUY（不足 5 补 top BUY）综合 **AI评分 + 因子Alpha + Contribution + Confidence + Risk** 重排 **Top5**。**纯只读派生 + additive 新表**——只读 StockScore + AlphaScore（已有数据），**绝不修改 Strong Buy / Daily Recommendation / Promotion / Strategy / Watchlist / 任何评分逻辑**。

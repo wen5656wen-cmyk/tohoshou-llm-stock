@@ -1560,7 +1560,10 @@ model AiTopPick {
   contribution   Float? // AlphaScore.percentile（因子排名强度）
   confidence     Float? // StockScore.ruleConfidence
   riskScore      Float? // 风险调整分（highRiskFlag 惩罚）
-  compositeScore Float // 综合重排分 0-100
+  compositeScore Float // 综合重排分 0-100（已扣动量惩罚）
+  momentumPenalty Float  @default(0) // V1.1 Gate3：20日涨幅>阈值的惩罚分
+  turnover       Float? // V1.1 Gate2：20日均成交额（日元）
+  momentum20d    Float? // V1.1 Gate3：20日涨幅 %
   reason         String?
   currentPrice   Float? // 最近刷新快照（GET 实时重算）
   returnPct      Float? // 最近刷新快照
@@ -1570,6 +1573,24 @@ model AiTopPick {
   @@unique([date, symbol])
   @@index([date, rank])
   @@map("ai_top_picks")
+}
+
+// ── AI Top Picks Filter Log — V1.1 Quality Gates（Experimental）──────────────
+// 每日 Quality Gates 过滤统计 + 被拒候选，供页面 Filter Summary / Rejected Candidates。
+// **只读派生 · 不影响任何生产推荐。**
+model AiTopPickFilter {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique @db.Date
+  candidates      Int      @default(0)
+  newsReject      Int      @default(0)
+  liquidityReject Int      @default(0)
+  momentumPenalty Int      @default(0) // 被施加动量惩罚的只数
+  finalPicks      Int      @default(0)
+  rejected        Json? // [{symbol,name,sourceRating,reason,detail,turnover,momentum20d,compositeScore}]
+  config          Json? // {liquidityMinYen,momentumThresholdPct,momentumPenalty,newsLookbackDays}
+  createdAt       DateTime @default(now())
+
+  @@map("ai_top_pick_filters")
 }
 
 // ── Market Regime — P2-T3 Adaptive Fusion Research ───────────────────────────

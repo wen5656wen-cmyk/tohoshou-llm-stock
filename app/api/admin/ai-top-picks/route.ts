@@ -63,8 +63,17 @@ export async function GET() {
       entryPrice: entry, currentPrice: cur, returnPct, intradayPct,
       aiScore: p.aiScore, alphaScore: p.alphaScore, contribution: p.contribution,
       confidence: p.confidence, riskScore: p.riskScore, compositeScore: p.compositeScore, reason: p.reason,
+      momentumPenalty: p.momentumPenalty, turnover: p.turnover, momentum20d: p.momentum20d,
     };
   });
+
+  // V1.1 Quality Gates：过滤统计 + 被拒候选
+  const filter = await prisma.aiTopPickFilter.findUnique({ where: { date: latest.date } });
+  const filterStats = filter ? {
+    candidates: filter.candidates, newsReject: filter.newsReject, liquidityReject: filter.liquidityReject,
+    momentumPenalty: filter.momentumPenalty, finalPicks: filter.finalPicks,
+    rejected: (filter.rejected as unknown[]) ?? [], config: filter.config ?? null,
+  } : null;
 
   // 5) 组合收益（等权）+ TOPIX + Alpha
   const rets = enriched.map((e) => e.returnPct).filter((x): x is number => x != null);
@@ -102,6 +111,7 @@ export async function GET() {
       benchmarkMode: benchReturn != null ? "TOPIX" : "N/A (窗口跨 TOPIX 断点或数据缺失)",
       pickCount: enriched.length,
     },
+    filter: filterStats,
     history: history.reverse(),
   });
 }

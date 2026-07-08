@@ -1,75 +1,116 @@
-// ── TOHOSHOU AI · AI Top Picks 综合重排（P7 Preview · Experimental V1）───────
-// 从 STRONG_BUY（不足 5 补 top BUY）候选，综合 AI评分 / 因子Alpha / Contribution /
-// Confidence / Risk 计算 compositeScore 并重排 Top5。**纯函数 · 只读 · 不改任何评分/推荐。**
-// 输入为已从 StockScore + AlphaScore 读出的每股信号（依赖注入），本层不接 DB。
+// ── TOHOSHOU AI · AI Top Picks 综合重排 + Quality Gates（P7 Preview · V1.1）──
+// 从 STRONG_BUY（不足 5 补 top BUY）候选，先过 Quality Gates（News/Liquidity Reject +
+// Momentum Penalty），再综合 AI评分 / 因子Alpha / Contribution / Confidence / Risk 计算
+// compositeScore（扣动量惩罚）并重排 Top5。**纯函数 · 只读 · 不改任何评分/推荐。**
+
+import {
+  evaluateGates, TOP_PICK_GATES, type GateSignals, type GateOutcome, type RejectReason,
+} from "./gates";
 
 const clamp = (v: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
-/** 单只候选股票的每股信号（来自 StockScore + AlphaScore，只读）。 */
+/** 单只候选的每股信号（StockScore + AlphaScore + 门控信号）。 */
 export interface PickInput {
   symbol: string;
   name: string | null;
   sourceRating: "STRONG_BUY" | "BUY";
   latestClose: number | null;
-  aiScore: number | null;        // StockScore.adaptiveScore
-  alphaScore: number | null;     // AlphaScore.alphaScore（50=宇宙均值）
-  contribution: number | null;   // AlphaScore.percentile（0-100，越高因子越强）
-  confidence: number | null;     // StockScore.ruleConfidence（0-100）
+  aiScore: number | null;
+  alphaScore: number | null;
+  contribution: number | null;
+  confidence: number | null;
   highRiskFlag: boolean;
+  gate: GateSignals;   // V1.1：门控输入
 }
 
 export interface RankedPick extends PickInput {
   rank: number;
-  aiScoreN: number;
-  alphaScoreN: number;
-  contributionN: number;
-  confidenceN: number;
-  riskScore: number;
-  compositeScore: number;
+  aiScoreN: number; alphaScoreN: number; contributionN: number; confidenceN: number; riskScore: number;
+  rawComposite: number;      // 未扣惩罚
+  momentumPenalty: number;   // Gate3 扣分
+  momentumFlag: boolean;
+  compositeScore: number;    // 扣惩罚后
   reason: string;
 }
 
-/** 综合权重：AI 0.35 + 因子Alpha 0.25 + Contribution 0.10 + Confidence 0.10 + Risk 0.20。 */
-export const TOP_PICK_WEIGHTS = { ai: 0.35, alpha: 0.25, contribution: 0.10, confidence: 0.10, risk: 0.20 } as const;
-
-/** 风险调整分：高风险标记显著扣分（越高越安全）。 */
-function riskScoreOf(highRisk: boolean): number {
-  return highRisk ? 40 : 85;
+export interface RejectedPick {
+  symbol: string; name: string | null; sourceRating: string;
+  reason: RejectReason; detail: string | null;
+  turnover: number | null; momentum20d: number | null; rawComposite: number;
 }
 
-function composeOne(p: PickInput): RankedPick {
+export interface FilterStats {
+  candidates: number;
+  newsReject: number;
+  liquidityReject: number;
+  momentumPenalty: number;   // 被施加惩罚的存活候选数
+  finalPicks: number;
+}
+
+export interface ComposeResult {
+  picks: RankedPick[];
+  rejected: RejectedPick[];
+  stats: FilterStats;
+}
+
+export const TOP_PICK_WEIGHTS = { ai: 0.35, alpha: 0.25, contribution: 0.10, confidence: 0.10, risk: 0.20 } as const;
+
+function riskScoreOf(highRisk: boolean): number { return highRisk ? 40 : 85; }
+
+function composeOne(p: PickInput, gate: GateOutcome): RankedPick {
   const aiScoreN = clamp(p.aiScore ?? 0);
   const alphaScoreN = clamp(p.alphaScore ?? 50);
   const contributionN = clamp(p.contribution ?? 0);
   const confidenceN = clamp(p.confidence ?? 50);
   const riskScore = riskScoreOf(p.highRiskFlag);
   const w = TOP_PICK_WEIGHTS;
-  const compositeScore = r1(clamp(
+  const rawComposite = r1(clamp(
     aiScoreN * w.ai + alphaScoreN * w.alpha + contributionN * w.contribution + confidenceN * w.confidence + riskScore * w.risk,
   ));
+  const compositeScore = r1(clamp(rawComposite - gate.momentumPenalty));
   const reason = [
-    `${p.sourceRating === "STRONG_BUY" ? "强烈买入" : "买入"}`,
+    p.sourceRating === "STRONG_BUY" ? "强烈买入" : "买入",
     `AI评分 ${r1(aiScoreN)}`,
     `因子Alpha分 ${r1(alphaScoreN)}`,
     `因子排名 前${r1(100 - contributionN)}%`,
     `置信 ${r1(confidenceN)}%`,
     p.highRiskFlag ? "⚠高风险" : "低风险",
-  ].join(" · ");
-  return { ...p, rank: 0, aiScoreN, alphaScoreN, contributionN, confidenceN, riskScore, compositeScore, reason };
+    gate.momentumFlag ? `⚠追高−${gate.momentumPenalty}` : "",
+  ].filter(Boolean).join(" · ");
+  return {
+    ...p, rank: 0, aiScoreN, alphaScoreN, contributionN, confidenceN, riskScore,
+    rawComposite, momentumPenalty: gate.momentumPenalty, momentumFlag: gate.momentumFlag, compositeScore, reason,
+  };
 }
 
 /**
- * 综合重排选 TopN。
- * - STRONG_BUY ≥ N：仅在 STRONG_BUY 内按 compositeScore 取 TopN。
- * - STRONG_BUY < N：全部 STRONG_BUY 保证入选（pin），其余槽位从 BUY 按 **compositeScore**
- *   补足，最后整体按 compositeScore 定 rank。
- * @param topN 默认 5
+ * Quality Gates + 综合重排选 TopN。
+ * - Gate1/2：News/Liquidity Reject（含 STRONG_BUY，重大利空/低流动性一律剔除）。
+ * - Gate3：Momentum > 阈值 → composite 扣分（非 Reject）。
+ * - STRONG_BUY 在**存活候选**内保底；不足 N 时按扣分后 composite 从 BUY 补足。
  */
-export function composeTopPicks(strongBuys: PickInput[], buys: PickInput[], topN = 5): RankedPick[] {
+export function composeTopPicks(
+  strongBuys: PickInput[], buys: PickInput[], topN = 5, cfg = TOP_PICK_GATES,
+): ComposeResult {
+  const rejected: RejectedPick[] = [];
+  let newsReject = 0, liquidityReject = 0;
+
+  const survive = (p: PickInput): RankedPick | null => {
+    const g = evaluateGates(p.gate, cfg);
+    if (g.rejected) {
+      const raw = composeOne(p, { ...g, momentumPenalty: 0 }).rawComposite;
+      rejected.push({ symbol: p.symbol, name: p.name, sourceRating: p.sourceRating, reason: g.reason!, detail: g.detail, turnover: g.turnover, momentum20d: g.momentum20d, rawComposite: raw });
+      if (g.reason === "NEWS_NEGATIVE") newsReject++; else liquidityReject++;
+      return null;
+    }
+    return composeOne(p, g);
+  };
+
   const byComposite = (a: RankedPick, b: RankedPick) => b.compositeScore - a.compositeScore;
-  const sb = strongBuys.map(composeOne).sort(byComposite);
-  const bu = buys.map(composeOne).sort(byComposite);
+  const candidates = strongBuys.length + buys.length;
+  const sb = strongBuys.map(survive).filter((x): x is RankedPick => x != null).sort(byComposite);
+  const bu = buys.map(survive).filter((x): x is RankedPick => x != null).sort(byComposite);
 
   let selected: RankedPick[];
   if (sb.length >= topN) {
@@ -81,5 +122,7 @@ export function composeTopPicks(strongBuys: PickInput[], buys: PickInput[], topN
   }
   selected.sort(byComposite);
   selected.forEach((p, i) => { p.rank = i + 1; });
-  return selected;
+
+  const momentumPenalty = selected.filter((p) => p.momentumFlag).length;
+  return { picks: selected, rejected, stats: { candidates, newsReject, liquidityReject, momentumPenalty, finalPicks: selected.length } };
 }

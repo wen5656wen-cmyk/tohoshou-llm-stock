@@ -15,14 +15,20 @@ interface Pick {
   entryPrice: number | null; currentPrice: number | null; returnPct: number | null; intradayPct: number | null;
   aiScore: number | null; alphaScore: number | null; contribution: number | null;
   confidence: number | null; riskScore: number | null; compositeScore: number; reason: string | null;
+  momentumPenalty?: number | null; turnover?: number | null; momentum20d?: number | null;
 }
 interface Portfolio { portfolioReturn: number | null; benchmarkReturn: number | null; alpha: number | null; benchmarkMode: string; pickCount: number }
+interface Rejected { symbol: string; name: string | null; sourceRating: string; reason: string; detail: string | null; turnover: number | null; momentum20d: number | null; rawComposite: number }
+interface FilterStats { candidates: number; newsReject: number; liquidityReject: number; momentumPenalty: number; finalPicks: number; rejected: Rejected[]; config: Record<string, number> | null }
 interface Hist { date: string; pickCount: number; portfolioReturn: number | null; benchmarkReturn: number | null; alpha: number | null }
 interface Api {
   ok: boolean; experimental: boolean; empty?: boolean; note: string; date?: string;
   quoteSource?: string; quoteUpdatedAt?: string | null;
-  picks: Pick[]; portfolio: Portfolio | null; history: Hist[];
+  picks: Pick[]; portfolio: Portfolio | null; filter: FilterStats | null; history: Hist[];
 }
+
+const REJECT_LABEL: Record<string, string> = { NEWS_NEGATIVE: "重大利空", LOW_LIQUIDITY: "流动性不足" };
+function turnoverStr(v: number | null | undefined): string { return v == null ? "—" : `${(v / 1e8).toFixed(1)}亿`; }
 
 function fmt(v: number | null | undefined, s = "", d = 2): string { return v == null ? "—" : `${Math.round(v * 10 ** d) / 10 ** d}${s}`; }
 function retColor(v: number | null): string { return v == null ? COLORS.textFaint : v > 0 ? COLORS.success : v < 0 ? COLORS.danger : COLORS.textSecondary; }
@@ -48,8 +54,8 @@ export default function AiTopPicksPage() {
   return (
     <div style={{ minHeight: "100vh", background: COLORS.background }}>
       <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-8 space-y-6">
-        <AppHeader title="AI Top Picks" titleEn="AI 每日五选" status="Experimental V1" statusTone="purple"
-          subtitle="每日从 STRONG_BUY（不足 5 补 top BUY）综合 AI评分 + 因子Alpha + Contribution + Confidence + Risk 重排 Top5（P7 实验预览 · 只读）" />
+        <AppHeader title="AI Top Picks" titleEn="AI 每日五选" status="Experimental V1.1" statusTone="purple"
+          subtitle="每日从 STRONG_BUY（不足 5 补 top BUY）综合重排 Top5 + Quality Gates（News / 流动性 Reject · 动量 Penalty）（P7 实验预览 · 只读）" />
 
         <AppCard accent={`${COLORS.purple}33`} style={{ background: `${COLORS.purple}0A` }}>
           <div style={{ fontSize: 12.5, color: COLORS.textSecondary, lineHeight: 1.7 }}>
@@ -82,6 +88,52 @@ export default function AiTopPicksPage() {
               <AppButton size="sm" variant="ghost" onClick={load} style={{ marginLeft: 10 }}>刷新</AppButton>
             </div>
 
+            {/* Gate 5 — Today's Filter Summary */}
+            {d.filter && (
+              <AppCard header={<span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Today&apos;s Filter Summary · 质量门控</span>}>
+                <div className="flex items-center gap-2" style={{ flexWrap: "wrap", fontSize: 13 }}>
+                  <Funnel label="候选" value={d.filter.candidates} color={COLORS.textSecondary} />
+                  <Arrow />
+                  <Funnel label="News 拒" value={d.filter.newsReject} color={d.filter.newsReject ? COLORS.danger : COLORS.textMuted} />
+                  <Arrow />
+                  <Funnel label="流动性 拒" value={d.filter.liquidityReject} color={d.filter.liquidityReject ? COLORS.danger : COLORS.textMuted} />
+                  <Arrow />
+                  <Funnel label="动量 罚" value={d.filter.momentumPenalty} color={d.filter.momentumPenalty ? COLORS.warning : COLORS.textMuted} />
+                  <Arrow />
+                  <Funnel label="Final Top" value={d.filter.finalPicks} color={COLORS.success} strong />
+                </div>
+                {d.filter.config && (
+                  <div style={{ fontSize: 11, color: COLORS.textFaint, marginTop: 10 }}>
+                    门槛：流动性 ≥ {((d.filter.config.liquidityMinYen ?? 0) / 1e8).toFixed(0)}亿 · 动量 &gt; {d.filter.config.momentumThresholdPct}% 罚 {d.filter.config.momentumPenalty} 分 · News 回溯 {d.filter.config.newsLookbackDays} 天
+                  </div>
+                )}
+              </AppCard>
+            )}
+
+            {/* Gate 4 — Rejected Candidates */}
+            {d.filter && d.filter.rejected.length > 0 && (
+              <AppCard header={<span style={{ fontSize: 14, fontWeight: 700, color: COLORS.danger }}>Rejected Candidates · 被过滤候选 {d.filter.rejected.length}</span>}>
+                <AppTable minWidth={640}>
+                  <thead><tr>
+                    <AppTh>股票</AppTh><AppTh>原因</AppTh><AppTh>详情</AppTh>
+                    <AppTh align="right">成交额</AppTh><AppTh align="right">20日涨幅</AppTh><AppTh align="right">原始分</AppTh>
+                  </tr></thead>
+                  <tbody>
+                    {d.filter.rejected.map((r) => (
+                      <tr key={r.symbol} className={appRowHover}>
+                        <AppTd><span style={{ fontWeight: 600 }}>{r.name ?? r.symbol}</span> <span style={{ fontSize: 11, color: COLORS.textFaint, fontFamily: "monospace" }}>{r.symbol}</span></AppTd>
+                        <AppTd><span style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.danger, background: `${COLORS.danger}14`, borderRadius: 9999, padding: "2px 9px" }}>{REJECT_LABEL[r.reason] ?? r.reason}</span></AppTd>
+                        <AppTd color={COLORS.textSecondary}>{r.detail ?? "—"}</AppTd>
+                        <AppTd align="right" color={COLORS.textSecondary}>{turnoverStr(r.turnover)}</AppTd>
+                        <AppTd align="right" color={retColor(r.momentum20d)}>{sign(r.momentum20d)}</AppTd>
+                        <AppTd align="right" mono color={COLORS.textMuted}>{fmt(r.rawComposite, "", 1)}</AppTd>
+                      </tr>
+                    ))}
+                  </tbody>
+                </AppTable>
+              </AppCard>
+            )}
+
             {/* Top5 卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {d.picks.map((p) => (
@@ -99,7 +151,7 @@ export default function AiTopPicksPage() {
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.purple, lineHeight: 1 }}>{fmt(p.compositeScore, "", 1)}</div>
-                      <div style={{ fontSize: 10, color: COLORS.textFaint, marginTop: 2 }}>综合分</div>
+                      <div style={{ fontSize: 10, color: COLORS.textFaint, marginTop: 2 }}>综合分{p.momentumPenalty ? <span style={{ color: COLORS.warning }}> −{p.momentumPenalty}</span> : null}</div>
                     </div>
                   </div>
 
@@ -153,6 +205,16 @@ export default function AiTopPicksPage() {
     </div>
   );
 }
+
+function Funnel({ label, value, color, strong }: { label: string; value: number; color: string; strong?: boolean }) {
+  return (
+    <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: 10, background: COLORS.tile, border: `1px solid ${strong ? color : COLORS.border}`, minWidth: 68 }}>
+      <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 10, color: COLORS.textMuted }}>{label}</div>
+    </div>
+  );
+}
+function Arrow() { return <span style={{ color: COLORS.textFaint, fontSize: 14 }}>→</span>; }
 
 function Metric({ label, value, color, small }: { label: string; value: string; color?: string; small?: boolean }) {
   return (
