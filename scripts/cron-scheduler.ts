@@ -299,6 +299,20 @@ cron.schedule("35 9 * * *", async () => {
   await runAsync("generate-ai-top-picks.ts", "AI Top Picks (Experimental)", 5 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 09:40 JST — AI Top Picks Daily Performance（V1.1 Freeze Validation）──────
+// 晨间价同步后：对已有 Top5 cohort 且下一交易日收盘已入库的日期计已实现 1 日收益
+// （Top5/STRONG_BUY/BUY/TOPIX），落 AiTopPickPerf。只读派生，实验期算法固定不改。
+cron.schedule("40 9 * * *", async () => {
+  log("INFO", "⏰ 09:40 触发：AI Top Picks Daily Performance（V1.1 验证）");
+  await runAsync("ai-top-picks-daily-perf.ts", "AI Top Picks Daily Perf", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+// ── 金曜 17:00 JST — AI Top Picks Weekly Report（V1.1 Freeze Validation）─────
+cron.schedule("0 17 * * 5", async () => {
+  log("INFO", "⏰ 金 17:00 触发：AI Top Picks Weekly Report（V1.1 验证）");
+  await runAsync("ai-top-picks-weekly-report.ts", "AI Top Picks Weekly Report", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────
 // Production(公式推薦) / AlphaScore / Regime Fusion の3戦略で日次 Top10/20 を生成し、
 // 未来 1/3/5/10/20 日リターンを蓄積（2–4週）。READ-ONLY：公式推薦は変更しない。

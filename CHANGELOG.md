@@ -2,6 +2,28 @@
 
 ---
 
+## [17.90.2-exp] - 2026-07-08 — 🧊 AI Top Picks V1.1 FREEZE · Experimental Validation 基础设施
+
+AI Top Picks V1.1 进入**实验验证冻结期（20–30 交易日，算法完全固定）**。本次仅搭建**只读验证报告基础设施**（每日 Performance + 每周 Report），**未改任何算法**：Composite / 权重 / Liquidity·Momentum·News 门槛 / 排序 / Top5 数量 / Gate 全部冻结。仅允许 Bug Fix / 数据修复 / Cron 修复 / 文档。
+
+### 性能模型（日度再平衡 · 1 日持有 · 等权）
+每个建仓日 D（存在下一交易日 D+1 收盘）计各 cohort 已实现 1 日收益：Top5 / STRONG_BUY / BUY / TOPIX 用 DailyPrice `close_D→close_{D+1}`（TOPIX 用 GlobalMarket.topix，断点后连续）。累计（复利）/ 日胜率 / 最大回撤 / Sharpe（×√252）/ Alpha 由整段序列派生。
+
+### 新增
+- 新表 `AiTopPickPerf`（date 唯一：top5Ret/top5Win/sbRet/buyRet/topixRet + fwdDate，additive）。
+- `lib/ai-top-picks/performance.ts`（纯函数：`cohortStats` / `summarize`（4 cohort 对比 + Alpha）/ `weeklyRollup`（ISO 周 + Best/Worst Pick）/ `isoWeek`）。
+- `scripts/ai-top-picks-daily-perf.ts`（`npm run ai-top-picks-perf`，cron **09:40 JST**：晨间价同步后计已实现 1 日收益，落 AiTopPickPerf）。
+- `scripts/ai-top-picks-weekly-report.ts`（`npm run ai-top-picks-weekly`，cron **金曜 17:00 JST**：累计收益/Alpha/Sharpe/胜率/MDD/Best·Worst/Filter Effectiveness → `reports/ai-top-picks-weekly-<week>.json`）。
+- API `/api/admin/ai-top-picks` 增 `performance{summary,weekly,daily,note}`；页面「AI 五选」增**实验验证 · 累计表现 & Benchmark 对比**卡（Top5/STRONG_BUY/BUY/TOPIX 累计对比表 + Weekly Report 表；Day-1 显示待实现说明）。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**；Schema additive（`prisma db push` 同步 `ai_top_pick_perf`）；**Day-1（07-08）perf 正确「待实现」**（无 D+1 收盘）；2 新 cron（Daily Perf 09:40 / Weekly Fri 17:00）已注册；API `performance.days=0` + 说明；页面验证卡 CDP 截图确认；**算法零改动 · Production 不变**。首个已实现收益约 07-10（07-08→07-09 收盘齐备后）自动产生。
+- 新增 `prisma`(AiTopPickPerf) · `lib/ai-top-picks/performance.ts` · `scripts/{ai-top-picks-daily-perf,ai-top-picks-weekly-report}.ts`；改 `app/api/admin/ai-top-picks/route.ts`、`app/admin/ai-top-picks/page.tsx`、`scripts/cron-scheduler.ts`(+2 cron)、`package.json`。
+
+**说明**：AI Top Picks V1.1 进入 Freeze，整个实验期算法完全一致，**不得开发 V1.2**；本次仅为只读验证 harness。满 20–30 交易日后输出 Final Evaluation（是否长期跑赢 STRONG_BUY/BUY/TOPIX + 各 Gate 有效性）。
+
+---
+
 ## [17.90.1-exp] - 2026-07-08 — 🧪 AI Top Picks V1.1 · Quality Gates（Experimental Enhancement）
 
 在 AI Top Picks V1 的 Top5 最终输出前增加 **Quality Gates（质量过滤）**，提升实际可交易性。**不是新 AI 功能**——仅增强本实验模块输出。**严格约束**：未改 AI Score / StockScore / Strong Buy / BUY / Daily Recommendation / Promotion / Factor Alpha / Feature Platform / Strategy / Explain / Daily AI Watchlist；仅改 AI Top Picks Experimental。

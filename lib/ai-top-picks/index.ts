@@ -3,3 +3,4 @@
 // 不修改 StrongBuy / DailyRecommendation / Promotion / Strategy / Watchlist / 评分逻辑。**
 export * from "./compose";
 export * from "./gates";
+export * from "./performance";

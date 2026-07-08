@@ -1593,6 +1593,26 @@ model AiTopPickFilter {
   @@map("ai_top_pick_filters")
 }
 
+// ── AI Top Picks Daily Performance — V1.1 Freeze Validation ──────────────────
+// 每交易日 D 的已实现 1 日收益（日度再平衡模型）：cohort 用 DailyPrice close_D→close_{D+1}。
+// 累计/胜率/回撤/Sharpe 由整段序列派生（API）。**只读派生，实验期算法固定，不影响任何生产。**
+model AiTopPickPerf {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @unique @db.Date // 建仓日 D（其 1 日前向收益已实现）
+  fwdDate       DateTime @db.Date          // 实现日 D+1
+  top5Ret       Float? // Top5 等权 1 日收益 %
+  top5WinCount  Int      @default(0) // Top5 中 1 日正收益只数
+  top5PickCount Int      @default(0)
+  sbRet         Float? // STRONG_BUY cohort 平均 1 日收益 %
+  sbCount       Int      @default(0)
+  buyRet        Float? // BUY cohort 平均 1 日收益 %
+  buyCount      Int      @default(0)
+  topixRet      Float? // TOPIX 1 日收益 %
+  createdAt     DateTime @default(now())
+
+  @@map("ai_top_pick_perf")
+}
+
 // ── Market Regime — P2-T3 Adaptive Fusion Research ───────────────────────────
 // Per-day Bull/Sideways/Bear classification (TOPIX MA stack + breadth + volatility).
 // Research-only; never affects production scoring/recommendation.

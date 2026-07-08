@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fetchQuotesBatch } from "@/lib/yahoo";
-import { TOP_PICK_WEIGHTS } from "@/lib/ai-top-picks";
+import { TOP_PICK_WEIGHTS, summarize, weeklyRollup, type DailyPerf } from "@/lib/ai-top-picks";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,20 @@ export async function GET() {
     };
   });
 
+  // V1.1 Freeze Validation：每日 Performance 序列 → 累计/胜率/回撤/Sharpe/对比/周
+  const perfRows = await prisma.aiTopPickPerf.findMany({ orderBy: { date: "asc" } });
+  const perfSeries: DailyPerf[] = perfRows.map((r) => ({
+    date: r.date.toISOString().slice(0, 10), fwdDate: r.fwdDate.toISOString().slice(0, 10),
+    top5Ret: r.top5Ret, top5WinCount: r.top5WinCount, top5PickCount: r.top5PickCount,
+    sbRet: r.sbRet, buyRet: r.buyRet, topixRet: r.topixRet,
+  }));
+  const performance = {
+    summary: summarize(perfSeries),
+    weekly: weeklyRollup(perfSeries),
+    daily: perfSeries.slice(-30),
+    note: perfSeries.length === 0 ? "验证 Day 1：首个已实现 1 日收益将在下一交易日收盘后产生（日度再平衡模型）" : null,
+  };
+
   // V1.1 Quality Gates：过滤统计 + 被拒候选
   const filter = await prisma.aiTopPickFilter.findUnique({ where: { date: latest.date } });
   const filterStats = filter ? {
@@ -112,6 +126,7 @@ export async function GET() {
       pickCount: enriched.length,
     },
     filter: filterStats,
+    performance,
     history: history.reverse(),
   });
 }

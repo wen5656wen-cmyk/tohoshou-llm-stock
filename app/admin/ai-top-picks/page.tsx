@@ -21,10 +21,18 @@ interface Portfolio { portfolioReturn: number | null; benchmarkReturn: number | 
 interface Rejected { symbol: string; name: string | null; sourceRating: string; reason: string; detail: string | null; turnover: number | null; momentum20d: number | null; rawComposite: number }
 interface FilterStats { candidates: number; newsReject: number; liquidityReject: number; momentumPenalty: number; finalPicks: number; rejected: Rejected[]; config: Record<string, number> | null }
 interface Hist { date: string; pickCount: number; portfolioReturn: number | null; benchmarkReturn: number | null; alpha: number | null }
+interface CohortStats { cumReturn: number | null; avgDailyReturn: number | null; winRate: number | null; maxDrawdown: number | null; sharpe: number | null; days: number }
+interface PerfSummary {
+  days: number; top5: CohortStats; strongBuy: CohortStats; buy: CohortStats; topix: CohortStats;
+  top5AlphaVsTopix: number | null; top5AlphaVsStrongBuy: number | null; top5AlphaVsBuy: number | null;
+  pickWinRate: number | null; todayTop5Ret: number | null; latestDate: string | null;
+}
+interface WeeklyRow { week: string; days: number; top5: CohortStats; topix: CohortStats; alphaVsTopix: number | null; bestPick: { date: string; ret: number } | null; worstPick: { date: string; ret: number } | null }
+interface Performance { summary: PerfSummary; weekly: WeeklyRow[]; daily: unknown[]; note: string | null }
 interface Api {
   ok: boolean; experimental: boolean; empty?: boolean; note: string; date?: string;
   quoteSource?: string; quoteUpdatedAt?: string | null;
-  picks: Pick[]; portfolio: Portfolio | null; filter: FilterStats | null; history: Hist[];
+  picks: Pick[]; portfolio: Portfolio | null; filter: FilterStats | null; performance?: Performance; history: Hist[];
 }
 
 const REJECT_LABEL: Record<string, string> = { NEWS_NEGATIVE: "重大利空", LOW_LIQUIDITY: "流动性不足" };
@@ -87,6 +95,69 @@ export default function AiTopPicksPage() {
               行情 {d.quoteSource} · {d.quoteUpdatedAt ? new Date(d.quoteUpdatedAt).toLocaleString("zh-CN", { hour12: false }) : "—"}
               <AppButton size="sm" variant="ghost" onClick={load} style={{ marginLeft: 10 }}>刷新</AppButton>
             </div>
+
+            {/* V1.1 Freeze Validation — Performance & Benchmark Comparison */}
+            {d.performance && (
+              <AppCard header={<span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>实验验证 · 累计表现 & Benchmark 对比（{d.performance.summary.days} 交易日）</span>}>
+                {d.performance.summary.days === 0 ? (
+                  <div style={{ fontSize: 12.5, color: COLORS.textSecondary, lineHeight: 1.6 }}>
+                    {d.performance.note ?? "验证 Day 1：首个已实现 1 日收益将在下一交易日收盘后产生。"}
+                    <div style={{ fontSize: 11, color: COLORS.textFaint, marginTop: 6 }}>模型：日度再平衡 · 1 日持有 · 等权。每日 09:40 JST 自动累计 Top5 / STRONG_BUY / BUY / TOPIX 已实现收益。</div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ overflowX: "auto" }}>
+                      <AppTable minWidth={720}>
+                        <thead><tr>
+                          <AppTh>Cohort</AppTh><AppTh align="right">累计收益</AppTh><AppTh align="right">日均</AppTh>
+                          <AppTh align="right">日胜率</AppTh><AppTh align="right">最大回撤</AppTh><AppTh align="right">Sharpe</AppTh><AppTh align="right">vs TOPIX</AppTh>
+                        </tr></thead>
+                        <tbody>
+                          {([["Top5", d.performance.summary.top5, d.performance.summary.top5AlphaVsTopix, true],
+                             ["STRONG_BUY", d.performance.summary.strongBuy, d.performance.summary.top5AlphaVsStrongBuy != null ? -d.performance.summary.top5AlphaVsStrongBuy : null, false],
+                             ["BUY", d.performance.summary.buy, null, false],
+                             ["TOPIX", d.performance.summary.topix, null, false]] as [string, CohortStats, number | null, boolean][]).map(([label, c, , hl]) => (
+                            <tr key={label} className={appRowHover} style={hl ? { background: `${COLORS.purple}08` } : undefined}>
+                              <AppTd><span style={{ fontWeight: hl ? 800 : 600, color: hl ? COLORS.purple : COLORS.text }}>{label}</span></AppTd>
+                              <AppTd align="right"><span style={{ color: retColor(c.cumReturn), fontWeight: 700 }}>{sign(c.cumReturn)}</span></AppTd>
+                              <AppTd align="right" color={COLORS.textSecondary}>{sign(c.avgDailyReturn)}</AppTd>
+                              <AppTd align="right" color={COLORS.textSecondary}>{fmt(c.winRate, "%", 1)}</AppTd>
+                              <AppTd align="right" color={retColor(c.maxDrawdown)}>{fmt(c.maxDrawdown, "%", 2)}</AppTd>
+                              <AppTd align="right" color={COLORS.textSecondary}>{fmt(c.sharpe, "", 2)}</AppTd>
+                              <AppTd align="right">{label === "Top5" ? <span style={{ color: retColor(d.performance!.summary.top5AlphaVsTopix), fontWeight: 700 }}>{sign(d.performance!.summary.top5AlphaVsTopix)}</span> : "—"}</AppTd>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </AppTable>
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.textFaint, marginTop: 8 }}>
+                      Top5 vs STRONG_BUY {sign(d.performance.summary.top5AlphaVsStrongBuy)} · vs BUY {sign(d.performance.summary.top5AlphaVsBuy)} · 个股胜率 {fmt(d.performance.summary.pickWinRate, "%", 1)} · 模型：日度再平衡·1日持有·等权
+                    </div>
+                    {d.performance.weekly.length > 0 && (
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Weekly Report</div>
+                        <AppTable minWidth={620}>
+                          <thead><tr><AppTh>周</AppTh><AppTh align="right">天数</AppTh><AppTh align="right">Top5</AppTh><AppTh align="right">TOPIX</AppTh><AppTh align="right">Alpha</AppTh><AppTh align="right">Sharpe</AppTh><AppTh>Best/Worst</AppTh></tr></thead>
+                          <tbody>
+                            {d.performance.weekly.map((w) => (
+                              <tr key={w.week} className={appRowHover}>
+                                <AppTd mono>{w.week}</AppTd>
+                                <AppTd align="right" color={COLORS.textSecondary}>{w.days}</AppTd>
+                                <AppTd align="right"><span style={{ color: retColor(w.top5.cumReturn), fontWeight: 600 }}>{sign(w.top5.cumReturn)}</span></AppTd>
+                                <AppTd align="right" color={COLORS.textSecondary}>{sign(w.topix.cumReturn)}</AppTd>
+                                <AppTd align="right"><span style={{ color: retColor(w.alphaVsTopix), fontWeight: 600 }}>{sign(w.alphaVsTopix)}</span></AppTd>
+                                <AppTd align="right" color={COLORS.textSecondary}>{fmt(w.top5.sharpe, "", 2)}</AppTd>
+                                <AppTd color={COLORS.textFaint} mono>{w.bestPick ? `+${w.bestPick.ret}` : "—"} / {w.worstPick ? `${w.worstPick.ret}` : "—"}</AppTd>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </AppTable>
+                      </div>
+                    )}
+                  </>
+                )}
+              </AppCard>
+            )}
 
             {/* Gate 5 — Today's Filter Summary */}
             {d.filter && (
