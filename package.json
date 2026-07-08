@@ -87,6 +87,8 @@
     "compute-alpha-analytics:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-analytics.ts",
     "compute-alpha-score": "npx tsx scripts/compute-alpha-score.ts",
     "compute-alpha-score:dry": "DRY_RUN=1 npx tsx scripts/compute-alpha-score.ts",
+    "compute-factor-alpha": "npx tsx scripts/compute-factor-alpha.ts",
+    "compute-factor-alpha:dry": "DRY_RUN=1 npx tsx scripts/compute-factor-alpha.ts",
     "backtest-shadow": "npx tsx scripts/backtest-shadow.ts",
     "backtest-shadow:dry": "DRY_RUN=1 npx tsx scripts/backtest-shadow.ts",
     "research-fusion": "npx tsx scripts/research-fusion.ts",

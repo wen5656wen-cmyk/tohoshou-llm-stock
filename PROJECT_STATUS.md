@@ -1,9 +1,16 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-08（🎖️ **P6-T8 Feature Promotion Engine V1** 已上线）
-> **版本：** v17.87.0（CHANGELOG）；本次 commit `<见 git log>`
+> **最后更新：** 2026-07-08（📐 **P6-T9 Factor-level Alpha Engine + Promotion Engine V2** 已上线）
+> **版本：** v17.88.0（CHANGELOG）；本次 commit `<见 git log>`
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
-> **下次启动继续位置：** P6-T9（Feature Platform 收尾：把评估通过的 SHADOW 因子经人工确认后走真实晋升；或补齐财务/机构/TDnet 影子因子的 Backtest 有效性样本）
+> **下次启动继续位置：** P6-T10（① 为 Financial/Institution/TDnet 影子因子接入因子级/事件级回测，把 Pending 转为可评估；② `compute-factor-alpha` 挂 cron 定期刷新；③ 待更多再平衡日累积（≥120，HIGH 置信）后由人工确认真实晋升；④ 择机修复 GlobalMarket.topix 量纲断裂 P2-020）
+
+## 📐 P6-T9 — Factor-level Alpha Engine + Promotion Engine V2（2026-07-08，v17.88.0）
+
+- **真实因子级 Alpha 回测**：新表 `FactorAlphaResult`（per-Feature × 1/3/5/10/20d）+ `scripts/compute-factor-alpha.ts`（86 再平衡日 × 3048 股，top-quintile cohort − **等权宇宙**均值，禁止估算）。10d Alpha：averageTurnover20 +1.00% / rs60 +0.92% / rs5 +0.65%。
+- **Promotion Engine V2**（V1 保留兼容）：Alpha + rankIC + 稳定性 + 贡献 + 置信度 → Promotion Score V2；Attribution（averageTurnover20 贡献 22.7% 最高）；Shadow Sample Completion 真实 Pending Reason（历史不足12/回测未接入10/覆盖率过低8/数据源缺失1）。
+- **护栏/结果**：hitRate 不参与打分（市场方向混淆）；5★ PROMOTE 需 HIGH 置信（≥120 再平衡日）→ 当前 86 日 MEDIUM，**0 自动晋升**；atrPct rankIC −0.042 → 1★ Disable；5 技术影子 → 4★ Keep Shadow。**Production 状态不变，不影响推荐**。
+- **⚠️ 数据发现**：`GlobalMarket.topix` 2026-03-30 量纲断裂（KNOWN_ISSUES P2-020），故基准改等权宇宙。
 
 ## 🎖️ P6-T8 — Feature Promotion Engine V1（2026-07-08，v17.87.0）
 

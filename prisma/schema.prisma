@@ -1480,6 +1480,32 @@ model AlphaBacktestResult {
   @@map("alpha_backtest_results")
 }
 
+// ── Factor Alpha Result — P6-T9 Factor-level Alpha Engine ────────────────────
+// Per-FEATURE, per-horizon TOPIX-excess alpha from a real forward-return backtest:
+// reconstruct factor scalars from DailyPrice at N past as-of dates, rank the universe,
+// take the top quintile cohort, measure its mean forward return at h∈{1,3,5,10,20}d and
+// the same-date TOPIX forward return; alpha = cohort return − TOPIX return.
+// READ-ONLY analytics — never read/written by production scoring / recommendation / portfolio.
+model FactorAlphaResult {
+  id          Int       @id @default(autoincrement())
+  featureId   String // Feature Registry id (rs20 / atrPct / averageTurnover20 / …)
+  horizon     Int // forward trading days: 1 | 3 | 5 | 10 | 20
+  alpha       Float? // cohort avgReturn − TOPIX benchReturn (excess %)
+  avgReturn   Float? // top-quintile cohort mean forward return %
+  benchReturn Float? // TOPIX mean forward return over the cohort's as-of dates %
+  hitRate     Float? // % of cohort obs with forward return > 0
+  rankIc      Float? // Spearman(factor, forward return) — directional predictive power
+  cohortSize  Int       @default(0) // avg top-quintile cohort size
+  sampleCount Int       @default(0) // total (stock, as-of) observations
+  asOfCount   Int       @default(0) // number of independent as-of (rebalance) dates
+  asOfLatest  DateTime? @db.Date
+  computedAt  DateTime  @default(now())
+
+  @@unique([featureId, horizon])
+  @@index([featureId])
+  @@map("factor_alpha_results")
+}
+
 // ── Market Regime — P2-T3 Adaptive Fusion Research ───────────────────────────
 // Per-day Bull/Sideways/Bear classification (TOPIX MA stack + breadth + volatility).
 // Research-only; never affects production scoring/recommendation.

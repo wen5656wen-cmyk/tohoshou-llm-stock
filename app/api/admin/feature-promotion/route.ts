@@ -1,60 +1,51 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAllFeatures } from "@/lib/features";
+import { FEATURE_TO_ALPHA_COLUMN, ALPHA_COVERAGE_COLUMNS } from "@/lib/features/promotion";
 import {
-  buildFeaturePromotions, summarizePromotions,
-  FEATURE_TO_ALPHA_FACTOR, FEATURE_TO_ALPHA_COLUMN, ALPHA_COVERAGE_COLUMNS,
-  type PromotionRawInput, type FeaturePromotion,
-} from "@/lib/features/promotion";
+  buildBundle, evaluatePromotionV2, computeContributions,
+  FACTOR_ALPHA_HORIZONS, PRIMARY_HORIZON,
+  type FactorAlphaRow, type FactorAlphaBundle,
+} from "@/lib/features/promotion/factor-alpha";
+import {
+  diagnoseShadow, PENDING_REASON_LABEL, type ShadowDiagInputs, type PendingReasonCode,
+} from "@/lib/features/promotion/shadow-diagnostics";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/feature-promotion — Feature Promotion Engine V1（P6-T8）
-// 对 SHADOW 因子做统一量化评估 → Promote / Keep Shadow / Disable 建议 + 1-5 星。
-// READ-ONLY：只读 AlphaFactorReport / AlphaFactor / AlphaBacktestResult 派生建议，
-// **不落库 · 不自动改任何 Feature 状态 · 不影响任何评分/推荐/组合/watchlist。**
-
-const PERIOD_PRIORITY = [90, 30, 180, 7];
-
-type ReportRow = {
-  period: number; factor: string; sampleCount: number;
-  winRate: number | null; meanExcess: number | null; sharpe: number | null;
-  meanFwdRet20: number | null; asOfLatest: Date | null;
-};
-
-/** 选主报告：优先 90d，其次 30/180/7d。 */
-function pickPrimary(rows: ReportRow[]): ReportRow | null {
-  for (const p of PERIOD_PRIORITY) {
-    const r = rows.find((x) => x.period === p);
-    if (r) return r;
-  }
-  return rows[0] ?? null;
-}
-
-/** 跨周期一致性 %：meanExcess>0 且 winRate≥50 的周期占比（周期数据齐全者）。 */
-function consistencyPct(rows: ReportRow[]): number | null {
-  const usable = rows.filter((r) => r.meanExcess != null && r.winRate != null);
-  if (!usable.length) return null;
-  const pass = usable.filter((r) => (r.meanExcess as number) > 0 && (r.winRate as number) >= 50).length;
-  return Math.round((pass / usable.length) * 1000) / 10;
-}
+// GET /api/admin/feature-promotion — Feature Promotion Engine V2（P6-T9）
+// 因子级 Alpha（真实回测 FactorAlphaResult）+ Attribution + Confidence + Stability + Trend
+// → Promotion Score V2 → Promote / Keep Shadow / Disable。对无回测的影子因子输出真实
+// Pending Reason（Shadow Sample Completion）。**只读派生 · 不落库 · 不自动改任何 Feature
+// 状态 · 不影响任何评分/推荐/组合/watchlist。**
 
 export async function GET() {
-  // 1) Alpha 因子有效性报告（所有周期，仅取有映射的因子族）
-  const reportRows = (await prisma.alphaFactorReport.findMany({
-    select: {
-      period: true, factor: true, sampleCount: true,
-      winRate: true, meanExcess: true, sharpe: true, meanFwdRet20: true, asOfLatest: true,
-    },
-  })) as ReportRow[];
+  const features = getAllFeatures();
+  const cutoff90 = new Date(Date.now() - 90 * 86400 * 1000);
 
-  const byFactor = new Map<string, ReportRow[]>();
-  for (const r of reportRows) {
-    const arr = byFactor.get(r.factor) ?? [];
-    arr.push(r);
-    byFactor.set(r.factor, arr);
+  // 1) 因子级 alpha 真实回测（FactorAlphaResult）
+  const rawRows = await prisma.factorAlphaResult.findMany();
+  const byFeature = new Map<string, FactorAlphaRow[]>();
+  for (const r of rawRows) {
+    const arr = byFeature.get(r.featureId) ?? [];
+    arr.push({
+      featureId: r.featureId, horizon: r.horizon, alpha: r.alpha, avgReturn: r.avgReturn,
+      benchReturn: r.benchReturn, hitRate: r.hitRate, rankIc: r.rankIc, cohortSize: r.cohortSize,
+      sampleCount: r.sampleCount, asOfCount: r.asOfCount,
+      asOfLatest: r.asOfLatest ? r.asOfLatest.toISOString().slice(0, 10) : null,
+    });
+    byFeature.set(r.featureId, arr);
   }
+  const bundles = new Map<string, FactorAlphaBundle>();
+  for (const [fid, rows] of byFeature) {
+    const b = buildBundle(rows);
+    if (b) bundles.set(fid, b);
+  }
+  // Attribution：跨已评估因子按正 10d alpha 归一
+  const contrib = computeContributions([...bundles.values()]);
+  for (const [fid, b] of bundles) b.contribution = contrib.get(fid) ?? null;
 
-  // 2) 覆盖率：latest AlphaFactor 日各列非空占比
+  // 2) 覆盖率（latest AlphaFactor 各列非空占比）
   const latest = await prisma.alphaFactor.findFirst({ orderBy: { date: "desc" }, select: { date: true } });
   const coverageByColumn = new Map<string, number>();
   let coverageAsOf: string | null = null;
@@ -62,75 +53,127 @@ export async function GET() {
     coverageAsOf = latest.date.toISOString().slice(0, 10);
     const total = await prisma.alphaFactor.count({ where: { date: latest.date } });
     if (total > 0) {
-      const counts = await Promise.all(
-        ALPHA_COVERAGE_COLUMNS.map((col) =>
-          prisma.alphaFactor.count({
-            where: { date: latest.date, [col]: { not: null } } as Record<string, unknown>,
-          }),
-        ),
-      );
-      ALPHA_COVERAGE_COLUMNS.forEach((col, i) => {
-        coverageByColumn.set(col, Math.round((counts[i] / total) * 1000) / 10);
-      });
+      const counts = await Promise.all(ALPHA_COVERAGE_COLUMNS.map((col) =>
+        prisma.alphaFactor.count({ where: { date: latest.date, [col]: { not: null } } as Record<string, unknown> })));
+      ALPHA_COVERAGE_COLUMNS.forEach((col, i) => coverageByColumn.set(col, Math.round((counts[i] / total) * 1000) / 10));
     }
   }
 
-  // 3) 组合级最大回撤（AlphaBacktestResult ALPHA 代表配置 90d/top20/hold10）
-  const alphaBt = await prisma.alphaBacktestResult.findFirst({
-    where: { strategy: "ALPHA", period: 90, topN: 20, holdDays: 10 },
-    select: { maxDrawdown: true, asOfLatest: true },
+  // 3) Shadow 诊断的上游实测覆盖率
+  const [aiEnabled, finStocks, instDates, tdnetN] = await Promise.all([
+    prisma.stock.count({ where: { aiEnabled: true } }),
+    prisma.financial.findMany({ distinct: ["stockId"], select: { stockId: true } }),
+    prisma.institutionalFlow.findMany({ distinct: ["date"], select: { date: true } }),
+    prisma.disclosure.count({ where: { publishedAt: { gte: cutoff90 } } }),
+  ]);
+  const diagInputs: ShadowDiagInputs = {
+    financialCoverage: aiEnabled > 0 ? Math.min(100, Math.round((finStocks.length / aiEnabled) * 1000) / 10) : null,
+    instWeeks: instDates.length,
+    tdnetTriggerCount: tdnetN,
+    shortSellCoverage: null, // ShortSellingRatio 为市场级（无 per-symbol）
+  };
+
+  // 4) 组装每因子 V2 视图
+  const rows = features.map((f) => {
+    const bundle = bundles.get(f.id) ?? null;
+    const cov = FEATURE_TO_ALPHA_COLUMN[f.id] != null ? coverageByColumn.get(FEATURE_TO_ALPHA_COLUMN[f.id]) ?? null : null;
+
+    if (bundle) {
+      const ev = evaluatePromotionV2(bundle, cov, f.status);
+      const primary = bundle.primary;
+      return {
+        id: f.id, name: f.name, category: f.category, source: f.source, status: f.status, version: f.version,
+        promotionScore: ev.promotionScore, learningScore: ev.learningScore, rating: ev.rating, ratingLabel: ev.ratingLabel,
+        recommendation: ev.recommendation, confidence: ev.confidence, contribution: bundle.contribution,
+        stability: ev.stability, trend: ev.trend, coverage: cov,
+        pending: false, pendingReason: null, pendingReasonCode: null,
+        reason: ev.reason, factorAlpha: bundle,
+        primaryAlpha: primary?.alpha ?? null, primaryHitRate: primary?.hitRate ?? null, meanRankIc: bundle.meanRankIc,
+      };
+    }
+
+    // 无因子回测
+    if (f.status === "PRODUCTION") {
+      return {
+        id: f.id, name: f.name, category: f.category, source: f.source, status: f.status, version: f.version,
+        promotionScore: null, learningScore: null, rating: 5 as const, ratingLabel: "Ready for Production",
+        recommendation: null, confidence: "HIGH" as const, contribution: null, stability: null, trend: null, coverage: cov,
+        pending: false, pendingReason: null, pendingReasonCode: null,
+        reason: "已在生产 · 参考基线（无因子 alpha 回测）", factorAlpha: null,
+        primaryAlpha: null, primaryHitRate: null, meanRankIc: null,
+      };
+    }
+
+    // SHADOW / DISABLED 无回测 → Shadow Sample Completion 诊断
+    const diag = diagnoseShadow(f, diagInputs);
+    return {
+      id: f.id, name: f.name, category: f.category, source: f.source, status: f.status, version: f.version,
+      promotionScore: null, learningScore: null, rating: 3 as const, ratingLabel: "Observe",
+      recommendation: "KEEP_SHADOW" as const, confidence: "LOW" as const, contribution: null, stability: null, trend: null,
+      coverage: diag.coverage, pending: true, pendingReason: diag.pendingReason, pendingReasonCode: diag.pendingReasonCode,
+      reason: diag.pendingReason, factorAlpha: null,
+      primaryAlpha: null, primaryHitRate: null, meanRankIc: null,
+    };
   });
-  const portfolioMaxDrawdown = alphaBt?.maxDrawdown ?? null;
 
-  // 4) 组装每因子真实统计输入（仅有 Alpha 报告映射的 SHADOW/PRODUCTION 技术因子）
-  const inputs = new Map<string, PromotionRawInput>();
-  for (const [fid, factorName] of Object.entries(FEATURE_TO_ALPHA_FACTOR)) {
-    const rows = byFactor.get(factorName);
-    if (!rows || !rows.length) continue;
-    const primary = pickPrimary(rows);
-    if (!primary) continue;
-    const col = FEATURE_TO_ALPHA_COLUMN[fid];
-    const coverage = col != null ? coverageByColumn.get(col) ?? null : null;
-    inputs.set(fid, {
-      hitRate: primary.winRate,
-      winRate: primary.winRate,
-      alpha: primary.meanExcess,
-      sharpeRatio: primary.sharpe,
-      maxDrawdown: null, // 因子级无逐笔回撤，组合级见 summary.portfolioMaxDrawdown
-      coverage,
-      consistency: consistencyPct(rows),
-      sampleCount: primary.sampleCount,
-    });
-  }
-
-  // 5) 派生晋升视图 + 汇总
-  const asOf = coverageAsOf ?? (alphaBt?.asOfLatest ? alphaBt.asOfLatest.toISOString().slice(0, 10) : null);
-  const rows = buildFeaturePromotions(inputs);
-  const summary = summarizePromotions(rows, portfolioMaxDrawdown, asOf);
-
-  // 6) 分组（页面分区）
+  // 5) 分组 + 汇总
   const shadow = rows.filter((r) => r.status === "SHADOW");
   const disabled = rows.filter((r) => r.status === "DISABLED");
   const productionFeatures = rows.filter((r) => r.status === "PRODUCTION");
+  const cand = [...shadow, ...disabled];
 
-  const isRec = (r: FeaturePromotion, rec: string) => r.eval.recommendation === rec;
-  const promotionCandidates = shadow.filter((r) => isRec(r, "PROMOTE"))
-    .sort((a, b) => (b.eval.metrics.promotionScore ?? 0) - (a.eval.metrics.promotionScore ?? 0));
-  const keepShadow = [...shadow, ...disabled].filter((r) => isRec(r, "KEEP_SHADOW"))
-    .sort((a, b) => (b.eval.metrics.promotionScore ?? -1) - (a.eval.metrics.promotionScore ?? -1));
-  const disabledCandidates = [...shadow, ...disabled].filter((r) => isRec(r, "DISABLE"))
-    .sort((a, b) => (a.eval.metrics.promotionScore ?? 999) - (b.eval.metrics.promotionScore ?? 999));
+  const promotionCandidates = cand.filter((r) => r.recommendation === "PROMOTE")
+    .sort((a, b) => (b.promotionScore ?? 0) - (a.promotionScore ?? 0));
+  const keepShadow = cand.filter((r) => r.recommendation === "KEEP_SHADOW" && !r.pending)
+    .sort((a, b) => (b.promotionScore ?? 0) - (a.promotionScore ?? 0));
+  const disabledCandidates = cand.filter((r) => r.recommendation === "DISABLE")
+    .sort((a, b) => (a.promotionScore ?? 999) - (b.promotionScore ?? 999));
+  const pendingFeatures = cand.filter((r) => r.pending);
+
+  const evalShadowScores = shadow.filter((r) => !r.pending && r.promotionScore != null).map((r) => r.promotionScore as number);
+  const pendingByReason: Record<string, number> = {};
+  for (const r of pendingFeatures) {
+    const code = (r.pendingReasonCode ?? "BACKTEST_DISABLED") as PendingReasonCode;
+    pendingByReason[code] = (pendingByReason[code] ?? 0) + 1;
+  }
+  const topContributor = [...bundles.values()]
+    .filter((b) => b.contribution != null && b.contribution > 0)
+    .sort((a, b) => (b.contribution ?? 0) - (a.contribution ?? 0))[0];
+
+  const summary = {
+    totalFeatures: rows.length,
+    production: productionFeatures.length,
+    shadow: shadow.length,
+    disabled: disabled.length,
+    evaluated: rows.filter((r) => r.factorAlpha != null).length,
+    evaluatedShadow: shadow.filter((r) => !r.pending).length,
+    pending: pendingFeatures.length,
+    promoteCandidates: promotionCandidates.length,
+    keepShadow: keepShadow.length,
+    disableCandidates: disabledCandidates.length,
+    avgPromotionScore: evalShadowScores.length ? Math.round((evalShadowScores.reduce((a, b) => a + b, 0) / evalShadowScores.length) * 10) / 10 : null,
+    topContributor: topContributor ? { id: topContributor.featureId, contribution: topContributor.contribution } : null,
+    pendingByReason,
+    asOf: coverageAsOf ?? [...bundles.values()][0]?.asOfLatest ?? null,
+    asOfCount: [...bundles.values()][0]?.asOfCount ?? null,
+    horizons: FACTOR_ALPHA_HORIZONS,
+    primaryHorizon: PRIMARY_HORIZON,
+    diagInputs,
+  };
 
   return NextResponse.json({
     ok: true,
     generatedAt: new Date().toISOString(),
-    note: "Feature Promotion Engine V1 · 只读建议 · 不自动改状态 · 不影响评分",
+    engine: "Promotion Engine V2 · Factor Alpha (vs equal-weight universe)",
+    note: "只读建议 · 不自动改状态 · 不影响评分。benchmark=等权宇宙（TOPIX 点位序列 2026-03-30 有量纲断裂，不用作跨期基准）",
+    reasonLabels: PENDING_REASON_LABEL,
     summary,
     productionFeatures,
     shadowFeatures: shadow,
     promotionCandidates,
     keepShadow,
     disabledCandidates,
+    pendingFeatures,
     features: rows,
   });
 }

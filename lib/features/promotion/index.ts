@@ -10,3 +10,6 @@ export * from "./types";
 export * from "./engine";
 export * from "./factor-map";
 export * from "./registry";
+// P6-T9 — Factor Alpha Engine + Promotion Engine V2 + Shadow diagnostics
+export * from "./factor-alpha";
+export * from "./shadow-diagnostics";

@@ -38,6 +38,34 @@ P5 阶段正式结束，进入 Freeze：以下模块除 **Bug Fix** 外禁止修
 
 ---
 
+## [17.88.0] - 2026-07-08 — 📐 P6-T9 Factor-level Alpha Engine + Promotion Engine V2
+
+建立**真正的因子级 Alpha Evaluation Engine**（每个 Feature 独立、真实回测），补齐 Shadow 因子有效性样本，升级 Promotion Engine 到 V2。**纯只读派生 + 一张新增表（additive，无 breaking change）**，未改 AI评分 / Adaptive / Shadow / Fusion / Strategy / Learning / Explain / Recommendation / GPT / Pipeline Tracker（P5 全冻结）；未切 OpenAI 模型；未改 Daily Watchlist；**不自动晋升任何 Feature、所有 Production 状态不变、不影响任何推荐结果**。
+
+### T9.1 Factor Alpha Engine（真实回测，禁止估算）
+- 新增表 `FactorAlphaResult`（`@@unique([featureId,horizon])`，additive）：per-Feature × per-horizon（**1/3/5/10/20d**）的真实前向 Alpha。
+- 新增 `scripts/compute-factor-alpha.ts`（`npm run compute-factor-alpha`）：从 **DailyPrice** 在 **86 个历史再平衡日**重建因子标量，每日取 **top-quintile cohort**，计算 cohort 前向收益 − **等权宇宙均值**（日度再平衡）= 因子选择 Alpha；同时算 `avgReturn / benchReturn / hitRate / rankIc / cohortSize / sampleCount / asOfCount`。所有数字来自实价回测。
+- **基准=等权宇宙而非 TOPIX**：`GlobalMarket.topix` 点位序列 **2026-03-30 有量纲断裂**（3827→376.4 指数→ETF代理），跨期 TOPIX 超额被污染（既有 `AlphaFactorReport.meanExcess` 恒 +15% 亦此故）。宇宙相对 Alpha 与 cohort 同源同量纲、免疫该断裂，是正确的因子选择基准（已记入 `docs/KNOWN_ISSUES.md` P2-020）。
+- **真实结果**（10d Alpha）：averageTurnover20 +1.00% · rs60 +0.92% · rs5 +0.65% · rs20 +0.51% · volumeExpansionDays +0.21% · atrPct +0.38%（但 rankIC −0.042 反向）。
+
+### T9.2 Factor Attribution（featureContribution）
+- `computeContributions()`：跨已评估因子按正向 10d Alpha 归一化贡献占比 %（供未来 Adaptive 自动学习）。实测最高贡献 **averageTurnover20 22.7%** · rs60 21% · rs5 14.9% · rs20 11.7%。
+
+### T9.3 Shadow Sample Completion（真实 Pending Reason，禁止虚构）
+- 新增 `lib/features/promotion/shadow-diagnostics.ts`：对无因子回测的 31 个 Shadow 因子（Financial/Institution/TDnet/…），基于**实测上游覆盖率**（Financial 覆盖 / InstitutionalFlow 周数 / 近90日 TDnet 事件数）+ 因子语义，输出真实原因码：`WAITING_MORE_TRADING_DAYS / COVERAGE_TOO_LOW / NO_TRIGGER_SAMPLES / INSUFFICIENT_HISTORY / BACKTEST_DISABLED / NO_DATA_SOURCE`。实测分类：历史不足 12 · 回测未接入 10 · 覆盖率过低 8 · 数据源缺失 1。
+
+### T9.4 Promotion Engine V2
+- 新增 `lib/features/promotion/factor-alpha.ts`（V1 完全保留兼容）：消费 FactorAlphaResult → Factor Alpha Bundle（含 `meanRankIc / alphaPosShare / stability / trend`）+ Confidence（由再平衡日数）+ Contribution，重算 **Promotion Score V2**（Alpha 38% + rankIC 32% + 稳定性 12% + 覆盖率 6% + 成熟度 12%）与 Promote / Keep Shadow / Disable。**护栏**：绝对 hitRate 受市场方向混淆（本样本全 <50%）故不参与打分；5★ PROMOTE 需 HIGH 置信（≥120 再平衡日）→ 当前 86 日为 MEDIUM，**0 自动晋升**（诚实保守）；平均 rankIC<−0.01（反向预测）→ DISABLE。实测：rs5/averageTurnover20/rs60/rs20/volumeExpansionDays → **4★ Need More Samples（Keep Shadow）**，atrPct → **1★ Disable**（反向）。
+
+### T9.5 Dashboard 升级
+- `/admin/feature-promotion` V2：新增**因子 Alpha 曲线**（1/3/5/10/20d 迷你柱）、Contribution / Confidence / Recent Trend（走强/平稳/衰减）/ Stability / Pending Reason 分类；6 KPI（含已回测评估数、最高贡献因子）；支持按 **晋升分 / Alpha(10d) / 贡献 / 命中率** 排序；Pending 分区含原因码统计。
+
+### 验收
+Build ✅ tsc 0；生产 Health ✅ **CRITICAL=0**（warn 5 非阻断）；**Schema 无 breaking change**（新表 additive，`prisma db push` 同步）；因子回测 ✅ 86 再平衡日 × 3048 股 × 259451 obs，8 因子 × 5 horizon 真实 Alpha 落库；API V2 ✅ 200 非空；页面 ✅ CDP 截图确认因子曲线/贡献/趋势/Pending 分类渲染；**0 自动晋升 · Production 状态不变 · 不影响推荐** ✅。
+- 新增 `prisma`(FactorAlphaResult) · `scripts/compute-factor-alpha.ts` · `lib/features/promotion/{factor-alpha,shadow-diagnostics}.ts`；重写 `app/api/admin/feature-promotion/route.ts`、`app/admin/feature-promotion/page.tsx`；改 `package.json`、`docs/KNOWN_ISSUES.md`。
+
+---
+
 ## [17.87.0] - 2026-07-08 — 🎖️ P6-T8 Feature Promotion Engine V1（因子晋升引擎）
 
 对现有 SHADOW 因子做**统一量化评估**，给出 **Promote / Keep Shadow / Disable** 建议与 **1-5 星** rating。补齐 P6 Feature Platform 流水线的倒数第二环：**Registry → Shadow → Backtest → Learning → Promotion → Production**。**纯只读派生层**，未改 AI评分 / Adaptive / Shadow / Fusion / Strategy / Learning / Explain / Recommendation / GPT / Feature Registry / Validation / Cron / **DB Schema**；未切换 OpenAI 模型（保持 `gpt-4o-mini`）；未改 Daily AI Watchlist 行情逻辑；**不自动写 Production、不启用/禁用任何因子、不影响任何推荐结果**。
