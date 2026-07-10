@@ -94,6 +94,8 @@
     "repair-topix": "npx tsx scripts/repair-topix.ts",
     "ai-top-picks": "npx tsx scripts/generate-ai-top-picks.ts",
     "ai-top-picks:dry": "DRY_RUN=1 npx tsx scripts/generate-ai-top-picks.ts",
+    "closing-decision": "npx tsx scripts/generate-closing-decision.ts",
+    "closing-decision:dry": "DRY_RUN=1 npx tsx scripts/generate-closing-decision.ts",
     "ai-top-picks-perf": "npx tsx scripts/ai-top-picks-daily-perf.ts",
     "ai-top-picks-perf:dry": "DRY_RUN=1 npx tsx scripts/ai-top-picks-daily-perf.ts",
     "ai-top-picks-weekly": "npx tsx scripts/ai-top-picks-weekly-report.ts",

@@ -1735,3 +1735,68 @@ model AdaptiveScoreV3Calibration {
 
   @@map("adaptive_score_v3_calibration")
 }
+
+// ── Closing Decision — P6-T12 收盘决策（每交易日收盘前最终 AI 决策）───────────
+// 每交易日 15:15 JST：全市场 EOD 排名（读 StockScore）+ 候选池实时行情覆盖（Yahoo）→
+// GPT 分析 Top20 → 最终 Top10 + Decision Engine（BUY_TODAY/WATCH_ONLY/STAY_CASH）+
+// Portfolio Builder（3-5 只建仓组合 + 仓位）。**独立模块 · 只读派生**：不修改
+// StockScore / DailyRecommendation / DailyAIWatchlist / AiTopPick / 任何评分逻辑 / 其它 Cron。
+// date 唯一，同日重跑幂等覆盖。additive 新表，无 breaking change。
+model ClosingDecision {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @unique @db.Date // JST 决策日
+  computedAt   DateTime @default(now())
+  decidedAtJst String? // 实际决策墙钟 HH:mm JST
+
+  // ① 今日结论（每天恰好一个）
+  verdict       String // BUY_TODAY | WATCH_ONLY | STAY_CASH
+  verdictReason String? @db.Text
+
+  // 市场上下文 / Decision Engine 输入快照
+  regime         String? // BULL | SIDEWAYS | BEAR
+  regimeScore    Float?
+  marketTrend    Float? // trendScore
+  volatility     Float? // 年化波动率 %
+  avgAiScore     Float? // Top20 平均 AI 分
+  avgRiskScore   Float? // Top20 平均风险分（0-100，越高越危险）
+  buyZoneHitRate Float? // Top20 现价落在买区内占比 %
+  breakoutRatio  Float? // Top20 已突破买区上沿占比 %
+  newsRiskCount  Int     @default(0) // 高影响利空只数
+  qualifiedCount Int     @default(0) // 可建仓合格候选数
+  opportunity    Float? // Decision Engine 机会分（审计用）
+
+  // ② 今日第一推荐（单独展示）
+  top1Symbol     String?
+  top1Name       String?
+  top1AiScore    Float?
+  top1GptScore   Float?
+  top1Price      Float? // 实时
+  top1ChangePct  Float?
+  top1EntryLow   Float?
+  top1EntryHigh  Float?
+  top1Target1    Float?
+  top1Target2    Float?
+  top1StopLoss   Float?
+  top1HoldPeriod String? // 建议持有时间，如 "1-3周（波段）"
+  top1Confidence String? // A+ | A | B
+
+  // ③ 今日建仓组合（3-5 只 or 空仓）
+  portfolio     Json? // [{symbol,name,weight,price,entryLow,entryHigh,target1,stopLoss,aiScore,gptScore,sector,reason}]
+  portfolioNote String? @db.Text // 组合说明 / "今日建议空仓"
+
+  // ④ Top10（实时重排 + GPT overlay）
+  top10 Json? // [{rank,symbol,name,price,changePct,aiScore,gptScore,rsi14,macdHist,ma5,ma10,ma20,volumeRatio,turnoverRate,newsSentiment,riskLevel,entryLow,entryHigh,target1,target2,stopLoss,action,inBuyZone,breakout,reason,gptNote}]
+
+  // ⑥ 今日交易总结 + 推送文本（本期不真正外发）
+  summary  String? @db.Text
+  pushText String? @db.Text
+
+  // 运行元数据
+  gptModel       String?
+  universeCount  Int     @default(0)
+  shortlistCount Int     @default(0)
+  gptAnalyzed    Int     @default(0)
+  elapsedMs      Int     @default(0)
+
+  @@map("closing_decisions")
+}

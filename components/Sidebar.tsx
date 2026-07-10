@@ -8,7 +8,7 @@ import { ROUTES } from "@/lib/routes";
 import {
   LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
   GraduationCap, Layers, FlaskConical, Newspaper, Boxes,
-  Settings, CircleCheck, RefreshCw, Activity, TrendingUp,
+  Settings, CircleCheck, RefreshCw, Activity, TrendingUp, Clock,
 } from "./dashboard/icons";
 
 type IconCmp = (p: { size?: number }) => React.ReactElement;
@@ -48,6 +48,7 @@ export default function Sidebar() {
     {
       labelKey: "nav.systemMgmt",
       items: [
+        { href: ROUTES.CLOSING_DECISION,  label: t("nav.closingDecision"), Icon: Clock, badge: "15:15" },
         { href: ROUTES.DECISION_CENTER,   label: t("nav.decisionCenter"), Icon: Target, badge: "Cockpit" },
         { href: ROUTES.MISSION_CONTROL,   label: t("nav.missionControl"), Icon: Settings },
         { href: ROUTES.RUNTIME,           label: t("nav.runtime"),        Icon: Activity },

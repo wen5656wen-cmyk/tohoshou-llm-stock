@@ -313,6 +313,16 @@ cron.schedule("0 17 * * 5", async () => {
   await runAsync("ai-top-picks-weekly-report.ts", "AI Top Picks Weekly Report", 5 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── 15:15 JST — Closing Decision（P6-T12 收盘决策）──────────────────────────
+// 收盘前最终 AI 决策：全市场 EOD 排名 + 候选池实时行情覆盖 → GPT 分析 Top20 → 最终 Top10
+// + Decision Engine（BUY_TODAY/WATCH_ONLY/STAY_CASH）+ Portfolio Builder（3-5 只建仓组合）。
+// **独立模块 · 只读派生**：不改 StockScore/DR/Watchlist/AiTopPick/评分/其它 Cron。
+// 生成脚本内含 JPX 守卫（非交易日跳过）。目标 2 分钟内完成（15:18 前）。
+cron.schedule("15 15 * * *", async () => {
+  log("INFO", "⏰ 15:15 触发：Closing Decision（P6-T12 收盘决策）");
+  await runAsync("generate-closing-decision.ts", "Closing Decision (P6-T12)", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────
 // Production(公式推薦) / AlphaScore / Regime Fusion の3戦略で日次 Top10/20 を生成し、
 // 未来 1/3/5/10/20 日リターンを蓄積（2–4週）。READ-ONLY：公式推薦は変更しない。

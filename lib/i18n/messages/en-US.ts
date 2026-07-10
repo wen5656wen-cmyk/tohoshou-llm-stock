@@ -403,6 +403,7 @@ const enUS: Messages = {
   "nav.featurePromotion": "Feature Promotion",
   "nav.featurePlatform": "Feature Platform",
   "nav.decisionCenter": "Decision Center",
+  "nav.closingDecision": "Closing Decision",
   "nav.aiTopPicks": "AI Top Picks",
   "nav.dailyWatchlist": "Daily AI Watchlist",
   "nav.syncStatus": "Sync Status",

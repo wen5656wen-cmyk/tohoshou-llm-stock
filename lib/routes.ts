@@ -23,6 +23,7 @@ export const ROUTES = {
   FEATURE_PLATFORM: "/admin/feature-platform",
   AI_TOP_PICKS: "/admin/ai-top-picks",
   DECISION_CENTER: "/admin/decision-center",
+  CLOSING_DECISION: "/admin/closing-decision",
   SETTINGS: "/admin/mission-control",
   CONTROL_CENTER: "/admin/mission-control",
   MISSION_CONTROL: "/admin/mission-control",

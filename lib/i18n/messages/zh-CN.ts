@@ -403,6 +403,7 @@ const zhCN: Messages = {
   "nav.featurePromotion": "因子晋升",
   "nav.featurePlatform": "因子平台",
   "nav.decisionCenter": "决策驾驶舱",
+  "nav.closingDecision": "收盘决策",
   "nav.aiTopPicks": "AI 五选",
   "nav.dailyWatchlist": "每日AI关注池",
   "nav.syncStatus": "同步状态",

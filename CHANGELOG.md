@@ -2,6 +2,36 @@
 
 ---
 
+## [17.92.0] - 2026-07-10 — 🕒 P6-T12 Closing Decision（收盘决策，独立模块）
+
+每交易日 **15:15 JST** 收盘前最后一次 AI 决策，指导当天是否建仓。**独立模块 · 只读派生**：不替换 Morning AI / Daily AI Watchlist / AI 五选，不修改 StockScore / DailyRecommendation / DailyAIWatchlist / AiTopPick / 任何评分逻辑 / 其它 Cron。**Freeze 期经用户以「P6-T12」完整规格显式授权例外**（先例：AI Top Picks V1）。
+
+### 流程（实测 12.3s，目标 2 分钟内 / 15:18 前完成）
+1. **全市场 EOD 排名**：读现有 StockScore（不重跑 compute-scores、不 clobber 共享表）→ 候选池 AI 分 **Top150**。
+2. **候选池实时覆盖**：单批 Yahoo `quote` 取 现价/前收/成交量/均量/流通股 → 派生 今日涨跌 / 量比 / 换手率；把「今日实时价」作为当日 bar 追加历史，**实时重算 RSI14 / MACD / MA5 / MA10 / MA20 / 20日涨幅**（禁止直接用上午 EOD 指标）。
+3. **重排 Top20 → GPT 复核**：`gpt-4o-mini` 对 Top20 输出 gptScore(0-100)+简短 note（与 rerank 同源，仅基于我方 DB 事实、不虚构；失败整体回退规则引擎）→ closingScore = AI×0.6 + GPT×0.4 → **最终 Top10**。
+4. **Decision Engine**：机会分（大盘 regime / 买区命中率 / 已突破占比 / 合格候选数 / 平均 AI / 新闻风险 / 波动率）→ 每天恰好一个 **BUY_TODAY / WATCH_ONLY / STAY_CASH**（硬否决：BEAR 或无合格候选 → STAY_CASH）。
+5. **Portfolio Builder**：从**全候选池合格集**（流动性≥5亿 + 买区内/未追高 + 非利空 + 风险可控）自动选 **3-5 只**，行业集中度≤2、低相关性优先、按 closingScore 计算仓位（15%-40%，5% 取整，归一 100%）；无机会 → 「今日建议空仓」。
+6. **今日第一推荐**（信心 A+/A/B + 建议持有期）+ **今日交易总结** + **push 文本**（本期不外发，落库备用）。
+
+### 新增
+- 新表 `ClosingDecision`（date 唯一，additive）：结论/市场上下文/第一推荐/组合 JSON/Top10 JSON/总结/push 文本/运行元数据。
+- `lib/closing-decision/`（types / decision-engine / portfolio-builder / realtime / gpt-analyze / summary / index，纯函数 + 只读 I/O）。
+- `scripts/generate-closing-decision.ts`（`npm run closing-decision`，JPX 守卫 / `--date=` / DRY_RUN，upsert 幂等）。
+- **Cron 15:15 JST**（每交易日，脚本内含 JPX 守卫）。
+- `GET /api/admin/closing-decision`（只读返回 15:15 决策快照，**不重算/不调 GPT/Yahoo**，页面加载快）。
+- 页面 `/admin/closing-decision`「收盘决策」（Apple 白，6 区：结论条/市场 KPI/第一推荐/建仓组合/交易总结/Top10+推荐理由）；导航「收盘决策 · 15:15」（`nav.closingDecision` 三语 + Clock，系统管理组）。
+
+### 实测（2026-07-10 16:20 JST 手动首跑）
+实时命中 **150/150** · GPT **20 只**（gpt-4o-mini）· 裁决 **BUY_TODAY**（机会分 5：买区命中率65%+2 / 合格候选19只+2 / 平均AI76+1）· 第一推荐 **7374.T Confidence Interworks**（AI79/GPT85/信心A/买区¥1,493–1,570/止盈¥1,770·2,001/止损¥1,416）· 组合 **5 只各 20%**（3092/215A/3659/6136/6592，覆盖4行业）· 耗时 **12.3s**。晨间 +13% 的 6194.T 因追高被剔出收盘 Top10（证明实时重排 ≠ 上午结果）。
+
+### 验收
+Build ✅ tsc 0 / 两路由编译；生产 Health ✅ **CRITICAL=0**（warn5 既有，与本次无关）；Schema additive（`prisma db push` 建 `closing_decisions`）；Cron 15:15 已注册（16:09 JST 安全窗口重启 tohoshou-cron 70→71 + web 332→333）；API ✅ 200；页面 ✅ CDP 截图 6 区完整；**未修改 Morning AI / AI 五选 / Daily AI Watchlist / 评分 / 其它 Cron · Production 不变**。
+
+**说明**：**微信推送本期不做**（本项目现无任何推送基础设施，经用户确认跳过；决策已生成 push-ready 文本落库，未来接 webhook 仅需一行）。**实时范围经用户确认**：全市场 EOD 重排 + 候选池实时覆盖（非全市场 3700 只逐只实时，以稳达 2 分钟）。属独立模块，不进入 P7，P6 Freeze / AI Top Picks V1.1 冻结均不受影响。
+
+---
+
 ## [17.91.0] - 2026-07-08 — 🎛️ P6-T11 AI Decision Center（Decision Cockpit）
 
 P6 最后一个展示层：新增 **AI Decision Center** 决策驾驶舱，整合已有数据成一屏总览。**纯展示层聚合**，未新增任何 AI 算法、未修改任何评分/推荐——只读复用 MarketRegime / GlobalMarket / StockScore / DailyAIWatchlist / AiTopPick / Feature Platform / AiTopPickPerf / DeploymentLog / health·pipeline 日志；未改 AI Score / Strong Buy / BUY / Promotion / Factor Alpha / Learning / Explain / Strategy / Watchlist / AI Top Picks。
