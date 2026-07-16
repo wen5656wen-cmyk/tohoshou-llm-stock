@@ -108,6 +108,14 @@ export type Messages = {
   "ws.alpha": string;
   "ws.scoringV3": string;
   "ws.backtestResearch": string;
+  // P7-05 研究综合 Hub Tab
+  "rw.overview": string; "rw.factors": string; "rw.alpha": string; "rw.v3": string;
+  "rw.learning": string; "rw.experiments": string; "rw.backtest": string;
+  "rw.f.lib": string; "rw.f.registry": string; "rw.f.promotion": string; "rw.f.platform": string;
+  "rw.a.score": string; "rw.a.analytics": string; "rw.a.fusion": string; "rw.a.regime": string;
+  "rw.v.shadow": string; "rw.v.calibration": string; "rw.v.freeze": string;
+  "rw.e.exp": string; "rw.e.versions": string;
+  "rw.b.strategy": string; "rw.b.alpha": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

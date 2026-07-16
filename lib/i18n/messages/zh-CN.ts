@@ -464,6 +464,14 @@ const zhCN: Messages = {
   "ws.alpha": "Alpha",
   "ws.scoringV3": "Scoring V3",
   "ws.backtestResearch": "回测研究",
+  // P7-05 研究综合 Hub
+  "rw.overview": "研究概览", "rw.factors": "因子", "rw.alpha": "Alpha", "rw.v3": "Scoring V3",
+  "rw.learning": "学习", "rw.experiments": "实验", "rw.backtest": "研究回测",
+  "rw.f.lib": "因子库", "rw.f.registry": "因子注册", "rw.f.promotion": "因子晋升", "rw.f.platform": "因子平台",
+  "rw.a.score": "影子评分", "rw.a.analytics": "因子分析", "rw.a.fusion": "Fusion", "rw.a.regime": "市场状态",
+  "rw.v.shadow": "Shadow", "rw.v.calibration": "Calibration", "rw.v.freeze": "Freeze",
+  "rw.e.exp": "实验", "rw.e.versions": "版本",
+  "rw.b.strategy": "策略回测", "rw.b.alpha": "Alpha 回测",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

@@ -464,6 +464,14 @@ const jaJP: Messages = {
   "ws.alpha": "Alpha",
   "ws.scoringV3": "Scoring V3",
   "ws.backtestResearch": "バックテスト研究",
+  // P7-05 リサーチ総合 Hub
+  "rw.overview": "リサーチ概要", "rw.factors": "ファクター", "rw.alpha": "Alpha", "rw.v3": "Scoring V3",
+  "rw.learning": "学習", "rw.experiments": "実験", "rw.backtest": "バックテスト研究",
+  "rw.f.lib": "ファクター一覧", "rw.f.registry": "ファクター登録", "rw.f.promotion": "ファクター昇格", "rw.f.platform": "ファクター基盤",
+  "rw.a.score": "シャドウ評価", "rw.a.analytics": "ファクター分析", "rw.a.fusion": "Fusion", "rw.a.regime": "市場状態",
+  "rw.v.shadow": "Shadow", "rw.v.calibration": "Calibration", "rw.v.freeze": "Freeze",
+  "rw.e.exp": "実験", "rw.e.versions": "版数",
+  "rw.b.strategy": "戦略バックテスト", "rw.b.alpha": "Alpha バックテスト",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

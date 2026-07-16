@@ -464,6 +464,14 @@ const enUS: Messages = {
   "ws.alpha": "Alpha",
   "ws.scoringV3": "Scoring V3",
   "ws.backtestResearch": "Backtest Lab",
+  // P7-05 Research Hub
+  "rw.overview": "Overview", "rw.factors": "Factors", "rw.alpha": "Alpha", "rw.v3": "Scoring V3",
+  "rw.learning": "Learning", "rw.experiments": "Experiments", "rw.backtest": "Backtest",
+  "rw.f.lib": "Factor Library", "rw.f.registry": "Registry", "rw.f.promotion": "Promotion", "rw.f.platform": "Platform",
+  "rw.a.score": "Shadow Score", "rw.a.analytics": "Factor Analytics", "rw.a.fusion": "Fusion", "rw.a.regime": "Regime",
+  "rw.v.shadow": "Shadow", "rw.v.calibration": "Calibration", "rw.v.freeze": "Freeze",
+  "rw.e.exp": "Experiments", "rw.e.versions": "Versions",
+  "rw.b.strategy": "Strategy Backtest", "rw.b.alpha": "Alpha Backtest",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

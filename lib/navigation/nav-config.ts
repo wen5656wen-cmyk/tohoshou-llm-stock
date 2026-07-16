@@ -10,8 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  Target, Search, LineChart, Bot, Settings, RefreshCw, CircleCheck, Activity,
-  Layers, Microscope, Boxes, TrendingUp, BarChart3, Sparkles, GraduationCap, FlaskConical,
+  Target, Search, LineChart, Bot, Settings, RefreshCw, CircleCheck, Activity, Microscope,
 } from "@/components/dashboard/icons";
 
 export type NavIcon = (p: { size?: number }) => React.ReactElement;
@@ -74,25 +73,28 @@ export const NAV_NODES: NavNode[] = [
   { key: "sync", workspace: "admin", labelKey: "nav.syncStatus", href: "/sync", Icon: RefreshCw, glyph: "⟳" },
   { key: "verify", workspace: "admin", labelKey: "nav.dataVerify", href: "/admin/verify", Icon: CircleCheck, glyph: "✓" },
   { key: "runtime", workspace: "admin", labelKey: "nav.runtime", href: "/admin/runtime", Icon: Activity, glyph: "◐" },
-  { key: "versions", workspace: "admin", labelKey: "ws.deployVersion", href: "/admin/versions", Icon: Layers, glyph: "▤" },
 
-  // ═══ 研究工作区 ═══
-  { key: "research", workspace: "research", labelKey: "ws.researchOverview", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
-  { key: "features", workspace: "research", labelKey: "nav.features", href: "/admin/features", Icon: Boxes, glyph: "▦" },
-  { key: "promotion", workspace: "research", labelKey: "nav.featurePromotion", href: "/admin/feature-promotion", Icon: TrendingUp, glyph: "↑" },
-  { key: "platform", workspace: "research", labelKey: "nav.featurePlatform", href: "/admin/feature-platform", Icon: Layers, glyph: "▣" },
-  { key: "alpha", workspace: "research", labelKey: "ws.alpha", href: "/admin/research?tab=score", Icon: BarChart3, glyph: "α" },
-  { key: "v3", workspace: "research", labelKey: "ws.scoringV3", href: "/admin/research?tab=v3", Icon: Sparkles, glyph: "③" },
-  { key: "learning", workspace: "research", labelKey: "nav.learningReport", href: "/admin/learning-report", Icon: GraduationCap, glyph: "◈" },
-  { key: "experiments", workspace: "research", labelKey: "nav.experiments", href: "/admin/experiments", Icon: FlaskConical, glyph: "⚗" },
-  { key: "backtest", workspace: "research", labelKey: "ws.backtestResearch", href: "/backtest", Icon: LineChart, glyph: "◷" },
+  // ═══ 研究工作区（P7-05：收敛为唯一入口 = 研究综合 Hub，内含 7 顶级 Tab）═══
+  {
+    key: "research", workspace: "research", labelKey: "ws.researchOverview", href: "/admin/research",
+    Icon: Microscope, glyph: "🔬",
+    tabs: [
+      { key: "overview", labelKey: "rw.overview" },
+      { key: "factors", labelKey: "rw.factors", legacyRoutes: ["/admin/features", "/admin/feature-promotion", "/admin/feature-platform"] },
+      { key: "alpha", labelKey: "rw.alpha", legacyRoutes: ["/alpha", "/fusion/report", "/market-regime"] },
+      { key: "v3", labelKey: "rw.v3" },
+      { key: "learning", labelKey: "rw.learning", legacyRoutes: ["/admin/learning-report"] },
+      { key: "experiments", labelKey: "rw.experiments", legacyRoutes: ["/admin/experiments", "/admin/versions"] },
+      { key: "backtest", labelKey: "rw.backtest", legacyRoutes: ["/backtest"] },
+    ],
+  },
 ];
 
 // ── 路径 → 工作区 推导（软切换核心：URL 决定当前工作区）──────────────────────
-const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime", "/admin/versions"];
+const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime"];
 const RESEARCH_PREFIXES = [
   "/admin/research", "/admin/features", "/admin/feature-promotion", "/admin/feature-platform",
-  "/admin/learning-report", "/admin/experiments", "/backtest", "/alpha", "/fusion", "/market-regime",
+  "/admin/learning-report", "/admin/experiments", "/admin/versions", "/backtest", "/alpha", "/fusion", "/market-regime",
 ];
 function matchPrefix(p: string, list: string[]): boolean {
   return list.some((x) => p === x || p.startsWith(x + "/") || p.startsWith(x + "?"));
