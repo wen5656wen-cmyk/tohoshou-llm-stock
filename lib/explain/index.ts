@@ -9,3 +9,4 @@ export * from "./summary";
 export * from "./engine";
 export * from "./provider";
 export * from "./builder";
+export * from "./report";

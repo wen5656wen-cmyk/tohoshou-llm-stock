@@ -477,6 +477,11 @@ const jaJP: Messages = {
   "sys.tab.sync": "同期", "sys.tab.cron": "Cron", "sys.tab.deploy": "デプロイ", "sys.tab.log": "ログ",
   "sys.status": "状態", "sys.dataDate": "データ日付", "sys.topIssues": "主な問題", "sys.completed": "完了",
   "sys.pipeline": "本日のパイプライン", "sys.recentDeploy": "最近のデプロイ", "sys.recentLog": "最近のログ", "sys.noData": "データなし",
+  // P8-1 Explain 2.0
+  "ex2.button": "AI 推奨理由", "ex2.title": "AI 投資レポート", "ex2.confidence": "信頼度", "ex2.position": "推奨ポジション", "ex2.hold": "推奨保有",
+  "ex2.recommendReason": "推奨理由", "ex2.buyReason": "買い理由", "ex2.buyToday": "なぜ今日買うか", "ex2.buyNotYesterday": "なぜ昨日ではないか", "ex2.buyNotOthers": "なぜ他銘柄ではないか",
+  "ex2.risk": "リスク分析", "ex2.takeProfit": "利確目標", "ex2.stopLoss": "損切り", "ex2.invalidation": "無効条件", "ex2.marketContext": "市場環境",
+  "ex2.t1": "第1目標", "ex2.t2": "第2目標", "ex2.t3": "第3目標", "ex2.loading": "AI 生成中…", "ex2.noData": "データなし",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

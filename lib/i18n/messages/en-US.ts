@@ -477,6 +477,11 @@ const enUS: Messages = {
   "sys.tab.sync": "Sync", "sys.tab.cron": "Cron", "sys.tab.deploy": "Deploy", "sys.tab.log": "Logs",
   "sys.status": "Status", "sys.dataDate": "Data Date", "sys.topIssues": "Top Issues", "sys.completed": "Completed",
   "sys.pipeline": "Today's Pipeline", "sys.recentDeploy": "Recent Deploys", "sys.recentLog": "Recent Logs", "sys.noData": "No data",
+  // P8-1 Explain 2.0
+  "ex2.button": "Why AI picks", "ex2.title": "AI Investment Report", "ex2.confidence": "Confidence", "ex2.position": "Suggested Size", "ex2.hold": "Hold",
+  "ex2.recommendReason": "Why Recommended", "ex2.buyReason": "Why Buy", "ex2.buyToday": "Why today", "ex2.buyNotYesterday": "Why not yesterday", "ex2.buyNotOthers": "Why not others",
+  "ex2.risk": "Risk Analysis", "ex2.takeProfit": "Take Profit", "ex2.stopLoss": "Stop Loss", "ex2.invalidation": "Invalidation", "ex2.marketContext": "Market Context",
+  "ex2.t1": "Target 1", "ex2.t2": "Target 2", "ex2.t3": "Target 3", "ex2.loading": "Generating…", "ex2.noData": "No data",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

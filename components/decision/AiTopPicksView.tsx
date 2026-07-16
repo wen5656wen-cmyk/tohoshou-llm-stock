@@ -9,6 +9,7 @@ import {
   AppHeader, AppCard, AppKpiCard, AppKpiGrid, AppBadge, AppButton,
   AppLoading, AppEmptyState, AppTable, AppTh, AppTd, appRowHover, COLORS,
 } from "@/components/ui";
+import ExplainReportButton from "@/components/explain/ExplainReportButton";
 
 interface Pick {
   rank: number; symbol: string; name: string | null; sourceRating: string;
@@ -215,6 +216,7 @@ export default function AiTopPicksPage() {
                         <span style={{ fontSize: 13, fontWeight: 800, color: COLORS.purple }}>#{p.rank}</span>
                         <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{p.name ?? p.symbol}</span>
                         <span style={{ fontSize: 11, color: COLORS.textFaint, fontFamily: "monospace" }}>{p.symbol}</span>
+                        <ExplainReportButton symbol={p.symbol} name={p.name} size="xs" />
                       </div>
                       <div style={{ marginTop: 5 }}>
                         <AppBadge tone={p.sourceRating === "STRONG_BUY" ? "green" : "blue"}>{p.sourceRating === "STRONG_BUY" ? "强烈买入" : "买入"}</AppBadge>

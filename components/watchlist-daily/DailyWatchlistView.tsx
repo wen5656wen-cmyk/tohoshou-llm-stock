@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import ExplainReportButton from "@/components/explain/ExplainReportButton";
 import { isJPXTradingDay } from "@/lib/trading-calendar/jpx";
 
 // Apple dashboard palette (local — matches lib/design-tokens COLORS)
@@ -204,6 +205,7 @@ export default function DailyWatchlistView() {
                           <Link href={`/stocks/${encodeURIComponent(it.symbol)}`} className="font-semibold hover:underline" style={{ color: C.ink }}>{it.name ?? it.symbol}</Link>
                           <span className="ml-1.5 text-[11px] tabular-nums" style={{ color: C.faint }}>{it.symbol}</span>
                           {it.isFocus && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ color: C.purple, background: `${C.purple}14` }}>重点</span>}
+                          <span className="ml-1.5 inline-block"><ExplainReportButton symbol={it.symbol} name={it.name} size="xs" /></span>
                         </td>
                         <td className="px-3 py-2.5"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: rm.color, background: `${rm.color}14` }}>{rm.label}</span></td>
                         <td className="px-3 py-2.5 text-right tabular-nums font-semibold" style={{ color: C.ink }}>{it.score != null ? it.score.toFixed(0) : "—"}</td>

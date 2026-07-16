@@ -477,6 +477,11 @@ const zhCN: Messages = {
   "sys.tab.sync": "同步", "sys.tab.cron": "Cron", "sys.tab.deploy": "部署", "sys.tab.log": "日志",
   "sys.status": "状态", "sys.dataDate": "数据日期", "sys.topIssues": "主要问题", "sys.completed": "完成",
   "sys.pipeline": "今日流水线", "sys.recentDeploy": "最近部署", "sys.recentLog": "最近日志", "sys.noData": "暂无数据",
+  // P8-1 Explain 2.0
+  "ex2.button": "AI 为什么推荐", "ex2.title": "AI 投资报告", "ex2.confidence": "信心指数", "ex2.position": "建议仓位", "ex2.hold": "建议持有",
+  "ex2.recommendReason": "推荐理由", "ex2.buyReason": "买入理由", "ex2.buyToday": "为什么今天买", "ex2.buyNotYesterday": "为什么不是昨天", "ex2.buyNotOthers": "为什么不是其它",
+  "ex2.risk": "风险分析", "ex2.takeProfit": "止盈建议", "ex2.stopLoss": "止损建议", "ex2.invalidation": "失效条件", "ex2.marketContext": "市场环境",
+  "ex2.t1": "第一目标", "ex2.t2": "第二目标", "ex2.t3": "第三目标", "ex2.loading": "AI 生成中…", "ex2.noData": "暂无数据",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

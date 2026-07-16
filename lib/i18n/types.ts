@@ -121,6 +121,11 @@ export type Messages = {
   "sys.tab.sync": string; "sys.tab.cron": string; "sys.tab.deploy": string; "sys.tab.log": string;
   "sys.status": string; "sys.dataDate": string; "sys.topIssues": string; "sys.completed": string;
   "sys.pipeline": string; "sys.recentDeploy": string; "sys.recentLog": string; "sys.noData": string;
+  // P8-1 Explain 2.0
+  "ex2.button": string; "ex2.title": string; "ex2.confidence": string; "ex2.position": string; "ex2.hold": string;
+  "ex2.recommendReason": string; "ex2.buyReason": string; "ex2.buyToday": string; "ex2.buyNotYesterday": string; "ex2.buyNotOthers": string;
+  "ex2.risk": string; "ex2.takeProfit": string; "ex2.stopLoss": string; "ex2.invalidation": string; "ex2.marketContext": string;
+  "ex2.t1": string; "ex2.t2": string; "ex2.t3": string; "ex2.loading": string; "ex2.noData": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

@@ -11,6 +11,7 @@ import {
   AppLoading, AppEmptyState, AppTable, AppTh, AppTd, appRowHover, COLORS,
   type Tone,
 } from "@/components/ui";
+import ExplainReportButton from "@/components/explain/ExplainReportButton";
 
 interface Top1 {
   symbol: string; name: string | null; aiScore: number | null; gptScore: number | null;
@@ -133,6 +134,7 @@ export default function ClosingDecisionPage() {
                   <span style={{ fontSize: 15, color: COLORS.textSecondary }}>{d.top1.name ?? ""}</span>
                   <span style={{ fontSize: 18, fontWeight: 600 }}>{jpy(d.top1.price)}</span>
                   <span style={{ fontSize: 14, color: pctColor(d.top1.changePct) }}>{sign(d.top1.changePct)}</span>
+                  <ExplainReportButton symbol={d.top1.symbol} name={d.top1.name} />
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3" style={{ fontSize: 13 }}>
                   <Field label="AI 评分" value={fmt(d.top1.aiScore, "", 0)} />
@@ -155,7 +157,10 @@ export default function ClosingDecisionPage() {
                     <div key={l.symbol} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12 }}>
                       <div className="flex items-center justify-between">
                         <span style={{ fontSize: 14, fontWeight: 700 }}>{l.symbol}</span>
-                        <AppBadge tone="blue">{l.weight}%</AppBadge>
+                        <span className="flex items-center gap-1.5">
+                          <ExplainReportButton symbol={l.symbol} name={l.name} size="xs" />
+                          <AppBadge tone="blue">{l.weight}%</AppBadge>
+                        </span>
                       </div>
                       <div style={{ fontSize: 12, color: COLORS.textSecondary, margin: "4px 0" }}>{l.name ?? ""}</div>
                       <div style={{ fontSize: 12 }}>{jpy(l.price)}</div>
