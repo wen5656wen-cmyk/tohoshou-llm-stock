@@ -2,6 +2,18 @@
 
 ---
 
+## [18.2.0] - 2026-07-16 — 📰 P8-2 AI 投资日报（Daily Brief）
+
+决策中心「今日总览」Tab 重构为固定 7 段 **AI 投资日报**（老板 09:00 第一眼）：顶部数据更新时间 → ①今日市场(Regime/风险/趋势) ②今日第一推荐(Closing top1 + 【AI为什么推荐】) ③今日建议组合(仓位/现金比例/数量) ④今日操作建议(买/观察/持币) ⑤今日风险(Market/News/Risk 真实来源, 最多3, 不生成通用风险) ⑥今日关注(Watchlist Top5) ⑦一句话总结。**纯客户端聚合现有 API**(closing-decision + decision-center + watchlist/daily)，零新算法/零新 API/零 DB/零改评分。改 `components/decision/DecisionOverview.tsx` + `lib/i18n`(db.*)。**Architecture: Boss/Decision Center/Overview Tab; 无新增导航/Hub/Workspace。**
+
+## [18.1.0] - 2026-07-16 — 🧠 P8-1 Explain 2.0（AI 买卖理由 / AI 投资报告）✅ Frozen
+
+每股 9 段 **AI 投资报告**：①推荐理由 ②买入理由(今天/不是昨天/不是其它) ③风险 ④复合信心指数(AI40%+GPT30%+Regime+Risk+News+一致性, ≠AI Score, 0-100+★) ⑤建议仓位(建议性) ⑥止盈T1/T2/T3 ⑦止损 ⑧失效条件 ⑨一句话总结 + AI最终结论。复用现有 Explain 引擎(buildExplain)+新增 `lib/explain/report.ts`(buildInvestmentReport, 纯派生零重算)；止盈止损优先复用 Closing Decision 已算值否则按现价+风险档位派生。新增只读 API `GET /api/explain/[symbol]/report`(读 StockScore+MarketRegime+GPTScore+ClosingDecision+AlphaFactor)。决策中心三视图每股【AI为什么推荐】按钮。**迭代**：P8-1.1 顶部 Drawer→居中 Modal(Radix Dialog, 滚动位置保持)；P8-1.2 双列卡片版式(头部复制/打印 + 4列信息条 + 8卡片 + 6列统计底条 + 板块/流动性 meta)；P8-1.3 8卡片 emoji→自定义线性图标库(补 PieChart/CircleX/Quote, 非新依赖)+打印仅弹窗(@media print)。**未改评分/GPT/Portfolio/Paper/资金链/Cron/DB(无新表)**。UI 已冻结(见 docs/P7_ARCHITECTURE_GOVERNANCE §13)。新增依赖 @radix-ui/react-dialog。
+
+## [18.0.0] - 2026-07-16 — 🧊 P7 Architecture Freeze（三工作区 · Workspace→Hub→Tab）
+
+信息架构从「开发者视角堆页面」重构为「老板工作流」。**3 工作区**(Boss/Admin/Research, 软切换默认老板, URL 推导+localStorage)、**6 一级导航**(老板4+管理员1+研究1)、**4 Hub**(决策中心6Tab/股票研究7Tab/研究综合7Tab/Mission Control 8Tab)、**28 Tab**。实施：B-1 统一 nav-config 收敛 20→7；B-2 决策中心 Hub(收盘/五选/关注池/驾驶舱/历史)；B-3 股票研究 Hub(选股/行业/主题/产业链/新闻/指标/研究分析)；P7-04A 三工作区软切换；P7-05 研究工作区收敛 9→1(因子/Alpha/V3/学习/实验/回测)；P7-06 系统工作区收敛 4→1(Mission Control 8Tab)。旧 URL 全部应用内重定向不失效, nav 盲区清零, 个股详情统一 /stocks/[symbol]。**全程评分/V2/V3/GPT/Paper Broker/资金链/Cron/DB/API 零改动。** 附文档 P7-00 系统审计/P7-01 V3 裁决(条件性升级)/P7-02 IA/P7-03 产品审计/P7-04 Workspace/P7_ARCHITECTURE_FREEZE/P7_ARCHITECTURE_GOVERNANCE + P8-00 Roadmap。
+
 ## [17.92.0] - 2026-07-10 — 🕒 P6-T12 Closing Decision（收盘决策，独立模块）
 
 每交易日 **15:15 JST** 收盘前最后一次 AI 决策，指导当天是否建仓。**独立模块 · 只读派生**：不替换 Morning AI / Daily AI Watchlist / AI 五选，不修改 StockScore / DailyRecommendation / DailyAIWatchlist / AiTopPick / 任何评分逻辑 / 其它 Cron。**Freeze 期经用户以「P6-T12」完整规格显式授权例外**（先例：AI Top Picks V1）。
