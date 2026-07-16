@@ -1,65 +1,49 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { ROUTES } from "@/lib/routes";
-import {
-  LayoutGrid, Sparkles, Target, Bot, LineChart, Microscope,
-  GraduationCap, Layers, FlaskConical, Newspaper, Boxes,
-  Settings, CircleCheck, RefreshCw, Activity, TrendingUp, Clock,
-} from "./dashboard/icons";
+import { Sparkles, ChevronDown } from "./dashboard/icons";
+import { bossNodes, adminNodes, isNavActive, type NavNode } from "@/lib/navigation/nav-config";
 
-type IconCmp = (p: { size?: number }) => React.ReactElement;
-type NavItem = { href: string; label: string; Icon: IconCmp; badge?: string };
-type NavGroup = { labelKey: string; items: NavItem[] };
-
+// P7-02B-1：一级导航收敛为 7（5 老板 + 2 管理员折叠），全部读 lib/navigation/nav-config。
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const boss = bossNodes();
+  const admin = adminNodes();
+  // 管理员区默认折叠；若当前正处于某个管理员页面则自动展开，避免"隐藏了当前页"。
+  const adminActive = admin.some((n) => isNavActive(n.href, pathname));
+  const [adminOpen, setAdminOpen] = useState(adminActive);
 
-  // Restores the original 3-tier structure (13 entries) — nothing removed.
-  const groups: NavGroup[] = [
-    {
-      labelKey: "nav.core",
-      items: [
-        { href: ROUTES.DASHBOARD,         label: t("nav.commandCenter"),  Icon: LayoutGrid },
-        { href: ROUTES.DAILY_WATCHLIST,   label: t("nav.dailyWatchlist"), Icon: Sparkles },
-        { href: ROUTES.STRATEGY_CENTER,   label: t("nav.strategyCenter"), Icon: Target },
-        { href: ROUTES.AUTO_TRADING,      label: t("nav.aiPortfolio"),    Icon: Bot, badge: "Paper" },
-        { href: ROUTES.BACKTEST,          label: t("nav.backtest"),       Icon: LineChart },
-        { href: ROUTES.RESEARCH,          label: t("nav.research"),       Icon: Microscope },
-      ],
-    },
-    {
-      labelKey: "nav.dataAndLearning",
-      items: [
-        { href: ROUTES.LEARNING_REPORT,   label: t("nav.learningReport"), Icon: GraduationCap },
-        { href: ROUTES.VERSIONS,          label: t("nav.versionCenter"),  Icon: Layers },
-        { href: ROUTES.FEATURES,          label: t("nav.features"),       Icon: Boxes },
-        { href: ROUTES.FEATURE_PROMOTION, label: t("nav.featurePromotion"), Icon: TrendingUp },
-        { href: ROUTES.FEATURE_PLATFORM,  label: t("nav.featurePlatform"), Icon: Layers },
-        { href: ROUTES.AI_TOP_PICKS,      label: t("nav.aiTopPicks"),     Icon: Sparkles, badge: "Exp" },
-        { href: ROUTES.LABS,              label: t("nav.experiments"),    Icon: FlaskConical },
-        { href: ROUTES.NEWS,              label: t("nav.news"),           Icon: Newspaper },
-      ],
-    },
-    {
-      labelKey: "nav.systemMgmt",
-      items: [
-        { href: ROUTES.CLOSING_DECISION,  label: t("nav.closingDecision"), Icon: Clock, badge: "15:15" },
-        { href: ROUTES.DECISION_CENTER,   label: t("nav.decisionCenter"), Icon: Target, badge: "Cockpit" },
-        { href: ROUTES.MISSION_CONTROL,   label: t("nav.missionControl"), Icon: Settings },
-        { href: ROUTES.RUNTIME,           label: t("nav.runtime"),        Icon: Activity },
-        { href: ROUTES.VERIFY,            label: t("nav.dataVerify"),     Icon: CircleCheck },
-        { href: ROUTES.DATA_CENTER,       label: t("nav.syncStatus"),     Icon: RefreshCw },
-      ],
-    },
-  ];
-
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const renderItem = (node: NavNode) => {
+    const active = isNavActive(node.href, pathname);
+    const { Icon } = node;
+    return (
+      <Link
+        key={node.key}
+        href={node.href}
+        prefetch={true}
+        className="flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] transition-colors active:scale-[0.99]"
+        style={{
+          background: active ? "#F0F0F3" : "transparent",
+          color: active ? "#1d1d1f" : "#6e6e73",
+          fontWeight: active ? 600 : 500,
+        }}
+      >
+        <span style={{ color: active ? "#007AFF" : "#86868b" }}><Icon size={18} /></span>
+        <span className="flex-1">{t(node.labelKey as Parameters<typeof t>[0])}</span>
+        {node.badge && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+            style={{ color: "#86868b", background: "#F0F0F3" }}>
+            {node.badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -79,44 +63,36 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav — 3-tier grouped */}
+      {/* Nav — 5 老板一级 + 管理员折叠区 */}
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
-        {groups.map((group, gi) => (
-          <div key={group.labelKey} className={gi > 0 ? "mt-4" : ""}>
-            <div className="px-3 mb-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "#B0B0B5" }}>
-                {t(group.labelKey as Parameters<typeof t>[0])}
-              </span>
-            </div>
+        <div className="space-y-0.5">
+          {boss.map(renderItem)}
+        </div>
+
+        {/* 管理员区（默认折叠） */}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setAdminOpen((v) => !v)}
+            className="w-full flex items-center gap-2 px-3 mb-1"
+            aria-expanded={adminOpen}
+          >
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "#B0B0B5" }}>
+              {t("nav.admin")}
+            </span>
+            <span
+              className="transition-transform"
+              style={{ color: "#B0B0B5", transform: adminOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
+            >
+              <ChevronDown size={12} />
+            </span>
+          </button>
+          {adminOpen && (
             <div className="space-y-0.5">
-              {group.items.map(({ href, label, Icon, badge }) => {
-                const active = isActive(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    prefetch={true}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] transition-colors active:scale-[0.99]"
-                    style={{
-                      background: active ? "#F0F0F3" : "transparent",
-                      color: active ? "#1d1d1f" : "#6e6e73",
-                      fontWeight: active ? 600 : 500,
-                    }}
-                  >
-                    <span style={{ color: active ? "#007AFF" : "#86868b" }}><Icon size={18} /></span>
-                    <span className="flex-1">{label}</span>
-                    {badge && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-                        style={{ color: "#86868b", background: "#F0F0F3" }}>
-                        {badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+              {admin.map(renderItem)}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
       </nav>
 
       {/* Footer — data sources + language */}

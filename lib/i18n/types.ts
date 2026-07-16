@@ -53,6 +53,11 @@ export type Messages = {
   "nav.syncStatus": string;
   "nav.dataVerify": string;
   "nav.runtime": string;
+  // P7-02B-1 一级导航收敛（7 个一级入口，nav.home 已存在于上方）
+  "nav.decisionHub": string;
+  "nav.stockResearch": string;
+  "nav.strategyBacktest": string;
+  "nav.tradingPositions": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

@@ -409,6 +409,11 @@ const enUS: Messages = {
   "nav.syncStatus": "Sync Status",
   "nav.dataVerify": "Data Verify",
   "nav.runtime": "Runtime",
+  // P7-02B-1 first-level nav (7 entries; nav.home already defined above)
+  "nav.decisionHub": "Decision Hub",
+  "nav.stockResearch": "Stock Research",
+  "nav.strategyBacktest": "Strategy & Backtest",
+  "nav.tradingPositions": "Trading & Positions",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

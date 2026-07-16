@@ -409,6 +409,11 @@ const jaJP: Messages = {
   "nav.syncStatus": "同期状態",
   "nav.dataVerify": "データ検証",
   "nav.runtime": "ランタイム監視",
+  // P7-02B-1 一級ナビ（7 エントリ、nav.home は上方に既存）
+  "nav.decisionHub": "意思決定センター",
+  "nav.stockResearch": "銘柄リサーチ",
+  "nav.strategyBacktest": "戦略・バックテスト",
+  "nav.tradingPositions": "取引・ポジション",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

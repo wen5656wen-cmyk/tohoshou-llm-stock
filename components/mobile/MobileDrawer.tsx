@@ -5,27 +5,17 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "../LanguageSwitcher";
+import { bossNodes, adminNodes, isNavActive } from "@/lib/navigation/nav-config";
 
+// P7-02B-1：抽屉与桌面同源，MAIN=老板 5 项 / 管理员分隔线下 2 项，读 nav-config。
 export default function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
 
-  const MAIN_ITEMS = [
-    { href: "/",          label: t("nav.dashboard"),     icon: "◈" },
-    { href: "/screener",  label: t("nav.aiScreener"),    icon: "✦" },
-    { href: "/ai-theme",  label: t("nav.aiValueChain"),  icon: "⚡" },
-    { href: "/sectors",   label: t("nav.sectors"),       icon: "▤" },
-    { href: "/portfolio", label: t("nav.myInvestments"), icon: "◇" },
-    { href: "/news",      label: t("nav.news"),          icon: "◎" },
-  ];
+  const MAIN_ITEMS = bossNodes().map((n) => ({ href: n.href, label: t(n.labelKey as Parameters<typeof t>[0]), icon: n.glyph }));
+  const ADMIN_ITEMS = adminNodes().map((n) => ({ href: n.href, label: t(n.labelKey as Parameters<typeof t>[0]), icon: n.glyph }));
 
-  const ADMIN_ITEMS = [
-    { href: "/sync",          label: t("nav.systemStatus"), icon: "⟳" },
-    { href: "/admin/verify",  label: t("nav.systemVerify"), icon: "✅" },
-  ];
-
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = (href: string) => isNavActive(href, pathname);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";

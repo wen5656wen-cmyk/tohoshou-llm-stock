@@ -409,6 +409,11 @@ const zhCN: Messages = {
   "nav.syncStatus": "同步状态",
   "nav.dataVerify": "数据校验",
   "nav.runtime": "运行监控",
+  // P7-02B-1 一级导航（7 个一级入口，nav.home 已存在于上方）
+  "nav.decisionHub": "决策中心",
+  "nav.stockResearch": "股票研究",
+  "nav.strategyBacktest": "策略与回测",
+  "nav.tradingPositions": "交易与持仓",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",
