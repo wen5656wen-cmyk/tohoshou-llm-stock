@@ -87,6 +87,15 @@ export const TrendingUp = (p: IconProps) => (
 export const TrendingDown = (p: IconProps) => (
   <Icon {...p}><path d="M16 17h6v-6" /><path d="m22 17-8.5-8.5-5 5L2 7" /></Icon>
 );
+export const PieChart = (p: IconProps) => (
+  <Icon {...p}><path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></Icon>
+);
+export const CircleX = (p: IconProps) => (
+  <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></Icon>
+);
+export const Quote = (p: IconProps) => (
+  <Icon {...p}><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" /><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" /></Icon>
+);
 export const Newspaper = (p: IconProps) => (
   <Icon {...p}><path d="M15 22H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v16a2 2 0 0 0 2 2 2 2 0 0 0 2-2V9a1 1 0 0 0-1-1h-3" /><path d="M6 8h6" /><path d="M6 12h6" /><path d="M6 16h6" /></Icon>
 );

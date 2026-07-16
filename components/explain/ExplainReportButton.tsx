@@ -9,6 +9,9 @@ import { useState, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useI18n } from "@/lib/i18n";
 import { COLORS } from "@/components/ui";
+import { TrendingUp, Target, AlertTriangle, PieChart, ArrowUpRight, ShieldCheck, CircleX, Quote } from "@/components/dashboard/icons";
+
+type IconCmp = (p: { size?: number }) => React.ReactElement;
 
 interface Report {
   symbol: string; name: string | null;
@@ -67,14 +70,14 @@ export default function ExplainReportButton({ symbol, name, size = "sm" }: { sym
   };
 
   // 卡片框
-  const Card = ({ n, color, emoji, title, children }: { n: number; color: string; emoji: string; title: string; children: React.ReactNode }) => (
+  const Card = ({ n, color, Icon, title, children }: { n: number; color: string; Icon: IconCmp; title: string; children: React.ReactNode }) => (
     <div className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.border}` }}>
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold text-white" style={{ background: color }}>{n}</span>
           <span className="text-[14px] font-semibold" style={{ color: COLORS.text }}>{title}</span>
         </div>
-        <span className="text-[16px] opacity-80">{emoji}</span>
+        <span style={{ color }}><Icon size={18} /></span>
       </div>
       <div className="text-[12.5px] leading-relaxed" style={{ color: COLORS.textSecondary }}>{children}</div>
     </div>
@@ -113,8 +116,9 @@ export default function ExplainReportButton({ symbol, name, size = "sm" }: { sym
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[70]" style={{ background: "rgba(0,0,0,0.45)" }} />
+        <Dialog.Overlay data-explain-overlay className="fixed inset-0 z-[70]" style={{ background: "rgba(0,0,0,0.45)" }} />
         <Dialog.Content
+          data-explain-print
           aria-describedby={undefined}
           className="fixed left-1/2 top-1/2 z-[71] -translate-x-1/2 -translate-y-1/2 w-[95vw] max-w-[1200px] rounded-2xl dash-font shadow-2xl"
           style={{ background: COLORS.background, maxHeight: "90vh", display: "flex", flexDirection: "column" }}
@@ -158,22 +162,22 @@ export default function ExplainReportButton({ symbol, name, size = "sm" }: { sym
 
                 {/* 8 卡片双列 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Card n={1} color={COLORS.success} emoji="📈" title={`${t("ex2.recommendReason")}（${rep.recommendReasons.length}）`}><List items={rep.recommendReasons} tone={COLORS.success} /></Card>
-                  <Card n={2} color={COLORS.primary} emoji="🎯" title={`${t("ex2.buyReason")}（${rep.buyReasonsList.length}）`}><List items={rep.buyReasonsList} tone={COLORS.primary} /></Card>
-                  <Card n={3} color={COLORS.warning} emoji="⚠️" title={`${t("ex2.risk")}（${rep.risks.length}）`}><List items={rep.risks} tone={COLORS.warning} /></Card>
-                  <Card n={4} color={COLORS.purple} emoji="🥧" title={t("ex2.position")}><b style={{ color: COLORS.text }}>{rep.suggestedPositionPct}%</b>（{rep.suggestedPositionNote}）</Card>
-                  <Card n={5} color={COLORS.success} emoji="📈" title={t("ex2.takeProfit")}>
+                  <Card n={1} color={COLORS.success} Icon={TrendingUp} title={`${t("ex2.recommendReason")}（${rep.recommendReasons.length}）`}><List items={rep.recommendReasons} tone={COLORS.success} /></Card>
+                  <Card n={2} color={COLORS.primary} Icon={Target} title={`${t("ex2.buyReason")}（${rep.buyReasonsList.length}）`}><List items={rep.buyReasonsList} tone={COLORS.primary} /></Card>
+                  <Card n={3} color={COLORS.warning} Icon={AlertTriangle} title={`${t("ex2.risk")}（${rep.risks.length}）`}><List items={rep.risks} tone={COLORS.warning} /></Card>
+                  <Card n={4} color={COLORS.purple} Icon={PieChart} title={t("ex2.position")}><b style={{ color: COLORS.text }}>{rep.suggestedPositionPct}%</b>（{rep.suggestedPositionNote}）</Card>
+                  <Card n={5} color={COLORS.success} Icon={ArrowUpRight} title={t("ex2.takeProfit")}>
                     <div>{t("ex2.t1")} {jpy(rep.takeProfit.t1)}</div>
                     <div>{t("ex2.t2")} {jpy(rep.takeProfit.t2)}</div>
                     {rep.takeProfit.t3 != null && <div>{t("ex2.t3")} {jpy(rep.takeProfit.t3)}</div>}
                     <div className="text-[11px] mt-1" style={{ color: COLORS.textFaint }}>* {rep.takeProfit.note}</div>
                   </Card>
-                  <Card n={6} color={COLORS.danger} emoji="🛡" title={t("ex2.stopLoss")}>
+                  <Card n={6} color={COLORS.danger} Icon={ShieldCheck} title={t("ex2.stopLoss")}>
                     <div><b style={{ color: COLORS.danger }}>{jpy(rep.stopLoss.price)}</b></div>
                     <div className="text-[11px] mt-1" style={{ color: COLORS.textFaint }}>* {rep.stopLoss.note}</div>
                   </Card>
-                  <Card n={7} color={COLORS.purple} emoji="🚫" title={t("ex2.invalidation")}><List items={rep.invalidation.slice(0, 4)} tone={COLORS.purple} /></Card>
-                  <Card n={8} color={COLORS.warning} emoji="💬" title={t("ex2.oneLiner")}><span style={{ color: COLORS.text }}>{rep.oneLiner}</span></Card>
+                  <Card n={7} color={COLORS.purple} Icon={CircleX} title={t("ex2.invalidation")}><List items={rep.invalidation.slice(0, 4)} tone={COLORS.purple} /></Card>
+                  <Card n={8} color={COLORS.warning} Icon={Quote} title={t("ex2.oneLiner")}><span style={{ color: COLORS.text }}>{rep.oneLiner}</span></Card>
                 </div>
 
                 {/* 底部统计条 */}
