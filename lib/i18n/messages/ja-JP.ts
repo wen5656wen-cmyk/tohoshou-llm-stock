@@ -451,6 +451,19 @@ const jaJP: Messages = {
   "sr.tab.news": "ニュース",
   "sr.tab.indicators": "指標",
   "sr.tab.research": "リサーチ分析",
+  // P7-04A 3 ワークスペース
+  "ws.boss": "ボス",
+  "ws.admin": "管理者",
+  "ws.research": "リサーチ",
+  "ws.stockCenter": "銘柄センター",
+  "ws.strategy": "戦略",
+  "ws.myPortfolio": "マイポジション",
+  "ws.systemOverview": "システム概要",
+  "ws.deployVersion": "デプロイ/版数",
+  "ws.researchOverview": "リサーチ総合",
+  "ws.alpha": "Alpha",
+  "ws.scoringV3": "Scoring V3",
+  "ws.backtestResearch": "バックテスト研究",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

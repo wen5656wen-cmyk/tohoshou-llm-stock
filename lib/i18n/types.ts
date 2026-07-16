@@ -95,6 +95,19 @@ export type Messages = {
   "sr.tab.news": string;
   "sr.tab.indicators": string;
   "sr.tab.research": string;
+  // P7-04A 三工作区
+  "ws.boss": string;
+  "ws.admin": string;
+  "ws.research": string;
+  "ws.stockCenter": string;
+  "ws.strategy": string;
+  "ws.myPortfolio": string;
+  "ws.systemOverview": string;
+  "ws.deployVersion": string;
+  "ws.researchOverview": string;
+  "ws.alpha": string;
+  "ws.scoringV3": string;
+  "ws.backtestResearch": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

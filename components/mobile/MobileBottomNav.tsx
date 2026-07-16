@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { mobileBottomNodes, isNavActive } from "@/lib/navigation/nav-config";
+import { mobileBottomNodes, workspaceForPath, isNavActive } from "@/lib/navigation/nav-config";
 
-// P7-02B-1：底栏 5 格与桌面同源，读 lib/navigation/nav-config（去硬编码路径）。
+// P7-04A：底栏显示当前工作区节点（老板恰 4，其余最多 5），与桌面同源。
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const items = mobileBottomNodes();
+  const ws = workspaceForPath(pathname);
+  const items = mobileBottomNodes(ws);
 
   return (
     <nav

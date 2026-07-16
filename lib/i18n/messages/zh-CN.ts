@@ -451,6 +451,19 @@ const zhCN: Messages = {
   "sr.tab.news": "新闻",
   "sr.tab.indicators": "指标",
   "sr.tab.research": "研究分析",
+  // P7-04A 三工作区
+  "ws.boss": "老板",
+  "ws.admin": "管理员",
+  "ws.research": "研究",
+  "ws.stockCenter": "股票中心",
+  "ws.strategy": "策略",
+  "ws.myPortfolio": "我的持仓",
+  "ws.systemOverview": "系统总览",
+  "ws.deployVersion": "部署/版本",
+  "ws.researchOverview": "研究综合",
+  "ws.alpha": "Alpha",
+  "ws.scoringV3": "Scoring V3",
+  "ws.backtestResearch": "回测研究",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

@@ -451,6 +451,19 @@ const enUS: Messages = {
   "sr.tab.news": "News",
   "sr.tab.indicators": "Indicators",
   "sr.tab.research": "Research",
+  // P7-04A 3 workspaces
+  "ws.boss": "Boss",
+  "ws.admin": "Admin",
+  "ws.research": "Research",
+  "ws.stockCenter": "Stock Center",
+  "ws.strategy": "Strategy",
+  "ws.myPortfolio": "My Positions",
+  "ws.systemOverview": "System",
+  "ws.deployVersion": "Deploy / Version",
+  "ws.researchOverview": "Research Home",
+  "ws.alpha": "Alpha",
+  "ws.scoringV3": "Scoring V3",
+  "ws.backtestResearch": "Backtest Lab",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

@@ -5,15 +5,15 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "../LanguageSwitcher";
-import { bossNodes, adminNodes, isNavActive } from "@/lib/navigation/nav-config";
+import WorkspaceSwitcher from "../navigation/WorkspaceSwitcher";
+import { nodesForWorkspace, workspaceForPath, isNavActive } from "@/lib/navigation/nav-config";
 
-// P7-02B-1：抽屉与桌面同源，MAIN=老板 5 项 / 管理员分隔线下 2 项，读 nav-config。
+// P7-04A：抽屉顶部工作区切换器 + 当前工作区全部一级入口，与桌面/底栏同源。
 export default function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
-
-  const MAIN_ITEMS = bossNodes().map((n) => ({ href: n.href, label: t(n.labelKey as Parameters<typeof t>[0]), icon: n.glyph }));
-  const ADMIN_ITEMS = adminNodes().map((n) => ({ href: n.href, label: t(n.labelKey as Parameters<typeof t>[0]), icon: n.glyph }));
+  const ws = workspaceForPath(pathname);
+  const items = nodesForWorkspace(ws).map((n) => ({ href: n.href, label: t(n.labelKey as Parameters<typeof t>[0]), icon: n.glyph }));
 
   const isActive = (href: string) => isNavActive(href, pathname);
 
@@ -51,8 +51,13 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
           </button>
         </div>
 
+        {/* 工作区切换器 */}
+        <div className="px-3 pt-3 shrink-0">
+          <WorkspaceSwitcher dark />
+        </div>
+
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {MAIN_ITEMS.map(({ href, label, icon }) => (
+          {items.map(({ href, label, icon }) => (
             <Link
               key={href}
               href={href}
@@ -61,33 +66,6 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
                 isActive(href)
                   ? "bg-blue-600/20 text-blue-300 font-medium"
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-              }`}
-            >
-              <span className="text-base w-5 text-center shrink-0">{icon}</span>
-              {label}
-            </Link>
-          ))}
-
-          {/* Admin separator */}
-          <div className="pt-3 pb-1">
-            <div className="flex items-center gap-2 px-3">
-              <div className="flex-1 h-px bg-slate-700/60" />
-              <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">
-                {t("nav.admin")}
-              </span>
-              <div className="flex-1 h-px bg-slate-700/60" />
-            </div>
-          </div>
-
-          {ADMIN_ITEMS.map(({ href, label, icon }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${
-                isActive(href)
-                  ? "bg-blue-600/20 text-blue-300 font-medium"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/30"
               }`}
             >
               <span className="text-base w-5 text-center shrink-0">{icon}</span>

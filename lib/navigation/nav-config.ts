@@ -1,74 +1,61 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// nav-config.ts — 全站唯一导航配置源（P7-02B-1）
+// nav-config.ts — 全站唯一导航配置源（P7-04A 三工作区）
 //
-// 桌面 Sidebar / 移动底栏 MobileBottomNav / 移动抽屉 MobileDrawer 全部从此派生。
-// 禁止任何导航组件再硬编码路径或图标。一级入口固定 7 个：5 老板 + 2 管理员（折叠）。
+// 桌面 Sidebar / 移动底栏 / 移动抽屉 / 工作区切换器 全部从此派生。
+// 三工作区（workspace 三态，取代旧 adminOnly 二态）：
+//   boss（老板·默认）· admin（管理员）· research（研究）
+// 每个导航节点必须标注 workspace。软切换、无鉴权、状态由 URL 推导 + localStorage 记忆。
 //
-// 本文件只描述「导航结构」——不触碰任何评分/策略/交易/API/数据逻辑。
-// tabs 字段为后续 P7-02B-2~6 的 Tab 收敛预留（本阶段仅一级入口生效）。
+// 只描述导航结构 —— 不触碰评分/策略/交易/API/数据/页面业务内容。
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  LayoutGrid, Target, Search, LineChart, Bot, Database, Settings,
+  Target, Search, LineChart, Bot, Settings, RefreshCw, CircleCheck, Activity,
+  Layers, Microscope, Boxes, TrendingUp, BarChart3, Sparkles, GraduationCap, FlaskConical,
 } from "@/components/dashboard/icons";
 
 export type NavIcon = (p: { size?: number }) => React.ReactElement;
+export type Workspace = "boss" | "admin" | "research";
+export const WORKSPACES: Workspace[] = ["boss", "admin", "research"];
 
-export type NavTab = {
-  key: string;          // ?tab= 值
-  labelKey: string;     // i18n 键
-  /** 该 Tab 承载的旧独立路由（用于 P7-02B-7 重定向映射，本阶段仅登记不启用） */
-  legacyRoutes?: string[];
-  adminOnly?: boolean;
-};
+export type NavTab = { key: string; labelKey: string; legacyRoutes?: string[] };
 
 export type NavNode = {
-  key: string;          // 稳定 id
-  labelKey: string;     // i18n 键（经 t() 解析）
-  href: string;         // 一级入口落地路由（现存可达页面）
-  Icon: NavIcon;        // 桌面图标组件
-  glyph: string;        // 移动端字形
+  key: string;
+  labelKey: string;
+  href: string;
+  Icon: NavIcon;
+  glyph: string;
   badge?: string;
-  adminOnly?: boolean;  // true=管理员区（默认折叠，老板不默认可见）
-  showInMobileBottom?: boolean; // 是否进入移动底栏 5 格
-  tabs?: NavTab[];      // 内部 Tab（后续阶段生效）
+  workspace: Workspace;
+  tabs?: NavTab[];
 };
 
-// ── 一级导航（7 个）──────────────────────────────────────────────────────────
-// 说明：本阶段（B-1）href 指向「当前已存在、可达」的页面，保证零重定向失败。
-// 决策中心 hub(/decision-center)、股票研究/策略/交易的 Tab 容器将在 B-2~B-5 建成后
-// 再由本文件切换 href 与启用 tabs，届时不改本结构、只改指向。
+// ── 三工作区默认落地页 ──────────────────────────────────────────────────────
+export const WORKSPACE_HOME: Record<Workspace, string> = {
+  boss: "/decision-center",
+  admin: "/admin/mission-control",
+  research: "/admin/research",
+};
+
+// ── 全部一级入口（按工作区）─────────────────────────────────────────────────
 export const NAV_NODES: NavNode[] = [
+  // ═══ 老板工作区（4 入口）═══
   {
-    key: "home",
-    labelKey: "nav.home",
-    href: "/",
-    Icon: LayoutGrid,
-    glyph: "◈",
-    showInMobileBottom: true,
-  },
-  {
-    key: "decision",
-    labelKey: "nav.decisionHub",
-    href: "/decision-center", // B-2：统一 Tab 容器（今日总览默认）
-    Icon: Target,
-    glyph: "◎",
-    showInMobileBottom: true,
+    key: "decision", workspace: "boss", labelKey: "nav.decisionHub", href: "/decision-center",
+    Icon: Target, glyph: "◎",
     tabs: [
-      { key: "overview", labelKey: "nav.cockpit" },
-      { key: "picks", labelKey: "nav.aiTopPicks", legacyRoutes: ["/admin/ai-top-picks"] },
-      { key: "watchlist", labelKey: "nav.dailyWatchlist", legacyRoutes: ["/watchlist/daily"] },
-      { key: "closing", labelKey: "nav.closingDecision", legacyRoutes: ["/admin/closing-decision"] },
-      { key: "cockpit", labelKey: "nav.decisionCenter", legacyRoutes: ["/admin/decision-center"] },
+      { key: "overview", labelKey: "dc.tab.overview" },
+      { key: "top-picks", labelKey: "dc.tab.topPicks", legacyRoutes: ["/admin/ai-top-picks"] },
+      { key: "watchlist", labelKey: "dc.tab.watchlist", legacyRoutes: ["/watchlist/daily"] },
+      { key: "closing", labelKey: "dc.tab.closing", legacyRoutes: ["/admin/closing-decision"] },
+      { key: "cockpit", labelKey: "dc.tab.cockpit", legacyRoutes: ["/admin/decision-center"] },
+      { key: "history", labelKey: "dc.tab.history" },
     ],
   },
   {
-    key: "research",
-    labelKey: "nav.stockResearch",
-    href: "/screener",
-    Icon: Search,
-    glyph: "✦",
-    showInMobileBottom: true,
+    key: "stocks", workspace: "boss", labelKey: "ws.stockCenter", href: "/screener",
+    Icon: Search, glyph: "✦",
     tabs: [
       { key: "screen", labelKey: "sr.tab.screen" },
       { key: "sectors", labelKey: "sr.tab.sectors", legacyRoutes: ["/sectors"] },
@@ -79,77 +66,53 @@ export const NAV_NODES: NavNode[] = [
       { key: "research", labelKey: "sr.tab.research" },
     ],
   },
-  {
-    key: "strategy",
-    labelKey: "nav.strategyBacktest",
-    href: "/strategy",
-    Icon: LineChart,
-    glyph: "◆",
-    showInMobileBottom: true,
-    tabs: [
-      { key: "overview", labelKey: "nav.strategyOverview" },
-      { key: "backtest_strategy", labelKey: "nav.backtestStrategy", legacyRoutes: ["/backtest"] },
-      { key: "backtest_factor", labelKey: "nav.backtestFactor", legacyRoutes: ["/admin/research?tab=backtest"] },
-    ],
-  },
-  {
-    key: "trading",
-    labelKey: "nav.tradingPositions",
-    href: "/portfolio",
-    Icon: Bot,
-    glyph: "◇",
-    badge: "Paper",
-    showInMobileBottom: true,
-    tabs: [
-      { key: "positions", labelKey: "nav.aiPortfolio" },
-      { key: "watchlist", labelKey: "tabs.watchlist", legacyRoutes: ["/watchlist"] },
-    ],
-  },
-  // ── 管理员区（默认折叠）──────────────────────────────────────────────────
-  {
-    key: "data",
-    labelKey: "nav.dataAndLearning",
-    href: "/admin/research",
-    Icon: Database,
-    glyph: "▤",
-    adminOnly: true,
-    tabs: [
-      { key: "factors", labelKey: "nav.features", legacyRoutes: ["/admin/features", "/admin/feature-platform"] },
-      { key: "promotion", labelKey: "nav.featurePromotion", legacyRoutes: ["/admin/feature-promotion"] },
-      { key: "score", labelKey: "nav.research" },
-      { key: "regime", labelKey: "nav.market", legacyRoutes: ["/market-regime"] },
-      { key: "fusion", labelKey: "nav.research" },
-      { key: "learning", labelKey: "nav.learningReport", legacyRoutes: ["/admin/learning-report"] },
-      { key: "versions", labelKey: "nav.versionCenter", legacyRoutes: ["/admin/versions"] },
-    ],
-  },
-  {
-    key: "system",
-    labelKey: "nav.systemMgmt",
-    href: "/admin/mission-control",
-    Icon: Settings,
-    glyph: "⚙",
-    adminOnly: true,
-    tabs: [
-      { key: "overview", labelKey: "nav.missionControl" },
-      { key: "runtime", labelKey: "nav.runtime", legacyRoutes: ["/admin/runtime"] },
-      { key: "verify", labelKey: "nav.dataVerify", legacyRoutes: ["/admin/verify"] },
-      { key: "sync", labelKey: "nav.syncStatus", legacyRoutes: ["/sync"] },
-    ],
-  },
+  { key: "strategy", workspace: "boss", labelKey: "ws.strategy", href: "/strategy", Icon: LineChart, glyph: "◆" },
+  { key: "trading", workspace: "boss", labelKey: "ws.myPortfolio", href: "/portfolio", Icon: Bot, glyph: "◇", badge: "Paper" },
+
+  // ═══ 管理员工作区 ═══
+  { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },
+  { key: "sync", workspace: "admin", labelKey: "nav.syncStatus", href: "/sync", Icon: RefreshCw, glyph: "⟳" },
+  { key: "verify", workspace: "admin", labelKey: "nav.dataVerify", href: "/admin/verify", Icon: CircleCheck, glyph: "✓" },
+  { key: "runtime", workspace: "admin", labelKey: "nav.runtime", href: "/admin/runtime", Icon: Activity, glyph: "◐" },
+  { key: "versions", workspace: "admin", labelKey: "ws.deployVersion", href: "/admin/versions", Icon: Layers, glyph: "▤" },
+
+  // ═══ 研究工作区 ═══
+  { key: "research", workspace: "research", labelKey: "ws.researchOverview", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
+  { key: "features", workspace: "research", labelKey: "nav.features", href: "/admin/features", Icon: Boxes, glyph: "▦" },
+  { key: "promotion", workspace: "research", labelKey: "nav.featurePromotion", href: "/admin/feature-promotion", Icon: TrendingUp, glyph: "↑" },
+  { key: "platform", workspace: "research", labelKey: "nav.featurePlatform", href: "/admin/feature-platform", Icon: Layers, glyph: "▣" },
+  { key: "alpha", workspace: "research", labelKey: "ws.alpha", href: "/admin/research?tab=score", Icon: BarChart3, glyph: "α" },
+  { key: "v3", workspace: "research", labelKey: "ws.scoringV3", href: "/admin/research?tab=v3", Icon: Sparkles, glyph: "③" },
+  { key: "learning", workspace: "research", labelKey: "nav.learningReport", href: "/admin/learning-report", Icon: GraduationCap, glyph: "◈" },
+  { key: "experiments", workspace: "research", labelKey: "nav.experiments", href: "/admin/experiments", Icon: FlaskConical, glyph: "⚗" },
+  { key: "backtest", workspace: "research", labelKey: "ws.backtestResearch", href: "/backtest", Icon: LineChart, glyph: "◷" },
 ];
 
-/** 老板默认可见的一级入口（前 5 个） */
-export const bossNodes = (): NavNode[] => NAV_NODES.filter((n) => !n.adminOnly);
-/** 管理员额外入口（后 2 个，默认折叠） */
-export const adminNodes = (): NavNode[] => NAV_NODES.filter((n) => n.adminOnly);
-/** 移动底栏 5 格 */
-export const mobileBottomNodes = (): NavNode[] =>
-  NAV_NODES.filter((n) => n.showInMobileBottom).slice(0, 5);
+// ── 路径 → 工作区 推导（软切换核心：URL 决定当前工作区）──────────────────────
+const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime", "/admin/versions"];
+const RESEARCH_PREFIXES = [
+  "/admin/research", "/admin/features", "/admin/feature-promotion", "/admin/feature-platform",
+  "/admin/learning-report", "/admin/experiments", "/backtest", "/alpha", "/fusion", "/market-regime",
+];
+function matchPrefix(p: string, list: string[]): boolean {
+  return list.some((x) => p === x || p.startsWith(x + "/") || p.startsWith(x + "?"));
+}
+/** 当前路径归属的工作区。admin/research 前缀命中对应区，其余（含叶子/首页/重定向壳）归老板。 */
+export function workspaceForPath(pathname: string | null | undefined): Workspace {
+  const p = pathname || "/";
+  if (matchPrefix(p, RESEARCH_PREFIXES)) return "research";
+  if (matchPrefix(p, ADMIN_PREFIXES)) return "admin";
+  return "boss";
+}
 
-/** 一级入口 active 判定（首页精确匹配，其余前缀匹配） */
+// ── 派生 ────────────────────────────────────────────────────────────────────
+export const nodesForWorkspace = (ws: Workspace): NavNode[] => NAV_NODES.filter((n) => n.workspace === ws);
+/** 移动底栏：当前工作区节点，最多 5（老板恰 4）。 */
+export const mobileBottomNodes = (ws: Workspace): NavNode[] => nodesForWorkspace(ws).slice(0, 5);
+
+/** 一级入口 active 判定（首页精确匹配，其余前缀匹配）。 */
 export function isNavActive(href: string, pathname: string): boolean {
   if (href === "/") return pathname === "/";
   const base = href.split("?")[0];
-  return pathname === base || pathname.startsWith(base + "/") || pathname.startsWith(base + "?");
+  return pathname === base || pathname.startsWith(base + "/");
 }

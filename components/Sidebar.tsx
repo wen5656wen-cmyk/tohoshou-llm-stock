@@ -1,22 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { Sparkles, ChevronDown } from "./dashboard/icons";
-import { bossNodes, adminNodes, isNavActive, type NavNode } from "@/lib/navigation/nav-config";
+import WorkspaceSwitcher from "./navigation/WorkspaceSwitcher";
+import { Sparkles } from "./dashboard/icons";
+import { nodesForWorkspace, workspaceForPath, isNavActive, type NavNode } from "@/lib/navigation/nav-config";
 
-// P7-02B-1：一级导航收敛为 7（5 老板 + 2 管理员折叠），全部读 lib/navigation/nav-config。
+// P7-04A：三工作区软切换。工作区由 URL 推导，侧栏只显示当前工作区一级入口。
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const boss = bossNodes();
-  const admin = adminNodes();
-  // 管理员区默认折叠；若当前正处于某个管理员页面则自动展开，避免"隐藏了当前页"。
-  const adminActive = admin.some((n) => isNavActive(n.href, pathname));
-  const [adminOpen, setAdminOpen] = useState(adminActive);
+  const ws = workspaceForPath(pathname);
+  const nodes = nodesForWorkspace(ws);
 
   const renderItem = (node: NavNode) => {
     const active = isNavActive(node.href, pathname);
@@ -52,7 +49,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className="px-5 py-4" style={{ borderBottom: "1px solid #ECECEC" }}>
-        <div className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-white" style={{ background: "#007AFF" }}>
             <Sparkles size={17} />
           </span>
@@ -60,38 +57,18 @@ export default function Sidebar() {
             <div className="font-semibold text-[14px] leading-tight" style={{ color: "#1d1d1f" }}>TOHOSHOU AI</div>
             <div className="text-[11px]" style={{ color: "#86868b" }}>{t("site.subtitle")}</div>
           </div>
-        </div>
+        </Link>
       </div>
 
-      {/* Nav — 5 老板一级 + 管理员折叠区 */}
+      {/* 工作区切换器 */}
+      <div className="px-3 pt-3">
+        <WorkspaceSwitcher />
+      </div>
+
+      {/* Nav — 当前工作区一级入口 */}
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
         <div className="space-y-0.5">
-          {boss.map(renderItem)}
-        </div>
-
-        {/* 管理员区（默认折叠） */}
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => setAdminOpen((v) => !v)}
-            className="w-full flex items-center gap-2 px-3 mb-1"
-            aria-expanded={adminOpen}
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: "#B0B0B5" }}>
-              {t("nav.admin")}
-            </span>
-            <span
-              className="transition-transform"
-              style={{ color: "#B0B0B5", transform: adminOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
-            >
-              <ChevronDown size={12} />
-            </span>
-          </button>
-          {adminOpen && (
-            <div className="space-y-0.5">
-              {admin.map(renderItem)}
-            </div>
-          )}
+          {nodes.map(renderItem)}
         </div>
       </nav>
 
