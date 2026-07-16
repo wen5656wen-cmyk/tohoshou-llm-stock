@@ -53,7 +53,7 @@ export default function ExplainReportButton({ symbol, name, size = "sm" }: { sym
   );
   const List = ({ items, tone }: { items: string[]; tone?: string }) => (
     <ul className="space-y-1">{items.map((x, i) => (
-      <li key={i} className="flex gap-1.5"><span style={{ color: tone ?? COLORS.primary }}>·</span><span>{x}</span></li>
+      <li key={i} className="flex gap-1.5"><span style={{ color: tone ?? COLORS.primary }}>•</span><span>{x}</span></li>
     ))}</ul>
   );
   const stars = (n: number) => "⭐".repeat(n) + "☆".repeat(5 - n);

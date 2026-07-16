@@ -165,7 +165,11 @@ export function buildInvestmentReport(
     symbol: s.symbol, name: s.name,
     verdict: { code: rec, label: v.label, icon: v.icon },
     confidence, stars, confidenceLabel: confLabel(confidence),
-    recommendReasons: base.strengths.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title).slice(0, 3),
+    // 固定 3 条：strengths 不足时从 Explain 引擎已有 opportunities 补充（不编造新逻辑）
+    recommendReasons: [...new Set([
+      ...base.strengths.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title),
+      ...base.opportunities.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title),
+    ])].slice(0, 3),
     buyReasons: br,
     buyReasonsList: [br.today, br.notYesterday, br.notOthers],
     risks: [...new Set([
