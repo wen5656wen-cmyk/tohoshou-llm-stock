@@ -132,6 +132,7 @@ export type Messages = {
   "db.trend": string; "db.trendUp": string; "db.trendSide": string; "db.trendDown": string;
   "db.riskLevel": string; "db.cashRatio": string; "db.holdCount": string;
   "db.todayAction": string; "db.actBuy": string; "db.actWatch": string; "db.actCash": string; "db.focusTop5": string; "db.sum.buy": string; "db.sum.watch": string; "db.sum.cash": string; "db.noRisk": string;
+  "ir.copy": string; "ir.print": string; "ir.aiScore": string; "ir.gptScore": string; "ir.gptRank": string; "ir.market": string; "ir.volatility": string; "ir.liquidity": string; "ir.updated": string; "ir.rankOf": string; "ir.holdSub": string; "ir.copied": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

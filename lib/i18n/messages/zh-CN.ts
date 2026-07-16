@@ -489,6 +489,7 @@ const zhCN: Messages = {
   "db.riskLevel": "风险等级", "db.cashRatio": "现金比例", "db.holdCount": "组合数量",
   "db.todayAction": "今天应该", "db.actBuy": "建仓买入", "db.actWatch": "观察等待", "db.actCash": "持币等待", "db.focusTop5": "今天重点观察 Top5",
   "db.sum.buy": "今天适合分批布局，把握结构性机会。", "db.sum.watch": "今日以观察为主，等待更明确的买点。", "db.sum.cash": "建议继续持币等待，控制回撤风险。", "db.noRisk": "今日无重大风险信号。",
+  "ir.copy": "复制", "ir.print": "打印", "ir.aiScore": "AI Score", "ir.gptScore": "GPT 得分", "ir.gptRank": "GPT 排名", "ir.market": "市场环境", "ir.volatility": "波动率", "ir.liquidity": "流动性", "ir.updated": "更新时间", "ir.rankOf": "全市场", "ir.holdSub": "短线操作区间", "ir.copied": "已复制",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

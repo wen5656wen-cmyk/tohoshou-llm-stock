@@ -30,6 +30,29 @@ export interface AiInvestmentReport {
   marketContext: string;
   levelSource: "closing" | "derived";
   dataAsOf: string | null; generatedAt: string;
+  meta: {                                                     // 底部统计条 + 头部徽标
+    aiScore: number | null; gptScore: number | null; gptRank: number | null;
+    board: string | null; regime: string | null; regimeLabel: string;
+    volatility: number | null; volatilityLabel: string; liquidityLabel: string;
+  };
+}
+
+function boardLabel(m: string | null | undefined): string | null {
+  if (!m) return null;
+  const map: Record<string, string> = {
+    PRIME: "东京主板", STANDARD: "东证标准", GROWTH: "东证成长", TSE: "东京证券", ALL: "东京证券",
+    "プライム": "东京主板", "スタンダード": "东证标准", "グロース": "东证成长",
+  };
+  return map[m] ?? m;
+}
+function regimeLabelOf(r: string | null | undefined): string {
+  return r === "BULL" ? "牛市 (Bull)" : r === "BEAR" ? "熊市 (Bear)" : r === "SIDEWAYS" ? "震荡 (Sideways)" : "—";
+}
+function volLabelOf(v: number | null | undefined): string {
+  if (v == null) return "—"; return v < 20 ? "低" : v <= 25 ? "中等" : "高";
+}
+function liqLabelOf(turnover: number | null | undefined): string {
+  if (turnover == null) return "—"; return turnover >= 5e8 ? "高" : turnover >= 1e8 ? "中等" : "低";
 }
 
 const clamp = (v: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
@@ -152,6 +175,7 @@ export function buildInvestmentReport(
   gpt: GptSnapshot | null,
   closing: ClosingLevels | null,
   nowIso: string,
+  extra?: { board?: string | null; turnover?: number | null; gptRank?: number | null },
 ): AiInvestmentReport {
   const confidence = computeConfidence(s, regime, gpt);
   const stars = starsOf(confidence);
@@ -185,5 +209,10 @@ export function buildInvestmentReport(
     marketContext: base.marketContext,
     levelSource: lv.src,
     dataAsOf: base.dataAsOf, generatedAt: nowIso,
+    meta: {
+      aiScore: s.adaptiveScore, gptScore: gpt?.gptScore ?? null, gptRank: gpt?.gptRank ?? extra?.gptRank ?? null,
+      board: boardLabel(extra?.board), regime: regime.regime, regimeLabel: regimeLabelOf(regime.regime),
+      volatility: regime.volatility, volatilityLabel: volLabelOf(regime.volatility), liquidityLabel: liqLabelOf(extra?.turnover),
+    },
   };
 }

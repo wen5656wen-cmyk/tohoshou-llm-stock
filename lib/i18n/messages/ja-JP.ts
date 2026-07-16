@@ -489,6 +489,7 @@ const jaJP: Messages = {
   "db.riskLevel": "リスク", "db.cashRatio": "現金比率", "db.holdCount": "銘柄数",
   "db.todayAction": "本日の行動", "db.actBuy": "買い", "db.actWatch": "様子見", "db.actCash": "現金", "db.focusTop5": "本日の注目 Top5",
   "db.sum.buy": "本日は分割エントリーで好機を捉える。", "db.sum.watch": "本日は様子見、より明確な買い場を待つ。", "db.sum.cash": "現金を維持し、ドローダウンを抑える。", "db.noRisk": "本日は重大なリスク信号なし。",
+  "ir.copy": "コピー", "ir.print": "印刷", "ir.aiScore": "AI Score", "ir.gptScore": "GPT スコア", "ir.gptRank": "GPT 順位", "ir.market": "市場環境", "ir.volatility": "ボラティリティ", "ir.liquidity": "流動性", "ir.updated": "更新時間", "ir.rankOf": "全市場", "ir.holdSub": "短期の操作レンジ", "ir.copied": "コピー済み",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

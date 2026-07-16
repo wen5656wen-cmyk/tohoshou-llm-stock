@@ -489,6 +489,7 @@ const enUS: Messages = {
   "db.riskLevel": "Risk", "db.cashRatio": "Cash", "db.holdCount": "Positions",
   "db.todayAction": "Today", "db.actBuy": "Buy", "db.actWatch": "Watch", "db.actCash": "Cash", "db.focusTop5": "Watch Top 5",
   "db.sum.buy": "A good day to scale into opportunities.", "db.sum.watch": "Observe today; wait for a clearer entry.", "db.sum.cash": "Stay in cash and control drawdown.", "db.noRisk": "No major risk signals today.",
+  "ir.copy": "Copy", "ir.print": "Print", "ir.aiScore": "AI Score", "ir.gptScore": "GPT Score", "ir.gptRank": "GPT Rank", "ir.market": "Market", "ir.volatility": "Volatility", "ir.liquidity": "Liquidity", "ir.updated": "Updated", "ir.rankOf": "market", "ir.holdSub": "Short-term range", "ir.copied": "Copied",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

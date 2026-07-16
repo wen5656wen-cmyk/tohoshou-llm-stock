@@ -14,11 +14,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ symbol:
   const { symbol: raw } = await params;
   const symbol = decodeURIComponent(raw);
 
-  const [row, regimeRow, gptRow, closing] = await Promise.all([
+  const [row, regimeRow, gptRow, closing, alpha] = await Promise.all([
     prisma.stockScore.findUnique({ where: { symbol } }),
     prisma.marketRegime.findFirst({ orderBy: { date: "desc" } }),
     prisma.gPTScore.findUnique({ where: { symbol } }),
     prisma.closingDecision.findFirst({ orderBy: { date: "desc" } }),
+    prisma.alphaFactor.findFirst({ where: { symbol }, orderBy: { date: "desc" }, select: { averageTurnover20: true } }),
   ]);
 
   if (!row) return NextResponse.json({ ok: false, error: "no score" }, { status: 404 });
@@ -72,6 +73,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ symbol:
   }
 
   const base = buildExplain({ symbol, score, regime }, { provider: "rule" });
-  const report = buildInvestmentReport(base, score, regime, gpt, closingLevels, new Date().toISOString());
+  const report = buildInvestmentReport(base, score, regime, gpt, closingLevels, new Date().toISOString(), {
+    board: row.market, turnover: alpha?.averageTurnover20 ?? null,
+  });
   return NextResponse.json({ ok: true, report });
 }
