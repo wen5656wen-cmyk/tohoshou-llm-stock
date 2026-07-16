@@ -1,10 +1,6 @@
-// P6-T7 — Daily AI Watchlist page (每日 AI 关注池).
-// Thin CJK-free wrapper; all Chinese labels live in the view component under
-// components/ (keeps app/ free of hardcoded CJK per the i18n lint rule).
-import DailyWatchlistView from "@/components/watchlist-daily/DailyWatchlistView";
+// P7-02B-2：每日关注池已并入决策中心。旧 URL 保留并应用内重定向到对应 Tab。
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default function DailyWatchlistPage() {
-  return <DailyWatchlistView />;
+export default function DailyWatchlistRedirect() {
+  redirect("/decision-center?tab=watchlist");
 }

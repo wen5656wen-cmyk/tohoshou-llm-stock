@@ -50,7 +50,7 @@ export const NAV_NODES: NavNode[] = [
   {
     key: "decision",
     labelKey: "nav.decisionHub",
-    href: "/admin/decision-center", // B-2 后切换为 /decision-center
+    href: "/decision-center", // B-2：统一 Tab 容器（今日总览默认）
     Icon: Target,
     glyph: "◎",
     showInMobileBottom: true,

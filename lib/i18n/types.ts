@@ -58,6 +58,35 @@ export type Messages = {
   "nav.stockResearch": string;
   "nav.strategyBacktest": string;
   "nav.tradingPositions": string;
+  // P7-02B-2 决策中心 Tab 容器
+  "dc.title": string;
+  "dc.tab.overview": string;
+  "dc.tab.topPicks": string;
+  "dc.tab.watchlist": string;
+  "dc.tab.closing": string;
+  "dc.tab.cockpit": string;
+  "dc.tab.history": string;
+  "dc.ov.verdict": string;
+  "dc.ov.firstPick": string;
+  "dc.ov.portfolio": string;
+  "dc.ov.risk": string;
+  "dc.ov.freshness": string;
+  "dc.ov.morning": string;
+  "dc.ov.closingStatus": string;
+  "dc.ov.viewDetail": string;
+  "dc.ov.noData": string;
+  "dc.ov.confidence": string;
+  "dc.ov.holdPeriod": string;
+  "dc.ov.loadFail": string;
+  "dc.ov.picks": string;
+  "dc.verdict.BUY_TODAY": string;
+  "dc.verdict.WATCH_ONLY": string;
+  "dc.verdict.STAY_CASH": string;
+  "dc.regime.BULL": string;
+  "dc.regime.SIDEWAYS": string;
+  "dc.regime.BEAR": string;
+  "dc.history.title": string;
+  "dc.history.empty": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;
