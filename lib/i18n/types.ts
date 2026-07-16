@@ -116,6 +116,11 @@ export type Messages = {
   "rw.v.shadow": string; "rw.v.calibration": string; "rw.v.freeze": string;
   "rw.e.exp": string; "rw.e.versions": string;
   "rw.b.strategy": string; "rw.b.alpha": string;
+  // P7-06 Mission Control Hub Tab
+  "sys.tab.overview": string; "sys.tab.runtime": string; "sys.tab.health": string; "sys.tab.verify": string;
+  "sys.tab.sync": string; "sys.tab.cron": string; "sys.tab.deploy": string; "sys.tab.log": string;
+  "sys.status": string; "sys.dataDate": string; "sys.topIssues": string; "sys.completed": string;
+  "sys.pipeline": string; "sys.recentDeploy": string; "sys.recentLog": string; "sys.noData": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;

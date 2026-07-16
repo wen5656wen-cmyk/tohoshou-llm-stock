@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  Target, Search, LineChart, Bot, Settings, RefreshCw, CircleCheck, Activity, Microscope,
+  Target, Search, LineChart, Bot, Settings, Microscope,
 } from "@/components/dashboard/icons";
 
 export type NavIcon = (p: { size?: number }) => React.ReactElement;
@@ -68,11 +68,21 @@ export const NAV_NODES: NavNode[] = [
   { key: "strategy", workspace: "boss", labelKey: "ws.strategy", href: "/strategy", Icon: LineChart, glyph: "◆" },
   { key: "trading", workspace: "boss", labelKey: "ws.myPortfolio", href: "/portfolio", Icon: Bot, glyph: "◇", badge: "Paper" },
 
-  // ═══ 管理员工作区 ═══
-  { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },
-  { key: "sync", workspace: "admin", labelKey: "nav.syncStatus", href: "/sync", Icon: RefreshCw, glyph: "⟳" },
-  { key: "verify", workspace: "admin", labelKey: "nav.dataVerify", href: "/admin/verify", Icon: CircleCheck, glyph: "✓" },
-  { key: "runtime", workspace: "admin", labelKey: "nav.runtime", href: "/admin/runtime", Icon: Activity, glyph: "◐" },
+  // ═══ 管理员工作区（P7-06：收敛为唯一入口 = Mission Control Hub，内含 8 Tab）═══
+  {
+    key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control",
+    Icon: Settings, glyph: "⚙",
+    tabs: [
+      { key: "overview", labelKey: "sys.tab.overview" },
+      { key: "runtime", labelKey: "sys.tab.runtime", legacyRoutes: ["/admin/runtime"] },
+      { key: "health", labelKey: "sys.tab.health" },
+      { key: "verify", labelKey: "sys.tab.verify", legacyRoutes: ["/admin/verify"] },
+      { key: "sync", labelKey: "sys.tab.sync", legacyRoutes: ["/sync"] },
+      { key: "cron", labelKey: "sys.tab.cron" },
+      { key: "deploy", labelKey: "sys.tab.deploy" },
+      { key: "log", labelKey: "sys.tab.log" },
+    ],
+  },
 
   // ═══ 研究工作区（P7-05：收敛为唯一入口 = 研究综合 Hub，内含 7 顶级 Tab）═══
   {

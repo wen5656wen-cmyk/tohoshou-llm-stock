@@ -472,6 +472,11 @@ const enUS: Messages = {
   "rw.v.shadow": "Shadow", "rw.v.calibration": "Calibration", "rw.v.freeze": "Freeze",
   "rw.e.exp": "Experiments", "rw.e.versions": "Versions",
   "rw.b.strategy": "Strategy Backtest", "rw.b.alpha": "Alpha Backtest",
+  // P7-06 Mission Control Hub
+  "sys.tab.overview": "Overview", "sys.tab.runtime": "Runtime", "sys.tab.health": "Health", "sys.tab.verify": "Verify",
+  "sys.tab.sync": "Sync", "sys.tab.cron": "Cron", "sys.tab.deploy": "Deploy", "sys.tab.log": "Logs",
+  "sys.status": "Status", "sys.dataDate": "Data Date", "sys.topIssues": "Top Issues", "sys.completed": "Completed",
+  "sys.pipeline": "Today's Pipeline", "sys.recentDeploy": "Recent Deploys", "sys.recentLog": "Recent Logs", "sys.noData": "No data",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

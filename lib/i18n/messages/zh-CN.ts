@@ -472,6 +472,11 @@ const zhCN: Messages = {
   "rw.v.shadow": "Shadow", "rw.v.calibration": "Calibration", "rw.v.freeze": "Freeze",
   "rw.e.exp": "实验", "rw.e.versions": "版本",
   "rw.b.strategy": "策略回测", "rw.b.alpha": "Alpha 回测",
+  // P7-06 Mission Control Hub
+  "sys.tab.overview": "系统概览", "sys.tab.runtime": "Runtime", "sys.tab.health": "Health", "sys.tab.verify": "数据校验",
+  "sys.tab.sync": "同步", "sys.tab.cron": "Cron", "sys.tab.deploy": "部署", "sys.tab.log": "日志",
+  "sys.status": "状态", "sys.dataDate": "数据日期", "sys.topIssues": "主要问题", "sys.completed": "完成",
+  "sys.pipeline": "今日流水线", "sys.recentDeploy": "最近部署", "sys.recentLog": "最近日志", "sys.noData": "暂无数据",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

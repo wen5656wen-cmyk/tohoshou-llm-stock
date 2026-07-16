@@ -472,6 +472,11 @@ const jaJP: Messages = {
   "rw.v.shadow": "Shadow", "rw.v.calibration": "Calibration", "rw.v.freeze": "Freeze",
   "rw.e.exp": "実験", "rw.e.versions": "版数",
   "rw.b.strategy": "戦略バックテスト", "rw.b.alpha": "Alpha バックテスト",
+  // P7-06 Mission Control Hub
+  "sys.tab.overview": "システム概要", "sys.tab.runtime": "Runtime", "sys.tab.health": "Health", "sys.tab.verify": "データ検証",
+  "sys.tab.sync": "同期", "sys.tab.cron": "Cron", "sys.tab.deploy": "デプロイ", "sys.tab.log": "ログ",
+  "sys.status": "状態", "sys.dataDate": "データ日付", "sys.topIssues": "主な問題", "sys.completed": "完了",
+  "sys.pipeline": "本日のパイプライン", "sys.recentDeploy": "最近のデプロイ", "sys.recentLog": "最近のログ", "sys.noData": "データなし",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",
