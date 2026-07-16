@@ -160,3 +160,19 @@
 ---
 
 **本规范为 P8 及以后所有开发任务的最高架构约束。与 `P7_ARCHITECTURE_FREEZE.md` 共同构成 TOHOSHOU AI 的永久架构基线。**
+
+---
+
+## 13. 冻结组件登记（Frozen Components Registry）
+
+已冻结的组件/模块，非经明确请求 + Review 不得改动。
+
+| 组件 | 状态 | 冻结日期 | 冻结 commit | 冻结范围 |
+|---|---|---|---|---|
+| **P8-1 Explain 2.0 UI**（AI 投资报告 Modal） | ✅ **Frozen** | 2026-07-16 | `fad0b7c` | Radix Dialog 居中 Modal 双列卡片版式 · 9 段结构(结论/推荐/买入/风险/仓位/止盈/止损/失效/一句话) · ⭐星级 · 4 列信息条 · 8 卡片双列(线性图标) · 6 列统计底条 · 复制/打印 · `lib/explain/report.ts` buildInvestmentReport 派生结构 · `/api/explain/[symbol]/report` 只读聚合 · `components/explain/ExplainReportButton.tsx` |
+
+**Explain 2.0 UI 冻结规则**：
+- UI 版式/段序/图标/信心/仓位/止盈损展示逻辑**已定稿**，不再做视觉迭代（除非明确请求 + Review）。
+- 数据来源与派生口径（复用 StockScore/GPTScore/MarketRegime/ClosingDecision/AlphaFactor，零重算评分）**保持不变**。
+- 允许的改动仅限：Bug 修复、i18n 补全、数据来源本身升级后的字段透传（不改展示结构）。
+- 后续 P8 功能若需引用 Explain，直接复用 `ExplainReportButton` 组件，不得另起炉灶。
