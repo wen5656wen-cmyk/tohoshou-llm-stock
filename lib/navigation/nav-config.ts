@@ -70,11 +70,13 @@ export const NAV_NODES: NavNode[] = [
     glyph: "✦",
     showInMobileBottom: true,
     tabs: [
-      { key: "screener", labelKey: "nav.aiScreener" },
-      { key: "sectors", labelKey: "nav.sectors", legacyRoutes: ["/sectors"] },
-      { key: "theme", labelKey: "nav.aiValueChain", legacyRoutes: ["/ai-theme"] },
-      { key: "indicators", labelKey: "nav.indicators", legacyRoutes: ["/indicators"] },
-      { key: "news", labelKey: "nav.news", legacyRoutes: ["/news"] },
+      { key: "screen", labelKey: "sr.tab.screen" },
+      { key: "sectors", labelKey: "sr.tab.sectors", legacyRoutes: ["/sectors"] },
+      { key: "themes", labelKey: "sr.tab.themes", legacyRoutes: ["/ai-theme"] },
+      { key: "industry-chain", labelKey: "sr.tab.industryChain" },
+      { key: "news", labelKey: "sr.tab.news", legacyRoutes: ["/news"] },
+      { key: "indicators", labelKey: "sr.tab.indicators", legacyRoutes: ["/indicators"] },
+      { key: "research", labelKey: "sr.tab.research" },
     ],
   },
   {

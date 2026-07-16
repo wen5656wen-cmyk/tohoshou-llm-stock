@@ -443,6 +443,14 @@ const zhCN: Messages = {
   "dc.regime.BEAR": "熊市",
   "dc.history.title": "历史收盘决策",
   "dc.history.empty": "暂无历史记录",
+  // P7-02B-3 股票研究
+  "sr.tab.screen": "选股",
+  "sr.tab.sectors": "行业",
+  "sr.tab.themes": "主题",
+  "sr.tab.industryChain": "产业链",
+  "sr.tab.news": "新闻",
+  "sr.tab.indicators": "指标",
+  "sr.tab.research": "研究分析",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

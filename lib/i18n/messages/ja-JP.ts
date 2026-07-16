@@ -443,6 +443,14 @@ const jaJP: Messages = {
   "dc.regime.BEAR": "弱気相場",
   "dc.history.title": "過去の引け判断",
   "dc.history.empty": "履歴なし",
+  // P7-02B-3 銘柄リサーチ
+  "sr.tab.screen": "スクリーニング",
+  "sr.tab.sectors": "業種",
+  "sr.tab.themes": "テーマ",
+  "sr.tab.industryChain": "バリューチェーン",
+  "sr.tab.news": "ニュース",
+  "sr.tab.indicators": "指標",
+  "sr.tab.research": "リサーチ分析",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

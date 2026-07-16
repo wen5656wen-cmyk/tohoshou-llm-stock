@@ -443,6 +443,14 @@ const enUS: Messages = {
   "dc.regime.BEAR": "Bear",
   "dc.history.title": "Closing Decision History",
   "dc.history.empty": "No history",
+  // P7-02B-3 Stock Research
+  "sr.tab.screen": "Screen",
+  "sr.tab.sectors": "Sectors",
+  "sr.tab.themes": "Themes",
+  "sr.tab.industryChain": "Value Chain",
+  "sr.tab.news": "News",
+  "sr.tab.indicators": "Indicators",
+  "sr.tab.research": "Research",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

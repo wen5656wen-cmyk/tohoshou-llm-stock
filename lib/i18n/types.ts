@@ -87,6 +87,14 @@ export type Messages = {
   "dc.regime.BEAR": string;
   "dc.history.title": string;
   "dc.history.empty": string;
+  // P7-02B-3 股票研究 Tab 容器
+  "sr.tab.screen": string;
+  "sr.tab.sectors": string;
+  "sr.tab.themes": string;
+  "sr.tab.industryChain": string;
+  "sr.tab.news": string;
+  "sr.tab.indicators": string;
+  "sr.tab.research": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;
