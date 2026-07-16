@@ -17,9 +17,10 @@ export interface AiInvestmentReport {
   symbol: string; name: string | null;
   verdict: { code: string; label: string; icon: string };  // AI 最终结论
   confidence: number; stars: number; confidenceLabel: string; // ④ 信心指数
-  recommendReasons: string[];                                 // ① 推荐理由
-  buyReasons: { today: string; notYesterday: string; notOthers: string }; // ② 买入理由
-  risks: string[];                                            // ③ 风险
+  recommendReasons: string[];                                 // ① 推荐理由（恰 3 条）
+  buyReasons: { today: string; notYesterday: string; notOthers: string }; // ② 买入理由（细分）
+  buyReasonsList: string[];                                   // ② 为什么今天买（3 条列表）
+  risks: string[];                                            // ③ 风险（恰 3 条）
   suggestedPositionPct: number; suggestedPositionNote: string; // ⑤ 建议仓位（建议性）
   takeProfit: { t1: number | null; t2: number | null; t3: number | null; note: string }; // ⑥ 止盈
   stopLoss: { price: number | null; note: string };           // ⑦ 止损
@@ -120,6 +121,20 @@ function buyReasons(s: ScoreSnapshot, regime: RegimeSnapshot, gpt: GptSnapshot |
   return { today: today || "综合评级达标", notYesterday: notYesterday || "趋势与动能配合", notOthers: notOthers || "综合排名领先" };
 }
 
+// ③ 风险补充（真实字段派生，非模板；与 base.risks 合并去重后取 3 条）
+function deriveRisks(s: ScoreSnapshot, regime: RegimeSnapshot): string[] {
+  const out: string[] = [];
+  if (s.highRiskFlag) out.push("标的波动率偏高（高风险标记）");
+  if (regime.regime === "BEAR") out.push("大盘处于熊市，系统性下行风险");
+  else if (regime.regime === "SIDEWAYS") out.push("大盘震荡，方向不明");
+  if ((s.return20d ?? 0) > 25) out.push(`近 20 日已涨 +${round(s.return20d ?? 0)}%，追高风险`);
+  if ((s.fundamentalScore ?? 25) < 12) out.push("基本面评分偏弱");
+  if ((s.newsSentimentScore ?? 8) < 6) out.push("近期新闻情绪偏负面");
+  if ((s.catalystScore ?? 0) >= 3) out.push("财报/重大事件临近，波动加大");
+  if ((s.rsi14 ?? 50) > 75) out.push("RSI 超买，短期回调压力");
+  return out;
+}
+
 // ⑧ 失效条件
 function invalidation(s: ScoreSnapshot, regime: RegimeSnapshot): string[] {
   const out = ["跌破 20 日均线（均线走坏）"];
@@ -142,6 +157,7 @@ export function buildInvestmentReport(
   const stars = starsOf(confidence);
   const pos = suggestPosition(confidence, s.highRiskFlag);
   const lv = levels(s, closing);
+  const br = buyReasons(s, regime, gpt);
   const rec = s.recommendationV2 ?? "HOLD";
   const v = VERDICT[rec] ?? VERDICT.HOLD;
 
@@ -149,9 +165,13 @@ export function buildInvestmentReport(
     symbol: s.symbol, name: s.name,
     verdict: { code: rec, label: v.label, icon: v.icon },
     confidence, stars, confidenceLabel: confLabel(confidence),
-    recommendReasons: base.strengths.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title),
-    buyReasons: buyReasons(s, regime, gpt),
-    risks: base.risks.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title),
+    recommendReasons: base.strengths.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title).slice(0, 3),
+    buyReasons: br,
+    buyReasonsList: [br.today, br.notYesterday, br.notOthers],
+    risks: [...new Set([
+      ...base.risks.map((p) => p.detail ? `${p.title}（${p.detail}）` : p.title),
+      ...deriveRisks(s, regime),
+    ])].slice(0, 3),
     suggestedPositionPct: closing?.weight != null ? round(closing.weight) : pos.pct,
     suggestedPositionNote: closing?.weight != null ? "参考收盘决策组合权重（建议）" : pos.note,
     takeProfit: lv.tp, stopLoss: lv.sl,
