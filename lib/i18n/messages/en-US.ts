@@ -482,6 +482,13 @@ const enUS: Messages = {
   "ex2.recommendReason": "Why Recommended", "ex2.buyReason": "Why Buy", "ex2.buyToday": "Why today", "ex2.buyNotYesterday": "Why not yesterday", "ex2.buyNotOthers": "Why not others",
   "ex2.risk": "Risk Analysis", "ex2.takeProfit": "Take Profit", "ex2.stopLoss": "Stop Loss", "ex2.invalidation": "Invalidation", "ex2.marketContext": "Market Context",
   "ex2.t1": "Target 1", "ex2.t2": "Target 2", "ex2.t3": "Target 3", "ex2.loading": "Generating…", "ex2.noData": "No data",
+  // P8-2 AI Daily Brief
+  "db.title": "AI Daily Brief", "db.updated": "Data Updated",
+  "db.s1": "① Today's Market", "db.s2": "② Top Pick", "db.s3": "③ Suggested Portfolio", "db.s4": "④ Today's Action", "db.s5": "⑤ Today's Risks", "db.s6": "⑥ Watchlist", "db.s7": "⑦ Summary",
+  "db.trend": "Trend", "db.trendUp": "Up", "db.trendSide": "Sideways", "db.trendDown": "Down",
+  "db.riskLevel": "Risk", "db.cashRatio": "Cash", "db.holdCount": "Positions",
+  "db.todayAction": "Today", "db.actBuy": "Buy", "db.actWatch": "Watch", "db.actCash": "Cash", "db.focusTop5": "Watch Top 5",
+  "db.sum.buy": "A good day to scale into opportunities.", "db.sum.watch": "Observe today; wait for a clearer entry.", "db.sum.cash": "Stay in cash and control drawdown.", "db.noRisk": "No major risk signals today.",
 
   // My Investments tabs
   "tabs.watchlist": "Watchlist",

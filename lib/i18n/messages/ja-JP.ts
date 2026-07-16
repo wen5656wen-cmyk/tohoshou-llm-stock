@@ -482,6 +482,13 @@ const jaJP: Messages = {
   "ex2.recommendReason": "推奨理由", "ex2.buyReason": "買い理由", "ex2.buyToday": "なぜ今日買うか", "ex2.buyNotYesterday": "なぜ昨日ではないか", "ex2.buyNotOthers": "なぜ他銘柄ではないか",
   "ex2.risk": "リスク分析", "ex2.takeProfit": "利確目標", "ex2.stopLoss": "損切り", "ex2.invalidation": "無効条件", "ex2.marketContext": "市場環境",
   "ex2.t1": "第1目標", "ex2.t2": "第2目標", "ex2.t3": "第3目標", "ex2.loading": "AI 生成中…", "ex2.noData": "データなし",
+  // P8-2 AI 投資レポート
+  "db.title": "AI 本日投資レポート", "db.updated": "データ更新",
+  "db.s1": "① 本日の市場", "db.s2": "② 本日の一番手", "db.s3": "③ 推奨ポートフォリオ", "db.s4": "④ 本日のアクション", "db.s5": "⑤ 本日のリスク", "db.s6": "⑥ 本日の注目", "db.s7": "⑦ 一言まとめ",
+  "db.trend": "トレンド", "db.trendUp": "上昇", "db.trendSide": "レンジ", "db.trendDown": "下落",
+  "db.riskLevel": "リスク", "db.cashRatio": "現金比率", "db.holdCount": "銘柄数",
+  "db.todayAction": "本日の行動", "db.actBuy": "買い", "db.actWatch": "様子見", "db.actCash": "現金", "db.focusTop5": "本日の注目 Top5",
+  "db.sum.buy": "本日は分割エントリーで好機を捉える。", "db.sum.watch": "本日は様子見、より明確な買い場を待つ。", "db.sum.cash": "現金を維持し、ドローダウンを抑える。", "db.noRisk": "本日は重大なリスク信号なし。",
 
   // My Investments tabs
   "tabs.watchlist": "ウォッチリスト",

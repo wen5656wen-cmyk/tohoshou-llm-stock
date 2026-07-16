@@ -482,6 +482,13 @@ const zhCN: Messages = {
   "ex2.recommendReason": "推荐理由", "ex2.buyReason": "买入理由", "ex2.buyToday": "为什么今天买", "ex2.buyNotYesterday": "为什么不是昨天", "ex2.buyNotOthers": "为什么不是其它",
   "ex2.risk": "风险分析", "ex2.takeProfit": "止盈建议", "ex2.stopLoss": "止损建议", "ex2.invalidation": "失效条件", "ex2.marketContext": "市场环境",
   "ex2.t1": "第一目标", "ex2.t2": "第二目标", "ex2.t3": "第三目标", "ex2.loading": "AI 生成中…", "ex2.noData": "暂无数据",
+  // P8-2 AI 投资日报
+  "db.title": "AI 今日投资日报", "db.updated": "数据更新",
+  "db.s1": "① 今日市场", "db.s2": "② 今日第一推荐", "db.s3": "③ 今日建议组合", "db.s4": "④ 今日操作建议", "db.s5": "⑤ 今日风险", "db.s6": "⑥ 今日关注", "db.s7": "⑦ 一句话总结",
+  "db.trend": "趋势", "db.trendUp": "上涨", "db.trendSide": "震荡", "db.trendDown": "下跌",
+  "db.riskLevel": "风险等级", "db.cashRatio": "现金比例", "db.holdCount": "组合数量",
+  "db.todayAction": "今天应该", "db.actBuy": "建仓买入", "db.actWatch": "观察等待", "db.actCash": "持币等待", "db.focusTop5": "今天重点观察 Top5",
+  "db.sum.buy": "今天适合分批布局，把握结构性机会。", "db.sum.watch": "今日以观察为主，等待更明确的买点。", "db.sum.cash": "建议继续持币等待，控制回撤风险。", "db.noRisk": "今日无重大风险信号。",
 
   // My Investments tabs
   "tabs.watchlist": "自选股",

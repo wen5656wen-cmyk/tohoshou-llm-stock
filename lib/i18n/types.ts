@@ -126,6 +126,12 @@ export type Messages = {
   "ex2.recommendReason": string; "ex2.buyReason": string; "ex2.buyToday": string; "ex2.buyNotYesterday": string; "ex2.buyNotOthers": string;
   "ex2.risk": string; "ex2.takeProfit": string; "ex2.stopLoss": string; "ex2.invalidation": string; "ex2.marketContext": string;
   "ex2.t1": string; "ex2.t2": string; "ex2.t3": string; "ex2.loading": string; "ex2.noData": string;
+  // P8-2 AI 投资日报
+  "db.title": string; "db.updated": string;
+  "db.s1": string; "db.s2": string; "db.s3": string; "db.s4": string; "db.s5": string; "db.s6": string; "db.s7": string;
+  "db.trend": string; "db.trendUp": string; "db.trendSide": string; "db.trendDown": string;
+  "db.riskLevel": string; "db.cashRatio": string; "db.holdCount": string;
+  "db.todayAction": string; "db.actBuy": string; "db.actWatch": string; "db.actCash": string; "db.focusTop5": string; "db.sum.buy": string; "db.sum.watch": string; "db.sum.cash": string; "db.noRisk": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;
