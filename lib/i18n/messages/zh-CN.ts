@@ -458,6 +458,7 @@ const zhCN: Messages = {
   "theme.sub.chain": "产业链",
   "theme.sub.ai": "AI分析",
   "theme.sub.news": "相关新闻",
+  "theme.ai.title": "AI 摘要",
   "theme.ai.subtitle": "基于现有 AI 评分与因子的主题级摘要（只读派生，不重算）",
   "theme.ai.noReason": "暂无 AI 解读",
   // P7-04A 三工作区
@@ -622,7 +623,7 @@ const zhCN: Messages = {
   "theme.search_placeholder": "搜索股票名/symbol/角色/HBM/封装…",
   "theme.layer_all": "所有层级",
   "theme.rec_all": "所有评级",
-  "theme.core_toggle": "核心标的",
+  "theme.core_toggle": "仅看核心龙头",
   "theme.sort_label": "排序：",
   "theme.sort_ai_score": "AI评分",
   "theme.sort_opportunity": "机会分",

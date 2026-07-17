@@ -458,6 +458,7 @@ const enUS: Messages = {
   "theme.sub.chain": "Supply Chain",
   "theme.sub.ai": "AI Analysis",
   "theme.sub.news": "Related News",
+  "theme.ai.title": "AI Summary",
   "theme.ai.subtitle": "Theme-level digest derived from existing AI scores & factors (read-only, no recompute)",
   "theme.ai.noReason": "No AI note yet",
   // P7-04A 3 workspaces
@@ -622,7 +623,7 @@ const enUS: Messages = {
   "theme.search_placeholder": "Search stock / symbol / role / HBM / packaging",
   "theme.layer_all": "All Layers",
   "theme.rec_all": "All Ratings",
-  "theme.core_toggle": "Core Stocks",
+  "theme.core_toggle": "Core Leaders Only",
   "theme.sort_label": "Sort:",
   "theme.sort_ai_score": "AI Score",
   "theme.sort_opportunity": "Opportunity",

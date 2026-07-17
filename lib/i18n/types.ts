@@ -102,6 +102,7 @@ export type Messages = {
   "theme.sub.chain": string;
   "theme.sub.ai": string;
   "theme.sub.news": string;
+  "theme.ai.title": string;
   "theme.ai.subtitle": string;
   "theme.ai.noReason": string;
   // P7-04A 三工作区

@@ -2,6 +2,29 @@
 
 ---
 
+## [18.4.0] - 2026-07-17 — 🧭 P8-UI-03 研究 Hub 收敛（Research Hub Consolidation）
+
+按 P8-GOV-01 审计执行「删重复入口 + 合并重复功能」。纯**导航/展示层重组**——未改 DB / API / AI评分 / GPT / Stock Screener / Cron / Mission Control / Workspace / Hub，未新增页面/组件/导航。
+
+### 一级 Tab：6 → 5（删除「研究分析」）
+`研究分析`(ResearchCenter) 与研究工作区 `/admin/research` overview **同组件**、同 `/api/admin/mission-control·research` 数据，属重复挂载 → 从股票研究 Hub 移除。`center.tsx` 保留（仍服务 `/admin/research`），Research Workspace 与 Mission Control 全功能不变。
+> 注：P8-GOV-01 建议的最终态一级 4 Tab 需再将「指标」并入筛选，但本任务**明确禁止修改 Stock Screener** 且执行清单无「指标」项 → 留作后续 P8-UI-04。本轮一级为 6→5。
+
+### 主题研究子 Tab：6 → 3
+- **相关新闻 → 删除**：曾直接 `<NewsView/>`（`/api/news` 全局、无 theme 过滤 = 100% 重复），删除；真正 Theme News 待重新设计。
+- **AI分析 → 并入「主题概览」**：概览新增 **AI Summary 区块**（推荐理由 / AI评分 / 风险 riskNote / 机会 / 一句话总结），纯派生自 `/api/ai-theme`，零重算、不改 API。
+- **龙头股票 → 并入「概念股票」**：复用已有 core 过滤开关（relabel「仅看核心龙头」/ 主力のみ / Core Leaders Only），删除独立 Tab。
+- 保留：**主题概览 / 概念股票 / 产业链**（3 子 Tab）。
+
+### legacyRoute 兼容（应用内不失效）
+`StockResearchHub` 新增统一 LEGACY 映射：`?tab=research`→`/admin/research`（客户端 redirect）· `?tab=theme-news`→新闻 Tab · `?tab=leaders`→主题研究·概念股票 · `?tab=ai-analysis`→主题研究·主题概览 · `?tab=industry-chain`→主题研究·产业链。全部实测 HTTP 200。
+
+### 改动文件
+`components/research/StockResearchHub.tsx`（删 research Tab + ResearchCenter，统一 LEGACY 映射）· `components/research/AiThemeView.tsx`（SUB_TABS 6→3，删 leaders/ai/news + coreScope + NewsView import，AI分析并入概览 AI Summary + riskNote）· `lib/navigation/nav-config.ts`（stocks tabs 删 research + 补 legacyRoutes）· `lib/i18n`（新增 `theme.ai.title`；relabel `theme.core_toggle`→仅看核心龙头，三语 + types）。
+
+### 验收
+tsc 0 · Build PASS · 生产 Health **CRITICAL=0**（✅62 ❌0 ⚠️4 既有）· 5 条 legacy `?tab=` + `/admin/research` + `/screener` 全 200 · web 重启（cron-scheduler 未改不重启）。**Architecture Check：Workspace 3（不变）· Hub 4（不变）· 股票研究一级 Tab 6→5 · 主题研究子 Tab 6→3 · 符合 P7/P8「收敛优先」（无新增导航/Hub/Workspace/页面/组件）。**
+
 ## [18.3.0] - 2026-07-17 — 🧭 P8-UI-02 主题 × 产业链合并（Merge Theme & Industry Chain）
 
 「股票研究」Hub 移除重复的一级「产业链」Tab，将其并入「主题研究」作为子 Tab。纯**导航/展示层重组**——未改任何 API / 数据库 / AI 评分 / 筛选逻辑 / 数据接口，未新增页面/路由。

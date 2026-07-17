@@ -458,6 +458,7 @@ const jaJP: Messages = {
   "theme.sub.chain": "サプライチェーン",
   "theme.sub.ai": "AI分析",
   "theme.sub.news": "関連ニュース",
+  "theme.ai.title": "AI サマリー",
   "theme.ai.subtitle": "既存のAIスコアとファクターに基づくテーマ別サマリー（読み取り専用・再計算なし）",
   "theme.ai.noReason": "AI解説はまだありません",
   // P7-04A 3 ワークスペース
@@ -622,7 +623,7 @@ const jaJP: Messages = {
   "theme.search_placeholder": "銘柄名/コード/役割/HBM/パッケージを検索",
   "theme.layer_all": "すべての層",
   "theme.rec_all": "すべての評価",
-  "theme.core_toggle": "中核銘柄",
+  "theme.core_toggle": "主力のみ",
   "theme.sort_label": "並び替え：",
   "theme.sort_ai_score": "AIスコア",
   "theme.sort_opportunity": "チャンス",

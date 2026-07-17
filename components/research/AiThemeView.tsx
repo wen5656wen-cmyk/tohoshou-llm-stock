@@ -8,7 +8,6 @@ import { getRec, getRecommendationLabel, returnColorClass, fmtPct, finalScoreCol
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 import { getThemeLabel, getLayerLabel } from "@/lib/i18n/theme-labels";
-import NewsView from "./NewsView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -331,9 +330,12 @@ function ThemeCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-// P8-UI-02：主题研究 6 子 Tab 容器（主题概览/龙头股票/概念股票/产业链/AI分析/相关新闻）。
-// 产业链合并进此视图；纯展示层重组，未改任何 API / 数据 / 评分 / 过滤逻辑。
-// initialSubTab：旧 ?tab=industry-chain 深链落到「产业链」子 Tab。
+// P8-UI-03：主题研究收敛为 3 子 Tab（主题概览 / 概念股票 / 产业链）。
+//   · AI分析 → 并入「主题概览」的 AI Summary 区块（同 /api/ai-theme 派生，零重算）。
+//   · 龙头股票 → 并入「概念股票」，复用已有「仅看核心龙头」core 过滤开关。
+//   · 相关新闻 → 删除（曾直接复用全局 NewsView，无 theme 过滤 = 100% 重复），待真正 Theme News 再设计。
+// 纯展示层重组，未改任何 API / 数据 / 评分 / 过滤逻辑。
+// initialSubTab：旧 ?tab=industry-chain/leaders/ai-analysis 深链落到对应子 Tab。
 export default function AiThemePage({ initialSubTab }: { initialSubTab?: string } = {}) {
   const { t, lang } = useI18n();
   useScrollRestoration("ai-theme");
@@ -348,18 +350,12 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
   const [coreOnly, setCoreOnly] = useState(false);
   const [recFilter, setRecFilter] = useState<string>("");
 
-  // 6 子 Tab（在组件内计算以取得 t()）。
+  // 3 子 Tab（在组件内计算以取得 t()）。
   const SUB_TABS = useMemo(() => [
     { key: "overview", label: t("theme.sub.overview") },
-    { key: "leaders",  label: t("theme.sub.leaders") },
     { key: "concept",  label: t("theme.sub.concept") },
     { key: "chain",    label: t("theme.sub.chain") },
-    { key: "ai",       label: t("theme.sub.ai") },
-    { key: "news",     label: t("theme.sub.news") },
   ], [t]);
-
-  // 龙头=核心股；概念=全部关联股（不再按 core 收窄）。
-  const coreScope = subTab === "leaders" ? "core" : "all";
 
   // Locale-aware tabs (computed inside component so t() is available)
   const TABS = useMemo(() => [
@@ -412,8 +408,8 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
       stocks = stocks.filter((s) => s.theme === activeTab);
     }
 
-    if (coreScope === "core") stocks = stocks.filter((s) => s.isCore);
     if (layerFilter) stocks = stocks.filter((s) => s.supplyChainLayer === layerFilter);
+    // 概念股票的「仅看核心龙头」= 复用此 core 过滤（原龙头 Tab 已并入）。
     if (coreOnly) stocks = stocks.filter((s) => s.isCore);
     if (recFilter) stocks = stocks.filter((s) => s.recommendationV2 === recFilter || (!s.scored && recFilter === "PENDING"));
 
@@ -452,7 +448,7 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
         default: return 0;
       }
     });
-  }, [data, activeTab, sortKey, layerFilter, coreOnly, recFilter, searchQ, coreScope]);
+  }, [data, activeTab, sortKey, layerFilter, coreOnly, recFilter, searchQ]);
 
   // ── Chrome：头部 + 子 Tab 栏（始终渲染，含加载中/新闻子 Tab）───────────────
   const summary = data?.summary;
@@ -510,9 +506,6 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
   );
 
   const wrap = (inner: ReactNode) => <div className="p-4 md:p-6">{chrome}{inner}</div>;
-
-  // 相关新闻：复用现有 NewsView（/api/news 只读），不依赖 theme 数据。
-  if (subTab === "news") return wrap(<NewsView />);
 
   if (loading) {
     return wrap(
@@ -719,10 +712,12 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
     </>
   );
 
-  // ⑤AI分析：主题级摘要，纯派生自现有 /api/ai-theme 字段（评分/理由/机会/风险），零重算。
+  // AI Summary（原「AI分析」子 Tab 并入「主题概览」）：主题级摘要，纯派生自现有
+  // /api/ai-theme 字段（推荐理由 / AI评分 / 风险 / 机会 / 一句话总结），零重算、不改 API。
   const aiThemesSorted = [...themes].sort((a, b) => b.avgScore - a.avgScore);
-  const aiAnalysisBlock = (
-    <div>
+  const aiSummaryBlock = (
+    <div className="mb-5">
+      <div className="text-sm font-semibold text-slate-700 mb-1">{t("theme.ai.title")}</div>
       <p className="text-xs text-slate-400 mb-4">{t("theme.ai.subtitle")}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {aiThemesSorted.map((th) => {
@@ -768,6 +763,9 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
                       <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
                         {s.summaryReason ?? s.reason ?? t("theme.ai.noReason")}
                       </p>
+                      {s.riskNote && (
+                        <p className="text-[10px] text-red-500 mt-0.5 line-clamp-1">⚠ {s.riskNote}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -779,12 +777,13 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
     </div>
   );
 
-  // ── 按子 Tab 组合内容 ──────────────────────────────────────────────────────
+  // ── 按 3 子 Tab 组合内容 ────────────────────────────────────────────────────
+  // 概览 = 统计 + 产业链层 + 主题卡 + AI 摘要（含原 AI分析）；概念 = 控制条 + 网格
+  //（含「仅看核心龙头」core 开关，原龙头 Tab 并入）；产业链 = 层级可视化 + 网格。
   let body: ReactNode;
-  if (subTab === "overview") body = <>{statsRow}{layerVisual}{themeCardsBlock}</>;
+  if (subTab === "overview") body = <>{statsRow}{layerVisual}{themeCardsBlock}{aiSummaryBlock}</>;
   else if (subTab === "chain") body = <>{layerVisual}{controlsBlock}{gridBlock}</>;
-  else if (subTab === "ai") body = aiAnalysisBlock;
-  else body = <>{controlsBlock}{gridBlock}</>; // leaders / concept
+  else body = <>{controlsBlock}{gridBlock}</>; // concept
 
   return wrap(body);
 }

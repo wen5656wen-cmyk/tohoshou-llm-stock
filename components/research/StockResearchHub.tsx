@@ -1,13 +1,13 @@
 "use client";
 
-// ── 股票研究 Hub Tab 容器（P7-02B-3；P8-UI-02 合并产业链）──────────────────
-// 6 Tab：选股 / 行业 / 主题研究 / 新闻 / 指标 / 研究分析。
-// 产业链已并入「主题研究」，作为其 6 子 Tab 之一（不再是一级 Tab）。
-// 各 Tab 懒加载 + 仅激活 Tab 挂载 → 首屏不同时请求全部 API；?tab= URL 同步，刷新保持；
-// 移动端 Tab 横向滚动。复用现有页面/组件/API，不复制业务逻辑、不改任何计算。
-// 行业(/api/sectors)/主题·产业链(/api/ai-theme)/新闻(/api/news)/指标(/api/indicators)/
-// 研究分析(/api/admin/research) 底层数据与 API 各自独立。个股点击统一进 /stocks/[symbol]。
+// ── 股票研究 Hub Tab 容器（P7-02B-3；P8-UI-02 合并产业链；P8-UI-03 移除研究分析）──
+// 5 Tab：选股 / 行业 / 主题研究 / 新闻 / 指标。
+// 「研究分析」(ResearchCenter) 已移除——它与研究工作区 /admin/research overview 同组件、
+// 同 /api/admin/research·mission-control 数据，属重复挂载；旧 ?tab=research 应用内跳研究工作区。
+// 各 Tab 懒加载 + 仅激活 Tab 挂载；?tab= URL 同步，刷新保持；移动端 Tab 横向滚动。
+// 复用现有页面/组件/API，不复制业务逻辑、不改任何计算。个股点击统一进 /stocks/[symbol]。
 
+import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/lib/i18n";
@@ -19,33 +19,59 @@ const SectorsView = dynamic(() => import("./SectorsView"), { ssr: false, loading
 const AiThemeView = dynamic(() => import("./AiThemeView"), { ssr: false, loading: spin });
 const NewsView = dynamic(() => import("./NewsView"), { ssr: false, loading: spin });
 const IndicatorsView = dynamic(() => import("./IndicatorsView"), { ssr: false, loading: spin });
-const ResearchCenter = dynamic(() => import("./center").then((m) => ({ default: m.ResearchCenter })), { ssr: false, loading: spin });
 
-// P8-UI-02：产业链并入主题研究（6 子 Tab），移除一级 industry-chain 入口。
 const TABS = [
   { key: "screen", labelKey: "sr.tab.screen" },
   { key: "sectors", labelKey: "sr.tab.sectors" },
   { key: "themes", labelKey: "sr.tab.themes" },
   { key: "news", labelKey: "sr.tab.news" },
   { key: "indicators", labelKey: "sr.tab.indicators" },
-  { key: "research", labelKey: "sr.tab.research" },
 ] as const;
 
 const VALID = new Set<string>(TABS.map((t) => t.key));
+
+// P8-UI-03：旧 ?tab= 深链 → 收敛后的新位置（不失效）。
+//   research      → 跳研究工作区 /admin/research
+//   industry-chain→ 主题研究·产业链子 Tab
+//   theme-news    → 新闻 Tab（相关新闻已删，Theme News 待重新设计）
+//   leaders       → 主题研究·概念股票（含「仅看核心龙头」过滤）
+//   ai-analysis   → 主题研究·主题概览（含 AI 摘要）
+const LEGACY: Record<string, { tab?: string; sub?: string; redirect?: string }> = {
+  "research": { redirect: "/admin/research" },
+  "industry-chain": { tab: "themes", sub: "chain" },
+  "theme-news": { tab: "news" },
+  "leaders": { tab: "themes", sub: "concept" },
+  "ai-analysis": { tab: "themes", sub: "overview" },
+};
 
 export default function StockResearchHub() {
   const { t } = useI18n();
   const router = useRouter();
   const sp = useSearchParams();
   const raw = sp.get("tab");
-  // 旧深链 ?tab=industry-chain → 主题研究并直接落到「产业链」子 Tab（不失效）。
-  const legacyChain = raw === "industry-chain";
-  const active = legacyChain ? "themes" : raw && VALID.has(raw) ? raw : "screen";
+  const legacy = raw ? LEGACY[raw] : undefined;
+
+  // 跨路由旧链（研究分析 → 研究工作区）：客户端 replace。
+  useEffect(() => {
+    if (legacy?.redirect) router.replace(legacy.redirect);
+  }, [legacy, router]);
+
+  const initialSub = legacy?.sub;
+  const active = legacy?.redirect ? "screen" : legacy?.tab ?? (raw && VALID.has(raw) ? raw : "screen");
 
   const go = (key: string) => {
     if (key === active) return;
     router.replace(`/screener?tab=${key}`, { scroll: false });
   };
+
+  // 研究分析旧链跳转中：占位加载态（避免闪现选股）。
+  if (legacy?.redirect) {
+    return (
+      <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-5"><AppLoading /></div>
+      </div>
+    );
+  }
 
   return (
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
@@ -79,10 +105,9 @@ export default function StockResearchHub() {
         {/* 仅激活 Tab 挂载 → 懒加载对应 API。选股用完整 ScreenerBody(保留全部筛选/排序/分页)。 */}
         {active === "screen" && <ScreenerBody />}
         {active === "sectors" && <SectorsView />}
-        {active === "themes" && <AiThemeView initialSubTab={legacyChain ? "chain" : undefined} />}
+        {active === "themes" && <AiThemeView initialSubTab={initialSub} />}
         {active === "news" && <NewsView />}
         {active === "indicators" && <IndicatorsView />}
-        {active === "research" && <ResearchCenter onTab={(k) => router.push(`/admin/research?tab=${k}`)} />}
       </div>
     </div>
   );

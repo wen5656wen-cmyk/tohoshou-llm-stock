@@ -56,14 +56,15 @@ export const NAV_NODES: NavNode[] = [
     key: "stocks", workspace: "boss", labelKey: "ws.stockCenter", href: "/screener",
     Icon: Search, glyph: "✦",
     tabs: [
-      // P8-UI-02：产业链并入主题研究（作为其子 Tab），移除一级 industry-chain 入口。
-      // 旧 industry-chain 深链继续可达 → themes（应用内 legacyRoutes）。
+      // P8-UI-02 合并产业链；P8-UI-03 移除一级「研究分析」（重复挂载 → 研究工作区）。
+      // 旧深链应用内不失效（StockResearchHub LEGACY 表）：
+      //   ?tab=research→/admin/research · ?tab=industry-chain/leaders/ai-analysis→主题研究子Tab
+      //   ?tab=theme-news→新闻 Tab（相关新闻已删）。
       { key: "screen", labelKey: "sr.tab.screen" },
       { key: "sectors", labelKey: "sr.tab.sectors", legacyRoutes: ["/sectors"] },
-      { key: "themes", labelKey: "sr.tab.themes", legacyRoutes: ["/ai-theme", "/screener?tab=industry-chain"] },
-      { key: "news", labelKey: "sr.tab.news", legacyRoutes: ["/news"] },
+      { key: "themes", labelKey: "sr.tab.themes", legacyRoutes: ["/ai-theme", "/screener?tab=industry-chain", "/screener?tab=leaders", "/screener?tab=ai-analysis"] },
+      { key: "news", labelKey: "sr.tab.news", legacyRoutes: ["/news", "/screener?tab=theme-news"] },
       { key: "indicators", labelKey: "sr.tab.indicators", legacyRoutes: ["/indicators"] },
-      { key: "research", labelKey: "sr.tab.research" },
     ],
   },
   { key: "strategy", workspace: "boss", labelKey: "ws.strategy", href: "/strategy", Icon: LineChart, glyph: "◆" },
