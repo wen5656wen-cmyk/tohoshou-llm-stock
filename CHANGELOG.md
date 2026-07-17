@@ -2,6 +2,56 @@
 
 ---
 
+## [18.10.0] - 2026-07-17 — 🔌 P12-INFRA-03 News Admin API 接线 Ingestion Core（单入口 · 外部行为不变）
+
+**只切一个入口**：`app/api/sync/news/route.ts` → `lib/ingest` News Core。
+其余入口**一律未接线、逐字节未改**：`app/api/sync/tdnet/route.ts` · `app/api/sync/route.ts` ·
+`scripts/sync-news.ts`（**cron 关键链**）· `scripts/fetch-tdnet.ts` · `scripts/cron-scheduler.ts` ·
+`components/system/SyncView.tsx`。**TDnet 不纳入本任务。**
+
+### 接线结构
+Route 只负责：读请求 → 参数转换 → 调用 Core → 映射回原有 Response。
+Core 负责：抓取 / 解析 / 去重 / 持久化 / 统计 / 错误结果。
+```
+POST /api/sync/news
+  ├ findRunningJob(deps)              ← Core
+  ├ isStale(job, now)                 ← Core（>2h）
+  ├ autoFailStaleJob(deps, job)       ← Core
+  ├ selectNewsSymbols(deps)           ← Core（Top200，未改）
+  ├ createNewsJob(deps, total)        ← Core
+  ├ void runNewsSync(deps, DEFAULT_NEWS_FETCHERS, NEWS_PROFILE_API, jobId, symbols, Date.now())
+  └ NextResponse.json({ ...原字段 })   ← Route（火后不管，保留 jobId + 轮询语义）
+```
+
+### 保留的旧行为（借接线改结果 = 违规，一律未做）
+- **`SyncLog.durationMs` 继续为 `null`** —— 由 `NEWS_PROFILE_API.recordDurationMs=false` 承载。
+  这是已知缺陷，**只保留不修复**（归属 INFRA-06）。
+- 无鉴权（原实现即无）→ **未新增也未移除**。
+- POST 立即返回 `jobId`、后台异步执行（nginx 60s 超时下必须保留轮询语义）。
+- stale guard 2h · Top200 · TDnet 双重过滤（`symbol IN` + `take:500`）· conf 20/95 ·
+  去重键 · category 映射 · sentiment 二次覆盖 —— **全部原样**。
+
+### Core 最小修正
+`lib/ingest/news-core.ts` 新增 `DEFAULT_NEWS_FETCHERS`（= 原 Route 所 import 的
+`lib/yahoo.fetchNews` / `lib/kabutan.fetchKabutanNews`，同一对函数，行为不变）。
+
+### 等价验证 `npm run test:ingest-equivalence` — **140 passed, 0 failed**（+20）
+新增【11】接线状态矩阵 + 【12】News API before/after 外部行为等价（before = `e1c6f60`）：
+- **响应出口逐个比对**：解析 `NextResponse.json({...})` 的顶层键集 → GET / POST-skip /
+  POST-start **三个出口字段集完全一致**
+- 关键文案与语义逐字保留：`已有正在运行的新闻同步任务` · `新闻同步任务已开始，共 N 只股票` ·
+  `status:"RUNNING"` · `processed:0` · `[news] stale job ... auto-failed` ·
+  `conf>=70` / `importance>=7` 统计 · `void runNewsSync` · `syncedAt`
+- 鉴权回归：before 无 → after 无
+- 6 个未接线入口 + `scripts/sync-news.ts` 与 `e2ec0a4` **逐字节相同**；
+  `scripts/sync-news.ts` 同时仍等于 `e1c6f60` 原实现
+
+### 遗留
+- INFRA-04（切 `scripts/sync-news.ts`，cron 命脉）**须待本任务观察期 ≥3 自然日结束**。
+- `SyncLog.durationMs=null`（News API）· TDnet `code4`/`title`/`catalystScore` 漂移 → INFRA-06。
+
+---
+
 ## [18.9.2] - 2026-07-17 — 🧩 P12-INFRA-02 提取共享 Ingestion Core（**Zero Wiring** · 取代 v18.9.1）
 
 > **本条取代 v18.9.1。** v18.9.1 曾把两个 News 入口接线到 Core；

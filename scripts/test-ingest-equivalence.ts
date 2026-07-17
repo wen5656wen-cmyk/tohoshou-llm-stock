@@ -400,22 +400,103 @@ async function main() {
     ok("SYSTEM_CLOCK 默认实现存在", typeof SYSTEM_CLOCK.now() === "number");
   }
 
-  // ══ 【11】生产入口零接线（最关键的验收）══════════════════════════════════
-  console.log("\n【11】🔒 生产入口零接线证明");
+  // ══ 【11】接线状态（P12-INFRA-03：只切 News API，其余一律未接线）════════════
+  console.log("\n【11】🔒 接线状态矩阵");
   {
-    const entries = [
-      "app/api/sync/news/route.ts", "app/api/sync/tdnet/route.ts", "app/api/sync/route.ts",
+    // 已接线：仅 News Admin API
+    ok("News API  → 已接线（引用 lib/ingest）",
+      /lib\/ingest/.test(readFileSync("app/api/sync/news/route.ts", "utf8")));
+
+    // 未接线：其余全部
+    const notWired = [
+      "app/api/sync/tdnet/route.ts", "app/api/sync/route.ts",
       "scripts/sync-news.ts", "scripts/fetch-tdnet.ts", "scripts/cron-scheduler.ts",
       "components/system/SyncView.tsx",
     ];
-    for (const f of entries) {
-      const s = readFileSync(f, "utf8");
-      ok(`${f} 未引用 lib/ingest`, !/lib\/ingest/.test(s));
+    for (const f of notWired) {
+      ok(`${f.padEnd(34)} → 未接线`, !/lib\/ingest/.test(readFileSync(f, "utf8")));
     }
-    // 入口文件与 HEAD 完全一致（未被 Core 替换）
-    for (const f of ["scripts/sync-news.ts", "app/api/sync/news/route.ts", "scripts/fetch-tdnet.ts", "app/api/sync/tdnet/route.ts"]) {
-      ok(`${f} 与 before 基线逐字节相同（原实现未被替换）`, readFileSync(f, "utf8") === old(f));
+
+    // 未接线的入口必须与 INFRA-02 完成态（e2ec0a4）逐字节相同
+    const AFTER_INFRA02 = "e2ec0a4";
+    const atRev = (rev: string, p: string) => {
+      try { return execSync(`git show ${rev}:${p}`, { encoding: "utf8" }); } catch { return " "; }
+    };
+    for (const f of ["scripts/sync-news.ts", "scripts/fetch-tdnet.ts", "app/api/sync/tdnet/route.ts",
+                     "app/api/sync/route.ts", "scripts/cron-scheduler.ts", "components/system/SyncView.tsx"]) {
+      ok(`${f.padEnd(34)} 与 e2ec0a4 逐字节相同`, readFileSync(f, "utf8") === atRev(AFTER_INFRA02, f));
     }
+    // scripts/sync-news.ts 同时必须仍等于 e1c6f60 的原实现（从未被 Core 替换）
+    ok("scripts/sync-news.ts 仍等于 e1c6f60 原实现（cron 关键链未动）",
+      readFileSync("scripts/sync-news.ts", "utf8") === old("scripts/sync-news.ts"));
+  }
+
+  // ══ 【12】News API 外部可观察行为 vs e1c6f60（允许内部不同，禁止外部变）══════
+  console.log("\n【12】News API before/after 外部行为等价（before = e1c6f60）");
+  {
+    const before = old("app/api/sync/news/route.ts");
+    const after = readFileSync("app/api/sync/news/route.ts", "utf8");
+
+    /** 提取所有 NextResponse.json({...}) 的顶层键名，逐个响应比对 */
+    const responseKeySets = (src: string): string[][] => {
+      const out: string[][] = [];
+      const re = /NextResponse\.json\(\{/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(src))) {
+        let depth = 1, i = re.lastIndex;
+        const start = i;
+        while (i < src.length && depth > 0) {
+          if (src[i] === "{") depth++;
+          else if (src[i] === "}") depth--;
+          i++;
+        }
+        const body = src.slice(start, i - 1);
+        // 只取嵌套深度 0 的键
+        const keys: string[] = [];
+        let d = 0;
+        for (const line of body.split("\n")) {
+          const t = line.trim();
+          const km = /^([A-Za-z_$][\w$]*)\s*:/.exec(t);
+          if (d === 0 && km) keys.push(km[1]);
+          d += (line.match(/[{[]/g) ?? []).length - (line.match(/[}\]]/g) ?? []).length;
+        }
+        out.push(keys.sort());
+      }
+      return out;
+    };
+
+    const kb = responseKeySets(before), ka = responseKeySets(after);
+    ok(`响应出口数量一致（before=${kb.length} after=${ka.length}）`, kb.length === ka.length);
+    const names = ["GET 状态查询", "POST stale-skip", "POST 正常启动"];
+    for (let i = 0; i < Math.min(kb.length, ka.length); i++) {
+      ok(`${names[i] ?? `响应#${i}`} JSON 字段集一致`, J(kb[i]) === J(ka[i]),
+        `\n      before: ${J(kb[i])}\n      after : ${J(ka[i])}`);
+    }
+
+    /** 关键文案与语义必须逐字保留 */
+    const literals: [string, RegExp][] = [
+      ['"已有正在运行的新闻同步任务"', /已有正在运行的新闻同步任务/],
+      ["`新闻同步任务已开始，共 ${n} 只股票`", /新闻同步任务已开始，共 \$\{[\w.]+\} 只股票/],
+      ['status: "RUNNING"', /status:\s*"RUNNING"/],
+      ["processed: 0", /processed:\s*0/],
+      ["stale 自动失败日志 [news]", /\[news\] stale job \$\{existingJob\.id\} auto-failed/],
+      ["conf>=70 统计（stockSpecificCount）", /relatedSymbolConfidence:\s*\{\s*gte:\s*70\s*\}/],
+      ["importance>=7 统计（highImportanceCount）", /importance:\s*\{\s*gte:\s*7\s*\}/],
+      ["火后不管 void runNewsSync", /void runNewsSync\(/],
+      ["syncedAt ISO", /syncedAt:\s*new Date\(\)\.toISOString\(\)/],
+    ];
+    for (const [name, re] of literals) {
+      ok(`${name} — before/after 均存在`, re.test(before) && re.test(after),
+        `before=${re.test(before)} after=${re.test(after)}`);
+    }
+
+    ok("鉴权：before 无鉴权 → after 也无（未新增未移除）",
+      !/getServerSession|auth\(|requireAuth|Authorization/.test(before) &&
+      !/getServerSession|auth\(|requireAuth|Authorization/.test(after));
+    ok("after 使用 NEWS_PROFILE_API（durationMs 保持 null 的既有行为）",
+      /NEWS_PROFILE_API/.test(after));
+    ok("after 未引入 TDnet Core（TDnet 不纳入本任务）", !/tdnet-core|TDNET_PROFILE/.test(after));
+    ok("after 未调用 process.exit（API 入口不得 exit）", !/process\.exit/.test(after));
   }
 
   console.log(`\n${"─".repeat(60)}`);

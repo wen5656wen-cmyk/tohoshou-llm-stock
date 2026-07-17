@@ -483,8 +483,8 @@ newsSentiment 权重 = 0.10 ~ 0.15（按 stockStyle，见 lib/ai-score.ts STYLE_
 | **P12-DATA-01** · EventType 数据层 | ✅ 已完成（2026-07-17） | v18.9.0 | 见 CHANGELOG | 按 **ADR-001 采用纯函数不落库**；零 Schema 改动；推荐结果零变化（实测） |
 | **P12-INFRA-01** · 摄入管线审计 | ✅ 已完成（2026-07-17） | — | — | 确认 API/scripts 两套实现；TDnet 已实际漂移 |
 | **P12-INFRA-02** · 提取 Ingestion Core | ✅ 已完成（2026-07-17） | v18.9.2 | 见 CHANGELOG | **Zero Wiring —— 已提取，未接线**。生产入口 7/7 与 e1c6f60 逐字节相同；删除重复代码 0 行 |
-| P12-INFRA-03 · **先切 API** | ⏸ 未开始 | — | — | 非生产关键链，出错影响面最小 |
-| P12-INFRA-04 · **后切 scripts** | ⏸ 未开始 | — | — | cron 命脉，必须最后；需先实跑 `npx tsx scripts/sync-news.ts` 验证 |
+| **P12-INFRA-03** · **切 News Admin API** | ✅ 已完成（2026-07-17） | v18.10.0 | 见 CHANGELOG | **仅接线 `app/api/sync/news/route.ts` 一处**；外部行为与 e1c6f60 一致；`durationMs=null` 保留；TDnet 未纳入。**观察期 ≥3 自然日进行中** |
+| P12-INFRA-04 · **后切 scripts** | 🚫 观察期未结束前禁止开始 | — | — | cron 命脉，必须最后；需先实跑 `npx tsx scripts/sync-news.ts` 验证 |
 | P12-INFRA-05 · 删除重复代码 | ⏸ 未开始 | — | — | 含处置孤儿 `/api/sync/route.ts` |
 | P12-INFRA-06 · **TDnet 行为裁决** | ⏸ 未开始 | — | — | code4 / title / **catalystScore** 漂移，需先裁决再统一 |
 | P12-DATA-02 · 解除 sync-news 双重过滤 | ⏸ 未开始 | — | — | 编号说明见下 |

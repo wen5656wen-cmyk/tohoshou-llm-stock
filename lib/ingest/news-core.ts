@@ -20,9 +20,22 @@ import {
 import {
   buildKabutanNewsUpsert, buildNewsSyncLog, buildTdnetPromotionUpsert, buildYahooNewsUpsert, newsDedupeKey,
 } from "./normalize";
+import { fetchNews as realFetchNews } from "../yahoo";
+import { fetchKabutanNews as realFetchKabutanNews } from "../kabutan";
 import type { IngestDeps, NewsFetchers, NewsProfile, NewsSyncResult, SyncJobRow } from "./types";
 
 void CONFIDENCE_DISCLOSURE; // 载荷常量在 normalize.ts 内使用；此处仅作显式依赖声明
+
+/**
+ * 生产抓取器（P12-INFRA-03 接线所需）。
+ * 与重构前 app/api/sync/news/route.ts 所 import 的是**同一对函数**
+ * （`lib/yahoo.fetchNews` / `lib/kabutan.fetchKabutanNews`），行为不变。
+ * 测试注入桩以获得确定性输入。
+ */
+export const DEFAULT_NEWS_FETCHERS: NewsFetchers = {
+  fetchNews: realFetchNews,
+  fetchKabutanNews: realFetchKabutanNews,
+};
 
 /** 查找进行中的任务（两入口 stale guard 的第一步，DB 查询完全一致）。 */
 export async function findRunningJob({ prisma }: Pick<IngestDeps, "prisma">): Promise<SyncJobRow | null> {
