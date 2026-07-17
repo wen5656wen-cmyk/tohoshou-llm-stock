@@ -8,6 +8,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { SUBTHEME_VOCAB, VOCAB_SET, normalizeSubTheme } from "../lib/ai-theme-subtheme";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -47,6 +48,9 @@ export const strengthOf = (importanceScore: number): 0 | 1 | 2 | 3 =>
 // 已确认无效（生产 Stock 表无记录 / 私有化退市）→ 受控移除并报告，非清空。
 //   6967.T 新光电气（JIC 私有化）· 9613.T NTT Data · 9719.T SCSK（均不在可交易宇宙）
 const INVALID_SYMBOLS: string[] = ["6967.T", "9613.T", "9719.T"];
+
+// P8-DATA-04：词表与 Mapping 的唯一来源 → lib/ai-theme-subtheme.ts（禁止在此复制）
+
 
 // ─── 1. AI芯片设计・AI半导体 ────────────────────────────────────────────────
 const CHIP_DESIGN: ThemeEntry[] = [
@@ -990,6 +994,33 @@ async function main() {
   const DRY = process.env.DRY_RUN === "1";
   console.log(`=== TOHOSHOU AI主题研究 Seed ${SEED_VERSION} (idempotent${DRY ? " · DRY_RUN" : ""}) ===\n`);
 
+  // ── P8-DATA-04 ⓪a：subTheme 标准词表硬断言 —— 任何未收录值立即 exit(1)，禁止写库 ──
+  if (SUBTHEME_VOCAB.length < 25 || SUBTHEME_VOCAB.length > 40) {
+    console.error(`❌ 标准词表数量 ${SUBTHEME_VOCAB.length} 不在 25~40 区间`);
+    process.exit(1);
+  }
+  const unknownSub = [...new Set(ALL_THEMES.map((r) => r.subTheme).filter((s) => normalizeSubTheme(s) === null))];
+  if (unknownSub.length) {
+    console.error(`❌ subTheme 未收录于标准词表 ${unknownSub.length} 个 → 禁止写库:`);
+    unknownSub.forEach((s) => console.error(`   "${s}"`));
+    process.exit(1);
+  }
+
+  // ── P8-DATA-04 ⓪b：标准化统计（Before / After / Mapping / Unchanged / Unknown）──
+  const rawSubs = ALL_THEMES.map((r) => r.subTheme);
+  const beforeDistinct = new Set(rawSubs).size;
+  const afterDistinct = new Set(rawSubs.map((s) => normalizeSubTheme(s)!)).size;
+  const mappedRows = rawSubs.filter((s) => normalizeSubTheme(s) !== s).length;
+  const unchangedRows = rawSubs.filter((s) => normalizeSubTheme(s) === s).length;
+  console.log("── subTheme 标准化（Controlled Vocabulary）──");
+  console.log(`   Before subTheme：${beforeDistinct}`);
+  console.log(`   After  subTheme：${afterDistinct}   (词表容量 ${SUBTHEME_VOCAB.length})`);
+  console.log(`   Mapping：${mappedRows}   Unchanged：${unchangedRows}   Unknown：${unknownSub.length}`);
+  const usedVocab = new Set(rawSubs.map((s) => normalizeSubTheme(s)!));
+  const unusedVocab = SUBTHEME_VOCAB.filter((v) => !usedVocab.has(v));
+  if (unusedVocab.length) console.log(`   ⓘ 词表中暂无股票归入：${unusedVocab.join(", ")}`);
+  console.log("");
+
   // ── P8-DATA-03 ⓪：核心标的纪律断言 —— isCore 仅允许 AI关联强度=3（importanceScore≥9）──
   const coreViolations = ALL_THEMES.filter((r) => r.isCore && strengthOf(r.importanceScore) !== 3);
   if (coreViolations.length) {
@@ -1013,7 +1044,8 @@ async function main() {
   // ── P8-DATA-03 ②：只读预扫描 → 生成写入计划（DRY 与 APPLY 共用同一计划）──
   const key = (s: string, t: string) => `${s}__${t}`;
   const dataOf = (row: ThemeEntry) => ({
-    subTheme: row.subTheme,
+    // P8-DATA-04：写入前统一标准化（上方硬断言已保证非 null）
+    subTheme: normalizeSubTheme(row.subTheme)!,
     role: row.role,
     supplyChainLayer: row.supplyChainLayer,
     importanceScore: row.importanceScore,
@@ -1082,7 +1114,7 @@ async function main() {
         else await tx.aITheme.update({ where: { symbol_theme: { symbol: p.row.symbol, theme: p.row.theme } }, data: d });
       }
       // 写后断言（在事务内校验终态；throw → 整体回滚，生产数据不变）
-      const after = await tx.aITheme.findMany({ select: { symbol: true, theme: true, isCore: true, supplyChainLayer: true } });
+      const after = await tx.aITheme.findMany({ select: { symbol: true, theme: true, isCore: true, supplyChainLayer: true, subTheme: true, importanceScore: true } });
       const a = {
         records: after.length,
         symbols: new Set(after.map((r) => r.symbol)).size,
@@ -1098,8 +1130,27 @@ async function main() {
       if (a.core !== expected.core) fails.push(`core ${a.core}≠${expected.core}`);
       if (a.downstream !== expected.downstream) fails.push(`DOWNSTREAM ${a.downstream}≠${expected.downstream}`);
       if (a.dup !== 0) fails.push(`duplicate[symbol,theme]=${a.dup}`);
+      // P8-DATA-04：subTheme 必须全部 ∈ 标准词表；Unknown=0；distinct 落在 25~40
+      const badSub = [...new Set(after.map((r) => r.subTheme).filter((s) => !s || !VOCAB_SET.has(s)))];
+      if (badSub.length) fails.push(`subTheme 非标准词表(Unknown=${badSub.length}): ${badSub.slice(0, 5).join(", ")}`);
+      const subDistinct = new Set(after.map((r) => r.subTheme)).size;
+      if (subDistinct < 25 || subDistinct > 40) fails.push(`subTheme distinct=${subDistinct} 不在 25~40`);
+
+      // 不变量：五层分布 与 AI关联强度分布 必须与种子期望完全一致（本次仅规范化 subTheme）
+      const layerAfter = after.reduce<Record<string, number>>((m, r) => { const k = r.supplyChainLayer ?? "(null)"; m[k] = (m[k] ?? 0) + 1; return m; }, {});
+      const layerExp = live.reduce<Record<string, number>>((m, r) => { m[r.supplyChainLayer] = (m[r.supplyChainLayer] ?? 0) + 1; return m; }, {});
+      for (const L of ["UPSTREAM", "MIDSTREAM", "INFRASTRUCTURE", "DOWNSTREAM", "APPLICATION"]) {
+        if ((layerAfter[L] ?? 0) !== (layerExp[L] ?? 0)) fails.push(`layer ${L} ${layerAfter[L] ?? 0}≠${layerExp[L] ?? 0}`);
+      }
+      const stAfter = after.reduce<Record<number, number>>((m, r) => { const k = strengthOf(r.importanceScore); m[k] = (m[k] ?? 0) + 1; return m; }, {});
+      const stExp = live.reduce<Record<number, number>>((m, r) => { const k = strengthOf(r.importanceScore); m[k] = (m[k] ?? 0) + 1; return m; }, {});
+      for (const s of [3, 2, 1, 0]) {
+        if ((stAfter[s] ?? 0) !== (stExp[s] ?? 0)) fails.push(`strength${s} ${stAfter[s] ?? 0}≠${stExp[s] ?? 0}`);
+      }
+
       if (fails.length) throw new Error(`写后断言失败 → 事务回滚：${fails.join(" | ")}`);
-      console.log(`\n🔒 事务写后断言全部通过：records=${a.records} symbols=${a.symbols} themes=${a.themes} core=${a.core} DOWNSTREAM=${a.downstream} dup=${a.dup}`);
+      console.log(`\n🔒 事务写后断言全部通过：records=${a.records} symbols=${a.symbols} themes=${a.themes} core=${a.core} dup=${a.dup} subTheme_distinct=${subDistinct} Unknown=0`);
+      console.log(`   layer=${["UPSTREAM", "MIDSTREAM", "INFRASTRUCTURE", "DOWNSTREAM", "APPLICATION"].map((L) => layerAfter[L] ?? 0).join("/")}  strength=3:${stAfter[3] ?? 0}/2:${stAfter[2] ?? 0}/1:${stAfter[1] ?? 0}`);
     }, { timeout: 120_000, maxWait: 15_000 });
   }
 

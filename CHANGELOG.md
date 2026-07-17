@@ -2,6 +2,28 @@
 
 ---
 
+## [18.5.1] - 2026-07-17 — 🏷️ P8-DATA-04 subTheme 标准化（Controlled Vocabulary）
+
+AI 产业链 subTheme 由 **136 个自由文本 → 40 个标准分类**。**仅数据规范化**：未新增/删除股票，未改 Theme / Layer / importanceScore / isCore / Score / Schema / GPT / Cron / Screener / Navigation。
+
+### 标准词表（SSOT）
+新增 **`lib/ai-theme-subtheme.ts`** 作为**唯一来源**（Single Source of Truth）：`SUBTHEME_VOCAB`（40）+ `SUBTHEME_MAP`（覆盖生产全部 136 个 distinct 值）+ `normalizeSubTheme()`。seed 脚本 import 使用，禁止各处复制。
+分组：Semiconductor(4) · Memory(2) · Materials(8) · Equipment(4) · Infrastructure(7) · Software(7) · Application(8)。
+**对 spec 建议词表的适度调整**：去掉 `GPU`（日本无 GPU 厂商，无股票可归入）→ 以 `AI Accelerator` 覆盖 Socionext 定制 AI ASIC；`HBM/DRAM/CPU/MCU/Lithography/Etching/Cloud` 等无对应纯标的者合并进 `Memory Testing`/`Chip Design`/`Wafer Process`/`Datacenter` —— **40 个分类全部有真实股票，零空壳**。
+
+### Mapping 示例
+`メモリテスター·HBMテスター`→**Memory Testing** · `AIサーバー・システム·HPC・AIシステム`→**AI Server** · `インターネットDC·クラウド・DC·国産クラウド・DC·AIインフラ·AI投資・Arm・DC`→**Datacenter** · `CVD/エッチング/成膜·バッチALD·真空成膜·洗浄·超純水CMP·ダイシング`→**Wafer Process** · `変圧器・配電(×2)`→**Transformer** · 医疗 9 种→**Healthcare AI** · `生成AI・AI Agent·数理AI`→**LLM**。
+
+### 硬断言
+写库前：词表容量须 25~40，否则 `exit(1)`；任何 subTheme 无法映射（Unknown>0）→ 列出并 `exit(1)` **禁止写库**。事务内写后：subTheme 全部 ∈ 词表 · distinct 25~40 · records/symbols/themes/core/dup · **五层分布** · **强度分布** 任一不符 → `throw` **整体回滚**。
+
+### APPLY 结果（单事务，仅 subTheme）
+`created=0  updated=142  unchanged=0  removed=0  skipped_missing=0` · `Before subTheme=136 → After=40 · Mapping=142 · Unknown=0`
+写后断言：`records=142 symbols=115 themes=17 core=42 dup=0 subTheme_distinct=40 layer=22/37/28/20/35 strength=3:42/2:96/1:4` —— **全部不变量保持**。
+
+### 验收
+Build ✅ tsc 0 · Health ✅ **CRITICAL=0**（✅62 ❌0 ⚠️4 既有）· `/api/ai-theme` **200**（stocks=142 / uniqueSymbols=115 / scored=115 / core=42 / themes=17 / **subTheme distinct=40** / 含 CJK 的 subTheme=**0**）· 页面 200 · 前端分类过滤自动变为标准分类（`subThemeOptions` 本就动态派生，无需改前端）。**BEFORE 快照**：`/opt/tohoshou/backups/ai_themes_BEFORE_p8-data-04_20260717-1623.json`（142 条）。
+
 ## [18.5.0] - 2026-07-17 — 🗾 P8-DATA-03 AI 主题宇宙与产业链补齐（Complete AI Theme Universe & Value Chain）
 
 全面补齐 AI 主题研究的日本上市公司覆盖与产业链结构。**零 schema 改动**（复用 `theme` 多行 + `subTheme` + `supplyChainLayer` + `importanceScore`）；未改评分 / GPT / Cron / Screener / 导航。
