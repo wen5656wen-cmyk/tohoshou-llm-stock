@@ -20,6 +20,7 @@ package.json
 prisma/schema.prisma
 docs/Module-Responsibility.md  ← 新增，每次开发前必读
 docs/Trading-Architecture.md  ← 新增，所有交易相关开发前必读
+docs/P11-Architecture-Baseline.md  ← 🔒 FROZEN，所有评分/Sentiment/Event/Gate 开发前必读，唯一依据
 ```
 
 Then output exactly:
