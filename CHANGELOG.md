@@ -2,7 +2,75 @@
 
 ---
 
+## [18.9.2] - 2026-07-17 — 🧩 P12-INFRA-02 提取共享 Ingestion Core（**Zero Wiring** · 取代 v18.9.1）
+
+> **本条取代 v18.9.1。** v18.9.1 曾把两个 News 入口接线到 Core；
+> INFRA-02 随后被重新定义为 **Zero Wiring（只提取、不接线）**，故该接线已**撤回**：
+> `scripts/sync-news.ts` 与 `app/api/sync/news/route.ts` 已恢复到 `e1c6f60` 的原实现，逐字节相同。
+
+### 🚧 Zero Wiring —— Core 已提取，但**无任何生产入口调用**
+仍在使用各自原实现、**一行未改**的入口：`app/api/sync/{news,tdnet}/route.ts` ·
+`app/api/sync/route.ts` · `scripts/{sync-news,fetch-tdnet}.ts` · `scripts/cron-scheduler.ts` ·
+`components/system/SyncView.tsx`。**cron 零变化 · Admin 同步零变化 · 数据库零写入。**
+
+### 新增 `lib/ingest/`（News + TDnet，均未接线）
+| 文件 | 职责 |
+|---|---|
+| `types.ts` | `IngestDeps`(prisma/logger/clock) · `NewsFetchers`/`TDnetFetchers` · **Profile（承载既有漂移）** · 结构化结果 |
+| `config.ts` | 常量集中（数值逐一取自原实现） |
+| `normalize.ts` | **纯函数**：upsert 载荷 / 去重键 / category 映射 / catalystScore 公式 / 交易日 |
+| `news-core.ts` | News 编排 → `NewsSyncResult` |
+| `tdnet-core.ts` | TDnet 编排 → `TDnetSyncResult` |
+| `index.ts` | 出口（含切换计划说明） |
+
+Core 契约（已由测试【10】静态断言）：不 import next/* · 不用 NextResponse ·
+**不调 process.exit**（致命错误经 `result.fatalError` 返回，由入口决定退出码）·
+不读 `process.argv` / `process.env` · 不用 `@/` 别名 ·
+**业务逻辑不直接调 `Date.now()`**（时间经 clock 注入 → 输出确定性可复现）。
+
+### 🔴 已确认漂移 —— 由 Profile **如实保留，禁止对齐**（归属 INFRA-06）
+| 差异 | A = api | B = scripts |
+|---|---|---|
+| News `SyncLog.durationMs` | **null** | 真实耗时 |
+| News fatalLabel | `background sync fatal error:` | `fatal error:` |
+| TDnet 天数 | **3**（硬编码） | 5（`--days`） |
+| TDnet `rawData` | **无 code4** | 含 code4 |
+| TDnet `update` | **无 title** | 含 title |
+| **TDnet `catalystScore`** | **完全跳过** | **写 StockScore** |
+| TDnet 每批 stock 查询 | 仅全局 map | 全局 + 每批 localMap |
+| TDnet 日期字符串 | UTC (`toISOString`) | 本地时区 |
+| TDnet SyncLog status/message/durationMs | 各自公式 | 各自公式 |
+
+> **`catalystScore` 是 INFRA-02 新发现，不在 INFRA-01 清单内** ——
+> Admin 点「同步」TDnet **不更新 catalystScore**，cron 才更新 → **评分输入的静默分裂**。
+
+### 测试 `npm run test:ingest-equivalence` — **120 passed, 0 failed**
+覆盖 10 项要求：News API/scripts fixture · TDnet API/scripts fixture · **code4 差异保留** ·
+**title 更新差异保留** · 去重与幂等数据形状 · 错误处理 · 空数据 · Core 无 Next/CLI 耦合 ·
+**生产入口零接线证明**（7 个入口静态断言不含 `lib/ingest`；4 个入口与 before 基线逐字节相同）。
+
+**不伪造一致**：漂移处一律断言 `A ≠ B`（如 `durationMs · A ≠ B`、`code4 · A ≠ B`、
+`catalystScore · A ≠ B`），而非让它们"看起来统一"。
+
+**测试首跑捕获 2 个自身缺陷**（已修）：
+1. 静态扫描把文档注释里的「Core 不调用 process.exit」当成代码命中 → 扫描前必须剥注释。
+2. `git show HEAD:` 取到的是**被撤回的接线版**（d13c03e）→ before 基线必须显式钉在 `e1c6f60`，
+   否则整个等价证明是拿错误基线在对拍。
+
+### 验收
+Build ✅ EXIT=0 · typecheck ✅ · Health ✅ CRITICAL=0 · 删除重复代码 **0 行（本阶段应为 0）** ·
+生产入口 7/7 与 `e1c6f60` 逐字节相同 · 无部署（无接线，无需部署）。
+
+### 下一步
+`INFRA-03` 先切 API（非生产关键链）→ `INFRA-04` 后切 scripts（cron 命脉，需先实跑验证）→
+`INFRA-05` 删除重复代码 + 处置孤儿 `/api/sync/route.ts` → `INFRA-06` TDnet 行为裁决。
+
+---
+
 ## [18.9.1] - 2026-07-17 — 🧩 P12-INFRA-02 提取共享 Ingestion Core（纯重构 · 零行为变更）
+
+> ⚠️ **已被 v18.9.2 取代**：本版本的入口接线已撤回（INFRA-02 重定义为 Zero Wiring）。
+> 以下内容仅作历史记录。
 
 **纯重构（Refactor）**，不是功能开发。消除 `scripts/sync-news.ts` 与 `app/api/sync/news/route.ts`
 之间 **219 行逐字重复**的编排层。**未改**：抓取范围 / Top200 / TDnet 双重过滤 / sentiment /

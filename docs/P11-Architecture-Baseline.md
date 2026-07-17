@@ -481,6 +481,12 @@ newsSentiment 权重 = 0.10 ~ 0.15（按 stockStyle，见 lib/ai-score.ts STYLE_
 | 任务 | 状态 | 版本 | Commit | 备注 |
 |---|---|---|---|---|
 | **P12-DATA-01** · EventType 数据层 | ✅ 已完成（2026-07-17） | v18.9.0 | 见 CHANGELOG | 按 **ADR-001 采用纯函数不落库**；零 Schema 改动；推荐结果零变化（实测） |
+| **P12-INFRA-01** · 摄入管线审计 | ✅ 已完成（2026-07-17） | — | — | 确认 API/scripts 两套实现；TDnet 已实际漂移 |
+| **P12-INFRA-02** · 提取 Ingestion Core | ✅ 已完成（2026-07-17） | v18.9.2 | 见 CHANGELOG | **Zero Wiring —— 已提取，未接线**。生产入口 7/7 与 e1c6f60 逐字节相同；删除重复代码 0 行 |
+| P12-INFRA-03 · **先切 API** | ⏸ 未开始 | — | — | 非生产关键链，出错影响面最小 |
+| P12-INFRA-04 · **后切 scripts** | ⏸ 未开始 | — | — | cron 命脉，必须最后；需先实跑 `npx tsx scripts/sync-news.ts` 验证 |
+| P12-INFRA-05 · 删除重复代码 | ⏸ 未开始 | — | — | 含处置孤儿 `/api/sync/route.ts` |
+| P12-INFRA-06 · **TDnet 行为裁决** | ⏸ 未开始 | — | — | code4 / title / **catalystScore** 漂移，需先裁决再统一 |
 | P12-DATA-02 · 解除 sync-news 双重过滤 | ⏸ 未开始 | — | — | 编号说明见下 |
 | P12-EXPLAIN-01 · Explain 改讲事实 | ⏸ 未开始 | — | — | ADR-002：必须先于 Gate/Score |
 | P12-GATE-01 · Gate1 改用 EventType | ⏸ 未开始 | — | — | 需 Shadow 复跑 |
@@ -503,6 +509,10 @@ newsSentiment 权重 = 0.10 ~ 0.15（按 stockStyle，见 lib/ai-score.ts STYLE_
 1. `app/api/sync/news/route.ts`、`app/api/sync/tdnet/route.ts` 与 `scripts/sync-news.ts`、
    `scripts/fetch-tdnet.ts` 是**两套并行重复实现**（共 5 个写入点）。后续任何摄入侧改动
    若只改 scripts，API 路径将静默不一致。
+   → P12-INFRA-01 已审计；INFRA-02 已提取 Core（未接线）；切换见 INFRA-03/04/05。
+   **News 两套确为复制品（219/318 行逐字相同）；TDnet 两套是不同程序**，
+   已确认漂移：api 丢 `code4` / 不更新 `title` / **完全跳过 `catalystScore`**（评分输入静默分裂）
+   / 天数 3 vs 5 / SyncLog 公式各异 / 日期字符串 UTC vs 本地。**归属 P12-INFRA-06 先裁决后统一。**
 2. `News.category`（IR/MARKET/OTHER/EARNINGS/DIVIDEND/GUIDANCE/BUYBACK）与
    TDnet `DisclosureCategory`（EARNINGS/FORECAST_REVISION/BUYBACK/DIVIDEND/EQUITY/MATERIAL/OTHER）
    **是两套不通用的词表**。任何跨表按 category 聚合的逻辑都必须同时覆盖两套。
