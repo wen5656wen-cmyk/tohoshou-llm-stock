@@ -2,6 +2,30 @@
 
 ---
 
+## [18.2.1] - 2026-07-17 — 🩹 拆股复权根因修复（Split Adjustment Integrity）
+
+修复股票分割导致技术指标失真的**根本原因**。验收样本 **325A.T**（2026-06-29 实施 1:3 拆股）：修复前图表/MA/RSI/return20d/60d 混入未复权价 → 虚假断崖、RSI 12、return20d −56.81%、return60d −62.71%、错误「回避」评级。
+
+### 根因（100% 定位）
+J-Quants 在拆股 ex-date 会把**整段历史的 `AdjC` 按新因子回溯重算**（325A 06-26 的 AdjC 从 4135 变 1378.3），序列本身连续无断崖。但 `sync-all-prices.ts` 用 `createMany({ skipDuplicates: true })` **只插入、永不更新已存在行** → 拆股前的行 `adjClose` 永久冻结在旧值（== 原始 close）→ `indicators.ts` 的 `adjClose ?? close` 拿到坏值 → 06-26→06-29 出现 −67% 假断崖 → 全部 adjClose 派生指标污染。v17.26.0 那次 split 修复只重算技术字段、未修根因，故复发。**本次为根治。**
+
+### 修复
+- **新增 `lib/split-adjust.ts`（纯函数，单一来源）**：`hasCorporateAction`（AdjFactor≠1 检测）/ `findAdjCloseCliffs`（adjClose 单日跳空扫描）/ `computeAdjCloseUpdates`（stored vs fresh 差异修复，真实波动=0 更新自过滤）/ `adjRatio`（adjClose/close 派生比）。
+- **`sync-all-prices.ts` 根因修复**：`Bar` 捕获 `AdjFactor`；同步窗口检测到 `AdjFactor≠1` → 对该 symbol 全量重拉 history（1000d）并**覆盖刷新 stale adjClose**（不再永久 skipDuplicates 冻结）。
+- **`scripts/fix-split-adjustment.ts`（新）**：DB 扫描 adjClose 跳空候选 → 逐只对 J-Quants 复核 → 坏的批量 overwrite adjClose → `--rescore` 定向重算。支持 `--symbol=` / `--apply` / `--since=` / `--threshold=`；`npm run fix-split-adjustment[:apply]`。
+- **图表统一复权（要求#1）**：`buildChartBars` 用 `ratio=adjClose/close` 对 O/H/L/C 整体复权（同日因子一致，蜡烛形态保留、断崖消失），MA 从复权价；display 价仍用原始 close。`indicators` API 与 `PricePoint` 贯通 `adjClose`。
+- **`compute-scores.ts` 加 `--symbols=`（additive）**：Pass 1 定向、Pass 2 仍全市场，用于修复后快速一致重算。
+- **自动测试（要求#6）`scripts/test-split-adjustment.ts`**：真实 325A + 合成 1:3 fixture，断言拆股日复权连续（|ret|<20%）、无 ≈−66.7% 假跌、return20/60d 非污染、坏数据被检测、真实波动 0 修复；`npm run test:split-adjustment` **15/15 PASS**（本地+生产）。
+
+### 全库扫描 + 批量重算（要求#7，智能定向）
+生产扫描（since=180d）：**32 只 stale-split 需修复（66,295 行）** + 正确跳过 **45 只真实大幅波动**（stored 已与 J-Quants 一致）。`--apply --rescore` 修复 32 只 adjClose 并定向重算（Pass 2/3 全市场重排）。
+
+### 325A 验收（修复后）
+adjClose 06-26 = **1378.3**（=/3，ratio 0.333）→ 06-29 = 1351，连续无断崖。StockScore：**RSI14 73.5**（原 12）/ **return20d +29.6%**（原 −56.81%）/ **return60d +11.9%**（原 −62.71%）/ maTrend **GOLDEN** / 评级 **WATCH·WAIT_PULLBACK**（原「回避」）。
+
+### 验收/部署
+tsc 0 · Build PASS · 生产 Health **CRITICAL=0**（✅62 ❌0 ⚠️4 既有告警）· **无 schema 改动** · indicators API 已贯通 adjClose · web 重启（cron-scheduler 未改，cron 不重启）· 未改任何评分**算法**/GPT/Strategy/Paper/资金链/Cron。**符合 P7 治理**（无新增导航/Hub/Workspace）。
+
 ## [18.2.0] - 2026-07-16 — 📰 P8-2 AI 投资日报（Daily Brief）
 
 决策中心「今日总览」Tab 重构为固定 7 段 **AI 投资日报**（老板 09:00 第一眼）：顶部数据更新时间 → ①今日市场(Regime/风险/趋势) ②今日第一推荐(Closing top1 + 【AI为什么推荐】) ③今日建议组合(仓位/现金比例/数量) ④今日操作建议(买/观察/持币) ⑤今日风险(Market/News/Risk 真实来源, 最多3, 不生成通用风险) ⑥今日关注(Watchlist Top5) ⑦一句话总结。**纯客户端聚合现有 API**(closing-decision + decision-center + watchlist/daily)，零新算法/零新 API/零 DB/零改评分。改 `components/decision/DecisionOverview.tsx` + `lib/i18n`(db.*)。**Architecture: Boss/Decision Center/Overview Tab; 无新增导航/Hub/Workspace。**

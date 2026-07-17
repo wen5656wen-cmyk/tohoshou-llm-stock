@@ -6,7 +6,7 @@ import { EXCLUDE_REASON_CODES } from "@/lib/ai-universe";
 import type { MessageKey } from "@/lib/i18n/types";
 
 // ── Shared types (data contract — unchanged from the original page) ────────────
-export type PricePoint = { date: string; open?: number; high?: number; low?: number; close: number; volume?: number };
+export type PricePoint = { date: string; open?: number; high?: number; low?: number; close: number; adjClose?: number | null; volume?: number };
 export type StockInfo = {
   symbol: string; name: string; nameZh: string | null; nameEn: string | null;
   sector: string | null; industry: string | null; market: string | null;

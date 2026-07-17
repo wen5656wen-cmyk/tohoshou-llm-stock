@@ -45,6 +45,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hasCorporateAction, computeAdjCloseUpdates } from "../lib/split-adjust";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma  = new PrismaClient({ adapter });
@@ -119,7 +120,15 @@ type Bar = {
   Date: string; Code: string;
   O: number; H: number; L: number; C: number;
   Vo: number; AdjC: number;
+  // Daily adjustment factor (1.0 normally; = split ratio on the ex-date, e.g.
+  // 0.3333 for a 1:3 split). A value ≠ 1 signals a corporate action, which
+  // means J-Quants has just retroactively re-adjusted the ENTIRE AdjC history.
+  AdjFactor?: number;
 };
+
+// Corporate-action refetch reaches back far enough to cover the full stored
+// history so every pre-split adjClose gets corrected in one pass.
+const CORP_ACTION_LOOKBACK_DAYS = 1000;
 
 const FETCH_TIMEOUT_MS = 30_000; // 30s per request
 
@@ -169,7 +178,55 @@ function toCode5(symbol: string): string {
   return base.length === 4 ? base + "0" : base;
 }
 
-// ── syncPrices (ロジック変更なし) ─────────────────────────────────────────────
+// ── Corporate-action handler ────────────────────────────────────────────────
+// When a split/reverse-split is detected in the freshly-synced window, J-Quants
+// has already back-adjusted its whole AdjC history. But createMany({skipDuplicates})
+// never overwrites the pre-split rows we already stored, so their adjClose stays
+// stale (== old raw close) and produces a fake cliff in every adjClose-based
+// indicator. Here we re-fetch the full history and overwrite adjClose on exactly
+// the rows whose stored value no longer matches the (correctly adjusted) AdjC.
+// Splits are rare, so this deep refetch runs seldom.
+async function refreshAdjCloseFullHistory(
+  stock: { id: number; symbol: string },
+  to: string,
+): Promise<number> {
+  const longFrom = new Date(Date.now() - CORP_ACTION_LOOKBACK_DAYS * 86400_000)
+    .toISOString().split("T")[0];
+  const bars = await fetchBars(toCode5(stock.symbol), longFrom, to);
+  const fresh = bars
+    .filter(b => b.Date && b.C)
+    .map(b => ({
+      date:     new Date(b.Date).toISOString().split("T")[0],
+      close:    b.C,
+      adjClose: b.AdjC ?? b.C,
+    }));
+  if (fresh.length === 0) return 0;
+
+  const stored = await prisma.dailyPrice.findMany({
+    where: { symbol: stock.symbol },
+    select: { date: true, adjClose: true },
+  });
+  const storedMapped = stored.map(s => ({
+    date:     s.date.toISOString().split("T")[0],
+    adjClose: s.adjClose,
+  }));
+
+  const updates = computeAdjCloseUpdates(storedMapped, fresh);
+  // Apply in small concurrent chunks (keyed by symbol+date via updateMany).
+  const CHUNK = 50;
+  for (let i = 0; i < updates.length; i += CHUNK) {
+    const slice = updates.slice(i, i + CHUNK);
+    await Promise.all(slice.map(u =>
+      prisma.dailyPrice.updateMany({
+        where: { symbol: stock.symbol, date: new Date(u.date) },
+        data:  { adjClose: u.adjClose },
+      }),
+    ));
+  }
+  return updates.length;
+}
+
+// ── syncPrices ───────────────────────────────────────────────────────────────
 async function syncPrices(
   stock: { id: number; symbol: string },
   to: string,
@@ -194,6 +251,16 @@ async function syncPrices(
     })),
     skipDuplicates: true,
   });
+
+  // Corporate action in this window → repair stale historical adjClose.
+  if (hasCorporateAction(valid.map(b => ({ adjFactor: b.AdjFactor })))) {
+    try {
+      const fixed = await refreshAdjCloseFullHistory(stock, to);
+      console.log(`  ⟳ ${stock.symbol}: corporate action detected → adjClose refreshed on ${fixed} historical row(s)`);
+    } catch (e) {
+      console.warn(`  ⚠️ ${stock.symbol}: adjClose refresh failed: ${e instanceof Error ? e.message : e}`);
+    }
+  }
 
   const latest = valid[valid.length - 1];
   const prev   = valid.length > 1 ? valid[valid.length - 2] : null;

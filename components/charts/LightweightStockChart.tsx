@@ -37,7 +37,7 @@ export type ChartBar = {
   ma60?: number | null;
 };
 
-type RawPoint = { date: string; open?: number; high?: number; low?: number; close: number; volume?: number };
+type RawPoint = { date: string; open?: number; high?: number; low?: number; close: number; adjClose?: number | null; volume?: number };
 
 function rollingMA(closes: number[], period: number): (number | null)[] {
   const out: (number | null)[] = new Array(closes.length).fill(null);
@@ -52,7 +52,14 @@ function rollingMA(closes: number[], period: number): (number | null)[] {
 
 /**
  * Adaptation helper (display layer only): convert the existing OHLCV price
- * series into the unified ChartBar[] and derive MA5/MA20/MA60 from CLOSE.
+ * series into the unified ChartBar[] and derive MA5/MA20/MA60.
+ *
+ * SPLIT-ADJUSTED: every bar is scaled by ratio = adjClose/close (the per-day
+ * cumulative back-adjustment factor J-Quants provides). The same daily factor
+ * applies uniformly to open/high/low/close, so candle shape is preserved while
+ * split events (e.g. a 1:3 split) no longer create a fake vertical cliff. MAs
+ * are therefore computed on the ADJUSTED close. When adjClose is absent the
+ * ratio is 1 (no-op), so unadjusted callers keep their prior behaviour.
  *
  * MAs are computed over the FULL series first, THEN sliced to the visible
  * window, so MA lines carry the correct value at the left edge of a zoomed
@@ -69,18 +76,26 @@ export function buildChartBars(points: RawPoint[], sliceLast?: number): ChartBar
     if (dedup.length && dedup[dedup.length - 1].date === p.date) dedup[dedup.length - 1] = p;
     else dedup.push(p);
   }
-  const closes = dedup.map((p) => Number(p.close));
-  const ma5 = rollingMA(closes, 5);
-  const ma20 = rollingMA(closes, 20);
-  const ma60 = rollingMA(closes, 60);
+  // Per-day back-adjustment ratio = adjClose/close (∈ (0,1] for forward splits).
+  const ratioOf = (p: RawPoint): number => {
+    const close = Number(p.close);
+    const adj = p.adjClose;
+    if (adj == null || !Number.isFinite(Number(adj)) || !(close > 0)) return 1;
+    return Number(adj) / close;
+  };
+  const adjCloses = dedup.map((p) => Number(p.close) * ratioOf(p));
+  const ma5 = rollingMA(adjCloses, 5);
+  const ma20 = rollingMA(adjCloses, 20);
+  const ma60 = rollingMA(adjCloses, 60);
   const bars: ChartBar[] = dedup.map((p, i) => {
     const close = Number(p.close);
+    const r = ratioOf(p);
     return {
       time: p.date,
-      open: p.open != null ? Number(p.open) : close,
-      high: p.high != null ? Number(p.high) : close,
-      low: p.low != null ? Number(p.low) : close,
-      close,
+      open: (p.open != null ? Number(p.open) : close) * r,
+      high: (p.high != null ? Number(p.high) : close) * r,
+      low: (p.low != null ? Number(p.low) : close) * r,
+      close: close * r,
       volume: p.volume != null ? Number(p.volume) : undefined,
       ma5: ma5[i],
       ma20: ma20[i],

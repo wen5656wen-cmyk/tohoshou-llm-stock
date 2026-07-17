@@ -112,7 +112,10 @@
     "test:tdnet-features": "npx tsx scripts/test-tdnet-features.ts",
     "test:financial-features": "npx tsx scripts/test-financial-features.ts",
     "test:institution-features": "npx tsx scripts/test-institution-features.ts",
-    "test:feature-validation": "npx tsx scripts/test-feature-validation.ts"
+    "test:feature-validation": "npx tsx scripts/test-feature-validation.ts",
+    "test:split-adjustment": "npx tsx scripts/test-split-adjustment.ts",
+    "fix-split-adjustment": "npx tsx scripts/fix-split-adjustment.ts",
+    "fix-split-adjustment:apply": "npx tsx scripts/fix-split-adjustment.ts --apply --rescore"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

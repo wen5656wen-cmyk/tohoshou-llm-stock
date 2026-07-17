@@ -14,7 +14,7 @@ export async function GET(
   const pricesDesc = await prisma.dailyPrice.findMany({
     where: { symbol },
     orderBy: { date: "desc" },
-    select: { date: true, close: true, open: true, high: true, low: true, volume: true },
+    select: { date: true, close: true, open: true, high: true, low: true, volume: true, adjClose: true },
     take: 300,
   });
   const prices = pricesDesc.reverse();
@@ -30,17 +30,20 @@ export async function GET(
     high: p.high ? Number(p.high) : undefined,
     low: p.low ? Number(p.low) : undefined,
     volume: p.volume ? Number(p.volume) : undefined,
+    // Split-adjusted close — indicators & charts use this; raw close is display-only.
+    adjClose: p.adjClose != null ? Number(p.adjClose) : null,
   }));
 
   const indicators = calcIndicators(symbol, rows);
 
-  // Price series for charts (full OHLCV for candlestick rendering)
+  // Price series for charts (full OHLCV + adjClose for split-adjusted rendering)
   const all = rows.map((r) => ({
     date: r.date,
     open: r.open ?? r.close,
     high: r.high ?? r.close,
     low: r.low ?? r.close,
     close: r.close,
+    adjClose: r.adjClose,
     volume: r.volume,
   }));
   const last30 = all.slice(-30);

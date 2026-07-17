@@ -31,6 +31,15 @@ const prisma = new PrismaClient({ adapter });
 
 const MIN_PRICE_COUNT = 20;
 
+// ── Targeted recompute (additive) ───────────────────────────────────────────
+// `--symbols=325A.T,7203.T` restricts Pass 1 to those symbols (fast, used after
+// a split-adjustment repair). Pass 2 always runs full so global percentiles /
+// recommendations stay consistent across the whole market.
+const SYMBOLS_ARG = process.argv.find(a => a.startsWith("--symbols="));
+const SYMBOLS_FILTER: string[] | null = SYMBOLS_ARG
+  ? SYMBOLS_ARG.split("=")[1].split(",").map(s => s.trim()).filter(Boolean)
+  : null;
+
 // ── V7.7 dual-threshold recommendation ─────────────────────────────────────
 
 function computeRecommendationV2(
@@ -182,7 +191,7 @@ async function main() {
   // every downstream flow that reads StockScore (rerank / gpt-overlay / ai-scores /
   // sync-news top200 / strategy-recs / portfolio candidate / backtest) inherits the
   // filter with zero changes. We delete any lingering StockScore rows here.
-  const excludedRows = await prisma.stock.findMany({
+  const excludedRows = SYMBOLS_FILTER ? [] : await prisma.stock.findMany({
     where: { aiEnabled: false },
     select: { symbol: true },
   });
@@ -211,7 +220,10 @@ async function main() {
 
   // ── Pass 1: 逐只股票计算评分（仅 aiEnabled=true）──────────────────────────
   const stocks = await prisma.stock.findMany({
-    where: { aiEnabled: true },
+    where: {
+      aiEnabled: true,
+      ...(SYMBOLS_FILTER ? { symbol: { in: SYMBOLS_FILTER } } : {}),
+    },
     select: {
       id: true, symbol: true, name: true, nameZh: true, market: true,
       sector: true, industry: true, scaleCategory: true,
@@ -220,7 +232,11 @@ async function main() {
     },
     orderBy: { symbol: "asc" },
   });
-  console.log(`Pass 1: ${stocks.length} 只股票（AI Universe enabled）\n`);
+  console.log(
+    SYMBOLS_FILTER
+      ? `Pass 1: ${stocks.length} 只股票（targeted --symbols=${SYMBOLS_FILTER.join(",")}；Pass 2 仍全市场）\n`
+      : `Pass 1: ${stocks.length} 只股票（AI Universe enabled）\n`,
+  );
 
   let computed = 0, skipped = 0, errCount = 0;
   const computedAt = new Date();
