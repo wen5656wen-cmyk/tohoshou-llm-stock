@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ExplainReportButton from "@/components/explain/ExplainReportButton";
 import { isJPXTradingDay } from "@/lib/trading-calendar/jpx";
@@ -73,12 +73,106 @@ function StatCard({ label, value, sub, color, live }: { label: string; value: st
   );
 }
 
+// ── P9-DECISION-03：TDnet 披露优先级与中文标签（基于生产真实 category 取值）──
+// 真实取值：EARNINGS / FORECAST_REVISION / EQUITY / BUYBACK / DIVIDEND / MATERIAL / OTHER
+// 注：库中**无独立「拆股」「大额订单」「重大合同」类别** → 归入 MATERIAL / OTHER，不强行贴标。
+const DISC_PRIORITY: Record<string, number> = {
+  EARNINGS: 7, FORECAST_REVISION: 6, EQUITY: 5, BUYBACK: 4, MATERIAL: 3, DIVIDEND: 2, OTHER: 1,
+};
+const DISC_LABEL: Record<string, string> = {
+  EARNINGS: "财报", FORECAST_REVISION: "业绩修正", EQUITY: "增发", BUYBACK: "回购",
+  MATERIAL: "重大披露", DIVIDEND: "分红", OTHER: "其他披露",
+};
+
 export default function DailyWatchlistView() {
   const [data, setData] = useState<Resp | null>(null);
   const [date, setDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editNote, setEditNote] = useState<{ id: number; text: string } | null>(null);
+
+  // ── P9-DECISION-03：展开式实时增强（按需懒加载 + 会话缓存）────────────────
+  // 首屏 explain/indicators/news/disclosures 一律 0 请求；展开某只时四路**并行**各 1 次；
+  // 结果存入 detailCache（key=symbol），再次展开 0 请求；组件卸载后缓存随之释放。
+  // 四路用 allSettled 相互隔离 —— 任一失败只影响其自身区块，页面不报错。
+  type Detail = {
+    t1: number | null; sl: number | null; levelSource: string | null; reasons: string[];
+    explainOk: boolean;
+    volChangePct: number | null; volToday: number | null; volAvg20: number | null; indOk: boolean;
+    news: { today: number; yst: number; d3: number } | null; newsOk: boolean;
+    disc: { count7d: number; latest: { title: string; date: string; category: string | null } | null } | null; discOk: boolean;
+  };
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [detailCache, setDetailCache] = useState<Record<string, Detail>>({});
+  const [detailLoading, setDetailLoading] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = useCallback(async (symbol: string) => {
+    if (expanded === symbol) { setExpanded(null); return; }
+    setExpanded(symbol);
+    if (detailCache[symbol] || detailLoading[symbol]) return; // ← 命中缓存：0 请求
+    setDetailLoading((s) => ({ ...s, [symbol]: true }));
+    const j = (u: string) => fetch(u, { cache: "no-store" }).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
+    const [ex, ind, nw, dc] = await Promise.allSettled([
+      j(`/api/explain/${encodeURIComponent(symbol)}/report`),
+      j(`/api/stocks/${encodeURIComponent(symbol)}/indicators`),
+      j(`/api/news?symbol=${encodeURIComponent(symbol)}&limit=50`),
+      j(`/api/disclosures?symbol=${encodeURIComponent(symbol)}&limit=50`),
+    ]);
+
+    const d: Detail = {
+      t1: null, sl: null, levelSource: null, reasons: [], explainOk: false,
+      volChangePct: null, volToday: null, volAvg20: null, indOk: false,
+      news: null, newsOk: false, disc: null, discOk: false,
+    };
+    if (ex.status === "fulfilled") {
+      const r = ex.value?.report;
+      if (r) {
+        d.explainOk = true;
+        d.t1 = r.takeProfit?.t1 ?? null;
+        d.sl = r.stopLoss?.price ?? null;
+        d.levelSource = r.levelSource ?? null;
+        d.reasons = Array.isArray(r.recommendReasons) ? r.recommendReasons.slice(0, 3) : [];
+      }
+    }
+    if (ind.status === "fulfilled") {
+      const bars = ind.value?.series?.all ?? [];
+      const v: number[] = bars.map((b: { volume?: number }) => b.volume).filter((x: unknown): x is number => typeof x === "number" && x > 0);
+      if (v.length >= 21) {
+        const today = v[v.length - 1];
+        const avg20 = v.slice(-21, -1).reduce((a, b) => a + b, 0) / 20;
+        if (avg20 > 0) { d.indOk = true; d.volToday = today; d.volAvg20 = avg20; d.volChangePct = (today / avg20 - 1) * 100; }
+      }
+    }
+    const jstDate = (iso: string) => {
+      const t = new Date(iso).getTime() + 9 * 3600_000;
+      return new Date(t).toISOString().slice(0, 10);
+    };
+    const todayJst = jstDate(new Date().toISOString());
+    const dayDiff = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / 86400_000);
+    if (nw.status === "fulfilled" && Array.isArray(nw.value)) {
+      d.newsOk = true;
+      const c = { today: 0, yst: 0, d3: 0 };
+      for (const n of nw.value) {
+        if (!n?.publishedAt) continue;
+        const dd = dayDiff(todayJst, jstDate(n.publishedAt));
+        if (dd === 0) c.today++;
+        if (dd === 1) c.yst++;
+        if (dd >= 0 && dd <= 2) c.d3++;
+      }
+      d.news = c;
+    }
+    if (dc.status === "fulfilled" && Array.isArray(dc.value)) {
+      d.discOk = true;
+      const recent = dc.value.filter((x: { publishedAt?: string }) => x?.publishedAt && dayDiff(todayJst, jstDate(x.publishedAt)) <= 6 && dayDiff(todayJst, jstDate(x.publishedAt)) >= 0);
+      const sorted = [...recent].sort((a, b) => (DISC_PRIORITY[b.category] ?? 0) - (DISC_PRIORITY[a.category] ?? 0) || Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+      d.disc = {
+        count7d: recent.length,
+        latest: sorted[0] ? { title: sorted[0].title, date: jstDate(sorted[0].publishedAt), category: sorted[0].category ?? null } : null,
+      };
+    }
+    setDetailCache((s) => ({ ...s, [symbol]: d }));
+    setDetailLoading((s) => ({ ...s, [symbol]: false }));
+  }, [expanded, detailCache, detailLoading]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [trading, setTrading] = useState(false);
   const dateRef = useRef<string>("");
@@ -199,8 +293,14 @@ export default function DailyWatchlistView() {
                     const rm = recMeta[it.recommendation] ?? { label: it.recommendation, color: C.sub };
                     const muted = it.isMuted;
                     return (
-                      <tr key={it.id} style={{ borderBottom: `1px solid ${C.line}`, opacity: muted ? 0.45 : 1 }} className="hover:bg-[#F7F7F9]">
+                      <Fragment key={it.id}>
+                      <tr style={{ borderBottom: `1px solid ${C.line}`, opacity: muted ? 0.45 : 1 }} className="hover:bg-[#F7F7F9]">
                         <td className="px-3 py-2.5">
+                          <button onClick={() => toggleExpand(it.symbol)} title="展开实时详情"
+                            className="w-5 h-5 rounded mr-1 text-[10px] align-middle"
+                            style={{ background: expanded === it.symbol ? `${C.blue}1A` : "#F2F2F5", color: expanded === it.symbol ? C.blue : C.faint }}>
+                            {expanded === it.symbol ? "▾" : "▸"}
+                          </button>
                           {it.rank != null && <span className="text-[10px] tabular-nums mr-1.5" style={{ color: C.faint }}>#{it.rank}</span>}
                           <Link href={`/stocks/${encodeURIComponent(it.symbol)}`} className="font-semibold hover:underline" style={{ color: C.ink }}>{it.name ?? it.symbol}</Link>
                           <span className="ml-1.5 text-[11px] tabular-nums" style={{ color: C.faint }}>{it.symbol}</span>
@@ -232,6 +332,83 @@ export default function DailyWatchlistView() {
                           </button>
                         </td>
                       </tr>
+                      {expanded === it.symbol && (
+                        <tr style={{ borderBottom: `1px solid ${C.line}`, background: "#FBFBFD" }}>
+                          <td colSpan={11} className="px-4 py-3">
+                            {detailLoading[it.symbol] ? (
+                              <div className="text-[12px]" style={{ color: C.faint }}>读取中…</div>
+                            ) : (() => {
+                              const d = detailCache[it.symbol];
+                              if (!d) return <div className="text-[12px]" style={{ color: C.faint }}>暂无数据</div>;
+                              const cur = it.currentPrice;
+                              const upside = d.t1 != null && cur ? ((d.t1 - cur) / cur) * 100 : null;
+                              const gap = d.t1 != null && cur ? d.t1 - cur : null;
+                              const srcLabel = d.levelSource === "closing" ? "收盘决策目标" : d.levelSource === "derived" ? "系统派生目标" : null;
+                              const srcColor = d.levelSource === "closing" ? C.blue : C.amber;
+                              return (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3 text-[12px]">
+                                  {/* 目标 / 止损 / 空间 */}
+                                  <div>
+                                    <div className="text-[11px] font-semibold mb-1.5 flex items-center gap-1.5" style={{ color: C.ink }}>
+                                      目标与止损
+                                      {srcLabel && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ color: srcColor, background: `${srcColor}14` }}>{srcLabel}</span>}
+                                    </div>
+                                    {d.explainOk && d.t1 != null ? (
+                                      <div className="space-y-0.5" style={{ color: C.sub }}>
+                                        <div>目标价 T1：<b style={{ color: C.ink }}>{fmtJpy(d.t1)}</b></div>
+                                        <div>止损价 SL：<b style={{ color: d.sl != null ? C.red : C.faint }}>{d.sl != null ? fmtJpy(d.sl) : "暂无数据"}</b></div>
+                                        <div>上涨空间：<b style={{ color: upside != null ? retColor(upside) : C.faint }}>{upside != null ? fmtPct(upside) : "暂无数据"}</b></div>
+                                        <div>距离目标：<b style={{ color: C.ink }}>{gap != null ? `还有 ${Math.round(gap).toLocaleString()} 日元` : "暂无数据"}</b></div>
+                                      </div>
+                                    ) : <div style={{ color: C.faint }}>暂无数据</div>}
+                                  </div>
+
+                                  {/* 成交量 + 新闻 + 披露 */}
+                                  <div>
+                                    <div className="text-[11px] font-semibold mb-1.5" style={{ color: C.ink }}>成交量 / 新闻 / 披露</div>
+                                    <div className="space-y-0.5" style={{ color: C.sub }}>
+                                      <div>成交量变化：{d.indOk && d.volChangePct != null ? (
+                                        <b style={{ color: retColor(d.volChangePct) }}>{fmtPct(d.volChangePct)}
+                                          <span className="ml-1 text-[10px]" style={{ color: C.faint }}>
+                                            ({Math.round(d.volToday ?? 0).toLocaleString()} / 20日均 {Math.round(d.volAvg20 ?? 0).toLocaleString()})
+                                          </span>
+                                        </b>
+                                      ) : <b style={{ color: C.faint }}>暂无数据</b>}</div>
+                                      <div>新闻变化：{d.newsOk && d.news && (d.news.today + d.news.yst + d.news.d3) > 0 ? (
+                                        <b style={{ color: C.ink }}>今日 {d.news.today} · 昨日 {d.news.yst} · 近3天 {d.news.d3}</b>
+                                      ) : <b style={{ color: C.faint }}>暂无新闻</b>}</div>
+                                      <div>TDnet 披露：{d.discOk && d.disc && d.disc.count7d > 0 ? (
+                                        <b style={{ color: C.ink }}>近7天 {d.disc.count7d} 条</b>
+                                      ) : <b style={{ color: C.faint }}>暂无近期披露</b>}</div>
+                                      {d.disc?.latest && (
+                                        <div className="mt-0.5 flex items-start gap-1.5">
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ color: C.purple, background: `${C.purple}14` }}>
+                                            {DISC_LABEL[d.disc.latest.category ?? "OTHER"] ?? "其他披露"}
+                                          </span>
+                                          <span className="text-[11px]" style={{ color: C.sub }}>
+                                            {d.disc.latest.date} · {d.disc.latest.title.slice(0, 40)}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* AI 理由 */}
+                                  <div>
+                                    <div className="text-[11px] font-semibold mb-1.5" style={{ color: C.ink }}>AI 推荐理由</div>
+                                    {d.reasons.length ? (
+                                      <ul className="space-y-0.5" style={{ color: C.sub }}>
+                                        {d.reasons.map((r, i) => <li key={i}>· {r}</li>)}
+                                      </ul>
+                                    ) : <div style={{ color: C.faint }}>暂无数据</div>}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

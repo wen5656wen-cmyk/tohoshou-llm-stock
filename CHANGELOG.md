@@ -2,6 +2,25 @@
 
 ---
 
+## [18.7.1] - 2026-07-17 — 🔍 P9-DECISION-03 Daily Watchlist 实时增强（展开式懒加载）
+
+补齐 P9-DECISION-02 唯一未完成部分。**纯 UI/前端计算/懒加载/缓存**：未改 评分/GPT/StockScore/Recommendation Engine/Portfolio Builder/Closing Decision Engine/Cron/Schema/DB/导航/**排序逻辑**，**未新增任何 API**（全部复用现有只读接口）。
+
+### 展开式实时详情（`DailyWatchlistView`）
+表格行新增 ▸ 展开按钮（Fragment 包裹主行 + 详情行），展开后三栏展示：
+- **目标与止损**：目标价 T1 / 止损价 SL / 上涨空间% / 距离目标价（日元）— 均由 `explain report` + 现价前端计算；**标注来源徽章**「收盘决策目标(closing)」蓝 / 「系统派生目标(derived)」琥珀，两种口径不混同。
+- **成交量 / 新闻 / 披露**：成交量变化 = `今日量 ÷ 20日均量 − 1`（indicators，绿/红）· 新闻变化 = 今日/昨日/近3天（`/api/news?symbol=`，JST 分桶）· TDnet 披露 = 近7天条数 + 最近一条（按优先级 财报>业绩修正>增发>回购>重大披露>分红>其他 取首条，显示类型徽章/日期/标题）。
+- **AI 推荐理由**：`explain.recommendReasons` 最多 3 条。
+
+### 加载 / 缓存（性能达标）
+首屏 explain/indicators/news/disclosures **各 0 请求**；首次展开四路 **`Promise.allSettled` 并行各 1 次**（相互隔离，任一失败只影响自身区块）；再次展开命中 `detailCache` **0 请求**；组件卸载缓存释放。
+
+### 空状态（不显示 0 / -- / 空字符串）
+explain/indicators 失败 →「暂无数据」· news 空 →「暂无新闻」· disclosures 空 →「暂无近期披露」· 加载中 →「读取中…」。
+
+### 验收
+Build ✅ tsc 0 · Health ✅ CRITICAL=0 · watchlist Tab 200 · 隔离测试：`explain/indicators` 404 被 allSettled 捕获→「暂无数据」，`news/disclosures` 200 空数组→「暂无新闻/暂无近期披露」，页面不报错。
+
 ## [18.7.0] - 2026-07-17 — 🧰 P9-DECISION-02 决策中心交易能力增强（部分交付）
 
 **纯 UI/展示层 + API 只读新增字段**：未改 评分/GPT/StockScore/Portfolio Builder/Recommendation Engine/Closing Decision Engine/Cron/Schema/DB/导航。
