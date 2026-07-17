@@ -649,6 +649,8 @@ const enUS: Messages = {
   "theme.search_label": "Search:",
   "theme.core_only_label": "Core only",
   "theme.empty_data": "No data",
+  "theme.empty_no_data": "No theme data yet. Please contact an administrator.",
+  "theme.empty_filtered": "No stocks match the current filters.",
   "theme.tab_all": "All",
   "theme.tab_hardware": "AI Hardware",
   "theme.tab_semi_eq": "Semiconductor Equipment",

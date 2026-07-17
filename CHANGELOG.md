@@ -2,6 +2,17 @@
 
 ---
 
+## [18.4.1] - 2026-07-17 — 🔎 P8-DATA-02 AI 主题「数据为空」诊断 + seed 幂等化 + 空状态文案
+
+**ROOT CAUSE：并非数据问题。** 只读诊断证实生产 `ai_themes` 数据**完整**：total=109 / distinct_sym=84 / core=39 / themes=14，81/84 有 StockScore；`/api/ai-theme` HTTP 200 返回 **stocks=109**、summary uniqueSymbols=84/scored=81/core=39；默认筛选 概念股票=84 卡、仅核心=31、产业链层 UPSTREAM22/MIDSTREAM22/APPLICATION41/INFRASTRUCTURE24。页面「暂无数据。请运行 npx tsx …」是**前端空状态文案缺陷**（`filtered===0` 时对所有用户暴露终端命令），非缺数据。**故未盲跑 seed**（且原 seed 为 `deleteMany+create` 破坏性重置，跑它会清空有效数据，违反约束）。
+
+### 修复
+- **seed 幂等化**（`scripts/seed-ai-themes.ts`）：`deleteMany + create` → **按唯一键 `[symbol,theme]` 逐行 upsert**（无则 create / 有变化则 update / 一致则 skip），**移除清空**、不产生重复、保留 orphans（非破坏性）、输出 `created/updated/skipped`、支持 `DRY_RUN=1`。生产实跑（DRY+真实）：**created=0 updated=0 skipped=109 orphans=0** → 证实数据与种子逐条一致、幂等无副作用。
+- **空状态文案**（`components/research/AiThemeView.tsx` + i18n）：区分「真无数据 `data.stocks.length===0` → **暂无主题数据，请联系管理员**」与「筛选无匹配 → 当前筛选无匹配结果」；**seed 终端命令仅 `NODE_ENV!=="production"`（开发/管理环境）显示**，生产老板页面永不显示命令。新增 `theme.empty_no_data`/`theme.empty_filtered`（三语 + types）。
+
+### 验收
+未改 DB schema / 评分 / GPT / Cron / API / 页面结构 / 导航。数据 BEFORE=AFTER（109/84/39/14 不变，seed no-op）· `/api/ai-theme` 200 · 主题概览/概念股票/产业链均有数据 · 各层级筛选正确非零 · Build PASS · Health **CRITICAL=0**（✅62 ❌0 ⚠️4 既有）· web 重启（cron 未改不重启）。
+
 ## [18.4.0] - 2026-07-17 — 🧭 P8-UI-03 研究 Hub 收敛（Research Hub Consolidation）
 
 按 P8-GOV-01 审计执行「删重复入口 + 合并重复功能」。纯**导航/展示层重组**——未改 DB / API / AI评分 / GPT / Stock Screener / Cron / Mission Control / Workspace / Hub，未新增页面/组件/导航。

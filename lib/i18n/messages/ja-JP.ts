@@ -649,6 +649,8 @@ const jaJP: Messages = {
   "theme.search_label": "検索：",
   "theme.core_only_label": "中核のみ",
   "theme.empty_data": "データなし",
+  "theme.empty_no_data": "テーマデータがありません。管理者にお問い合わせください",
+  "theme.empty_filtered": "現在の絞り込みに一致する銘柄がありません",
   "theme.tab_all": "すべて",
   "theme.tab_hardware": "AIハードウェア",
   "theme.tab_semi_eq": "半導体製造装置",

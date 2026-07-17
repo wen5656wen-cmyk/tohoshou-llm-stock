@@ -687,11 +687,20 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
       </div>
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400 text-sm">
-          {t("theme.empty_data")}。{lang !== "en-US" && (
+          {/* 真·无主题数据 → 面向老板的友好提示（不暴露终端命令）；否则=筛选无匹配。 */}
+          {data.stocks.length === 0 ? (
             <>
-              {t("theme.run_cmd")}
-              <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">npx tsx scripts/seed-ai-themes.ts</code>
+              {t("theme.empty_no_data")}
+              {/* seed 命令仅在开发/管理环境显示；生产构建 NODE_ENV=production → 隐藏。 */}
+              {process.env.NODE_ENV !== "production" && (
+                <div className="mt-2 text-xs text-slate-300">
+                  {t("theme.run_cmd")}
+                  <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">npx tsx scripts/seed-ai-themes.ts</code>
+                </div>
+              )}
             </>
+          ) : (
+            t("theme.empty_filtered")
           )}
         </div>
       ) : (

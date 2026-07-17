@@ -654,6 +654,8 @@ export type Messages = {
   "theme.search_label": string;
   "theme.core_only_label": string;
   "theme.empty_data": string;
+  "theme.empty_no_data": string;
+  "theme.empty_filtered": string;
   "theme.tab_all": string;
   "theme.tab_hardware": string;
   "theme.tab_semi_eq": string;

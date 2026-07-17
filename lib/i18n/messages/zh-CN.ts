@@ -649,6 +649,8 @@ const zhCN: Messages = {
   "theme.search_label": "搜索：",
   "theme.core_only_label": "仅核心",
   "theme.empty_data": "暂无数据",
+  "theme.empty_no_data": "暂无主题数据，请联系管理员",
+  "theme.empty_filtered": "当前筛选无匹配结果",
   "theme.tab_all": "全部",
   "theme.tab_hardware": "AI硬件",
   "theme.tab_semi_eq": "半导体设备",

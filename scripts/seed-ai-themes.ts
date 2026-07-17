@@ -864,30 +864,60 @@ const ALL_THEMES: ThemeEntry[] = [
 ];
 
 async function main() {
-  console.log("=== TOHOSHOU v8.0 AI産業チェーン Seed ===\n");
+  // P8-DATA-02：改为幂等 upsert（原为 deleteMany + create 的破坏性「重置」）。
+  //   · 不清空已有数据（无 deleteMany）→ 中途失败不丢数据；
+  //   · 按唯一键 [symbol, theme] upsert → 不产生重复主题/重复关联；
+  //   · 逐行对比：无则 create、有变化则 update、完全一致则 skip；
+  //   · 不在种子清单中的既有记录保留（orphans_kept，非破坏性，不删除）；
+  //   · DRY_RUN=1 只读预览计数不写库。输出 created / updated / skipped。
+  const DRY = process.env.DRY_RUN === "1";
+  console.log(`=== TOHOSHOU v8.0 AI産業チェーン Seed (idempotent${DRY ? " · DRY_RUN" : ""}) ===\n`);
 
-  const removed = await prisma.aITheme.deleteMany({});
-  console.log(`  ↳ 清除旧数据 ${removed.count} 条\n`);
+  const existing = await prisma.aITheme.findMany({
+    select: {
+      symbol: true, theme: true, subTheme: true, role: true,
+      supplyChainLayer: true, importanceScore: true, reason: true, riskNote: true, isCore: true,
+    },
+  });
+  const key = (s: string, t: string) => `${s}__${t}`;
+  const exMap = new Map(existing.map((r) => [key(r.symbol, r.theme), r]));
 
-  let inserted = 0;
+  let created = 0, updated = 0, skipped = 0;
+  const seen = new Set<string>();
+
   for (const row of ALL_THEMES) {
-    await prisma.aITheme.create({
-      data: {
-        symbol: row.symbol,
-        theme: row.theme,
-        subTheme: row.subTheme,
-        role: row.role,
-        supplyChainLayer: row.supplyChainLayer,
-        importanceScore: row.importanceScore,
-        reason: row.reason,
-        riskNote: row.riskNote ?? null,
-        isCore: row.isCore,
-      },
-    });
-    const coreFlag = row.isCore ? " ⭐" : "";
-    console.log(`  ✓ [${row.theme.padEnd(20)}] ${row.symbol.padEnd(8)}${coreFlag}`);
-    inserted++;
+    const k = key(row.symbol, row.theme);
+    seen.add(k);
+    const data = {
+      subTheme: row.subTheme,
+      role: row.role,
+      supplyChainLayer: row.supplyChainLayer,
+      importanceScore: row.importanceScore,
+      reason: row.reason,
+      riskNote: row.riskNote ?? null,
+      isCore: row.isCore,
+    };
+    const cur = exMap.get(k);
+    if (!cur) {
+      if (!DRY) await prisma.aITheme.create({ data: { symbol: row.symbol, theme: row.theme, ...data } });
+      created++;
+      console.log(`  + [${row.theme.padEnd(20)}] ${row.symbol.padEnd(8)}${row.isCore ? " ⭐" : ""}`);
+    } else {
+      const same =
+        cur.subTheme === data.subTheme && cur.role === data.role &&
+        cur.supplyChainLayer === data.supplyChainLayer && cur.importanceScore === data.importanceScore &&
+        cur.reason === data.reason && (cur.riskNote ?? null) === data.riskNote && cur.isCore === data.isCore;
+      if (same) {
+        skipped++;
+      } else {
+        if (!DRY) await prisma.aITheme.update({ where: { symbol_theme: { symbol: row.symbol, theme: row.theme } }, data });
+        updated++;
+        console.log(`  ~ [${row.theme.padEnd(20)}] ${row.symbol.padEnd(8)} (更新)`);
+      }
+    }
   }
+
+  const orphans = existing.filter((r) => !seen.has(key(r.symbol, r.theme)));
 
   // Stats
   const byTheme = await prisma.aITheme.groupBy({
@@ -899,12 +929,11 @@ async function main() {
   const uniqueSymbols = new Set(ALL_THEMES.map((r) => r.symbol));
   const coreCount = ALL_THEMES.filter((r) => r.isCore).length;
 
-  console.log(`\n✅ 写入完成`);
-  console.log(`   总主题数：   14`);
-  console.log(`   总记录数：   ${inserted}`);
-  console.log(`   覆盖股票数： ${uniqueSymbols.size} 只`);
-  console.log(`   核心标的数： ${coreCount} 个`);
-  console.log("\n分类统计：");
+  console.log(`\n✅ Seed 完成（幂等）`);
+  console.log(`   created=${created}  updated=${updated}  skipped=${skipped}${DRY ? "  (DRY_RUN 未写库)" : ""}`);
+  console.log(`   orphans_kept=${orphans.length}${orphans.length ? "（保留未删除：" + orphans.slice(0, 10).map((o) => `${o.symbol}/${o.theme}`).join(", ") + (orphans.length > 10 ? " …" : "") + "）" : ""}`);
+  console.log(`   种子总主题数：14   记录数：${ALL_THEMES.length}   覆盖股票：${uniqueSymbols.size} 只   核心：${coreCount} 个`);
+  console.log("\n分类统计（库内实际）：");
 
   const THEME_LABELS: Record<string, string> = {
     CHIP_DESIGN: "AI芯片设计",
