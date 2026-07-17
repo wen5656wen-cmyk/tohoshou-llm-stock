@@ -2,6 +2,70 @@
 
 ---
 
+## [18.9.1] - 2026-07-17 — 🧩 P12-INFRA-02 提取共享 Ingestion Core（纯重构 · 零行为变更）
+
+**纯重构（Refactor）**，不是功能开发。消除 `scripts/sync-news.ts` 与 `app/api/sync/news/route.ts`
+之间 **219 行逐字重复**的编排层。**未改**：抓取范围 / Top200 / TDnet 双重过滤 / sentiment /
+EventType / adaptiveScore / Recommendation / Gate / Explain / Top Picks / Schema / Cron。
+
+### 新增 `lib/ingest/`（仅 News）
+- `types.ts` — `IngestDeps`（prisma 依赖注入）+ `NewsSyncOptions`（承载两入口的既有差异）
+- `config.ts` — 魔数集中：`NEWS_TOP_N=200` · `TDNET_PROMOTE_TAKE=500` · `YAHOO_SLICE=50` ·
+  延时 100/800 · conf 20/95 · stale 2h。**数值逐一取自重构前两份实现，完全一致**
+- `news.ts` — 共享编排（stale guard / 选标的 / 建 job / Yahoo→Kabutan→TDnet 三源 / 终态 / SyncLog）
+- `index.ts` — 公共出口
+
+**两个入口都必须保留**：scripts 以子进程运行（`pm2 restart tohoshou-web` 不杀同步任务，
+见其文件头注释）；API 被 Admin UI「同步/全部同步」按钮直接 POST（`SyncView.tsx:353/381`）。
+重复的是它们中间的编排层 —— 现已集中。
+
+### 代码量
+| | before | after |
+|---|---|---|
+| `scripts/sync-news.ts` | 318 | **65** |
+| `app/api/sync/news/route.ts` | 338 | **94** |
+| 两入口合计 | 656 | **159**（−497） |
+| 逐字重复实现 | **219 行** | **0 行** |
+
+### ⚠️ TDnet 未纳入 —— 两套并非复制品，而是两个不同的程序
+| 项 | `scripts/fetch-tdnet.ts` | `app/api/sync/tdnet/route.ts` |
+|---|---|---|
+| 天数 | 5（`--days` 可配） | 3（硬编码） |
+| DRY_RUN | ✅ | ❌ |
+| **`catalystScore` 更新** | ✅ **写 StockScore** | ❌ **完全跳过** |
+| `rawData` | `{companyName, code4}` | `{companyName}` |
+| `update` | 含 `title` | **不含 `title`** |
+| SyncLog status/message/durationMs | 各自不同 | 各自不同 |
+| 日期字符串 | 本地时区 | `toISOString()`（UTC） |
+
+在「零行为变更」约束下统一它们会退化成 8 个 if/else 开关，并把 API 侧缺陷固化进 Core。
+**正确顺序是先做行为裁决再统一** → 见遗留项 P12-INFRA-06。本轮 TDnet 两文件**一行未动**。
+
+### 既有缺陷原样保留（修复 = 行为变更，不在本任务范围）
+- **API 侧 `SyncLog.durationMs` 恒为 `null`**（scripts 写真实耗时）→ 由 `NewsSyncOptions.startMs`
+  显式承载并加注释，**刻意不修**。
+- 两侧致命错误文案不同（`fatal error:` vs `background sync fatal error:`）→ `fatalLabel` 参数化保留。
+
+### 等价证明 `npm run test:ingest-equivalence`（41 项）
+- **机器校验**：`git show HEAD:` 取重构前源码，逐一断言新 config 的每个常量都能在旧
+  scripts/api **两侧**找到同一字面量；并断言旧 API 确有 `durationMs: null`、旧 scripts 确有真实耗时。
+- **DB 操作序列**：prisma spy + 桩抓取器，在确定性输入下断言操作的
+  **种类 / 顺序 / 参数 / 字段**与旧码逐一相同（含 Kabutan 循环内 upsert 先于进度更新的顺序）。
+- **入口差异**：两侧 DB 操作序列完全一致；SyncLog 除 `durationMs` 外全字段一致。
+- **冻结项守护**：断言 `symbol IN symbols`、`take:500`、`TOP_N=200` 仍在（P12-DATA-02 的目标）。
+- 诚实边界：live 运行的 stdout **逐字比对不可能**（实时数据+时间戳非确定），
+  故采用「相同输入 → 相同操作序列」这一可复现的等价口径。
+
+### 遗留项
+- **P12-INFRA-06（新）**：TDnet 行为裁决 + 统一。**最重要的是 `catalystScore` 分裂** ——
+  Admin 点「同步」TDnet 不写 catalystScore，cron 才写，这是评分输入的静默不一致。
+- **本轮未 live 验证 cron 链**（未授权 Deploy，生产仍跑旧码）→ 部署前必须实跑
+  `npx tsx scripts/sync-news.ts` 并确认 SyncLog 落地。
+- 更正 P12-INFRA-01 报告：当时称「TDnet 两套 34 行相同 = 重复实现」有误 ——
+  那 34 行几乎全是 import/样板，逻辑层无共享。当时用 `comm` 数行数未读代码，结论草率。
+
+---
+
 ## [18.9.0] - 2026-07-17 — 🧬 P12-DATA-01 EventType 数据层（Phase A · 零推荐影响）
 
 建立独立的 **EventType 事实层**，回答「客观上发生了什么」。**生产推荐结果零变化**（实测背书，见下）。
