@@ -1,233 +1,237 @@
 "use client";
 
-// ── /admin/decision-center · AI Decision Center（P6-T11 · Decision Cockpit）──
-// P6 最后一个展示层：整合 Market / Today's AI Decision / Feature Platform / AI Top Picks /
-// System / Tomorrow Outlook。**纯展示聚合 · 不新增任何 AI 算法 · 不修改任何评分/推荐。**
-// 数据来自 GET /api/admin/decision-center。
+// ── 决策中心 · AI 市场驾驶舱（P9-DECISION-01 重做）───────────────────────────
+// 原则：只展示帮助老板赚钱的「市场信息」，不展示任何开发者/系统内部指标。
+// 已移除：Feature Platform(Integrity/Shadow/Promotion) · System(Health/Cron/Web/DB/Deploy/Build/Version) · Pipeline。
+//
+// 数据来源（全部现有只读 API，零后端改动 / 零新算法）：
+//   · /api/admin/decision-center → market(regime/riskLevel/volatility/topix/nikkei)
+//   · /api/ai-theme              → 17 主题 × 成分股(return5d/return20d) + 40 标准分类 + 5 层
+//   · /api/admin/closing-decision→ top10(riskLevel/newsSentiment/inBuyZone) → 风险提示
+//   · /api/disclosures           → TDnet 真实披露(category/sentiment/importance) → 今日催化剂
+//
+// ⚠️ 诚实口径：
+//   ·「主题动能」= 成分股 5日/20日涨幅均值（真实价格数据）。**不是机构资金流** —— 库中无按主题的
+//     机构资金流数据源（InstitutionalFlow 仅市场级），故不提供「资金流向」，也绝不用评分值伪装。
+//   · 任一区块无可靠真实数据 → 显示「暂无可靠数据」，不降级为猜测。
 
 import { useEffect, useState } from "react";
-import {
-  AppHeader, AppCard, AppKpiCard, AppKpiGrid, AppButton, AppLoading, AppEmptyState,
-  AppBadge, AppStatusChip, appRowHover, COLORS,
-} from "@/components/ui";
-import type { StatusKind } from "@/lib/design-tokens";
+import { useI18n } from "@/lib/i18n";
+import { AppCard, AppLoading, AppEmptyState, AppBadge, COLORS } from "@/components/ui";
+import { getThemeLabel, getLayerLabel } from "@/lib/i18n/theme-labels";
 
-interface Market { regime: string | null; regimeScore: number | null; trendScore: number | null; breadth: number | null; volatility: number | null; riskLevel: string | null; topix: number | null; topixChange: number | null; nikkei: number | null; nikkeiChange: number | null; asOf: string | null }
-interface Decision { top5: number; strongBuy: number; buy: number; watchlist: number; watchlistDate: string | null }
-interface Platform { production: number; shadow: number; pending: number; integrity: number | null; promoteCandidates: number; avgAlpha: number | null; avgConfidence: number | null; factorAlphaFresh: boolean }
-interface TPick { rank: number; symbol: string; name: string | null; compositeScore: number; returnPct: number | null }
-interface TopPicks { date: string | null; picks: TPick[]; portfolioReturn: number | null; alpha: number | null; winRate: number | null; cumReturn: number | null; updatedAt: string | null; quoteSource: string }
-interface System { health: { critical: number | null; warning: number | null; status: string | null }; cron: { total: number; success: number; failed: string[]; allSuccess: boolean }; web: string; database: string; deployment: { commitHash: string; summary: string; buildStatus: string; healthStatus: string; deployedAt: string } | null; build: string | null; version: string | null }
-interface Tomorrow { market: string; risk: string; focus: { sector: string; count: number }[]; note: string }
-interface Api { ok: boolean; generatedAt: string; dateJst: string; note: string; market: Market; decision: Decision; platform: Platform; topPicks: TopPicks; system: System; tomorrow: Tomorrow }
+interface Market { regime: string | null; riskLevel: string | null; volatility: number | null; topix: number | null; topixChange: number | null; nikkei: number | null; nikkeiChange: number | null }
+interface DcApi { ok?: boolean; dateJst?: string; market?: Market }
+interface ThemeStock { symbol: string; theme: string; subTheme: string | null; supplyChainLayer: string | null; return5d: number | null; return20d: number | null; scored: boolean }
+interface ThemeSummary { theme: string; count: number }
+interface ThemeApi { stocks?: ThemeStock[]; themes?: ThemeSummary[] }
+interface Top10Row { symbol: string; name: string | null; riskLevel?: string | null; newsSentiment?: number | null; inBuyZone?: boolean | null }
+interface ClosingApi { top10?: Top10Row[] }
+interface Disc { symbol: string; title: string; category: string | null; sentiment: string | null; importance: number | null; publishedAt: string; stock?: { nameZh?: string | null; name?: string | null } | null }
 
-const REGIME_LABEL: Record<string, string> = { BULL: "牛市 Bullish", SIDEWAYS: "震荡 Neutral", BEAR: "熊市 Bearish" };
-const REGIME_COLOR: Record<string, string> = { BULL: COLORS.success, SIDEWAYS: COLORS.warning, BEAR: COLORS.danger };
-const RISK_LABEL: Record<string, string> = { LOW: "低 Low", MEDIUM: "中 Medium", HIGH: "高 High" };
-const RISK_COLOR: Record<string, string> = { LOW: COLORS.success, MEDIUM: COLORS.warning, HIGH: COLORS.danger };
+const REGIME_LABEL: Record<string, string> = { BULL: "Bullish", SIDEWAYS: "Neutral", BEAR: "Bearish" };
+const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}%`);
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
-function fmt(v: number | null | undefined, s = "", d = 1): string { return v == null ? "—" : `${Math.round(v * 10 ** d) / 10 ** d}${s}`; }
-function sign(v: number | null | undefined): string { return v == null ? "—" : `${v > 0 ? "+" : ""}${fmt(v, "%", 2)}`; }
-function retColor(v: number | null | undefined): string { return v == null ? COLORS.textFaint : v > 0 ? COLORS.success : v < 0 ? COLORS.danger : COLORS.textSecondary; }
-
-function SectionTitle({ n, title, en }: { n: number; title: string; en: string }) {
-  return (
-    <div className="flex items-center gap-2" style={{ marginBottom: 12, marginTop: 4 }}>
-      <span style={{ width: 24, height: 24, borderRadius: 7, background: `${COLORS.primary}14`, color: COLORS.primary, fontSize: 12, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{n}</span>
-      <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>{title}</span>
-      <span style={{ fontSize: 11.5, color: COLORS.textFaint }}>{en}</span>
-    </div>
-  );
-}
-
-export default function DecisionCenterPage() {
-  const [d, setD] = useState<Api | null>(null);
+export default function DecisionCockpitView() {
+  const { t, lang } = useI18n();
+  const [dc, setDc] = useState<DcApi | null>(null);
+  const [th, setTh] = useState<ThemeApi | null>(null);
+  const [cl, setCl] = useState<ClosingApi | null>(null);
+  const [disc, setDisc] = useState<Disc[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true); setError(null);
-    try {
-      const res = await fetch("/api/admin/decision-center", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const j = (await res.json()) as Api;
-      if (!j.ok) throw new Error("API 返回异常");
-      setD(j);
-    } catch (e) { setError(e instanceof Error ? e.message : "加载失败"); } finally { setLoading(false); }
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoading(true); setError(null);
+      const get = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      try {
+        const [a, b, c, d] = await Promise.all([
+          get("/api/admin/decision-center"), get("/api/ai-theme"),
+          get("/api/admin/closing-decision"), get("/api/disclosures?limit=40"),
+        ]);
+        if (!alive) return;
+        setDc(a); setTh(b); setCl(c); setDisc(Array.isArray(d) ? d : null);
+      } catch (e) { if (alive) setError(e instanceof Error ? e.message : "load failed"); }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (loading) return <AppLoading />;
+  if (error) return <AppEmptyState title={t("dc.ov.loadFail")} desc={error} />;
+
+  const m = dc?.market ?? null;
+  const stocks = th?.stocks ?? [];
+  const themes = th?.themes ?? [];
+
+  // 主题动能：成分股 5日/20日涨幅均值（真实价格数据，非资金流）
+  const momentum = themes
+    .map((x) => {
+      const g = stocks.filter((s) => s.theme === x.theme && s.scored);
+      return {
+        theme: x.theme, label: getThemeLabel(x.theme, lang), count: g.length,
+        r5: avg(g.map((s) => s.return5d).filter((v): v is number => v != null)),
+        r20: avg(g.map((s) => s.return20d).filter((v): v is number => v != null)),
+      };
+    })
+    .filter((x) => x.count > 0 && x.r5 != null)
+    .sort((a, b) => (b.r5 ?? 0) - (a.r5 ?? 0));
+
+  // 产业链热度 TOP10：按 5 日动能排序的标准分类(subTheme)
+  const bySub = new Map<string, { layer: string | null; rs: number[] }>();
+  for (const s of stocks) {
+    if (!s.subTheme || !s.scored || s.return5d == null) continue;
+    const e = bySub.get(s.subTheme) ?? { layer: s.supplyChainLayer, rs: [] };
+    e.rs.push(s.return5d);
+    bySub.set(s.subTheme, e);
   }
-  useEffect(() => { load(); }, []);
+  const heat = [...bySub.entries()]
+    .map(([k, v]) => ({ sub: k, layer: v.layer, n: v.rs.length, r5: avg(v.rs) as number }))
+    .sort((a, b) => b.r5 - a.r5)
+    .slice(0, 10);
+
+  const hot = momentum.slice(0, 5);
+
+  // 今日催化剂：TDnet 真实披露（近 2 日，按重要度）
+  const now = Date.now();
+  const catalysts = (disc ?? [])
+    .filter((d) => now - new Date(d.publishedAt).getTime() < 2 * 86400_000)
+    .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0))
+    .slice(0, 8);
+
+  // 风险提示 TOP5：closing top10 的真实风险字段
+  const risks = (cl?.top10 ?? [])
+    .map((r) => {
+      const rs: string[] = [];
+      if ((r.newsSentiment ?? 0) < 0) rs.push("近期利空");
+      if (String(r.riskLevel ?? "").toUpperCase() === "HIGH") rs.push("风险偏高");
+      if (r.inBuyZone === false) rs.push("已脱离买区");
+      return { symbol: r.symbol, name: r.name, rs };
+    })
+    .filter((r) => r.rs.length)
+    .slice(0, 5);
+
+  const NA = () => <div className="text-[12px]" style={{ color: COLORS.textFaint }}>{t("dc.ck.noReliable")}</div>;
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.background }}>
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 space-y-6">
-        <AppHeader title="AI Decision Center" titleEn="AI 决策驾驶舱" status="P6 · Cockpit" statusTone="blue"
-          subtitle="整合市场 · 今日 AI 决策 · 因子平台 · AI Top Picks · 系统状态 · 明日展望（纯展示聚合，不新增 AI，不改任何评分/推荐）" />
+    <div className="max-w-[1100px] mx-auto space-y-3">
+      {/* 市场状态 */}
+      <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ov.marketState")}</span>}>
+        {m ? (
+          <div className="flex flex-wrap items-center gap-4">
+            <AppBadge tone={m.regime === "BULL" ? "green" : m.regime === "BEAR" ? "red" : "amber"}>
+              {REGIME_LABEL[m.regime ?? ""] ?? m.regime ?? "—"}
+            </AppBadge>
+            <Stat k={t("db.riskLevel")} v={m.riskLevel ?? "—"} />
+            <Stat k="Volatility" v={m.volatility != null ? String(Math.round(m.volatility * 10) / 10) : "—"} />
+            <Stat k="TOPIX" v={m.topix != null ? `${Math.round(m.topix * 10) / 10} (${pct1(m.topixChange)})` : "—"} tone={(m.topixChange ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
+            <Stat k="Nikkei" v={m.nikkei != null ? `${Math.round(m.nikkei).toLocaleString()} (${pct1(m.nikkeiChange)})` : "—"} tone={(m.nikkeiChange ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
+          </div>
+        ) : <NA />}
+      </AppCard>
 
-        {loading && <AppCard><AppLoading label="加载决策驾驶舱…" /></AppCard>}
-        {error && !loading && <AppCard><AppEmptyState title="加载失败" desc={error} actions={<AppButton size="sm" onClick={load}>重试</AppButton>} icon="⚠" /></AppCard>}
-
-        {!loading && !error && d && (
-          <>
-            {/* 顶部状态条 */}
-            <AppCard style={{ background: `linear-gradient(135deg, ${COLORS.primary}0A, ${COLORS.purple}0A)` }}>
-              <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: 12 }}>
-                <div className="flex items-center gap-3" style={{ flexWrap: "wrap" }}>
-                  <StatusPill label="市场" value={d.market.regime ? REGIME_LABEL[d.market.regime] ?? d.market.regime : "—"} color={d.market.regime ? REGIME_COLOR[d.market.regime] : COLORS.textMuted} />
-                  <StatusPill label="风险" value={d.market.riskLevel ? RISK_LABEL[d.market.riskLevel] ?? d.market.riskLevel : "—"} color={d.market.riskLevel ? RISK_COLOR[d.market.riskLevel] : COLORS.textMuted} />
-                  <StatusPill label="Health" value={d.system.health.critical === 0 ? "CRITICAL=0" : `CRITICAL=${d.system.health.critical ?? "—"}`} color={d.system.health.critical === 0 ? COLORS.success : COLORS.danger} />
-                  <StatusPill label="Cron" value={d.system.cron.allSuccess ? `${d.system.cron.success}/${d.system.cron.total} ✓` : `${d.system.cron.success}/${d.system.cron.total}`} color={d.system.cron.allSuccess ? COLORS.success : COLORS.warning} />
-                  <StatusPill label="Integrity" value={fmt(d.platform.integrity)} color={(d.platform.integrity ?? 0) >= 90 ? COLORS.success : COLORS.warning} />
-                </div>
-                <div style={{ fontSize: 11.5, color: COLORS.textFaint }}>
-                  {d.dateJst} · 更新 {new Date(d.generatedAt).toLocaleTimeString("zh-CN", { hour12: false })}
-                  <AppButton size="sm" variant="ghost" onClick={load} style={{ marginLeft: 10 }}>刷新</AppButton>
-                </div>
+      {/* 主题动能（口径明示：非资金流） */}
+      <AppCard header={
+        <div>
+          <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ck.momentum")}</span>
+          <div className="text-[10px] mt-0.5" style={{ color: COLORS.textFaint }}>{t("dc.ck.momentumNote")}</div>
+          <div className="text-[10px]" style={{ color: COLORS.textFaint }}>※ {t("dc.ck.fundFlowNA")}</div>
+        </div>
+      }>
+        {momentum.length ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {momentum.map((x) => (
+              <div key={x.theme} className="flex items-center justify-between px-2.5 py-2 rounded-lg" style={{ background: COLORS.tile }}>
+                <span className="text-[12px] truncate" style={{ color: COLORS.text }}>
+                  {x.label}<span className="ml-1 text-[10px]" style={{ color: COLORS.textFaint }}>{x.count}</span>
+                </span>
+                <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: (x.r5 ?? 0) >= 0 ? COLORS.success : COLORS.danger }}>
+                  {pct1(x.r5)} <span className="text-[10px]" style={{ color: COLORS.textFaint }}>/ {pct1(x.r20)}</span>
+                </span>
               </div>
-            </AppCard>
+            ))}
+          </div>
+        ) : <NA />}
+      </AppCard>
 
-            {/* Section 1 — Market Overview */}
-            <div>
-              <SectionTitle n={1} title="市场总览" en="Market Overview" />
-              <AppKpiGrid>
-                <AppKpiCard label="JP 市场状态" value={d.market.regime ? REGIME_LABEL[d.market.regime] ?? d.market.regime : "—"} tone={d.market.regime === "BULL" ? "green" : d.market.regime === "BEAR" ? "neutral" : "amber"} sub={`Regime ${fmt(d.market.regimeScore, "", 2)}`} />
-                <AppKpiCard label="TOPIX" value={fmt(d.market.topix, "", 1)} tone="blue" sub={sign(d.market.topixChange)} />
-                <AppKpiCard label="日经 225" value={fmt(d.market.nikkei, "", 0)} tone="blue" sub={sign(d.market.nikkeiChange)} />
-                <AppKpiCard label="市场趋势" value={fmt(d.market.trendScore, "", 2)} tone="purple" sub={`宽度 ${fmt(d.market.breadth, "%", 0)}`} />
-                <AppKpiCard label="风险等级" value={d.market.riskLevel ? RISK_LABEL[d.market.riskLevel] : "—"} tone={d.market.riskLevel === "LOW" ? "green" : d.market.riskLevel === "HIGH" ? "neutral" : "amber"} sub={`波动率 ${fmt(d.market.volatility, "%", 1)}`} />
-              </AppKpiGrid>
-            </div>
-
-            {/* Section 2 — Today's AI Decision */}
-            <div>
-              <SectionTitle n={2} title="今日 AI 决策" en="Today's AI Decision" />
-              <AppKpiGrid>
-                <AppKpiCard label="AI Top5" value={d.decision.top5} tone="purple" sub="综合重排" />
-                <AppKpiCard label="强烈买入 STRONG_BUY" value={d.decision.strongBuy} tone="green" />
-                <AppKpiCard label="买入 BUY" value={d.decision.buy} tone="blue" />
-                <AppKpiCard label="每日关注池" value={d.decision.watchlist} tone="amber" sub={d.decision.watchlistDate ?? "—"} />
-              </AppKpiGrid>
-            </div>
-
-            {/* Section 3 — Feature Platform */}
-            <div>
-              <SectionTitle n={3} title="因子平台" en="Feature Platform" />
-              <AppKpiGrid>
-                <AppKpiCard label="Production" value={d.platform.production} tone="green" />
-                <AppKpiCard label="Shadow" value={d.platform.shadow} tone="amber" sub={`Pending ${d.platform.pending}`} />
-                <AppKpiCard label="Integrity" value={fmt(d.platform.integrity)} tone={(d.platform.integrity ?? 0) >= 90 ? "green" : "amber"} sub="/ 100" />
-                <AppKpiCard label="Promotion 候选" value={d.platform.promoteCandidates} tone="purple" />
-                <AppKpiCard label="平均 Alpha" value={fmt(d.platform.avgAlpha, "%", 2)} tone="neutral" sub={`置信 ${fmt(d.platform.avgConfidence, "", 0)}`} />
-                <AppKpiCard label="Factor Alpha" value={d.platform.factorAlphaFresh ? "🟢 新鲜" : "🔴 陈旧"} tone={d.platform.factorAlphaFresh ? "green" : "neutral"} />
-              </AppKpiGrid>
-            </div>
-
-            {/* Section 4 — AI Top Picks */}
-            <div>
-              <SectionTitle n={4} title="AI Top Picks" en="Experimental" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <AppCard style={{ gridColumn: "span 1" }}>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Mini label="组合收益（实时）" value={sign(d.topPicks.portfolioReturn)} color={retColor(d.topPicks.portfolioReturn)} />
-                    <Mini label="Alpha vs TOPIX" value={sign(d.topPicks.alpha)} color={retColor(d.topPicks.alpha)} />
-                    <Mini label="日胜率" value={fmt(d.topPicks.winRate, "%", 1)} />
-                    <Mini label="累计收益" value={sign(d.topPicks.cumReturn)} color={retColor(d.topPicks.cumReturn)} />
-                  </div>
-                  <div style={{ fontSize: 10.5, color: COLORS.textFaint, marginTop: 10 }}>{d.topPicks.quoteSource} · {d.topPicks.date ?? "—"}{d.topPicks.updatedAt ? ` · ${new Date(d.topPicks.updatedAt).toLocaleTimeString("zh-CN", { hour12: false })}` : ""}</div>
-                </AppCard>
-                <AppCard style={{ gridColumn: "span 2" }}>
-                  <table style={{ width: "100%", fontSize: 12.5 }}>
-                    <tbody>
-                      {d.topPicks.picks.map((p) => (
-                        <tr key={p.symbol} className={appRowHover}>
-                          <td style={{ padding: "6px 8px", fontWeight: 800, color: COLORS.purple, width: 30 }}>#{p.rank}</td>
-                          <td style={{ padding: "6px 8px", fontWeight: 600, color: COLORS.text }}>{p.name ?? p.symbol} <span style={{ fontSize: 10.5, color: COLORS.textFaint, fontFamily: "monospace" }}>{p.symbol}</span></td>
-                          <td style={{ padding: "6px 8px", textAlign: "right", color: COLORS.textSecondary }}>综合 {fmt(p.compositeScore, "", 1)}</td>
-                          <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: retColor(p.returnPct) }}>{sign(p.returnPct)}</td>
-                        </tr>
-                      ))}
-                      {d.topPicks.picks.length === 0 && <tr><td style={{ padding: 8, color: COLORS.textFaint }}>暂无 Top Picks</td></tr>}
-                    </tbody>
-                  </table>
-                </AppCard>
+      {/* 产业链热度 TOP10 */}
+      <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ck.heat")}</span>}>
+        {heat.length ? (
+          <div className="space-y-1">
+            {heat.map((h, i) => (
+              <div key={h.sub} className="flex items-center gap-2 py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                <span className="text-[11px] w-5 tabular-nums" style={{ color: COLORS.textFaint }}>{i + 1}</span>
+                <span className="text-[12px] flex-1 truncate" style={{ color: COLORS.text }}>{h.sub}</span>
+                {h.layer && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: COLORS.tile, color: COLORS.textSecondary }}>{getLayerLabel(h.layer, lang)}</span>}
+                <span className="text-[10px]" style={{ color: COLORS.textFaint }}>{h.n}</span>
+                <span className="text-[12px] font-semibold tabular-nums w-16 text-right" style={{ color: h.r5 >= 0 ? COLORS.success : COLORS.danger }}>{pct1(h.r5)}</span>
               </div>
-            </div>
+            ))}
+          </div>
+        ) : <NA />}
+      </AppCard>
 
-            {/* Section 5 — System Status */}
-            <div>
-              <SectionTitle n={5} title="系统状态" en="System Status" />
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <SvcCard label="Health" kind={d.system.health.critical === 0 ? "SUCCESS" : "ERROR"} value={d.system.health.critical === 0 ? "CRITICAL=0" : `CRIT=${d.system.health.critical}`} sub={`warn ${d.system.health.warning ?? "—"}`} />
-                <SvcCard label="Cron" kind={d.system.cron.allSuccess ? "SUCCESS" : "WARNING"} value={`${d.system.cron.success}/${d.system.cron.total}`} sub={d.system.cron.failed.length ? `失败 ${d.system.cron.failed.length}` : "全成功"} />
-                <SvcCard label="Web" kind="SUCCESS" value="ONLINE" sub="serving" />
-                <SvcCard label="Database" kind="SUCCESS" value="ONLINE" sub="connected" />
-                <SvcCard label="Build" kind={d.system.build === "PASS" ? "SUCCESS" : "WARNING"} value={d.system.build ?? "—"} sub="last deploy" />
-                <SvcCard label="Version" kind="INFO" value={d.system.version ?? "—"} sub={d.system.deployment ? new Date(d.system.deployment.deployedAt).toLocaleDateString("zh-CN") : "—"} />
-              </div>
-              {d.system.deployment && (
-                <div style={{ fontSize: 11, color: COLORS.textFaint, marginTop: 8 }}>最新部署 <b style={{ color: COLORS.textSecondary }}>{d.system.deployment.commitHash}</b> · {d.system.deployment.summary.slice(0, 80)}…</div>
-              )}
-            </div>
-
-            {/* Section 6 — Tomorrow Outlook */}
-            <div>
-              <SectionTitle n={6} title="明日展望" en="Tomorrow Outlook" />
-              <AppCard style={{ background: `${COLORS.purple}06` }}>
-                <div className="flex items-center gap-6" style={{ flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: COLORS.textFaint }}>Market</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: d.tomorrow.market === "Bullish" ? COLORS.success : d.tomorrow.market === "Bearish" ? COLORS.danger : COLORS.warning }}>{d.tomorrow.market}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: COLORS.textFaint }}>Risk</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: RISK_COLOR[d.tomorrow.risk] ?? COLORS.textSecondary }}>{RISK_LABEL[d.tomorrow.risk] ?? d.tomorrow.risk}</div>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ fontSize: 10.5, color: COLORS.textFaint, marginBottom: 4 }}>Focus（今日决策候选行业分布 Top3）</div>
-                    <div className="flex items-center gap-2" style={{ flexWrap: "wrap" }}>
-                      {d.tomorrow.focus.length === 0 && <span style={{ fontSize: 12, color: COLORS.textFaint }}>暂无行业数据</span>}
-                      {d.tomorrow.focus.map((f) => (
-                        <AppBadge key={f.sector} tone="purple">{f.sector} · {f.count}</AppBadge>
-                      ))}
-                    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* 今日催化剂 */}
+        <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ck.catalyst")}</span>}>
+          {catalysts.length ? (
+            <div className="space-y-1.5">
+              {catalysts.map((d, i) => (
+                <div key={i} className="flex items-start gap-2 py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                  <AppBadge tone={d.sentiment === "POSITIVE" ? "green" : d.sentiment === "NEGATIVE" ? "red" : "neutral"}>{d.category ?? "—"}</AppBadge>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] truncate" style={{ color: COLORS.text }}>{d.stock?.nameZh ?? d.stock?.name ?? d.symbol}</div>
+                    <div className="text-[11px] truncate" style={{ color: COLORS.textSecondary }}>{d.title}</div>
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.textFaint, marginTop: 10, lineHeight: 1.6 }}>{d.tomorrow.note}</div>
-              </AppCard>
+              ))}
             </div>
+          ) : <NA />}
+        </AppCard>
 
-            <div style={{ fontSize: 11, color: COLORS.textFaint, textAlign: "center", paddingTop: 4 }}>{d.note}</div>
-          </>
-        )}
+        {/* 风险提示 TOP5 */}
+        <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ck.riskTop")}</span>}>
+          {risks.length ? (
+            <div className="space-y-1.5">
+              {risks.map((r) => (
+                <div key={r.symbol} className="flex items-center justify-between gap-2 py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span style={{ color: COLORS.danger }}>⚠</span>
+                    <span className="text-[12px] truncate" style={{ color: COLORS.text }}>{r.name ?? r.symbol}</span>
+                    <span className="text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{r.symbol}</span>
+                  </div>
+                  <span className="text-[11px] shrink-0" style={{ color: COLORS.textSecondary }}>{r.rs.join(" / ")}</span>
+                </div>
+              ))}
+            </div>
+          ) : <NA />}
+        </AppCard>
       </div>
+
+      {/* 今日热点主题 TOP5 */}
+      <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ck.hotTheme")}</span>}>
+        {hot.length ? (
+          <div className="flex flex-wrap gap-2">
+            {hot.map((h, i) => (
+              <span key={h.theme} className="px-2.5 py-1.5 rounded-lg text-[12px]" style={{ background: COLORS.tile, border: `1px solid ${COLORS.border}`, color: COLORS.text }}>
+                <b style={{ color: COLORS.textFaint }}>{i + 1}.</b> {h.label}
+                <b className="ml-1.5 tabular-nums" style={{ color: (h.r5 ?? 0) >= 0 ? COLORS.success : COLORS.danger }}>{pct1(h.r5)}</b>
+              </span>
+            ))}
+          </div>
+        ) : <NA />}
+      </AppCard>
     </div>
   );
 }
 
-function StatusPill({ label, value, color }: { label: string; value: string; color: string }) {
+function Stat({ k, v, tone }: { k: string; v: string; tone?: string }) {
   return (
-    <div className="flex items-center gap-1.5" style={{ fontSize: 12 }}>
-      <span style={{ color: COLORS.textFaint }}>{label}</span>
-      <span style={{ fontWeight: 700, color, background: `${color}14`, borderRadius: 9999, padding: "2px 10px" }}>{value}</span>
-    </div>
-  );
-}
-function Mini({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div>
-      <div style={{ fontSize: 10.5, color: COLORS.textFaint, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: color ?? COLORS.text, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-    </div>
-  );
-}
-function SvcCard({ label, kind, value, sub }: { label: string; kind: StatusKind; value: string; sub: string }) {
-  return (
-    <AppCard style={{ padding: 12 }}>
-      <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
-        <span style={{ fontSize: 11.5, color: COLORS.textMuted }}>{label}</span>
-        <AppStatusChip kind={kind} label="" />
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{value}</div>
-      <div style={{ fontSize: 10.5, color: COLORS.textFaint }}>{sub}</div>
-    </AppCard>
+    <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>
+      {k} <b className="tabular-nums" style={{ color: tone ?? COLORS.text }}>{v}</b>
+    </span>
   );
 }

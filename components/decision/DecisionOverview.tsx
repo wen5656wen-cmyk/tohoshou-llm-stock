@@ -1,42 +1,58 @@
 "use client";
 
-// ── 决策中心 · AI 今日投资日报（P8-2）───────────────────────────────────────
-// 老板 09:00 打开决策中心第一眼。纯聚合展示：只读复用 closing-decision + decision-center
-// + watchlist/daily 现有 API，禁止重算/新增算法/改评分/改 DB。风格对齐 Explain 2.0。
-// 固定 7 段：①今日市场 ②第一推荐 ③建议组合 ④操作建议 ⑤今日风险 ⑥今日关注 ⑦一句话总结。
+// ── 决策中心 · 今日决策（P9-DECISION-01 老板投资模式）─────────────────────────
+// 老板 30 秒内知道：今天买不买 / 买什么 / 为什么 / 买多少 / 何时卖。
+// 纯展示层：只读复用 closing-decision + decision-center 现有 API；
+// 禁止重算/新增算法/改评分/改 Portfolio Builder/改 DB。
+//
+// 结构：①今日决策(verdict+市场+机会数) ②第一推荐(单一最优标的) ③建议组合(分散配置方案)
+//       ④今日回避(0~3 动态) —— 已按指示移除「现金比例」(Portfolio Builder 固定归一 100%，恒为 0，无信息量)。
+//
+// 诚实性护栏（不得隐藏底层矛盾）：
+//   · 第一推荐与建议组合是引擎的两个不同产物 → 各自标注语义；top1 未入组合时如实说明原因。
+//   · 组合成分若 top10.inBuyZone=false → 打「现价已脱离买区」徽章（如实呈现，不伪造一致性）。
+//   · 回避列表必须先排除 组合∪第一推荐；recommended ∩ avoid 必须为空，冲突则剔除并 warn。
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppButton, AppLoading, AppEmptyState, AppBadge, COLORS } from "@/components/ui";
 import ExplainReportButton from "@/components/explain/ExplainReportButton";
 
-interface Top1 { symbol: string; name: string | null; aiScore: number | null; gptScore: number | null; confidence: string | null; }
-interface Leg { symbol: string; name: string | null; weight: number; }
+interface Top1 {
+  symbol: string; name: string | null; aiScore: number | null; gptScore: number | null;
+  confidence: string | null; price: number | null; changePct: number | null;
+  entryLow: number | null; entryHigh: number | null;
+  target1: number | null; target2: number | null; stopLoss: number | null; holdPeriod: string | null;
+}
+interface Leg {
+  symbol: string; name: string | null; weight: number; sector?: string | null; reason?: string | null;
+  entryLow?: number | null; entryHigh?: number | null; target1?: number | null; stopLoss?: number | null;
+}
+interface Top10Row {
+  symbol: string; name: string | null; rank?: number | null; reason?: string | null; gptNote?: string | null;
+  action?: string | null; riskLevel?: string | null; inBuyZone?: boolean | null;
+  newsSentiment?: number | null; volumeRatio?: number | null; changePct?: number | null;
+}
 interface ClosingApi {
   ok: boolean; empty?: boolean; date?: string; decidedAtJst?: string | null;
   verdict?: "BUY_TODAY" | "WATCH_ONLY" | "STAY_CASH"; verdictReason?: string | null;
-  market?: { regime: string | null; volatility: number | null; newsRiskCount?: number | null };
-  top1?: Top1 | null; portfolio?: Leg[]; summary?: string | null;
+  market?: { regime: string | null; volatility: number | null; newsRiskCount?: number | null; qualifiedCount?: number | null };
+  top1?: Top1 | null; portfolio?: Leg[]; portfolioNote?: string | null; top10?: Top10Row[]; summary?: string | null;
 }
-interface DcApi {
-  ok: boolean; dateJst?: string;
-  market?: { regime: string | null; riskLevel: string | null; volatility: number | null; trendScore: number | null };
-  system?: { version: string | null };
-}
-interface WItem { symbol: string; name: string | null; score: number | null; rank: number | null; returnPctFromEntry?: number | null; }
+interface DcApi { ok: boolean; dateJst?: string; market?: { regime: string | null; riskLevel: string | null; volatility: number | null } }
 
 const VERDICT_TONE: Record<string, "green" | "amber" | "red"> = { BUY_TODAY: "green", WATCH_ONLY: "amber", STAY_CASH: "red" };
-const VERDICT_ICON: Record<string, string> = { BUY_TODAY: "✅", WATCH_ONLY: "⚠️", STAY_CASH: "❌" };
-const ACT_KEY: Record<string, string> = { BUY_TODAY: "db.actBuy", WATCH_ONLY: "db.actWatch", STAY_CASH: "db.actCash" };
-const SUM_KEY: Record<string, string> = { BUY_TODAY: "db.sum.buy", WATCH_ONLY: "db.sum.watch", STAY_CASH: "db.sum.cash" };
-const jpy = (v: number | null | undefined) => v == null ? "—" : `¥${Math.round(v).toLocaleString()}`;
-const pct = (v: number | null | undefined) => v == null ? "—" : `${v > 0 ? "+" : ""}${Math.round(v * 10) / 10}%`;
+const VERDICT_ICON: Record<string, string> = { BUY_TODAY: "🟢", WATCH_ONLY: "🟡", STAY_CASH: "⚪" };
+const jpy = (v: number | null | undefined) => (v == null ? "—" : `¥${Math.round(v).toLocaleString()}`);
+const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}%`);
+
+/** 回避原因严重度（用于 >3 时的确定性排序）：利空 > 风险 > 放量下跌 > 脱离买区 */
+const SEVERITY: Record<string, number> = { news: 4, risk: 3, dump: 2, zone: 1 };
 
 export default function DecisionOverview({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const { t } = useI18n();
   const [c, setC] = useState<ClosingApi | null>(null);
   const [dc, setDc] = useState<DcApi | null>(null);
-  const [watch, setWatch] = useState<WItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,13 +61,12 @@ export default function DecisionOverview({ onNavigate }: { onNavigate: (tab: str
     (async () => {
       setLoading(true); setError(null);
       try {
-        const [cj, dj, wj] = await Promise.all([
+        const [cj, dj] = await Promise.all([
           fetch("/api/admin/closing-decision", { cache: "no-store" }).then((r) => r.json()),
-          fetch("/api/admin/decision-center", { cache: "no-store" }).then((r) => r.json()),
-          fetch("/api/watchlist/daily", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+          fetch("/api/admin/decision-center", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
         ]);
         if (!alive) return;
-        setC(cj); setDc(dj); setWatch(Array.isArray(wj?.items) ? wj.items : []);
+        setC(cj); setDc(dj);
       } catch (e) { if (alive) setError(e instanceof Error ? e.message : "load failed"); }
       finally { if (alive) setLoading(false); }
     })();
@@ -61,139 +76,229 @@ export default function DecisionOverview({ onNavigate }: { onNavigate: (tab: str
   if (loading) return <AppLoading label={t("db.title")} />;
   if (error) return <AppEmptyState title={t("dc.ov.loadFail")} desc={error} />;
 
-  const regime = dc?.market?.regime ?? c?.market?.regime ?? null;
-  const regimeLabel = regime && ["BULL", "SIDEWAYS", "BEAR"].includes(regime) ? t(`dc.regime.${regime}` as Parameters<typeof t>[0]) : (regime ?? "—");
-  const risk = dc?.market?.riskLevel ?? null;
-  const trendLabel = regime === "BULL" ? t("db.trendUp") : regime === "BEAR" ? t("db.trendDown") : t("db.trendSide");
   const verdict = c?.verdict ?? null;
   const top1 = c?.top1 ?? null;
   const legs = c?.portfolio ?? [];
-  const cashRatio = legs.length ? Math.max(0, 100 - legs.reduce((a, l) => a + (l.weight || 0), 0)) : 100;
-  const focus = [...watch].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99)).slice(0, 5);
+  const top10 = c?.top10 ?? [];
+  const t10 = new Map(top10.map((r) => [r.symbol, r]));
+  const regime = dc?.market?.regime ?? c?.market?.regime ?? null;
+  const regimeLabel = regime && ["BULL", "SIDEWAYS", "BEAR"].includes(regime)
+    ? t(`dc.regime.${regime}` as Parameters<typeof t>[0]) : (regime ?? "—");
+  const vol = dc?.market?.volatility ?? c?.market?.volatility ?? null;
+  const oppCount = c?.market?.qualifiedCount ?? null;
 
-  // ⑤ 今日风险：真实来源(Market/News/Risk/Explain)，去重最多3，不生成通用风险
-  const risks: string[] = [];
-  if ((c?.market?.newsRiskCount ?? 0) > 0) risks.push(`近期利空 ${c!.market!.newsRiskCount} 条（News）`);
-  if (regime === "BEAR") risks.push("大盘熊市，系统性下行风险（Market）");
-  else if (regime === "SIDEWAYS") risks.push("大盘震荡，方向不明（Market）");
-  const vol = dc?.market?.volatility ?? c?.market?.volatility;
-  if (vol != null && vol > 25) risks.push(`市场波动率偏高 ${Math.round(vol)}（Risk）`);
-  if (verdict === "STAY_CASH" && c?.verdictReason) risks.push(c.verdictReason);
-  const risks3 = [...new Set(risks)].slice(0, 3);
+  // ── 第一推荐派生（全部来自真实字段）──
+  const expReturn = top1?.target1 != null && top1?.price ? ((top1.target1 - top1.price) / top1.price) * 100 : null;
+  const slPct = top1?.stopLoss != null && top1?.price ? ((top1.stopLoss - top1.price) / top1.price) * 100 : null;
+  const rr = expReturn != null && slPct != null && slPct !== 0 ? Math.abs(expReturn / slPct) : null;
 
-  const Divider = () => <div className="text-center text-[11px] tracking-widest select-none my-1" style={{ color: COLORS.border }}>━━━━━━━━━━━━</div>;
-  const Title = ({ label, tab }: { label: string; tab?: string }) => (
-    <div className="flex items-center justify-between">
-      <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{label}</span>
-      {tab && <AppButton size="sm" variant="ghost" onClick={() => onNavigate(tab)}>{t("dc.ov.viewDetail")} →</AppButton>}
+  // AI 推荐理由 ≤3（真实来源：verdictReason + top10 内该股 reason / gptNote），无则不编造
+  const top1Row = top1 ? t10.get(top1.symbol) : null;
+  const reasons = [top1Row?.reason, top1Row?.gptNote, c?.verdictReason]
+    .filter((x): x is string => !!x && x.trim().length > 0)
+    .map((x) => x.trim())
+    .filter((x, i, arr) => arr.indexOf(x) === i)
+    .slice(0, 3);
+
+  // ── 今日回避：先排除 组合∪第一推荐（组合优先级最高），再按严重度取前3 ──
+  const recommended = new Set<string>([...legs.map((l) => l.symbol), ...(top1 ? [top1.symbol] : [])]);
+  type Avoid = { symbol: string; name: string | null; reasons: string[]; sev: number; rank: number };
+  const rawAvoid: Avoid[] = [];
+  for (const s of top10) {
+    const rs: string[] = []; let sev = 0;
+    if ((s.newsSentiment ?? 0) < 0) { rs.push("近期利空"); sev = Math.max(sev, SEVERITY.news); }
+    if (String(s.riskLevel ?? "").toUpperCase() === "HIGH") { rs.push("风险偏高"); sev = Math.max(sev, SEVERITY.risk); }
+    if ((s.volumeRatio ?? 0) > 1.5 && (s.changePct ?? 0) < 0) { rs.push("放量下跌"); sev = Math.max(sev, SEVERITY.dump); }
+    if (s.inBuyZone === false) { rs.push("已脱离买区/追高"); sev = Math.max(sev, SEVERITY.zone); }
+    if (rs.length) rawAvoid.push({ symbol: s.symbol, name: s.name, reasons: rs, sev, rank: s.rank ?? 99 });
+  }
+  const conflicts = rawAvoid.filter((a) => recommended.has(a.symbol));
+  if (conflicts.length && typeof console !== "undefined") {
+    console.warn(`[avoid-conflict] ${conflicts.map((x) => x.symbol).join(", ")} 同时出现在建议组合/第一推荐与回避候选中 → 按「组合优先」自动从回避列表剔除`);
+  }
+  const avoidAll = rawAvoid
+    .filter((a) => !recommended.has(a.symbol))
+    .sort((a, b) => b.sev - a.sev || a.rank - b.rank);
+  const avoid = avoidAll.slice(0, 3);
+  // 一致性断言：recommended ∩ avoid 必须为空
+  const intersect = avoid.filter((a) => recommended.has(a.symbol));
+  if (intersect.length && typeof console !== "undefined") {
+    console.error(`[assert-failed] recommended ∩ avoid ≠ ∅: ${intersect.map((x) => x.symbol).join(", ")}`);
+  }
+
+  const top1InPortfolio = top1 ? legs.some((l) => l.symbol === top1.symbol) : true;
+
+  const Row = ({ k, v, tone }: { k: string; v: string; tone?: string }) => (
+    <div className="flex items-center justify-between py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+      <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{k}</span>
+      <span className="text-[13px] font-semibold tabular-nums" style={{ color: tone ?? COLORS.text }}>{v}</span>
     </div>
   );
 
   return (
-    <div className="max-w-[720px] mx-auto space-y-2">
-      {/* Header */}
-      <div className="rounded-xl p-4 text-center" style={{ background: COLORS.card, border: `1px solid ${COLORS.border}` }}>
-        <div className="text-[16px] font-bold" style={{ color: COLORS.text }}>{t("db.title")}</div>
-        <div className="text-[11px] mt-1" style={{ color: COLORS.textFaint }}>
-          {t("db.updated")} {c?.date ?? dc?.dateJst ?? "—"} {c?.decidedAtJst ?? ""} JST
+    <div className="max-w-[760px] mx-auto space-y-3">
+      {/* ① 今日决策 */}
+      <AppCard>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{verdict ? VERDICT_ICON[verdict] : "—"}</span>
+            <div>
+              <div className="text-[20px] font-bold tracking-tight" style={{ color: COLORS.text }}>
+                {verdict ? t(`dc.verdict.${verdict}` as Parameters<typeof t>[0]) : t("dc.ov.noData")}
+              </div>
+              <div className="text-[11px]" style={{ color: COLORS.textFaint }}>
+                {c?.date ?? "—"} {c?.decidedAtJst ?? ""} JST
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("dc.ov.marketState")}</span>
+            <AppBadge tone={regime === "BULL" ? "green" : regime === "BEAR" ? "red" : "amber"}>{regimeLabel}</AppBadge>
+            {vol != null && <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("db.riskLevel")} {Math.round(vol * 10) / 10}</span>}
+            {oppCount != null && (
+              <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>
+                {t("dc.ov.oppCount")} <b style={{ color: COLORS.primary }}>{oppCount}</b>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* ① 今日市场 */}
-      <Divider />
-      <AppCard header={<Title label={t("db.s1")} tab="cockpit" />}>
-        <div className="flex flex-wrap items-center gap-2 text-[13px]">
-          <AppBadge tone={regime === "BULL" ? "green" : regime === "BEAR" ? "red" : "amber"}>{regimeLabel}</AppBadge>
-          <span style={{ color: COLORS.textSecondary }}>{t("db.riskLevel")}: <b style={{ color: COLORS.text }}>{risk ?? "—"}</b></span>
-          <span style={{ color: COLORS.textSecondary }}>{t("db.trend")}: <b style={{ color: COLORS.text }}>{trendLabel}</b></span>
-        </div>
+        {c?.verdictReason && (
+          <p className="text-[12px] mt-2 pt-2" style={{ color: COLORS.textSecondary, borderTop: `1px solid ${COLORS.borderSoft}` }}>
+            ▸ {c.verdictReason}
+          </p>
+        )}
       </AppCard>
 
-      {/* ② 今日第一推荐 */}
-      <Divider />
-      <AppCard header={<Title label={t("db.s2")} tab="closing" />}>
+      {/* ② 第一推荐 —— 单一最优标的 */}
+      <AppCard
+        header={
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>⭐ {t("dc.ov.firstPick")}</span>
+              <span className="text-[11px] ml-2" style={{ color: COLORS.textFaint }}>{t("dc.ov.singleBest")}</span>
+            </div>
+            <AppButton size="sm" variant="ghost" onClick={() => onNavigate("closing")}>{t("dc.ov.viewDetail")} →</AppButton>
+          </div>
+        }
+      >
         {top1 ? (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[15px] font-bold" style={{ color: COLORS.text }}>{top1.name ?? top1.symbol}</span>
+              <span className="text-[16px] font-bold" style={{ color: COLORS.text }}>{top1.name ?? top1.symbol}</span>
               <span className="text-[11px] font-mono" style={{ color: COLORS.textFaint }}>{top1.symbol}</span>
               {top1.confidence && <AppBadge tone="blue">{t("dc.ov.confidence")} {top1.confidence}</AppBadge>}
+              <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>AI {top1.aiScore ?? "—"} · GPT {top1.gptScore ?? "—"}</span>
               <ExplainReportButton symbol={top1.symbol} name={top1.name} />
             </div>
-            <div className="text-[12px]" style={{ color: COLORS.textSecondary }}>
-              AI {top1.aiScore ?? "—"} · GPT {top1.gptScore ?? "—"}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+              <Row k={t("dc.ov.currentPrice")} v={`${jpy(top1.price)} (${pct1(top1.changePct)})`} />
+              <Row k={t("dc.ov.entryRange")} v={top1.entryLow != null && top1.entryHigh != null ? `${jpy(top1.entryLow)} ~ ${jpy(top1.entryHigh)}` : "—"} />
+              <Row k={t("dc.ov.target")} v={top1.target1 != null ? `T1 ${jpy(top1.target1)}${top1.target2 != null ? ` → T2 ${jpy(top1.target2)}` : ""}` : "—"} />
+              <Row k={t("dc.ov.stopLossP")} v={jpy(top1.stopLoss)} tone={COLORS.danger} />
+              <Row k={t("dc.ov.expReturn")} v={expReturn != null ? pct1(expReturn) : "—"} tone={(expReturn ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
+              <Row k={t("dc.ov.rr")} v={rr != null ? `${rr.toFixed(1)} : 1` : "—"} />
+              <Row k={t("dc.ov.holdPeriod")} v={top1.holdPeriod ?? "—"} />
             </div>
-          </div>
-        ) : <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>}
-      </AppCard>
-
-      {/* ③ 今日建议组合 */}
-      <Divider />
-      <AppCard header={<Title label={t("db.s3")} tab="closing" />}>
-        {legs.length ? (
-          <>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {legs.map((l) => (
-                <span key={l.symbol} className="px-2 py-1 rounded-md text-[12px]" style={{ background: COLORS.tile, border: `1px solid ${COLORS.border}` }}>
-                  {l.name ?? l.symbol} <b style={{ color: COLORS.primary }}>{Math.round(l.weight)}%</b>
-                </span>
-              ))}
-            </div>
-            <div className="text-[12px]" style={{ color: COLORS.textSecondary }}>
-              {t("db.holdCount")}: <b style={{ color: COLORS.text }}>{legs.length}</b> · {t("db.cashRatio")}: <b style={{ color: COLORS.text }}>{Math.round(cashRatio)}%</b>
-            </div>
-          </>
-        ) : <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>}
-      </AppCard>
-
-      {/* ④ 今日操作建议 */}
-      <Divider />
-      <AppCard header={<Title label={t("db.s4")} />}>
-        {verdict ? (
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{VERDICT_ICON[verdict]}</span>
-            <div>
-              <div className="text-[15px] font-bold" style={{ color: COLORS.text }}>
-                {t("db.todayAction")}：{t(ACT_KEY[verdict] as Parameters<typeof t>[0])}
+            {reasons.length > 0 && (
+              <div className="pt-2" style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                <div className="text-[11px] mb-1" style={{ color: COLORS.textFaint }}>{t("dc.ov.reasons")}</div>
+                <ul className="space-y-0.5">
+                  {reasons.map((r, i) => (
+                    <li key={i} className="text-[12px] flex gap-1.5" style={{ color: COLORS.textSecondary }}>
+                      <span style={{ color: COLORS.primary }}>{i + 1}.</span><span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <AppBadge tone={VERDICT_TONE[verdict]}>{verdict.replace("_", " ")}</AppBadge>
-            </div>
+            )}
           </div>
         ) : <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>}
       </AppCard>
 
-      {/* ⑤ 今日风险 */}
-      <Divider />
-      <AppCard header={<Title label={`${t("db.s5")}（${risks3.length}）`} />}>
-        {risks3.length ? (
-          <ul className="space-y-1 text-[13px]" style={{ color: COLORS.textSecondary }}>
-            {risks3.map((r, i) => <li key={i} className="flex gap-1.5"><span style={{ color: COLORS.danger }}>•</span><span>{r}</span></li>)}
-          </ul>
-        ) : <div className="text-[13px]" style={{ color: COLORS.success }}>{t("db.noRisk")}</div>}
+      {/* ③ 建议组合 —— 分散配置方案 */}
+      <AppCard
+        header={
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.ov.portfolio")}</span>
+              <span className="text-[11px] ml-2" style={{ color: COLORS.textFaint }}>{t("dc.ov.diversified")}</span>
+            </div>
+            <span className="text-[11px]" style={{ color: COLORS.textFaint }}>{t("db.holdCount")} {legs.length}</span>
+          </div>
+        }
+      >
+        {legs.length ? (
+          <div className="space-y-2">
+            {legs.map((l) => {
+              const row = t10.get(l.symbol);
+              const outOfZone = row?.inBuyZone === false;
+              return (
+                <div key={l.symbol} className="pb-2" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[13px] font-semibold truncate" style={{ color: COLORS.text }}>{l.name ?? l.symbol}</span>
+                      <span className="text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{l.symbol}</span>
+                      {l.sector && <span className="text-[10px]" style={{ color: COLORS.textFaint }}>{l.sector}</span>}
+                    </div>
+                    <span className="text-[14px] font-bold tabular-nums" style={{ color: COLORS.primary }}>{Math.round(l.weight)}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: COLORS.tile }}>
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, l.weight)}%`, background: COLORS.primary }} />
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-[11px] tabular-nums" style={{ color: COLORS.textSecondary }}>
+                    {l.entryLow != null && l.entryHigh != null && <span>{t("dc.ov.entryRange")} {jpy(l.entryLow)}~{jpy(l.entryHigh)}</span>}
+                    {l.target1 != null && <span>T1 {jpy(l.target1)}</span>}
+                    {l.stopLoss != null && <span style={{ color: COLORS.danger }}>SL {jpy(l.stopLoss)}</span>}
+                  </div>
+                  {/* 如实呈现底层矛盾：组合含此股但 top10 判定已脱离买区 */}
+                  {outOfZone && (
+                    <div className="mt-1 text-[11px] px-2 py-1 rounded" style={{ background: `${COLORS.warning}14`, color: COLORS.warning }}>
+                      ⚠️ {t("dc.ov.outOfZone")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {c?.portfolioNote && <p className="text-[11px]" style={{ color: COLORS.textFaint }}>{c.portfolioNote}</p>}
+            {/* 第一推荐未入组合 → 如实说明，不强行并入 */}
+            {top1 && !top1InPortfolio && (
+              <p className="text-[11px] px-2 py-1.5 rounded" style={{ background: COLORS.tile, color: COLORS.textSecondary }}>
+                ℹ️ {t("dc.ov.top1NotInPort")}
+              </p>
+            )}
+          </div>
+        ) : <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>}
       </AppCard>
 
-      {/* ⑥ 今日关注 */}
-      <Divider />
-      <AppCard header={<Title label={t("db.s6")} tab="watchlist" />}>
-        {focus.length ? (
-          <div className="space-y-1">
-            <div className="text-[11px] mb-1" style={{ color: COLORS.textFaint }}>{t("db.focusTop5")}</div>
-            {focus.map((w) => (
-              <div key={w.symbol} className="flex items-center justify-between text-[12px] py-0.5" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-                <span style={{ color: COLORS.text }}>{w.rank != null ? `#${w.rank} ` : ""}{w.name ?? w.symbol}</span>
-                <span style={{ color: (w.returnPctFromEntry ?? 0) >= 0 ? COLORS.success : COLORS.danger }}>{pct(w.returnPctFromEntry)}</span>
+      {/* ④ 今日回避（0~3 动态，不凑数） */}
+      <AppCard
+        header={
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>
+              {t("dc.ov.avoid")}{avoid.length > 0 ? `（${avoid.length}）` : ""}
+            </span>
+            {avoidAll.length > 3 && (
+              <span className="text-[11px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.showTop3")} / {avoidAll.length}</span>
+            )}
+          </div>
+        }
+      >
+        {avoid.length ? (
+          <div className="space-y-1.5">
+            {avoid.map((a) => (
+              <div key={a.symbol} className="flex items-start justify-between gap-2 py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span style={{ color: COLORS.danger }}>✗</span>
+                  <span className="text-[13px] font-medium truncate" style={{ color: COLORS.text }}>{a.name ?? a.symbol}</span>
+                  <span className="text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{a.symbol}</span>
+                </div>
+                <span className="text-[11px] text-right shrink-0" style={{ color: COLORS.textSecondary }}>{a.reasons.join(" / ")}</span>
               </div>
             ))}
           </div>
-        ) : <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>}
-      </AppCard>
-
-      {/* ⑦ 一句话总结 */}
-      <Divider />
-      <AppCard>
-        <div className="text-center text-[14px] font-medium" style={{ color: COLORS.text }}>
-          {verdict ? t(SUM_KEY[verdict] as Parameters<typeof t>[0]) : (c?.summary ?? "—")}
-        </div>
+        ) : (
+          <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.avoidNone")}</div>
+        )}
       </AppCard>
     </div>
   );

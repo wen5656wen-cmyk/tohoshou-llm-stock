@@ -18,13 +18,15 @@ const ClosingDecisionView = dynamic(() => import("./ClosingDecisionView"), { ssr
 const DecisionCockpitView = dynamic(() => import("./DecisionCockpitView"), { ssr: false, loading: spin });
 const DecisionHistory = dynamic(() => import("./DecisionHistory"), { ssr: false, loading: spin });
 
+// P9-DECISION-01 顺序：①今日决策 ②AI Top Picks ③每日关注池 ④收盘决策 ⑤历史验证 ⑥AI市场驾驶舱
+// （仅重排 Tab，不新增/删除导航、Hub、Workspace；旧 ?tab= 深链全部保持可用）
 const TABS = [
   { key: "overview", labelKey: "dc.tab.overview" },
   { key: "top-picks", labelKey: "dc.tab.topPicks" },
   { key: "watchlist", labelKey: "dc.tab.watchlist" },
   { key: "closing", labelKey: "dc.tab.closing" },
-  { key: "cockpit", labelKey: "dc.tab.cockpit" },
   { key: "history", labelKey: "dc.tab.history" },
+  { key: "cockpit", labelKey: "dc.tab.cockpit" },
 ] as const;
 
 const VALID = new Set<string>(TABS.map((t) => t.key));
