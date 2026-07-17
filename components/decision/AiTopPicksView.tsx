@@ -34,6 +34,9 @@ interface Api {
   ok: boolean; experimental: boolean; empty?: boolean; note: string; date?: string;
   quoteSource?: string; quoteUpdatedAt?: string | null;
   picks: Pick[]; portfolio: Portfolio | null; filter: FilterStats | null; performance?: Performance; history: Hist[];
+  // P9-DECISION-02：API 只读新增字段 —— 每股历史胜率（口径见 perSymbolWinRateSpec）
+  perSymbolWinRate?: Record<string, { picks: number; wins: number; winRate: number | null; status: "ok" | "insufficient" }>;
+  perSymbolWinRateSpec?: { horizonDays: number; basis: string; benchmarkPrice: string; winRule: string; minSample: number; note: string };
 }
 
 const REJECT_LABEL: Record<string, string> = { NEWS_NEGATIVE: "重大利空", LOW_LIQUIDITY: "流动性不足" };
@@ -59,6 +62,51 @@ export default function AiTopPicksPage() {
     } catch (e) { setError(e instanceof Error ? e.message : "加载失败"); } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+
+  // ── P9-DECISION-02：每股扩展信息（买区/目标/止损/产业链/理由）──
+  // 仅 5 只 picks → 5 次 explain（非 31 次），并在会话内缓存；失败即「暂无数据」，页面不报错。
+  type Ext = { entry?: string; t1?: string; sl?: string; exp?: string; chain?: string; reasons?: string[] };
+  const [ext, setExt] = useState<Record<string, Ext>>({});
+  useEffect(() => {
+    const syms = (d?.picks ?? []).map((p) => p.symbol);
+    if (!syms.length) return;
+    let alive = true;
+    (async () => {
+      const themeJson = await fetch("/api/ai-theme", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const chainBySym = new Map<string, string>();
+      for (const s of themeJson?.stocks ?? []) {
+        if (s.supplyChainLayer || s.subTheme) chainBySym.set(s.symbol, `${s.supplyChainLayer ?? "—"} / ${s.subTheme ?? "—"}`);
+      }
+      const closing = await fetch("/api/admin/closing-decision", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const zoneBySym = new Map<string, string>();
+      for (const r of closing?.top10 ?? []) {
+        if (r.entryLow != null && r.entryHigh != null) zoneBySym.set(r.symbol, `¥${Math.round(r.entryLow).toLocaleString()}~¥${Math.round(r.entryHigh).toLocaleString()}`);
+      }
+      const out: Record<string, Ext> = {};
+      await Promise.all(syms.map(async (sym) => {
+        const e: Ext = {};
+        const chain = chainBySym.get(sym); if (chain) e.chain = chain;
+        const zone = zoneBySym.get(sym); if (zone) e.entry = zone;
+        try {
+          const j = await fetch(`/api/explain/${encodeURIComponent(sym)}/report`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null));
+          const r = j?.report;
+          if (r) {
+            const t1 = r.takeProfit?.t1 ?? null;
+            const sl = r.stopLoss?.price ?? null;
+            if (t1 != null) e.t1 = `¥${Math.round(t1).toLocaleString()}`;
+            if (sl != null) e.sl = `¥${Math.round(sl).toLocaleString()}`;
+            const cur = (d?.picks ?? []).find((p) => p.symbol === sym)?.currentPrice ?? null;
+            if (t1 != null && cur) e.exp = `${((t1 - cur) / cur) * 100 > 0 ? "+" : ""}${(Math.round(((t1 - cur) / cur) * 1000) / 10).toFixed(1)}%`;
+            if (Array.isArray(r.recommendReasons) && r.recommendReasons.length) e.reasons = r.recommendReasons;
+          }
+        } catch { /* 安全空态 */ }
+        out[sym] = e;
+      }));
+      if (alive) setExt(out);
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d?.picks]);
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.background }}>
@@ -245,7 +293,30 @@ export default function AiTopPicksPage() {
                     <Metric label="今日" value={sign(p.intradayPct)} color={retColor(p.intradayPct)} small />
                   </div>
 
-                  <div style={{ fontSize: 11, color: COLORS.textSecondary, lineHeight: 1.5, marginTop: 6 }}>{p.reason ?? "—"}</div>
+                  {/* P9-DECISION-02 增强：风险等级(真实二值) / 买区 / 目标 / 止损 / 产业链位置 / 每股历史胜率 */}
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px", fontSize: 11 }}>
+                    <Kv2 k="风险等级" v={p.riskScore == null ? "暂无数据" : p.riskScore >= 70 ? "低" : "高"}
+                        c={p.riskScore == null ? COLORS.textFaint : p.riskScore >= 70 ? COLORS.success : COLORS.danger} />
+                    <Kv2 k="上涨概率" v="暂无数据" c={COLORS.textFaint} />
+                    <Kv2 k="买入区间" v={ext[p.symbol]?.entry ?? "暂无数据"} c={ext[p.symbol]?.entry ? COLORS.text : COLORS.textFaint} />
+                    <Kv2 k="目标价" v={ext[p.symbol]?.t1 ?? "读取中"} c={ext[p.symbol]?.t1 ? COLORS.text : COLORS.textFaint} />
+                    <Kv2 k="止损价" v={ext[p.symbol]?.sl ?? "读取中"} c={ext[p.symbol]?.sl ? COLORS.danger : COLORS.textFaint} />
+                    <Kv2 k="预计收益" v={ext[p.symbol]?.exp ?? "暂无数据"} c={ext[p.symbol]?.exp ? COLORS.success : COLORS.textFaint} />
+                    <Kv2 k="产业链位置" v={ext[p.symbol]?.chain ?? "非 AI 主题覆盖"} c={ext[p.symbol]?.chain ? COLORS.text : COLORS.textFaint} />
+                    <Kv2 k="历史胜率" v={winLabel(d.perSymbolWinRate?.[p.symbol])} c={d.perSymbolWinRate?.[p.symbol]?.status === "ok" ? COLORS.text : COLORS.textFaint} />
+                  </div>
+
+                  {/* AI 推荐理由（最多 3 条，来自 explain.recommendReasons；未就绪时回退 pick.reason） */}
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ fontSize: 10, color: COLORS.textFaint, marginBottom: 2 }}>AI 推荐理由</div>
+                    {ext[p.symbol]?.reasons?.length ? (
+                      <ul style={{ fontSize: 11, color: COLORS.textSecondary, lineHeight: 1.6 }}>
+                        {ext[p.symbol]!.reasons!.slice(0, 3).map((r, i) => <li key={i}>· {r}</li>)}
+                      </ul>
+                    ) : (
+                      <div style={{ fontSize: 11, color: COLORS.textSecondary, lineHeight: 1.5 }}>{p.reason ?? "暂无数据"}</div>
+                    )}
+                  </div>
                 </AppCard>
               ))}
             </div>
@@ -296,4 +367,20 @@ function Metric({ label, value, color, small }: { label: string; value: string; 
       <div style={{ fontSize: small ? 12 : 13.5, fontWeight: 600, color: color ?? COLORS.text, fontVariantNumeric: "tabular-nums" }}>{value}</div>
     </div>
   );
+}
+
+// ── P9-DECISION-02 helpers ──────────────────────────────────────────────────
+function Kv2({ k, v, c }: { k: string; v: string; c?: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
+      <span style={{ color: COLORS.textFaint }}>{k}</span>
+      <span style={{ color: c ?? COLORS.text, fontWeight: 600, textAlign: "right" }}>{v}</span>
+    </div>
+  );
+}
+/** 每股历史胜率文案：样本不足 → 「样本不足」，绝不用 cohort 胜率冒充、绝不显示 0% */
+function winLabel(w?: { picks: number; wins: number; winRate: number | null; status: "ok" | "insufficient" }): string {
+  if (!w) return "暂无数据";
+  if (w.status !== "ok" || w.winRate == null) return `样本不足（${w.wins}胜/${w.picks}次）`;
+  return `${w.winRate}%（近${w.picks}次 ${w.wins}胜）`;
 }

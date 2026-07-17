@@ -12,6 +12,12 @@ import {
   type Tone,
 } from "@/components/ui";
 import ExplainReportButton from "@/components/explain/ExplainReportButton";
+// P9-DECISION-02：「今日放弃股票」判据唯一来源（与「今日总览 · 今日回避」同源，禁止两页结论不一致）
+import { buildAvoidList, recommendedSymbols, type AvoidReasonKey } from "@/lib/decision/avoid";
+
+const AVOID_LABEL: Record<AvoidReasonKey, string> = {
+  news: "近期利空", risk: "风险偏高", dump: "放量下跌", zone: "已脱离买区",
+};
 
 interface Top1 {
   symbol: string; name: string | null; aiScore: number | null; gptScore: number | null;
@@ -76,7 +82,49 @@ export default function ClosingDecisionPage() {
   }
   useEffect(() => { load(); }, []);
 
+  // P9-DECISION-02：真实全球市场（NASDAQ/VIX/USDJPY）→ 支撑「今日最大风险」，只读
+  const [gm, setGm] = useState<{ nasdaq?: number | null; nasdaqChange?: number | null; vix?: number | null } | null>(null);
+  useEffect(() => {
+    fetch("/api/market-data", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setGm(j?.globalMarket ?? null))
+      .catch(() => setGm(null));
+  }, []);
+
   const v = d?.verdict ? VERDICT[d.verdict] : null;
+
+  // ── ②为什么可以买 / ③为什么不能买 / ⑥今日最大风险：全部由真实字段派生，最多 3 条，无数据即空 ──
+  const m = d?.market ?? null;
+  const reasonsBuy: string[] = [];
+  const reasonsNoBuy: string[] = [];
+  const topRisks: string[] = [];
+  if (m) {
+    if ((m.buyZoneHitRate ?? 0) >= 50) reasonsBuy.push(`买区命中率 ${m.buyZoneHitRate}%（多数标的处于可买区间）`);
+    if ((m.qualifiedCount ?? 0) > 0) reasonsBuy.push(`合格候选 ${m.qualifiedCount} 只（已过流动性/风险/新闻过滤）`);
+    if ((m.avgAiScore ?? 0) >= 70) reasonsBuy.push(`候选池平均 AI 评分 ${fmt(m.avgAiScore, "", 1)}（质量偏高）`);
+    if (m.regime === "BULL") reasonsBuy.push("大盘处于牛市，顺势环境");
+    if ((m.breakoutRatio ?? 0) >= 30) reasonsBuy.push(`已突破占比 ${m.breakoutRatio}%（动能确认）`);
+
+    if (m.regime === "BEAR") reasonsNoBuy.push("大盘熊市，系统性下行风险");
+    else if (m.regime === "SIDEWAYS") reasonsNoBuy.push(`大盘震荡（regimeScore ${fmt(m.regimeScore, "", 2)}），方向不明`);
+    if ((m.newsRiskCount ?? 0) > 0) reasonsNoBuy.push(`候选池近期利空 ${m.newsRiskCount} 只`);
+    if ((m.volatility ?? 0) > 25) reasonsNoBuy.push(`市场波动率偏高 ${fmt(m.volatility, "", 1)}`);
+    if ((m.breakoutRatio ?? 100) < 20) reasonsNoBuy.push(`已突破占比仅 ${m.breakoutRatio}%（动能不足）`);
+    if ((m.avgRiskScore ?? 0) > 50) reasonsNoBuy.push(`候选池平均风险分 ${fmt(m.avgRiskScore, "", 0)} 偏高`);
+
+    if ((gm?.nasdaqChange ?? 0) < -1) topRisks.push(`美股调整：NASDAQ ${fmt(gm?.nasdaqChange, "%", 2)}（AI 板块承压）`);
+    if ((gm?.vix ?? 0) > 20) topRisks.push(`VIX ${fmt(gm?.vix, "", 1)} 偏高，风险偏好收缩`);
+    if ((m.newsRiskCount ?? 0) > 0) topRisks.push(`候选池利空 ${m.newsRiskCount} 只`);
+    if (m.regime !== "BULL") topRisks.push(`大盘非牛市（${m.regime ?? "—"}）`);
+    const hi = (d?.top10 ?? []).filter((r) => String(r.riskLevel ?? "").toUpperCase() === "HIGH");
+    if (hi.length) topRisks.push(`Top10 中 ${hi.length} 只高风险：${hi.slice(0, 3).map((x) => x.symbol).join("、")}`);
+  }
+  const reasonsBuy3 = reasonsBuy.slice(0, 3);
+  const reasonsNoBuy3 = reasonsNoBuy.slice(0, 3);
+  const topRisks3 = topRisks.slice(0, 3);
+
+  // ④ 今日放弃股票 —— 与「今日总览 · 今日回避」完全同源
+  const avoidRes = buildAvoidList(d?.top10 ?? [], recommendedSymbols(d?.top1 ?? null, d?.portfolio ?? []));
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.background }}>
@@ -121,6 +169,63 @@ export default function ClosingDecisionPage() {
               <AppKpiCard label="买区命中率" value={fmt(d.market?.buyZoneHitRate, "%", 0)} sub={`已突破 ${fmt(d.market?.breakoutRatio, "%", 0)}`} />
               <AppKpiCard label="合格候选" value={`${d.market?.qualifiedCount ?? 0}`} sub={`利空 ${d.market?.newsRiskCount ?? 0} 只`} />
             </AppKpiGrid>
+
+            {/* P9-DECISION-02 ②③⑥：为什么可以买 / 为什么不能买 / 今日最大风险（全部真实字段派生，无数据即空态） */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <AppCard>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>✅ 为什么可以买</div>
+                {reasonsBuy3.length ? (
+                  <ul style={{ fontSize: 12, color: COLORS.textSecondary, lineHeight: 1.8 }}>
+                    {reasonsBuy3.map((x, i) => <li key={i}>· {x}</li>)}
+                  </ul>
+                ) : <div style={{ fontSize: 12, color: COLORS.textFaint }}>暂无数据</div>}
+              </AppCard>
+              <AppCard>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>⛔ 为什么不能买</div>
+                {reasonsNoBuy3.length ? (
+                  <ul style={{ fontSize: 12, color: COLORS.textSecondary, lineHeight: 1.8 }}>
+                    {reasonsNoBuy3.map((x, i) => <li key={i}>· {x}</li>)}
+                  </ul>
+                ) : <div style={{ fontSize: 12, color: COLORS.textFaint }}>暂无数据</div>}
+              </AppCard>
+              <AppCard>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>⚠️ 今日最大风险</div>
+                {topRisks3.length ? (
+                  <ul style={{ fontSize: 12, color: COLORS.textSecondary, lineHeight: 1.8 }}>
+                    {topRisks3.map((x, i) => <li key={i}>· {x}</li>)}
+                  </ul>
+                ) : <div style={{ fontSize: 12, color: COLORS.textFaint }}>暂无数据</div>}
+                <div style={{ fontSize: 10, color: COLORS.textFaint, marginTop: 6 }}>
+                  ※「财报临近」「板块资金流出」无可靠数据源，不予展示
+                </div>
+              </AppCard>
+            </div>
+
+            {/* P9-DECISION-02 ④：今日放弃股票（与「今日总览 · 今日回避」共用 lib/decision/avoid.ts，结论必然一致） */}
+            <AppCard>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>
+                🚫 今日放弃股票{avoidRes.items.length ? `（${avoidRes.items.length}）` : ""}
+                {avoidRes.totalCandidates > avoidRes.items.length && (
+                  <span style={{ fontSize: 11, color: COLORS.textFaint, marginLeft: 6 }}>显示前 {avoidRes.items.length} / 共 {avoidRes.totalCandidates}</span>
+                )}
+              </div>
+              {avoidRes.items.length ? (
+                <div>
+                  {avoidRes.items.map((a) => (
+                    <div key={a.symbol} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 0", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                      <span style={{ fontSize: 13 }}>
+                        <span style={{ color: COLORS.danger, marginRight: 6 }}>✗</span>
+                        {a.name ?? a.symbol} <span style={{ fontSize: 10, color: COLORS.textFaint, fontFamily: "monospace" }}>{a.symbol}</span>
+                      </span>
+                      <span style={{ fontSize: 11, color: COLORS.textSecondary }}>{a.reasonKeys.map((k) => AVOID_LABEL[k]).join(" / ")}</span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 10, color: COLORS.textFaint, marginTop: 6 }}>
+                    判据：近期利空 &gt; 风险偏高 &gt; 放量下跌 &gt; 已脱离买区；已排除第一推荐与建仓组合内全部股票
+                  </div>
+                </div>
+              ) : <div style={{ fontSize: 12, color: COLORS.textFaint }}>今日暂无明确放弃标的</div>}
+            </AppCard>
 
             {/* ② 今日第一推荐 */}
             {d.top1 && (

@@ -111,12 +111,77 @@ export async function GET() {
     history.push({ date: ds, pickCount: rows.length, portfolioReturn: pRet, benchmarkReturn: bRet, alpha: pRet != null && bRet != null ? Math.round((pRet - bRet) * 100) / 100 : null });
   }
 
+  // ── P9-DECISION-02：每股历史胜率（只读新增字段 · 不改 schema / 不写库 / 不改评分·推荐·排序）──
+  //  口径（务必与 UI 展示一致）：
+  //    · 观察周期 horizonDays = 1 个交易日（与既有 AiTopPickPerf「日度再平衡 · 1 日持有」模型一致）
+  //    · 基准价格 = 该股「入选 Top Picks 当日 D」的收盘价
+  //    · 复权口径 = adjClose（缺失时回退 close；与 P8-DATA-02 拆股复权修复一致）
+  //    · 胜 = adjClose_{D+1} > adjClose_D（严格大于；相等记为负）
+  //    · 仅统计已存在 D+1 收盘的历史入选日；样本 < MIN_SAMPLE 记 status="insufficient"（UI 显示「样本不足」）
+  //  性能：两次批量查询（AiTopPick / DailyPrice），不做 N+1，前端无需逐股请求。
+  const MIN_SAMPLE = 5;
+  const perSymbolWinRate: Record<string, { picks: number; wins: number; winRate: number | null; status: "ok" | "insufficient" }> = {};
+  try {
+    const symbols = enriched.map((p) => p.symbol);
+    if (symbols.length) {
+      const histPicks = await prisma.aiTopPick.findMany({
+        where: { symbol: { in: symbols } },
+        select: { symbol: true, date: true },
+        orderBy: { date: "asc" },
+      });
+      const minDate = histPicks.length ? histPicks[0].date : latest.date;
+      const bars = await prisma.dailyPrice.findMany({
+        where: { symbol: { in: symbols }, date: { gte: minDate } },
+        select: { symbol: true, date: true, close: true, adjClose: true },
+        orderBy: [{ symbol: "asc" }, { date: "asc" }],
+      });
+      const bySym = new Map<string, { d: string; px: number }[]>();
+      for (const b of bars) {
+        const arr = bySym.get(b.symbol) ?? [];
+        arr.push({ d: b.date.toISOString().slice(0, 10), px: Number(b.adjClose ?? b.close) });
+        bySym.set(b.symbol, arr);
+      }
+      const pickDates = new Map<string, string[]>();
+      for (const h of histPicks) {
+        const arr = pickDates.get(h.symbol) ?? [];
+        arr.push(h.date.toISOString().slice(0, 10));
+        pickDates.set(h.symbol, arr);
+      }
+      for (const sym of symbols) {
+        const series = bySym.get(sym) ?? [];
+        const idx = new Map(series.map((x, i) => [x.d, i]));
+        let n = 0, w = 0;
+        for (const d of pickDates.get(sym) ?? []) {
+          const i = idx.get(d);
+          if (i == null || i + 1 >= series.length) continue; // 无 D+1 收盘 → 尚未可判定，不计入样本
+          const a = series[i].px, b = series[i + 1].px;
+          if (!(a > 0) || !(b > 0)) continue;
+          n++; if (b > a) w++;
+        }
+        perSymbolWinRate[sym] = n >= MIN_SAMPLE
+          ? { picks: n, wins: w, winRate: Math.round((w / n) * 1000) / 10, status: "ok" }
+          : { picks: n, wins: w, winRate: null, status: "insufficient" };
+      }
+    }
+  } catch {
+    // 失败不影响主返回：UI 侧按「暂无数据」安全空态处理
+  }
+
   return NextResponse.json({
     ok: true,
     generatedAt: new Date(now).toISOString(),
     experimental: true,
     note: "P7 Preview · Experimental V1 · 只读派生 · 不修改任何现有功能（StrongBuy/DR/Promotion/Strategy/Watchlist）",
     date: entryDateStr,
+    perSymbolWinRate,
+    perSymbolWinRateSpec: {
+      horizonDays: 1,
+      basis: "adjClose（复权收盘价，缺失回退 close）",
+      benchmarkPrice: "入选当日 D 收盘价",
+      winRule: "adjClose_{D+1} > adjClose_D",
+      minSample: MIN_SAMPLE,
+      note: "每股独立统计，非 cohort 胜率；样本不足显示「样本不足」",
+    },
     weights: TOP_PICK_WEIGHTS,
     quoteSource, quoteUpdatedAt: quoteUpdatedAt ? new Date(quoteUpdatedAt).toISOString() : null,
     picks: enriched,

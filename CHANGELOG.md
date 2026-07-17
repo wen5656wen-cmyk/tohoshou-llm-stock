@@ -2,6 +2,25 @@
 
 ---
 
+## [18.7.0] - 2026-07-17 — 🧰 P9-DECISION-02 决策中心交易能力增强（部分交付）
+
+**纯 UI/展示层 + API 只读新增字段**：未改 评分/GPT/StockScore/Portfolio Builder/Recommendation Engine/Closing Decision Engine/Cron/Schema/DB/导航。
+
+### 新增 SSOT：`lib/decision/avoid.ts`
+「今日回避」（今日总览）与「今日放弃股票」（收盘决策）是**同一概念**，判据/排除/排序/上限/断言只在此维护，两页 import 共用，**根除两页结论不一致**。4 判据（近期利空>风险偏高>放量下跌>已脱离买区）· 排除第一推荐+建议组合（组合优先，冲突剔除+warn）· 上限 3 不凑数 · `recommended ∩ avoid` 断言为空。`DecisionOverview` 已重构为消费该模块（删除内联重复实现）。
+
+### Closing Decision 六区
+①今日结论(verdict，**无 SELL_TODAY 不渲染为可选态**) ②为什么可以买(≤3，真实 market 字段) ③为什么不能买(≤3) ④**今日放弃股票**(SSOT，0 只显示「今日暂无明确放弃标的」) ⑤今日最佳机会(既有第一推荐) ⑥**今日最大风险**(≤3，**接入 `/api/market-data` 真实 NASDAQ/VIX**)。明示「财报临近/板块资金流出」无数据源不展示。
+
+### AI Top Picks 卡片增强
+风险等级(**真实二值 低/高**，不伪造中风险) · 买入区间(closing top10) · 目标价/止损价/预计收益(explain report) · 产业链位置(ai-theme，缺失显示「非 AI 主题覆盖」) · AI 推荐理由≤3(explain.recommendReasons) · **每股历史胜率** · 上涨概率「暂无数据」。仅 5 次 explain 请求。
+
+### API 只读新增字段（不改 schema / 不写库 / 不改评分·推荐·排序）
+`/api/admin/ai-top-picks` 新增 `perSymbolWinRate` + `perSymbolWinRateSpec`。**口径**：观察周期 1 交易日（与既有 AiTopPickPerf「日度再平衡·1日持有」一致）· 基准=入选当日 D 收盘 · 复权=adjClose（回退 close）· 胜=`adjClose_{D+1} > adjClose_D` · 样本<5 → `insufficient`（UI「样本不足」，**不用 cohort 胜率冒充单股**）。实现为**两次批量查询**（AiTopPick / DailyPrice），无 N+1。
+
+### 验收
+Build ✅ tsc 0 · Health ✅ CRITICAL=0 · 四 Tab + `/api/market-data` 全 200 · 两页放弃/回避一致性断言 **∅** 通过。
+
 ## [18.6.0] - 2026-07-17 — 💰 P9-DECISION-01 决策中心重构（老板投资模式）
 
 决策中心从「系统状态」转为「每天如何赚钱」。**纯 UI/布局/展示层**：未改 AI评分/GPT/StockScore/推荐算法/Daily Recommendation/Closing Decision API/Portfolio Builder/Cron/Schema/DB/导航结构。
