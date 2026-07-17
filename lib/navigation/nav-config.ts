@@ -56,10 +56,11 @@ export const NAV_NODES: NavNode[] = [
     key: "stocks", workspace: "boss", labelKey: "ws.stockCenter", href: "/screener",
     Icon: Search, glyph: "✦",
     tabs: [
+      // P8-UI-02：产业链并入主题研究（作为其子 Tab），移除一级 industry-chain 入口。
+      // 旧 industry-chain 深链继续可达 → themes（应用内 legacyRoutes）。
       { key: "screen", labelKey: "sr.tab.screen" },
       { key: "sectors", labelKey: "sr.tab.sectors", legacyRoutes: ["/sectors"] },
-      { key: "themes", labelKey: "sr.tab.themes", legacyRoutes: ["/ai-theme"] },
-      { key: "industry-chain", labelKey: "sr.tab.industryChain" },
+      { key: "themes", labelKey: "sr.tab.themes", legacyRoutes: ["/ai-theme", "/screener?tab=industry-chain"] },
       { key: "news", labelKey: "sr.tab.news", legacyRoutes: ["/news"] },
       { key: "indicators", labelKey: "sr.tab.indicators", legacyRoutes: ["/indicators"] },
       { key: "research", labelKey: "sr.tab.research" },

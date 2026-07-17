@@ -1,7 +1,8 @@
 "use client";
 
-// ── 股票研究 Hub Tab 容器（P7-02B-3）────────────────────────────────────────
-// 7 Tab：选股 / 行业 / 主题 / 产业链 / 新闻 / 指标 / 研究分析。
+// ── 股票研究 Hub Tab 容器（P7-02B-3；P8-UI-02 合并产业链）──────────────────
+// 6 Tab：选股 / 行业 / 主题研究 / 新闻 / 指标 / 研究分析。
+// 产业链已并入「主题研究」，作为其 6 子 Tab 之一（不再是一级 Tab）。
 // 各 Tab 懒加载 + 仅激活 Tab 挂载 → 首屏不同时请求全部 API；?tab= URL 同步，刷新保持；
 // 移动端 Tab 横向滚动。复用现有页面/组件/API，不复制业务逻辑、不改任何计算。
 // 行业(/api/sectors)/主题·产业链(/api/ai-theme)/新闻(/api/news)/指标(/api/indicators)/
@@ -20,11 +21,11 @@ const NewsView = dynamic(() => import("./NewsView"), { ssr: false, loading: spin
 const IndicatorsView = dynamic(() => import("./IndicatorsView"), { ssr: false, loading: spin });
 const ResearchCenter = dynamic(() => import("./center").then((m) => ({ default: m.ResearchCenter })), { ssr: false, loading: spin });
 
+// P8-UI-02：产业链并入主题研究（6 子 Tab），移除一级 industry-chain 入口。
 const TABS = [
   { key: "screen", labelKey: "sr.tab.screen" },
   { key: "sectors", labelKey: "sr.tab.sectors" },
   { key: "themes", labelKey: "sr.tab.themes" },
-  { key: "industry-chain", labelKey: "sr.tab.industryChain" },
   { key: "news", labelKey: "sr.tab.news" },
   { key: "indicators", labelKey: "sr.tab.indicators" },
   { key: "research", labelKey: "sr.tab.research" },
@@ -37,7 +38,9 @@ export default function StockResearchHub() {
   const router = useRouter();
   const sp = useSearchParams();
   const raw = sp.get("tab");
-  const active = raw && VALID.has(raw) ? raw : "screen";
+  // 旧深链 ?tab=industry-chain → 主题研究并直接落到「产业链」子 Tab（不失效）。
+  const legacyChain = raw === "industry-chain";
+  const active = legacyChain ? "themes" : raw && VALID.has(raw) ? raw : "screen";
 
   const go = (key: string) => {
     if (key === active) return;
@@ -76,8 +79,7 @@ export default function StockResearchHub() {
         {/* 仅激活 Tab 挂载 → 懒加载对应 API。选股用完整 ScreenerBody(保留全部筛选/排序/分页)。 */}
         {active === "screen" && <ScreenerBody />}
         {active === "sectors" && <SectorsView />}
-        {active === "themes" && <AiThemeView initialThemeCards />}
-        {active === "industry-chain" && <AiThemeView />}
+        {active === "themes" && <AiThemeView initialSubTab={legacyChain ? "chain" : undefined} />}
         {active === "news" && <NewsView />}
         {active === "indicators" && <IndicatorsView />}
         {active === "research" && <ResearchCenter onTab={(k) => router.push(`/admin/research?tab=${k}`)} />}

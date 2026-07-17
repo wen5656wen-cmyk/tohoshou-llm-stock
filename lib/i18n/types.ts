@@ -95,6 +95,15 @@ export type Messages = {
   "sr.tab.news": string;
   "sr.tab.indicators": string;
   "sr.tab.research": string;
+  // P8-UI-02 主题研究 6 子 Tab
+  "theme.sub.overview": string;
+  "theme.sub.leaders": string;
+  "theme.sub.concept": string;
+  "theme.sub.chain": string;
+  "theme.sub.ai": string;
+  "theme.sub.news": string;
+  "theme.ai.subtitle": string;
+  "theme.ai.noReason": string;
   // P7-04A 三工作区
   "ws.boss": string;
   "ws.admin": string;

@@ -446,11 +446,20 @@ const jaJP: Messages = {
   // P7-02B-3 銘柄リサーチ
   "sr.tab.screen": "スクリーニング",
   "sr.tab.sectors": "業種",
-  "sr.tab.themes": "テーマ",
+  "sr.tab.themes": "テーマ研究",
   "sr.tab.industryChain": "バリューチェーン",
   "sr.tab.news": "ニュース",
   "sr.tab.indicators": "指標",
   "sr.tab.research": "リサーチ分析",
+  // P8-UI-02 テーマ研究 6 サブタブ
+  "theme.sub.overview": "テーマ概要",
+  "theme.sub.leaders": "主力銘柄",
+  "theme.sub.concept": "関連銘柄",
+  "theme.sub.chain": "サプライチェーン",
+  "theme.sub.ai": "AI分析",
+  "theme.sub.news": "関連ニュース",
+  "theme.ai.subtitle": "既存のAIスコアとファクターに基づくテーマ別サマリー（読み取り専用・再計算なし）",
+  "theme.ai.noReason": "AI解説はまだありません",
   // P7-04A 3 ワークスペース
   "ws.boss": "ボス",
   "ws.admin": "管理者",

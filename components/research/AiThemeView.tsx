@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { buildStockUrl } from "@/lib/navigation/back";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { getRec, getRecommendationLabel, returnColorClass, fmtPct, finalScoreCol
 import { useI18n } from "@/lib/i18n";
 import { getPrimaryName } from "@/lib/company-name";
 import { getThemeLabel, getLayerLabel } from "@/lib/i18n/theme-labels";
+import NewsView from "./NewsView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -330,20 +331,35 @@ function ThemeCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-// P7-02B-3：主题/产业链两 Tab 复用本视图；initialThemeCards 仅切换初始展示维度（展示层，不改数据/计算）。
-export default function AiThemePage({ initialThemeCards = false }: { initialThemeCards?: boolean } = {}) {
+// P8-UI-02：主题研究 6 子 Tab 容器（主题概览/龙头股票/概念股票/产业链/AI分析/相关新闻）。
+// 产业链合并进此视图；纯展示层重组，未改任何 API / 数据 / 评分 / 过滤逻辑。
+// initialSubTab：旧 ?tab=industry-chain 深链落到「产业链」子 Tab。
+export default function AiThemePage({ initialSubTab }: { initialSubTab?: string } = {}) {
   const { t, lang } = useI18n();
   useScrollRestoration("ai-theme");
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subTab, setSubTab] = useState<string>(initialSubTab ?? "overview");
   const [activeTab, setActiveTab] = useState<string>("ALL");
   const [sortKey, setSortKey] = useState<string>("finalScore");
   const [layerFilter, setLayerFilter] = useState<string>("");
   const [searchQ, setSearchQ] = useState<string>("");
   const [coreOnly, setCoreOnly] = useState(false);
   const [recFilter, setRecFilter] = useState<string>("");
-  const [showThemeCards, setShowThemeCards] = useState(initialThemeCards);
+
+  // 6 子 Tab（在组件内计算以取得 t()）。
+  const SUB_TABS = useMemo(() => [
+    { key: "overview", label: t("theme.sub.overview") },
+    { key: "leaders",  label: t("theme.sub.leaders") },
+    { key: "concept",  label: t("theme.sub.concept") },
+    { key: "chain",    label: t("theme.sub.chain") },
+    { key: "ai",       label: t("theme.sub.ai") },
+    { key: "news",     label: t("theme.sub.news") },
+  ], [t]);
+
+  // 龙头=核心股；概念=全部关联股（不再按 core 收窄）。
+  const coreScope = subTab === "leaders" ? "core" : "all";
 
   // Locale-aware tabs (computed inside component so t() is available)
   const TABS = useMemo(() => [
@@ -396,6 +412,7 @@ export default function AiThemePage({ initialThemeCards = false }: { initialThem
       stocks = stocks.filter((s) => s.theme === activeTab);
     }
 
+    if (coreScope === "core") stocks = stocks.filter((s) => s.isCore);
     if (layerFilter) stocks = stocks.filter((s) => s.supplyChainLayer === layerFilter);
     if (coreOnly) stocks = stocks.filter((s) => s.isCore);
     if (recFilter) stocks = stocks.filter((s) => s.recommendationV2 === recFilter || (!s.scored && recFilter === "PENDING"));
@@ -435,26 +452,84 @@ export default function AiThemePage({ initialThemeCards = false }: { initialThem
         default: return 0;
       }
     });
-  }, [data, activeTab, sortKey, layerFilter, coreOnly, recFilter, searchQ]);
+  }, [data, activeTab, sortKey, layerFilter, coreOnly, recFilter, searchQ, coreScope]);
+
+  // ── Chrome：头部 + 子 Tab 栏（始终渲染，含加载中/新闻子 Tab）───────────────
+  const summary = data?.summary;
+  const subtitleDate = summary?.updatedAt
+    ? new Date(summary.updatedAt).toLocaleString(
+        lang === "zh-CN" ? "zh-CN" : lang === "ja-JP" ? "ja-JP" : "en-US",
+        { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }
+      )
+    : null;
+  const subtitle = summary
+    ? lang === "zh-CN"
+      ? `14个分类 · ${summary.uniqueSymbols}只追踪 · ${summary.coreStocks}个核心标的`
+      : lang === "ja-JP"
+      ? `14分類・${summary.uniqueSymbols}銘柄を追跡・${summary.coreStocks}銘柄が中核`
+      : `14 categories · ${summary.uniqueSymbols} tracked stocks · ${summary.coreStocks} core stocks`
+    : "";
+
+  const chrome = (
+    <>
+      <div className="mb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <span className="text-2xl">🗾</span>
+          <h1 className="text-[28px] md:text-[32px] font-bold text-slate-900 leading-tight">{t("theme.title")}</h1>
+          <span className="text-xs font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-full">v8.0</span>
+        </div>
+        {subtitle && (
+          <p className="text-sm text-slate-500">
+            {subtitle}
+            {subtitleDate && (
+              <span className="ml-2 text-slate-400 text-xs">{t("theme.scored_prefix")} {subtitleDate} JST</span>
+            )}
+          </p>
+        )}
+      </div>
+      {/* 6 子 Tab 栏 */}
+      <div className="flex gap-1.5 overflow-x-auto mb-5 pb-0.5">
+        {SUB_TABS.map(({ key, label }) => {
+          const on = subTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setSubTab(key)}
+              className={`px-3.5 py-2 rounded-xl text-[13px] whitespace-nowrap transition-colors border ${
+                on
+                  ? "bg-slate-900 text-white border-slate-900 font-semibold"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 font-medium"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  const wrap = (inner: ReactNode) => <div className="p-4 md:p-6">{chrome}{inner}</div>;
+
+  // 相关新闻：复用现有 NewsView（/api/news 只读），不依赖 theme 数据。
+  if (subTab === "news") return wrap(<NewsView />);
 
   if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center h-64">
+    return wrap(
+      <div className="flex items-center justify-center h-64">
         <div className="text-slate-400 text-sm animate-pulse">{t("theme.loading")}</div>
       </div>
     );
   }
-  if (error || !data) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
-          {t("theme.error_load")}{error ?? "—"}
-        </div>
+  if (error || !data || !summary) {
+    return wrap(
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm">
+        {t("theme.error_load")}{error ?? "—"}
       </div>
     );
   }
 
-  const { summary, themes, layers } = data;
+  const { themes, layers } = data;
 
   const tabCounts: Record<string, number> = { ALL: summary.uniqueSymbols };
   let hardwareCount = 0;
@@ -463,20 +538,6 @@ export default function AiThemePage({ initialThemeCards = false }: { initialThem
     if (HARDWARE_THEMES.has(th.theme)) hardwareCount += th.count;
   }
   tabCounts["HARDWARE"] = hardwareCount;
-
-  const subtitleDate = summary.updatedAt
-    ? new Date(summary.updatedAt).toLocaleString(
-        lang === "zh-CN" ? "zh-CN" : lang === "ja-JP" ? "ja-JP" : "en-US",
-        { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }
-      )
-    : null;
-
-  const subtitle =
-    lang === "zh-CN"
-      ? `14个分类 · ${summary.uniqueSymbols}只追踪 · ${summary.coreStocks}个核心标的`
-      : lang === "ja-JP"
-      ? `14分類・${summary.uniqueSymbols}銘柄を追跡・${summary.coreStocks}銘柄が中核`
-      : `14 categories · ${summary.uniqueSymbols} tracked stocks · ${summary.coreStocks} core stocks`;
 
   const showCount =
     lang === "zh-CN"
@@ -487,197 +548,156 @@ export default function AiThemePage({ initialThemeCards = false }: { initialThem
 
   const unitStocks = t("theme.unit_stocks");
 
-  return (
-    <div className="p-4 md:p-6">
-      {/* Header */}
-      <div className="mb-5">
-        <div className="flex items-center gap-3 mb-1">
-          <span className="text-2xl">🗾</span>
-          <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("theme.title")}</h1>
-          <span className="text-xs font-bold bg-blue-600 text-white px-2.5 py-0.5 rounded-full">v8.0</span>
+  // ── ①主题概览：统计 + 产业链层 + 主题卡 ───────────────────────────────────
+  const statsRow = (
+    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-2.5 mb-5">
+      <StatCard label={t("theme.stat_tracked")} value={summary.uniqueSymbols} sub={unitStocks} />
+      <StatCard label={t("theme.stat_core")} value={summary.coreStocks} sub="⭐ isCore" />
+      <StatCard label={t("theme.stat_buy")} value={summary.buyCount} sub="recommendationV2" />
+      <StatCard label={t("theme.stat_avg_score")} value={summary.avgScore} sub="adaptiveScore" />
+      <StatCard label={t("theme.stat_categories")} value={14} sub={`14 ${t("theme.sub_categories")}`} />
+      <StatCard label={t("theme.stat_layers")} value={layers.filter((l) => l.symbolCount > 0).length} sub={t("theme.active_layers")} />
+      <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
+        <div className="text-sm font-bold text-slate-900 truncate leading-tight">
+          {summary.topStock ? getPrimaryName(summary.topStock, lang) : "—"}
         </div>
-        <p className="text-sm text-slate-500">
-          {subtitle}
-          {subtitleDate && (
-            <span className="ml-2 text-slate-400 text-xs">
-              {t("theme.scored_prefix")} {subtitleDate} JST
-            </span>
-          )}
-        </p>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-2.5 mb-5">
-        <StatCard label={t("theme.stat_tracked")} value={summary.uniqueSymbols} sub={unitStocks} />
-        <StatCard label={t("theme.stat_core")} value={summary.coreStocks} sub="⭐ isCore" />
-        <StatCard label={t("theme.stat_buy")} value={summary.buyCount} sub="recommendationV2" />
-        <StatCard label={t("theme.stat_avg_score")} value={summary.avgScore} sub="adaptiveScore" />
-        <StatCard label={t("theme.stat_categories")} value={14} sub={`14 ${t("theme.sub_categories")}`} />
-        <StatCard label={t("theme.stat_layers")} value={layers.filter((l) => l.symbolCount > 0).length} sub={t("theme.active_layers")} />
-        <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
-          <div className="text-sm font-bold text-slate-900 truncate leading-tight">
-            {summary.topStock ? getPrimaryName(summary.topStock, lang) : "—"}
-          </div>
-          <div className="text-xs text-slate-500 mt-0.5">
-            {t("theme.stat_top_score")} <span className="font-semibold text-blue-700">{summary.topStock?.score?.toFixed(0) ?? "—"}</span>
-          </div>
+        <div className="text-xs text-slate-500 mt-0.5">
+          {t("theme.stat_top_score")} <span className="font-semibold text-blue-700">{summary.topStock?.score?.toFixed(0) ?? "—"}</span>
         </div>
       </div>
+    </div>
+  );
 
-      {/* Supply chain layer visual */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
-        <div className="text-[10px] text-slate-400 font-medium mb-2">{t("theme.chain_title")}</div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {layers.map((l, i) => (
-            <div key={l.layer} className="flex items-center gap-1.5">
-              <button
-                onClick={() => setLayerFilter(layerFilter === l.layer ? "" : l.layer)}
-                className={`flex flex-col items-center px-3 py-1.5 rounded-lg border text-[10px] transition-all ${
-                  layerFilter === l.layer
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white border-slate-200 text-slate-600 hover:border-blue-300"
-                }`}
-              >
-                <span className="font-bold">{getLayerLabel(l.layer, lang)}</span>
-                <span className="opacity-70">{l.symbolCount}{unitStocks}</span>
-              </button>
-              {i < layers.length - 1 && <span className="text-slate-300 text-sm">→</span>}
-            </div>
-          ))}
-          {layerFilter && (
+  // ④产业链：供应链层级导航（可点击过滤 → 驱动个股网格），产业链功能完整保留于此。
+  const layerVisual = (
+    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
+      <div className="text-[10px] text-slate-400 font-medium mb-2">{t("theme.chain_title")}</div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {layers.map((l, i) => (
+          <div key={l.layer} className="flex items-center gap-1.5">
             <button
-              onClick={() => setLayerFilter("")}
-              className="text-[10px] text-blue-600 hover:underline ml-1"
-            >
-              ✕ {t("common.clear_filter")}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Theme summary cards */}
-      <div className="mb-5">
-        <button
-          onClick={() => setShowThemeCards((v) => !v)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 mb-3 hover:text-blue-600"
-        >
-          <span>{showThemeCards ? "▾" : "▸"}</span>
-          {t("theme.categories_overview")}
-        </button>
-        {showThemeCards && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-2 md:gap-2.5">
-            {themes.map((th) => (
-              <ThemeCard
-                key={th.theme}
-                theme={th}
-                isActive={activeTab === th.theme}
-                onClick={() => setActiveTab(activeTab === th.theme ? "ALL" : th.theme)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Controls: tabs + filters + search */}
-      <div className="space-y-2.5 mb-4">
-        {/* Tab bar */}
-        <div className="flex gap-1 bg-slate-100 rounded-lg p-1 overflow-x-auto">
-          {TABS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`px-3 py-1.5 text-xs rounded-md transition-all font-medium whitespace-nowrap ${
-                activeTab === key
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+              onClick={() => setLayerFilter(layerFilter === l.layer ? "" : l.layer)}
+              className={`flex flex-col items-center px-3 py-1.5 rounded-lg border text-[10px] transition-all ${
+                layerFilter === l.layer
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white border-slate-200 text-slate-600 hover:border-blue-300"
               }`}
             >
-              {label}
-              <span className="ml-1 text-[10px] text-slate-400">({tabCounts[key] ?? 0})</span>
+              <span className="font-bold">{getLayerLabel(l.layer, lang)}</span>
+              <span className="opacity-70">{l.symbolCount}{unitStocks}</span>
+            </button>
+            {i < layers.length - 1 && <span className="text-slate-300 text-sm">→</span>}
+          </div>
+        ))}
+        {layerFilter && (
+          <button onClick={() => setLayerFilter("")} className="text-[10px] text-blue-600 hover:underline ml-1">
+            ✕ {t("common.clear_filter")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const themeCardsBlock = (
+    <div className="mb-5">
+      <div className="text-sm font-semibold text-slate-700 mb-3">{t("theme.categories_overview")}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-2 md:gap-2.5">
+        {themes.map((th) => (
+          <ThemeCard
+            key={th.theme}
+            theme={th}
+            isActive={activeTab === th.theme}
+            onClick={() => { setActiveTab(th.theme); setSubTab("concept"); }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  // ②龙头 / ③概念 / ④产业链 共用：过滤/排序控制条 + 个股网格。
+  const controlsBlock = (
+    <div className="space-y-2.5 mb-4">
+      <div className="flex gap-1 bg-slate-100 rounded-lg p-1 overflow-x-auto">
+        {TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`px-3 py-1.5 text-xs rounded-md transition-all font-medium whitespace-nowrap ${
+              activeTab === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {label}
+            <span className="ml-1 text-[10px] text-slate-400">({tabCounts[key] ?? 0})</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="text"
+          placeholder={t("theme.search_placeholder")}
+          value={searchQ}
+          onChange={(e) => setSearchQ(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs w-60 focus:outline-none focus:border-blue-400"
+        />
+        <select
+          value={layerFilter}
+          onChange={(e) => setLayerFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
+        >
+          {LAYER_OPTIONS.map((o) => (<option key={o.key} value={o.key}>{o.label}</option>))}
+        </select>
+        <select
+          value={recFilter}
+          onChange={(e) => setRecFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
+        >
+          <option value="">{t("theme.rec_all")}</option>
+          <option value="STRONG_BUY">{getRecommendationLabel("STRONG_BUY", lang)}</option>
+          <option value="BUY">{getRecommendationLabel("BUY", lang)}</option>
+          <option value="HOLD">{getRecommendationLabel("HOLD", lang)}</option>
+          <option value="WATCH">{getRecommendationLabel("WATCH", lang)}</option>
+          <option value="AVOID">{getRecommendationLabel("AVOID", lang)}</option>
+        </select>
+        <button
+          onClick={() => setCoreOnly((v) => !v)}
+          className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+            coreOnly ? "bg-amber-400 text-white border-amber-400" : "bg-white text-slate-600 border-slate-200 hover:border-amber-300"
+          }`}
+        >
+          ⭐ {t("theme.core_toggle")}
+        </button>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-[11px] text-slate-400">{t("theme.sort_label")}</span>
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.key}
+              onClick={() => setSortKey(o.key)}
+              className={`text-[11px] px-2 py-1 rounded border transition-all ${
+                sortKey === o.key ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"
+              }`}
+            >
+              {o.label}
             </button>
           ))}
         </div>
-
-        {/* Filter + sort row */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="text"
-            placeholder={t("theme.search_placeholder")}
-            value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs w-60 focus:outline-none focus:border-blue-400"
-          />
-
-          <select
-            value={layerFilter}
-            onChange={(e) => setLayerFilter(e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
-          >
-            {LAYER_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={recFilter}
-            onChange={(e) => setRecFilter(e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
-          >
-            <option value="">{t("theme.rec_all")}</option>
-            <option value="STRONG_BUY">{getRecommendationLabel("STRONG_BUY", lang)}</option>
-            <option value="BUY">{getRecommendationLabel("BUY", lang)}</option>
-            <option value="HOLD">{getRecommendationLabel("HOLD", lang)}</option>
-            <option value="WATCH">{getRecommendationLabel("WATCH", lang)}</option>
-            <option value="AVOID">{getRecommendationLabel("AVOID", lang)}</option>
-          </select>
-
-          <button
-            onClick={() => setCoreOnly((v) => !v)}
-            className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-              coreOnly
-                ? "bg-amber-400 text-white border-amber-400"
-                : "bg-white text-slate-600 border-slate-200 hover:border-amber-300"
-            }`}
-          >
-            ⭐ {t("theme.core_toggle")}
-          </button>
-
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400">{t("theme.sort_label")}</span>
-            {SORT_OPTIONS.map((o) => (
-              <button
-                key={o.key}
-                onClick={() => setSortKey(o.key)}
-                className={`text-[11px] px-2 py-1 rounded border transition-all ${
-                  sortKey === o.key
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
+    </div>
+  );
 
-      {/* Result count */}
+  const gridBlock = (
+    <>
       <div className="text-xs text-slate-400 mb-3">
         {showCount}
         {searchQ && <span className="ml-1">（{t("theme.search_label")}{searchQ}）</span>}
         {coreOnly && <span className="ml-1">· {t("theme.core_only_label")}</span>}
         {layerFilter && <span className="ml-1">· {getLayerLabel(layerFilter, lang)}</span>}
       </div>
-
-      {/* Stock grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400 text-sm">
           {t("theme.empty_data")}。{lang !== "en-US" && (
             <>
               {t("theme.run_cmd")}
-              <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">
-                npx tsx scripts/seed-ai-themes.ts
-              </code>
+              <code className="bg-slate-100 px-2 py-0.5 rounded text-xs ml-1">npx tsx scripts/seed-ai-themes.ts</code>
             </>
           )}
         </div>
@@ -688,8 +708,6 @@ export default function AiThemePage({ initialThemeCards = false }: { initialThem
           ))}
         </div>
       )}
-
-      {/* Footer */}
       {filtered.length > 0 && (
         <div className="mt-6 pt-4 border-t border-slate-200 flex items-center gap-6 text-xs text-slate-400 flex-wrap">
           <span>{showCount}</span>
@@ -698,6 +716,75 @@ export default function AiThemePage({ initialThemeCards = false }: { initialThem
           <span>{t("theme.stat_core")} {summary.coreStocks}</span>
         </div>
       )}
+    </>
+  );
+
+  // ⑤AI分析：主题级摘要，纯派生自现有 /api/ai-theme 字段（评分/理由/机会/风险），零重算。
+  const aiThemesSorted = [...themes].sort((a, b) => b.avgScore - a.avgScore);
+  const aiAnalysisBlock = (
+    <div>
+      <p className="text-xs text-slate-400 mb-4">{t("theme.ai.subtitle")}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {aiThemesSorted.map((th) => {
+          const top = data.stocks
+            .filter((s) => s.theme === th.theme && s.scored)
+            .sort((a, b) => (b.finalScore ?? b.adaptiveScore ?? 0) - (a.finalScore ?? a.adaptiveScore ?? 0))
+            .slice(0, 3);
+          const colors = COLOR_MAP[th.color] ?? COLOR_MAP.slate;
+          return (
+            <div key={th.theme} className={`rounded-2xl border ${colors.border} bg-white p-3`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${colors.chip}`}>
+                  {getThemeLabel(th.theme, lang)}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {t("theme.avg_score_label")} <span className="font-semibold text-slate-700">{th.avgScore}</span>
+                  <span className="mx-1">·</span>
+                  {getRecommendationLabel("BUY", lang)} <span className="font-semibold text-orange-600">{th.buyCount}</span>
+                </span>
+              </div>
+              {top.length === 0 ? (
+                <div className="text-[11px] text-slate-400 py-2">{t("theme.ai.noReason")}</div>
+              ) : (
+                <div className="space-y-2">
+                  {top.map((s) => (
+                    <div key={s.symbol} className="border-t border-slate-100 pt-2 first:border-0 first:pt-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {s.isCore && <span className="text-amber-400 text-[10px]">⭐</span>}
+                          <Link href={buildStockUrl(s.symbol, "ai-theme", "/ai-theme")} className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 truncate">
+                            {getPrimaryName(s, lang)}
+                          </Link>
+                          <span className="text-[10px] text-slate-400 font-mono">{s.symbol.replace(".T", "")}</span>
+                          {s.highRiskFlag && <span className="text-[10px] text-red-400">⚠</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {s.opportunityLabel && <span className="text-[10px] text-violet-600">{s.opportunityLabel}</span>}
+                          <span className={`text-sm font-bold tabular-nums ${finalScoreColor(s.finalScore ?? s.adaptiveScore)}`}>
+                            {(s.finalScore ?? s.adaptiveScore)?.toFixed(0) ?? "—"}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
+                        {s.summaryReason ?? s.reason ?? t("theme.ai.noReason")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
+
+  // ── 按子 Tab 组合内容 ──────────────────────────────────────────────────────
+  let body: ReactNode;
+  if (subTab === "overview") body = <>{statsRow}{layerVisual}{themeCardsBlock}</>;
+  else if (subTab === "chain") body = <>{layerVisual}{controlsBlock}{gridBlock}</>;
+  else if (subTab === "ai") body = aiAnalysisBlock;
+  else body = <>{controlsBlock}{gridBlock}</>; // leaders / concept
+
+  return wrap(body);
 }

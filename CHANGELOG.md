@@ -2,6 +2,26 @@
 
 ---
 
+## [18.3.0] - 2026-07-17 — 🧭 P8-UI-02 主题 × 产业链合并（Merge Theme & Industry Chain）
+
+「股票研究」Hub 移除重复的一级「产业链」Tab，将其并入「主题研究」作为子 Tab。纯**导航/展示层重组**——未改任何 API / 数据库 / AI 评分 / 筛选逻辑 / 数据接口，未新增页面/路由。
+
+### 导航前后
+- 前：股票研究 Hub 7 Tab = 选股 / 行业 / **主题** / **产业链** / 新闻 / 指标 / 研究分析
+- 后：股票研究 Hub **6 Tab** = 选股 / 行业 / **主题研究** / 新闻 / 指标 / 研究分析（删除一级「产业链」）
+
+### 主题研究 6 子 Tab
+① 主题概览（统计 + 供应链层级 + 主题卡）② 龙头股票（isCore）③ 概念股票（全部关联股）④ **产业链**（供应链层级导航+过滤，原产业链功能完整迁入）⑤ AI 分析（主题级摘要，纯派生自 `/api/ai-theme` 已有 评分/理由/机会/风险 字段）⑥ 相关新闻（复用现有 `NewsView` → `/api/news`）。
+
+### 实现
+- `lib/navigation/nav-config.ts`：`stocks` 节点 tabs 删除 `industry-chain`；`themes` 增 legacyRoute `/screener?tab=industry-chain`（旧深链不失效）。
+- `components/research/StockResearchHub.tsx`：TABS 去 `industry-chain` + 删渲染分支；旧 `?tab=industry-chain` → 主题研究并落到「产业链」子 Tab（`initialSubTab`）。
+- `components/research/AiThemeView.tsx`：单视图重构为 6 子 Tab 容器；**保留全部现有过滤/排序/搜索/层级过滤/核心切换**；产业链层级可视化在概览(紧凑)与产业链(主视图)复用；AI 分析/相关新闻为展示层复用，零接口改动。
+- i18n：`sr.tab.themes` → 主题研究 / テーマ研究 / Theme Research；新增 `theme.sub.*`（6 子 Tab）+ `theme.ai.*`（三语 + types）。
+
+### 验收
+tsc 0 · Build PASS · 生产 Health **CRITICAL=0**（✅62 ❌0 ⚠️4 既有）· `/screener` 200 · 旧 `?tab=industry-chain` 200（落产业链子 Tab）· `/api/ai-theme` 200（未改）· web 重启（cron-scheduler 未改，cron 不重启）。**Architecture Check：Workspace 3（不变）· Hub 4（不变）· 股票研究 Hub Tab 7→6（收敛）· 符合 P7 治理**（无新增导航/Hub/Workspace，仅收敛）。
+
 ## [18.2.1] - 2026-07-17 — 🩹 拆股复权根因修复（Split Adjustment Integrity）
 
 修复股票分割导致技术指标失真的**根本原因**。验收样本 **325A.T**（2026-06-29 实施 1:3 拆股）：修复前图表/MA/RSI/return20d/60d 混入未复权价 → 虚假断崖、RSI 12、return20d −56.81%、return60d −62.71%、错误「回避」评级。

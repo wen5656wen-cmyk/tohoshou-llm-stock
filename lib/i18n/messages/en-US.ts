@@ -446,11 +446,20 @@ const enUS: Messages = {
   // P7-02B-3 Stock Research
   "sr.tab.screen": "Screen",
   "sr.tab.sectors": "Sectors",
-  "sr.tab.themes": "Themes",
+  "sr.tab.themes": "Theme Research",
   "sr.tab.industryChain": "Value Chain",
   "sr.tab.news": "News",
   "sr.tab.indicators": "Indicators",
   "sr.tab.research": "Research",
+  // P8-UI-02 Theme Research 6 sub-tabs
+  "theme.sub.overview": "Overview",
+  "theme.sub.leaders": "Leaders",
+  "theme.sub.concept": "Concept Stocks",
+  "theme.sub.chain": "Supply Chain",
+  "theme.sub.ai": "AI Analysis",
+  "theme.sub.news": "Related News",
+  "theme.ai.subtitle": "Theme-level digest derived from existing AI scores & factors (read-only, no recompute)",
+  "theme.ai.noReason": "No AI note yet",
   // P7-04A 3 workspaces
   "ws.boss": "Boss",
   "ws.admin": "Admin",

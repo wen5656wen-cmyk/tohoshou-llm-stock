@@ -446,11 +446,20 @@ const zhCN: Messages = {
   // P7-02B-3 股票研究
   "sr.tab.screen": "选股",
   "sr.tab.sectors": "行业",
-  "sr.tab.themes": "主题",
+  "sr.tab.themes": "主题研究",
   "sr.tab.industryChain": "产业链",
   "sr.tab.news": "新闻",
   "sr.tab.indicators": "指标",
   "sr.tab.research": "研究分析",
+  // P8-UI-02 主题研究 6 子 Tab
+  "theme.sub.overview": "主题概览",
+  "theme.sub.leaders": "龙头股票",
+  "theme.sub.concept": "概念股票",
+  "theme.sub.chain": "产业链",
+  "theme.sub.ai": "AI分析",
+  "theme.sub.news": "相关新闻",
+  "theme.ai.subtitle": "基于现有 AI 评分与因子的主题级摘要（只读派生，不重算）",
+  "theme.ai.noReason": "暂无 AI 解读",
   // P7-04A 三工作区
   "ws.boss": "老板",
   "ws.admin": "管理员",
