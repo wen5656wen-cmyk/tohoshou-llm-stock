@@ -19,6 +19,9 @@ import { AppCard, AppButton, AppLoading, AppEmptyState, AppBadge, COLORS } from 
 import ExplainReportButton from "@/components/explain/ExplainReportButton";
 // P9-DECISION-02：回避判据唯一来源（与「收盘决策 · 今日放弃股票」共用，保证两页结论一致）
 import { buildAvoidList, recommendedSymbols, type AvoidReasonKey } from "@/lib/decision/avoid";
+// P10-RESEARCH-01：催化剂 / 两级风险 / 比较视图（纯展示派生，不改任何引擎）
+import { buildCatalysts, buildRiskView, starStr, L2_NOTE, type Catalyst, type RiskView } from "@/lib/explain/gap";
+import ExplainCompare from "@/components/explain/ExplainCompare";
 
 interface Top1 {
   symbol: string; name: string | null; aiScore: number | null; gptScore: number | null;
@@ -77,6 +80,37 @@ export default function DecisionOverview({ onNavigate }: { onNavigate: (tab: str
     return () => { alive = false; };
   }, []);
 
+  // P10：第一推荐的催化剂 / 个股风险 / 全球市场（懒随主数据加载，失败各自安全空态）
+  const [p10, setP10] = useState<{
+    disc: { title: string; category?: string | null; sentiment?: string | null; publishedAt: string }[];
+    news: { title?: string; publishedAt: string }[];
+    explainRisks: { title: string; weight?: number | null }[] | null;
+    gm: { nasdaqChange?: number | null; vix?: number | null; usdjpy?: number | null } | null;
+  }>({ disc: [], news: [], explainRisks: null, gm: null });
+
+  const top1Sym = c?.top1?.symbol ?? null;
+  useEffect(() => {
+    if (!top1Sym) return;
+    let alive = true;
+    const j = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    (async () => {
+      const [d, n, e, m] = await Promise.all([
+        j(`/api/disclosures?symbol=${encodeURIComponent(top1Sym)}&limit=10`),
+        j(`/api/news?symbol=${encodeURIComponent(top1Sym)}&limit=20`),
+        j(`/api/explain/${encodeURIComponent(top1Sym)}?provider=rule`),
+        j(`/api/market-data`),
+      ]);
+      if (!alive) return;
+      setP10({
+        disc: Array.isArray(d) ? d : [],
+        news: Array.isArray(n) ? n : [],
+        explainRisks: Array.isArray(e?.risks) ? e.risks : null,
+        gm: m?.globalMarket ?? null,
+      });
+    })();
+    return () => { alive = false; };
+  }, [top1Sym]);
+
   if (loading) return <AppLoading label={t("db.title")} />;
   if (error) return <AppEmptyState title={t("dc.ov.loadFail")} desc={error} />;
 
@@ -110,6 +144,15 @@ export default function DecisionOverview({ onNavigate }: { onNavigate: (tab: str
   const avoid = avoidRes.items;
 
   const top1InPortfolio = top1 ? legs.some((l) => l.symbol === top1.symbol) : true;
+
+  // ── P10：③今日最大催化剂 / ④今日最大风险（两级） ──
+  const cat: Catalyst[] = top1 ? buildCatalysts(p10.disc, p10.news, new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10), 5) : [];
+  const riskView: RiskView | null = top1
+    ? buildRiskView(p10.explainRisks, {
+        nasdaqChange: p10.gm?.nasdaqChange ?? null, vix: p10.gm?.vix ?? null,
+        usdjpy: p10.gm?.usdjpy ?? null, regime: regime,
+      })
+    : null;
 
   const Row = ({ k, v, tone }: { k: string; v: string; tone?: string }) => (
     <div className="flex items-center justify-between py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
@@ -283,6 +326,64 @@ export default function DecisionOverview({ onNavigate }: { onNavigate: (tab: str
           <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.avoidNone")}</div>
         )}
       </AppCard>
+
+      {/* ③ 今日最大催化剂 + ④ 今日最大风险（两级） */}
+      {top1 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <AppCard header={
+            <div>
+              <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>🔥 今日最大催化剂</span>
+              <span className="text-[11px] ml-2" style={{ color: COLORS.textFaint }}>{top1.name ?? top1.symbol}</span>
+            </div>
+          }>
+            {cat.length ? (
+              <div className="space-y-1.5">
+                {cat.map((x, i) => (
+                  <div key={i} className="flex items-start gap-2 text-[12px]" style={{ opacity: x.stale ? 0.5 : 1 }}>
+                    <span className="shrink-0" style={{ color: COLORS.warning }}>{starStr(x.stars)}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] shrink-0" style={{ background: COLORS.tile, color: COLORS.textSecondary }}>{x.label}</span>
+                    <span className="min-w-0 truncate" style={{ color: COLORS.text }}>{x.title}</span>
+                    <span className="ml-auto text-[10px] shrink-0" style={{ color: COLORS.textFaint }}>{x.date}</span>
+                  </div>
+                ))}
+                <div className="text-[10px] pt-1" style={{ color: COLORS.textFaint }}>
+                  来源：TDnet 披露 + 新闻（已去重）· 灰色 = 超过 7 天 · 类别取自结构化字段，不做主观扩写
+                </div>
+              </div>
+            ) : <div className="text-[12px]" style={{ color: COLORS.textFaint }}>暂无数据</div>}
+          </AppCard>
+
+          <AppCard header={
+            <div>
+              <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>⚠️ 今日最大风险</span>
+              <span className="text-[11px] ml-2" style={{ color: COLORS.textFaint }}>
+                {riskView?.level === 1 ? `个股信号 · ${top1.name ?? top1.symbol}` : "市场级"}
+              </span>
+            </div>
+          }>
+            {riskView?.note && (
+              <div className="text-[11px] mb-1.5 px-2 py-1 rounded" style={{ background: `${COLORS.warning}12`, color: COLORS.warning }}>
+                ℹ️ {riskView.note}
+              </div>
+            )}
+            {riskView?.items.length ? (
+              <div className="space-y-1.5">
+                {riskView.items.map((r, i) => (
+                  <div key={i} className="flex items-start gap-2 text-[12px]">
+                    <span className="shrink-0" style={{ color: COLORS.danger }}>{starStr(r.stars)}</span>
+                    <span style={{ color: COLORS.text }}>{r.title}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <div className="text-[12px]" style={{ color: COLORS.textFaint }}>{L2_NOTE}</div>}
+          </AppCard>
+        </div>
+      )}
+
+      {/* ①② 为什么买 A / 为什么没买 B —— 比较视图（第一推荐 vs 今日回避首位） */}
+      {top1 && avoid.length > 0 && (
+        <ExplainCompare symbolA={top1.symbol} symbolB={avoid[0].symbol} />
+      )}
     </div>
   );
 }

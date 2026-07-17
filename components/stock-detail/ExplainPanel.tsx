@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { C } from "@/components/stock-detail/ui";
 import type { ExplainResult, ExplainPoint } from "@/lib/explain/types";
+import { starsOf, starStr } from "@/lib/explain/gap";
 
 type Status = "loading" | "ok" | "empty" | "error";
 
@@ -22,15 +23,26 @@ function SectionHead({ color, label }: { color: string; label: string }) {
   );
 }
 
+// P10-RESEARCH-01：按 weight 降序 + 星级可视化 —— 一眼看出最大驱动因素。
+// weight 是 Explain 引擎既有字段（相对重要度 0-100），此前从未展示；纯排序/展示，不改任何评分。
 function PointList({ points, color, empty }: { points: ExplainPoint[]; color: string; empty: string }) {
   if (!points.length) return <div className="text-[11px]" style={{ color: C.faint }}>{empty}</div>;
+  const sorted = [...points].sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
   return (
     <ul className="space-y-1.5">
-      {points.map((p, i) => (
+      {sorted.map((p, i) => (
         <li key={p.code + i} className="flex gap-2">
           <span style={{ width: 5, height: 5, borderRadius: 999, background: color, flexShrink: 0, marginTop: 6 }} />
-          <div className="min-w-0">
-            <div className="text-[12px] leading-snug" style={{ color: C.ink }}>{p.title}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-1.5">
+              {p.weight != null && (
+                <span className="text-[10px] tabular-nums shrink-0" style={{ color, letterSpacing: "-0.5px" }} title={`相对重要度 ${Math.round(p.weight)}`}>
+                  {starStr(starsOf(p.weight))}
+                </span>
+              )}
+              <div className="text-[12px] leading-snug" style={{ color: C.ink }}>{p.title}</div>
+              {p.weight != null && <span className="text-[10px] tabular-nums ml-auto shrink-0" style={{ color: C.faint }}>{Math.round(p.weight)}</span>}
+            </div>
             {p.detail && <div className="text-[11px] leading-snug mt-0.5" style={{ color: C.sub }}>{p.detail}</div>}
           </div>
         </li>

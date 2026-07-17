@@ -2,6 +2,31 @@
 
 ---
 
+## [18.8.0] - 2026-07-17 — 🧠 P10-RESEARCH-01 AI 决策解释能力（Decision Intelligence）
+
+不新增任何评分，只把**已有真实字段**换算成老板 30 秒能读懂的结论。**纯展示层**：未改 GPT / AI评分 / Recommendation Engine / Portfolio Builder / Closing Decision Engine / Watchlist Engine / Cron / Schema / DB / 导航；**未改 Explain 引擎本体**（engine/risk/strength/summary 一律未动）。
+
+### 新增 SSOT `lib/explain/gap.ts`（纯函数）
+星级映射（weight→★，≥95/85/75/60 分档）· 官方门槛差距 · BUY 群体均值基准 · 催化剂合并去重 · 风险两级回退。
+
+### ① 为什么买这只 —— `weight` 星级化
+Explain 引擎既有的 `ExplainPoint.weight`（相对重要度 0-100）**此前从未展示**；现按 weight 降序 + ★★★★★ 可视化，一眼看出最大驱动（如 3659.T：★★★★★99 全市场前1% > ★★★☆☆80 技术面强）。接入 `ExplainPanel`。
+
+### ② 为什么没买另一只 —— 新增 `ExplainCompare.tsx`
+**严格双口径分区**：
+- **官方门槛**（v8.1 唯一权威：`adaptiveScore≥70` 且 `percentileRank≤15%`）→ 实线蓝框，措辞限「达标/未达标/还差 X 分/超出 X 个百分点」；
+- **BUY 群体均值**（技术/基本面/资金/情绪/动量）→ 虚线灰框，措辞限「高于/低于 BUY 群体均值 + 参考差值」，强制标注「非官方门槛，仅供横向比较」+ **当日 BUY 样本数**。
+**禁止把群体均值写成买入门槛。** 接入 DecisionOverview（第一推荐 vs 今日回避首位）。
+
+### ③ 今日最大催化剂
+TDnet 披露 + 新闻合并、按标题去重、优先级 `回购 > 财报/业绩修正 > 增发/重大披露 > 分红 > 行业新闻 > 其他`，近 7 天优先、超期标灰显示日期。**事实类别只取结构化 `category`**，`sentiment` 仅作辅助标记、不改变类别；**禁止扩写为「超预期/大订单/新合同」**（底层无此字段）。
+
+### ④ 今日最大风险 —— 两级
+L1 `explain.risks`；为空自动回退 L2 市场级（NASDAQ/VIX/USDJPY/Regime，来自 `/api/market-data` 真实数据），并明示「**个股风险信号未触发，以下为市场级风险**」。**绝不出现「暂无风险」。**
+
+### 验收
+Build ✅ tsc 0 · Health ✅ CRITICAL=0 · `/decision-center?tab=overview` 200 · `/stocks/3659.T` 200。
+
 ## [18.7.1] - 2026-07-17 — 🔍 P9-DECISION-03 Daily Watchlist 实时增强（展开式懒加载）
 
 补齐 P9-DECISION-02 唯一未完成部分。**纯 UI/前端计算/懒加载/缓存**：未改 评分/GPT/StockScore/Recommendation Engine/Portfolio Builder/Closing Decision Engine/Cron/Schema/DB/导航/**排序逻辑**，**未新增任何 API**（全部复用现有只读接口）。
