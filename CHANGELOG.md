@@ -2,6 +2,59 @@
 
 ---
 
+## [18.9.0] - 2026-07-17 — 🧬 P12-DATA-01 EventType 数据层（Phase A · 零推荐影响）
+
+建立独立的 **EventType 事实层**，回答「客观上发生了什么」。**生产推荐结果零变化**（实测背书，见下）。
+遵守 `docs/P11-Architecture-Baseline.md`（🔒 FROZEN）：**未改 Schema / 评分 / 门槛 / Recommendation Engine / Gate / Explain / Top Picks / sentiment 语义 / TDnet 过滤范围 / 新闻覆盖范围 / Cron**。
+
+### 新增 SSOT `lib/events/`（纯函数，不落库）
+- `types.ts` — 25 个 EventType（v1）+ 离散 confidence 档位 {0,50,85,95} + method 枚举。
+  **不含 POSITIVE/NEGATIVE，不含 direction** —— 方向属 Score 层（ADR-003），本层不得越界。
+- `classify.ts` — `classifyEventType({title, category}) → {eventType, confidence, method, evidence, version}`。
+  纯函数：无 IO / DB / 网络 / LLM / 随机 / 时钟，可单测。标题确定性规则优先，
+  **category 仅作佐证**，不可靠即 `UNKNOWN`（ADR-001）。
+
+### 按 ADR-001 采用「纯函数不落库」方案
+EventType 是 `f(title, category)` 的派生量 → 落库得到的是 cache 而非 SSOT。
+本轮**零 Schema 改动**，回滚 = `git revert`（无数据迁移、无 `eventTypeVersion` 列）。
+
+### BUYBACK 五分 —— P11 用生产数据换来的教训
+`BUYBACK_ANNOUNCEMENT`（新决议）/ `BUYBACK_PROGRESS`（法定月度进度报告）/
+`BUYBACK_COMPLETED`（取得終了）/ `BUYBACK_CANCELLATION`（消却）/ `BUYBACK_DISPOSAL`（処分）。
+30 日 Shadow 实测 `BUYBACK_PROGRESS = 403 / 70.5%` —— 独立复现 Baseline F6
+（ARCH-02: 330 / 72.2%），确认「BUYBACK=POSITIVE」确为误报之源。
+
+### Shadow 首跑即捕获 3 个自身 bug（已修 + 回归测试固化）
+1. `譲渡制限付株式報酬としての自己株式処分`（RS 薪酬）被误判 `BUYBACK_DISPOSAL` → 128 条假阳性；
+   修：`EQUITY_STOCK_OPTION` 规则前置于自己株式块。
+2. 裸 `/取得.{0,4}完了/` 吞掉 `株式取得（子会社化）完了`（并购）→ 修：自己株式块全部加限定词。
+3. `News.category`（IR/MARKET/OTHER/EARNINGS/DIVIDEND/GUIDANCE/BUYBACK）与
+   TDnet（FORECAST_REVISION/EQUITY/MATERIAL）**是两套词表**，corroborates 对 News 全部失效 → 修：双词表覆盖。
+修复后 `UNKNOWN 38.1% → 1.9%`，`BUYBACK_DISPOSAL 128 → 5`。
+
+### 新增脚本
+- `npm run test:event-classify` — 38 项离线单测（BUYBACK 三阶段 / 财报 vs 修正 / 増資 vs 分割 vs SO /
+  UNKNOWN 回退 / 幂等 / 契约不变量）。
+- `npm run event-shadow` · `event-shadow:30d` — **只读** Shadow 报告（静态校验：零写操作）。
+
+### 零变化证明（生产实测）
+```
+rating:  BUY=29  STRONG_BUY=2  HOLD=552  WATCH=1531  AVOID=924   ← 与 P11-ARCH-02 逐项一致
+adaptiveScore:  max=76  avg=49.8907  n=3038                       ← 与 Baseline F1 (μ=49.89) 一致
+StockScore.computedAt = 2026-07-17T04:58Z（今晨 cron，本任务未触发重算）
+生产运行路径 import lib/events 次数 = 0（仅 test/shadow 脚本引用）
+```
+
+### ⚠️ 遗留项（不在本任务范围，仅记录）
+- **Baseline F7 数值存疑**：F7 称「EQUITY 仅 13.0% 是真稀释（42/322）」，源于 ARCH-02 临时分桶脚本把
+  `新株予約権` 判在 `第三者割当` 之前，将 MSワラント 误计为员工期权。修正顺序后 30 日实测为
+  **真融资 150 / 321 = 46.7%**，员工期权 107 = 33.3%（样本已人工核验）。
+  核心结论（EQUITY≠NEGATIVE、Gate1 无条件拒绝 EQUITY 是缺陷）**不受影响**，但 F7 的数量级需勘误 —— 
+  按授权本轮**不修改冻结正文**，留待 P12-GATE-01 开 ADR 处理。
+- `app/api/sync/news|tdnet/route.ts` 与 `scripts/sync-news|fetch-tdnet.ts` 是**两套并行重复实现**（P11 未记录）。
+
+---
+
 ## [18.8.0] - 2026-07-17 — 🧠 P10-RESEARCH-01 AI 决策解释能力（Decision Intelligence）
 
 不新增任何评分，只把**已有真实字段**换算成老板 30 秒能读懂的结论。**纯展示层**：未改 GPT / AI评分 / Recommendation Engine / Portfolio Builder / Closing Decision Engine / Watchlist Engine / Cron / Schema / DB / 导航；**未改 Explain 引擎本体**（engine/risk/strength/summary 一律未动）。

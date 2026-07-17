@@ -473,4 +473,40 @@ newsSentiment 权重 = 0.10 ~ 0.15（按 stockStyle，见 lib/ai-score.ts STYLE_
 
 ---
 
+## 附录 B · P12 实施状态索引
+
+> ⚠️ 本节**只记录实施进度与实测勘误线索**，不构成对上文冻结决策的修改。
+> 冻结正文（§1–§7）的任何变更，仍须新开 ADR。
+
+| 任务 | 状态 | 版本 | Commit | 备注 |
+|---|---|---|---|---|
+| **P12-DATA-01** · EventType 数据层 | ✅ 已完成（2026-07-17） | v18.9.0 | 见 CHANGELOG | 按 **ADR-001 采用纯函数不落库**；零 Schema 改动；推荐结果零变化（实测） |
+| P12-DATA-02 · 解除 sync-news 双重过滤 | ⏸ 未开始 | — | — | 编号说明见下 |
+| P12-EXPLAIN-01 · Explain 改讲事实 | ⏸ 未开始 | — | — | ADR-002：必须先于 Gate/Score |
+| P12-GATE-01 · Gate1 改用 EventType | ⏸ 未开始 | — | — | 需 Shadow 复跑 |
+| P12-SCORE-01 · newsSentiment 接 eventScore | ⏸ 未开始 | — | — | 需快照 + Shadow |
+| P14-SCORE-01 / -02 · 权重与门槛 | 🚫 冻结 | — | — | ADR-005 六项条件 |
+
+**编号偏离备案**：§5.1 中 DATA-01 = 解除双重过滤、DATA-02 = EventType SSOT；
+实际实施时按指令对调（EventType 先行，且明令本轮不得解除过滤）。二者均为零推荐影响，
+不违反任何 ADR，仅为顺序重排，特此备案。
+
+### 实测勘误线索（待新 ADR 确认，正文暂不修改）
+
+| 条目 | 冻结正文所述 | P12-DATA-01 实测 | 影响 |
+|---|---|---|---|
+| **F7** `EQUITY 仅 13.0% 是真稀释` | 真増資 42 / 322 = 13.0%；员工期权 258 = 80.1% | **真融资 150 / 321 = 46.7%**；员工期权 107 = 33.3%（30 日，样本已人工核验） | 🟡 **数量级需勘误**。根因：ARCH-02 临时分桶脚本把 `新株予約権` 判在 `第三者割当` 之前，将 MSワラント（第三者割当による新株予約権）误计为员工期权。**核心结论不受影响** —— 53.3% 仍非稀释融资，故「EQUITY≠NEGATIVE」与「Gate1 无条件拒绝 EQUITY 是缺陷」依然成立。留待 P12-GATE-01 开 ADR 处理。 |
+| **F6** `BUYBACK 仅 7.9% 是真利好` | 月报 330 / 457 = 72.2% | **月报 403 / 572 = 70.5%**（含 News，30 日） | 🟢 **独立复现，结论稳固**。 |
+
+### 新增遗留项（P11 未记录）
+
+1. `app/api/sync/news/route.ts`、`app/api/sync/tdnet/route.ts` 与 `scripts/sync-news.ts`、
+   `scripts/fetch-tdnet.ts` 是**两套并行重复实现**（共 5 个写入点）。后续任何摄入侧改动
+   若只改 scripts，API 路径将静默不一致。
+2. `News.category`（IR/MARKET/OTHER/EARNINGS/DIVIDEND/GUIDANCE/BUYBACK）与
+   TDnet `DisclosureCategory`（EARNINGS/FORECAST_REVISION/BUYBACK/DIVIDEND/EQUITY/MATERIAL/OTHER）
+   **是两套不通用的词表**。任何跨表按 category 聚合的逻辑都必须同时覆盖两套。
+
+---
+
 **P11 全系列封存。本 Baseline 为此后所有评分开发的唯一依据。**

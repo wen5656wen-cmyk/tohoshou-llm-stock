@@ -114,6 +114,9 @@
     "test:institution-features": "npx tsx scripts/test-institution-features.ts",
     "test:feature-validation": "npx tsx scripts/test-feature-validation.ts",
     "test:split-adjustment": "npx tsx scripts/test-split-adjustment.ts",
+    "test:event-classify": "npx tsx scripts/test-event-classify.ts",
+    "event-shadow": "npx tsx scripts/event-shadow-report.ts",
+    "event-shadow:30d": "npx tsx scripts/event-shadow-report.ts --days=30",
     "fix-split-adjustment": "npx tsx scripts/fix-split-adjustment.ts",
     "fix-split-adjustment:apply": "npx tsx scripts/fix-split-adjustment.ts --apply --rescore"
   },
