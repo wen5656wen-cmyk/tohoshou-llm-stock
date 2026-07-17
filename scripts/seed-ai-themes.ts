@@ -26,46 +26,68 @@ type ThemeEntry = {
   isCore: boolean;
 };
 
+// ── P8-DATA-03 Provenance（本文件即结构化、可追溯的数据源，git 版本化）─────────
+//   sourceType      : J-Quants/Stock 主数据 + 公司公开业务资料（人工复核）
+//   sourceDate      : 2026-07-17
+//   evidenceSummary : 每条 entry 的 `reason` 字段即 AI 关联证据摘要；`role` 为主要产品/业务
+//   reviewedAt      : 2026-07-17
+//   version         : SEED_VERSION
+//   新增/调整的每只股票均已对生产 Stock / StockScore 核验「真实存在且可交易」，
+//   NO_STOCK / 退市者一律不写入（见 main() 的 Stock 存在性校验）。
+export const SEED_VERSION = "p8-data-03/2026-07-17";
+
+// AI 关联强度（0-3）↔ importanceScore 映射（无 schema 改动，复用既有列）：
+//   3 = 核心AI标的  → importanceScore 9-10（isCore 仅允许此档且流动性/代表性达标）
+//   2 = 明确受益    → importanceScore 7-8
+//   1 = 间接受益    → importanceScore 5-6
+//   0 = 关联不足    → 不纳入 / 移除
+export const strengthOf = (importanceScore: number): 0 | 1 | 2 | 3 =>
+  importanceScore >= 9 ? 3 : importanceScore >= 7 ? 2 : importanceScore >= 5 ? 1 : 0;
+
+// 已确认无效（生产 Stock 表无记录 / 私有化退市）→ 受控移除并报告，非清空。
+//   6967.T 新光电气（JIC 私有化）· 9613.T NTT Data · 9719.T SCSK（均不在可交易宇宙）
+const INVALID_SYMBOLS: string[] = ["6967.T", "9613.T", "9719.T"];
+
 // ─── 1. AI芯片设计・AI半导体 ────────────────────────────────────────────────
 const CHIP_DESIGN: ThemeEntry[] = [
   {
     symbol: "6723.T", theme: "CHIP_DESIGN", subTheme: "マイコン・SoC",
-    role: "汽车/工业AI芯片设计（SoC/MCU）", supplyChainLayer: "UPSTREAM",
+    role: "汽车/工业AI芯片设计（SoC/MCU）", supplyChainLayer: "MIDSTREAM",
     importanceScore: 9, isCore: true,
     reason: "日本最大半导体设计公司，汽车AI芯片市占率全球前3",
     riskNote: "汽车周期敏感，TSMC供货依赖",
   },
   {
     symbol: "6963.T", theme: "CHIP_DESIGN", subTheme: "パワー半導体",
-    role: "电源管理IC/功率半导体", supplyChainLayer: "UPSTREAM",
+    role: "电源管理IC/功率半导体", supplyChainLayer: "MIDSTREAM",
     importanceScore: 7, isCore: false,
     reason: "AI服务器电源管理IC供应商",
     riskNote: "与德州仪器/英飞凌直接竞争",
   },
   {
     symbol: "6965.T", theme: "CHIP_DESIGN", subTheme: "光センサー半導体",
-    role: "光探测器/图像传感芯片", supplyChainLayer: "UPSTREAM",
+    role: "光探测器/图像传感芯片", supplyChainLayer: "MIDSTREAM",
     importanceScore: 8, isCore: false,
     reason: "AI医疗+自动驾驶光学传感核心供应商，LIDAR受益",
     riskNote: "客户集中，需求波动较大",
   },
   {
     symbol: "6875.T", theme: "CHIP_DESIGN", subTheme: "ASIC・SoC受託設計",
-    role: "AI Edge ASIC/SoC设计（任天堂/自动驾驶定制芯片）", supplyChainLayer: "UPSTREAM",
+    role: "AI Edge ASIC/SoC设计（任天堂/自动驾驶定制芯片）", supplyChainLayer: "MIDSTREAM",
     importanceScore: 7, isCore: false,
     reason: "日本最具代表性的ASIC设计公司，游戏→汽车AI Edge芯片转型",
     riskNote: "任天堂订单集中，AI Edge芯片商业化仍在早期",
   },
   {
     symbol: "6758.T", theme: "CHIP_DESIGN", subTheme: "CMOSイメージセンサー",
-    role: "AI视觉CMOS图像传感器设计（全球市占率首位）", supplyChainLayer: "UPSTREAM",
+    role: "AI视觉CMOS图像传感器设计（全球市占率首位）", supplyChainLayer: "MIDSTREAM",
     importanceScore: 9, isCore: true,
     reason: "智能手机/自动驾驶/安防AI视觉传感器核心，AI时代图像入口",
     riskNote: "智能手机需求波动，苹果依存度高",
   },
   {
     symbol: "6504.T", theme: "CHIP_DESIGN", subTheme: "パワー半導体",
-    role: "AI服务器/EV功率半导体设计（IGBT/SiC/GaN）", supplyChainLayer: "UPSTREAM",
+    role: "AI服务器/EV功率半导体设计（IGBT/SiC/GaN）", supplyChainLayer: "MIDSTREAM",
     importanceScore: 7, isCore: false,
     reason: "富士电机功率器件覆盖AI数据中心UPS/变频器应用",
     riskNote: "与三菱电机/英飞凌竞争激烈",
@@ -242,17 +264,10 @@ const CHIP_MATERIAL: ThemeEntry[] = [
 const HBM_PACKAGING: ThemeEntry[] = [
   {
     symbol: "4062.T", theme: "HBM_PACKAGING", subTheme: "FC-BGAサブストレート",
-    role: "FC-BGA基板（GPU/HBM封装核心）", supplyChainLayer: "MIDSTREAM",
+    role: "FC-BGA基板（GPU/HBM封装核心）", supplyChainLayer: "UPSTREAM",
     importanceScore: 10, isCore: true,
     reason: "NVIDIA H100/B200 FC-BGA基板主供，AI算力需求直接受益",
     riskNote: "良率爬坡+资本投入大，FC-BGA供需波动",
-  },
-  {
-    symbol: "6967.T", theme: "HBM_PACKAGING", subTheme: "ICサブストレート",
-    role: "IC基板/ABF基板供应商", supplyChainLayer: "MIDSTREAM",
-    importanceScore: 9, isCore: true,
-    reason: "AI ASIC/GPU ABF基板供应商，产能扩张中",
-    riskNote: "ABF基板供需周期波动",
   },
   {
     symbol: "7911.T", theme: "HBM_PACKAGING", subTheme: "回路基板",
@@ -295,7 +310,7 @@ const HBM_PACKAGING: ThemeEntry[] = [
 const SENSOR_PRECISION: ThemeEntry[] = [
   {
     symbol: "6758.T", theme: "SENSOR_PRECISION", subTheme: "CMOSイメージセンサー",
-    role: "CMOS图像传感器（全球首位）", supplyChainLayer: "UPSTREAM",
+    role: "CMOS图像传感器（全球首位）", supplyChainLayer: "MIDSTREAM",
     importanceScore: 10, isCore: true,
     reason: "汽车AI+AI手机CMOS全球市占率约50%，不可替代",
     riskNote: "手机需求周期，中国竞争",
@@ -337,7 +352,7 @@ const SENSOR_PRECISION: ThemeEntry[] = [
   },
   {
     symbol: "7741.T", theme: "SENSOR_PRECISION", subTheme: "半導体マスク・光学",
-    role: "EUV光掩模坯料（全球2强之一）", supplyChainLayer: "MIDSTREAM",
+    role: "EUV光掩模坯料（全球2强之一）", supplyChainLayer: "UPSTREAM",
     importanceScore: 9, isCore: true,
     reason: "EUV mask blank全球市占率约25%，AI芯片最先端制程受益",
     riskNote: "Shin-Etsu竞争，EUV普及节奏",
@@ -362,14 +377,14 @@ const SERVER_DC: ThemeEntry[] = [
   },
   {
     symbol: "6701.T", theme: "SERVER_DC", subTheme: "AIサーバー・システム",
-    role: "AI服务器/HPC系统集成商", supplyChainLayer: "INFRASTRUCTURE",
+    role: "AI服务器/HPC系统集成商", supplyChainLayer: "MIDSTREAM",
     importanceScore: 9, isCore: true,
     reason: "日本政府AI算力基础设施核心承建商",
     riskNote: "政府采购依赖，海外竞争",
   },
   {
     symbol: "6702.T", theme: "SERVER_DC", subTheme: "HPC・AIシステム",
-    role: "HPC/AI系统+富岳超算运营", supplyChainLayer: "INFRASTRUCTURE",
+    role: "HPC/AI系统+富岳超算运营", supplyChainLayer: "MIDSTREAM",
     importanceScore: 9, isCore: true,
     reason: "富岳后继机型+企业AI系统主承建商",
     riskNote: "IT服务毛利率偏低",
@@ -380,13 +395,6 @@ const SERVER_DC: ThemeEntry[] = [
     importanceScore: 9, isCore: true,
     reason: "IOWN全光网络+日本最大DC运营，AI算力骨干网",
     riskNote: "DC扩容投资规模大，ROI周期长",
-  },
-  {
-    symbol: "9613.T", theme: "SERVER_DC", subTheme: "AIクラウド",
-    role: "AI企业云/マルチクラウド运营", supplyChainLayer: "INFRASTRUCTURE",
-    importanceScore: 8, isCore: false,
-    reason: "日本企业AI数字化主要系统集成商",
-    riskNote: "AWS/Azure竞争压力",
   },
   {
     symbol: "9433.T", theme: "SERVER_DC", subTheme: "クラウド・DC",
@@ -542,28 +550,28 @@ const ROBOT_AUTO: ThemeEntry[] = [
 const SOFTWARE_CLOUD: ThemeEntry[] = [
   {
     symbol: "5574.T", theme: "SOFTWARE_CLOUD", subTheme: "AI基盤プラットフォーム",
-    role: "AI开发平台/MLOps SaaS", supplyChainLayer: "APPLICATION",
-    importanceScore: 8, isCore: true,
+    role: "AI开发平台/MLOps SaaS", supplyChainLayer: "DOWNSTREAM",
+    importanceScore: 8, isCore: false,
     reason: "日本企业AI落地平台，Abeja Platform已被多家企业采用",
     riskNote: "竞争激烈，上市后盈利压力",
   },
   {
     symbol: "4478.T", theme: "SOFTWARE_CLOUD", subTheme: "クラウド会計・AI",
-    role: "云会计/AI税务SaaS", supplyChainLayer: "APPLICATION",
-    importanceScore: 8, isCore: true,
+    role: "云会计/AI税务SaaS", supplyChainLayer: "DOWNSTREAM",
+    importanceScore: 8, isCore: false,
     reason: "日本中小企业AI会计SaaS龙头，可重复订阅收入",
     riskNote: "赤字扩大，增速放缓风险",
   },
   {
     symbol: "4443.T", theme: "SOFTWARE_CLOUD", subTheme: "AI名刺・CRM",
-    role: "AI名片管理/B2B数据SaaS", supplyChainLayer: "APPLICATION",
-    importanceScore: 8, isCore: true,
+    role: "AI名片管理/B2B数据SaaS", supplyChainLayer: "DOWNSTREAM",
+    importanceScore: 8, isCore: false,
     reason: "AI销售情报SaaS，名片数据护城河深",
     riskNote: "市场天花板有限",
   },
   {
     symbol: "6098.T", theme: "SOFTWARE_CLOUD", subTheme: "AI人材・HR",
-    role: "AI人才招聘/HR Tech平台", supplyChainLayer: "APPLICATION",
+    role: "AI人才招聘/HR Tech平台", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 9, isCore: true,
     reason: "Indeed+Glassdoor+rikunabi AI搜索，全球规模最大HR平台之一",
     riskNote: "全球景气度影响，Indeed广告依赖",
@@ -577,7 +585,7 @@ const SOFTWARE_CLOUD: ThemeEntry[] = [
   },
   {
     symbol: "4689.T", theme: "SOFTWARE_CLOUD", subTheme: "LINEプラットフォーム",
-    role: "LINE AI助理/Yahoo搜索AI", supplyChainLayer: "APPLICATION",
+    role: "LINE AI助理/Yahoo搜索AI", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 8, isCore: false,
     reason: "LINE ChatAI+Yahoo搜索AI化，日本最大C2B AI接触点",
     riskNote: "Naver信息安全问题，外资股权调整",
@@ -591,35 +599,28 @@ const SOFTWARE_CLOUD: ThemeEntry[] = [
   },
   {
     symbol: "4431.T", theme: "SOFTWARE_CLOUD", subTheme: "リテールSaaS",
-    role: "零售AI管理SaaS", supplyChainLayer: "APPLICATION",
+    role: "零售AI管理SaaS", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 7, isCore: false,
     reason: "便利店/餐饮AI收银系统，日本最大规模",
     riskNote: "成长性较freee/Sansan低",
   },
   {
     symbol: "4812.T", theme: "SOFTWARE_CLOUD", subTheme: "AI SI",
-    role: "AI系统集成/业务DX", supplyChainLayer: "APPLICATION",
+    role: "AI系统集成/业务DX", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 7, isCore: false,
     reason: "伊藤忠系AI DX，企业AI化大型项目受益",
     riskNote: "SI利润率偏低",
   },
   {
-    symbol: "9719.T", theme: "SOFTWARE_CLOUD", subTheme: "ITサービス",
-    role: "AI ITサービス/System Integration", supplyChainLayer: "APPLICATION",
-    importanceScore: 7, isCore: false,
-    reason: "住友グループ系AI IT，安定した企業需要",
-    riskNote: "SI利润率上限有限",
-  },
-  {
     symbol: "5132.T", theme: "SOFTWARE_CLOUD", subTheme: "数理AI",
-    role: "数理AI/大型AIモデル开发", supplyChainLayer: "APPLICATION",
+    role: "数理AI/大型AIモデル开发", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 7, isCore: false,
     reason: "纯AI研究型公司，AGI向け研究",
     riskNote: "小型企业，赤字期，高波动",
   },
   {
     symbol: "4418.T", theme: "SOFTWARE_CLOUD", subTheme: "AI分析・JDSC",
-    role: "数据科学AI分析SaaS", supplyChainLayer: "APPLICATION",
+    role: "数据科学AI分析SaaS", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 7, isCore: false,
     reason: "日本企业AI分析平台，需求扩大",
     riskNote: "小型成长股，高风险",
@@ -644,14 +645,14 @@ const SOFTWARE_CLOUD: ThemeEntry[] = [
 const INTERNET_PLATFORM: ThemeEntry[] = [
   {
     symbol: "4689.T", theme: "INTERNET_PLATFORM", subTheme: "SNS・検索AI",
-    role: "LINE AI/Yahoo Search AI（最大消费接触点）", supplyChainLayer: "APPLICATION",
+    role: "LINE AI/Yahoo Search AI（最大消费接触点）", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 9, isCore: true,
     reason: "日本最大消费互联网+AI化搜索，9000万MAU",
     riskNote: "外资股权问题，大股东Naver",
   },
   {
     symbol: "6098.T", theme: "INTERNET_PLATFORM", subTheme: "HR・求人AI",
-    role: "AI人才匹配/求职平台", supplyChainLayer: "APPLICATION",
+    role: "AI人才匹配/求职平台", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 9, isCore: true,
     reason: "全球HR AI平台领导者，AI推荐算法护城河",
     riskNote: "景气依赖，广告収入周期性",
@@ -743,14 +744,14 @@ const MEDICAL_LIFE: ThemeEntry[] = [
 const SECURITY_VISION: ThemeEntry[] = [
   {
     symbol: "6701.T", theme: "SECURITY_VISION", subTheme: "顔認識・AI安全",
-    role: "AI人脸识别/公共安全系统", supplyChainLayer: "APPLICATION",
+    role: "AI人脸识别/公共安全系统", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 9, isCore: true,
     reason: "政府AI安防系统核心承包商，NEC顔認識世界首位精度",
     riskNote: "AI监控伦理问题，规制风险",
   },
   {
     symbol: "6758.T", theme: "SECURITY_VISION", subTheme: "CMOSセンサー",
-    role: "AI相机CMOS传感器（视觉AI基底）", supplyChainLayer: "UPSTREAM",
+    role: "AI相机CMOS传感器（视觉AI基底）", supplyChainLayer: "MIDSTREAM",
     importanceScore: 9, isCore: true,
     reason: "AI安防摄像CMOS传感器全球首位，视觉AI最底层硬件",
     riskNote: "单一技术依赖",
@@ -771,7 +772,7 @@ const SECURITY_VISION: ThemeEntry[] = [
   },
   {
     symbol: "6702.T", theme: "SECURITY_VISION", subTheme: "AIセキュリティ",
-    role: "AI网络安全/图像认证系统", supplyChainLayer: "APPLICATION",
+    role: "AI网络安全/图像认证系统", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 8, isCore: false,
     reason: "AI安防系统集成+生体認証受益",
     riskNote: "IT services利润率限制",
@@ -785,7 +786,7 @@ const SECURITY_VISION: ThemeEntry[] = [
   },
   {
     symbol: "7751.T", theme: "SECURITY_VISION", subTheme: "AIカメラ・OCR",
-    role: "AI相机/工业OCR识别系统", supplyChainLayer: "APPLICATION",
+    role: "AI相机/工业OCR识别系统", supplyChainLayer: "DOWNSTREAM",
     importanceScore: 7, isCore: false,
     reason: "AI相机+OCR文字识别，工场DX受益",
     riskNote: "消费者相机部門负担",
@@ -846,6 +847,118 @@ const POWER_INFRA: ThemeEntry[] = [
 ];
 
 // ─── Assemble all entries ─────────────────────────────────────────────────────
+
+// ─── 15. AI存储（NAND/SSD/HBM）── P8-DATA-03 新增 ────────────────────────────
+const AI_STORAGE: ThemeEntry[] = [
+  {
+    symbol: "285A.T", theme: "AI_STORAGE", subTheme: "NAND・企業向けSSD",
+    role: "NAND闪存/企业级SSD（AI数据中心大容量存储）", supplyChainLayer: "MIDSTREAM",
+    importanceScore: 9, isCore: true,
+    reason: "日本唯一NAND闪存大厂，全球NAND前二，AI数据中心企业级SSD核心供应",
+    riskNote: "NAND价格周期性剧烈，资本开支负担重",
+  },
+  {
+    symbol: "6857.T", theme: "AI_STORAGE", subTheme: "HBMテスター",
+    role: "HBM/DRAM测试装置（存储供应链）", supplyChainLayer: "MIDSTREAM",
+    importanceScore: 8, isCore: false,
+    reason: "SK Hynix HBM全量测试装置供应，AI存储扩产直接受益",
+    riskNote: "客户集中度高，与TEST_EQUIPMENT主题重叠",
+  },
+];
+
+// ─── 16. AI散热（液冷/风冷）── P8-DATA-03 新增 ───────────────────────────────
+const AI_COOLING: ThemeEntry[] = [
+  {
+    symbol: "6367.T", theme: "AI_COOLING", subTheme: "データセンター空調",
+    role: "精密空调/HVAC（AI数据中心冷却）", supplyChainLayer: "INFRASTRUCTURE",
+    importanceScore: 8, isCore: false,
+    reason: "全球HVAC龙头，AI数据中心高密度机柜冷却需求直接受益",
+    riskNote: "空调主业非AI，AI收入占比有限（关联强度2）",
+  },
+  {
+    symbol: "6594.T", theme: "AI_COOLING", subTheme: "冷却ファン・液冷ポンプ",
+    role: "精密电机/服务器冷却风扇/液冷泵", supplyChainLayer: "INFRASTRUCTURE",
+    importanceScore: 8, isCore: false,
+    reason: "服务器散热风扇全球主供，液冷泵切入AI数据中心热管理",
+    riskNote: "车载电机业务拖累，结构改革中",
+  },
+];
+
+// ─── 17. 自动驾驶 ── P8-DATA-03 新增 ─────────────────────────────────────────
+const AUTO_DRIVE: ThemeEntry[] = [
+  {
+    symbol: "6902.T", theme: "AUTO_DRIVE", subTheme: "ADAS・車載AI",
+    role: "ADAS/自动驾驶传感器与车载AI ECU", supplyChainLayer: "APPLICATION",
+    importanceScore: 9, isCore: true,
+    reason: "全球前三车载零部件商，ADAS毫米波雷达/摄像头/车载AI SoC核心供应",
+    riskNote: "丰田系依存度高，汽车周期敏感",
+  },
+  {
+    symbol: "6723.T", theme: "AUTO_DRIVE", subTheme: "車載AI SoC",
+    role: "车载AI SoC/MCU（自动驾驶算力）", supplyChainLayer: "MIDSTREAM",
+    importanceScore: 8, isCore: false,
+    reason: "汽车MCU/SoC全球前三，R-Car系列为自动驾驶域控制器核心",
+    riskNote: "汽车周期敏感，代工依赖TSMC",
+  },
+  {
+    symbol: "7203.T", theme: "AUTO_DRIVE", subTheme: "自動運転・Woven City",
+    role: "自动驾驶研发/Woven City智慧城市", supplyChainLayer: "APPLICATION",
+    importanceScore: 8, isCore: false,
+    reason: "Woven by Toyota自动驾驶软件平台与AI智慧城市实证",
+    riskNote: "AI收入占比小，主业为整车（关联强度2）",
+  },
+  {
+    symbol: "7267.T", theme: "AUTO_DRIVE", subTheme: "自動運転Lv3",
+    role: "Level3自动驾驶量产/AI驾驶辅助", supplyChainLayer: "APPLICATION",
+    importanceScore: 7, isCore: false,
+    reason: "全球首个Level3认证量产车企，AI驾驶辅助持续投入",
+    riskNote: "AI收入占比小（关联强度2）",
+  },
+  {
+    symbol: "4667.T", theme: "AUTO_DRIVE", subTheme: "HD地図・自動運転",
+    role: "高精度地图/自动驾驶实证支援", supplyChainLayer: "APPLICATION",
+    importanceScore: 7, isCore: false,
+    reason: "日本高精度3D地图与自动驾驶实证服务专业厂商",
+    riskNote: "小型股，流动性偏低",
+  },
+];
+
+// ─── P8-DATA-03 补齐：现有主题的遗漏龙头（均经生产 Stock/StockScore 核验）────
+const P8_ADDITIONS: ThemeEntry[] = [
+  // 上游 · 材料/气体/被动元件
+  { symbol: "4901.T", theme: "CHIP_MATERIAL", subTheme: "CMP・フォトレジスト材料", role: "半导体材料（CMP浆料/光刻）+AI医疗影像", supplyChainLayer: "UPSTREAM", importanceScore: 8, isCore: false, reason: "半导体材料广泛布局，CMP/光刻材料供应AI芯片制程", riskNote: "影像业务占比高，AI关联部分为间接" },
+  { symbol: "4091.T", theme: "CHIP_MATERIAL", subTheme: "電子ガス", role: "电子特气（半导体制程必需）", supplyChainLayer: "UPSTREAM", importanceScore: 8, isCore: false, reason: "半导体电子特气日本主供，先端制程扩产直接受益", riskNote: "工业气体主业，价格传导滞后" },
+  { symbol: "4021.T", theme: "CHIP_MATERIAL", subTheme: "半導体反射防止膜", role: "半导体反射防止膜/功能材料", supplyChainLayer: "UPSTREAM", importanceScore: 7, isCore: false, reason: "半导体反射防止膜全球高市占，先端制程微细化受益", riskNote: "农化业务占比大" },
+  { symbol: "6988.T", theme: "CHIP_MATERIAL", subTheme: "半導体・光学フィルム", role: "半导体/光学功能膜材料", supplyChainLayer: "UPSTREAM", importanceScore: 7, isCore: false, reason: "半导体封装与光学膜材料供应，AI面板/封装受益", riskNote: "多元业务，AI关联部分有限" },
+  { symbol: "4088.T", theme: "CHIP_MATERIAL", subTheme: "産業ガス", role: "产业气体/电子材料", supplyChainLayer: "UPSTREAM", importanceScore: 6, isCore: false, reason: "半导体用产业气体供应（关联强度1，间接受益）", riskNote: "AI关联间接，主业为综合气体" },
+  { symbol: "6976.T", theme: "SENSOR_PRECISION", subTheme: "MLCC", role: "积层陶瓷电容（AI服务器电源）", supplyChainLayer: "UPSTREAM", importanceScore: 8, isCore: false, reason: "MLCC全球前三，AI服务器/GPU板卡用高容MLCC需求扩张", riskNote: "智能手机需求波动" },
+  // 中游 · 设备/设计/基板
+  { symbol: "6525.T", theme: "SEMI_EQUIPMENT", subTheme: "バッチALD・成膜装置", role: "批式ALD/成膜装置", supplyChainLayer: "MIDSTREAM", importanceScore: 9, isCore: true, reason: "批式成膜/ALD装置全球寡占，3D NAND与先端逻辑扩产核心设备", riskNote: "中国营收占比高，出口管制风险" },
+  { symbol: "6728.T", theme: "SEMI_EQUIPMENT", subTheme: "真空・成膜装置", role: "真空成膜/溅射装置", supplyChainLayer: "MIDSTREAM", importanceScore: 8, isCore: false, reason: "真空成膜装置日本主供，半导体/电子部件制程广泛使用", riskNote: "面板等非半导体业务波动" },
+  { symbol: "6526.T", theme: "CHIP_DESIGN", subTheme: "カスタムSoC・AI ASIC", role: "定制SoC/AI ASIC设计（2nm级）", supplyChainLayer: "MIDSTREAM", importanceScore: 9, isCore: true, reason: "日本最大定制SoC/ASIC设计商，AI加速器与数据中心定制芯片直接受益", riskNote: "客户集中，先端制程投入大" },
+  { symbol: "6787.T", theme: "HBM_PACKAGING", subTheme: "高多層PCB", role: "高多层PCB/高密度基板", supplyChainLayer: "MIDSTREAM", importanceScore: 7, isCore: false, reason: "AI服务器/车载用高多层PCB供应，高密度基板需求受益", riskNote: "中小型PCB竞争激烈" },
+  { symbol: "7240.T", theme: "HBM_PACKAGING", subTheme: "FPC・フレキシブル基板", role: "FPC柔性基板（日本メクトロン）", supplyChainLayer: "MIDSTREAM", importanceScore: 7, isCore: false, reason: "旗下日本メクトロン为全球FPC主供，AI设备与车载电子受益", riskNote: "密封件主业，智能手机需求依存" },
+  // 基础设施 · 电力/云DC
+  { symbol: "6508.T", theme: "POWER_INFRA", subTheme: "変圧器・配電", role: "变压器/配电设备（DC受电）", supplyChainLayer: "INFRASTRUCTURE", importanceScore: 8, isCore: false, reason: "变压器/配电设备供应，AI数据中心受电与电网增强需求受益", riskNote: "重电业务交期长，利润率偏低" },
+  { symbol: "6622.T", theme: "POWER_INFRA", subTheme: "変圧器・配電機器", role: "变压器/配电/焊接机器人", supplyChainLayer: "INFRASTRUCTURE", importanceScore: 7, isCore: false, reason: "变压器与配电设备供应，数据中心电力基建受益", riskNote: "焊接机械业务占比，AI关联部分有限" },
+  { symbol: "6674.T", theme: "POWER_INFRA", subTheme: "蓄電池・UPS", role: "蓄电池/UPS电源（DC后备电力）", supplyChainLayer: "INFRASTRUCTURE", importanceScore: 7, isCore: false, reason: "工业蓄电池与UPS供应，数据中心后备电源需求受益", riskNote: "车载电池主业，AI关联为间接" },
+  { symbol: "3774.T", theme: "SERVER_DC", subTheme: "クラウド・DC・ネットワーク", role: "云/数据中心/网络运营", supplyChainLayer: "INFRASTRUCTURE", importanceScore: 7, isCore: false, reason: "日本老牌ISP，自建数据中心与云服务，GPU云需求受益", riskNote: "规模小于三大电信，资本开支压力" },
+  { symbol: "9984.T", theme: "SERVER_DC", subTheme: "AI投資・Arm・DC", role: "AI投资/Arm持股/AI数据中心", supplyChainLayer: "INFRASTRUCTURE", importanceScore: 9, isCore: true, reason: "持有Arm多数股权（AI芯片IP核心），并主导大型AI数据中心投资", riskNote: "投资损益波动极大，NAV折价" },
+  // 下游 · AI软件/平台/安全/SI
+  { symbol: "3993.T", theme: "SOFTWARE_CLOUD", subTheme: "生成AI・AI Agent", role: "LLM/AI Agent/算法软件", supplyChainLayer: "DOWNSTREAM", importanceScore: 9, isCore: true, reason: "日本代表性AI算法企业，生成式AI与AI Agent商业化收入明确", riskNote: "小型股，估值波动大" },
+  { symbol: "4307.T", theme: "SOFTWARE_CLOUD", subTheme: "AIコンサル・SI", role: "AI咨询/系统集成", supplyChainLayer: "DOWNSTREAM", importanceScore: 8, isCore: false, reason: "日本顶级IT咨询与SI，企业AI落地与DX需求主要承接方", riskNote: "人力密集，AI收入未单独披露" },
+  { symbol: "3626.T", theme: "SOFTWARE_CLOUD", subTheme: "企業AI・SI", role: "企业AI/系统集成", supplyChainLayer: "DOWNSTREAM", importanceScore: 7, isCore: false, reason: "大型SI厂商，企业AI与云迁移项目持续增长", riskNote: "人力成本上升，AI关联部分为间接" },
+  { symbol: "4776.T", theme: "SOFTWARE_CLOUD", subTheme: "企業SaaS(kintone)", role: "企业SaaS/低代码平台", supplyChainLayer: "DOWNSTREAM", importanceScore: 7, isCore: false, reason: "kintone企业SaaS平台导入AI功能，企业AI应用载体", riskNote: "AI为附加功能，非核心收入" },
+  { symbol: "2371.T", theme: "SOFTWARE_CLOUD", subTheme: "検索・レコメンドAI", role: "搜索/推荐AI平台", supplyChainLayer: "DOWNSTREAM", importanceScore: 7, isCore: false, reason: "价格比较与推荐引擎，AI推荐算法为核心产品能力", riskNote: "广告景气依存" },
+  { symbol: "4704.T", theme: "SECURITY_VISION", subTheme: "AIサイバーセキュリティ", role: "AI网络安全软件", supplyChainLayer: "DOWNSTREAM", importanceScore: 9, isCore: true, reason: "全球网络安全龙头，AI威胁检测与云安全为核心产品收入", riskNote: "海外竞争激烈，汇率影响" },
+  // 应用 · 机器人/医疗
+  { symbol: "6324.T", theme: "ROBOT_AUTO", subTheme: "ロボット減速機", role: "谐波减速机（机器人关节）", supplyChainLayer: "APPLICATION", importanceScore: 8, isCore: false, reason: "谐波减速机全球寡占，工业与人形机器人关节核心部件", riskNote: "设备投资周期敏感，估值偏高" },
+  { symbol: "6474.T", theme: "ROBOT_AUTO", subTheme: "産業ロボット・軸受", role: "工业机器人/轴承", supplyChainLayer: "APPLICATION", importanceScore: 7, isCore: false, reason: "工业机器人与精密轴承供应，工厂自动化需求受益", riskNote: "利润率偏低，周期敏感" },
+  { symbol: "6841.T", theme: "ROBOT_AUTO", subTheme: "産業制御・FA", role: "工业控制/FA系统", supplyChainLayer: "APPLICATION", importanceScore: 7, isCore: false, reason: "过程控制与工厂自动化系统，AI化制造现场受益", riskNote: "石化/能源客户依存" },
+  { symbol: "7733.T", theme: "MEDICAL_LIFE", subTheme: "内視鏡AI診断", role: "内窥镜/AI辅助诊断", supplyChainLayer: "APPLICATION", importanceScore: 8, isCore: false, reason: "内窥镜全球市占率首位，AI辅助病变检测已商业化", riskNote: "治理问题历史，北美监管" },
+  { symbol: "4483.T", theme: "MEDICAL_LIFE", subTheme: "医療ビッグデータAI", role: "医疗大数据/AI分析", supplyChainLayer: "APPLICATION", importanceScore: 7, isCore: false, reason: "日本最大医疗理赔大数据平台，AI分析为核心业务", riskNote: "小型股，制度变更风险" },
+];
+
 const ALL_THEMES: ThemeEntry[] = [
   ...CHIP_DESIGN,
   ...SEMI_EQUIPMENT,
@@ -861,6 +974,10 @@ const ALL_THEMES: ThemeEntry[] = [
   ...MEDICAL_LIFE,
   ...SECURITY_VISION,
   ...POWER_INFRA,
+  ...AI_STORAGE,
+  ...AI_COOLING,
+  ...AUTO_DRIVE,
+  ...P8_ADDITIONS,
 ];
 
 async function main() {
@@ -871,7 +988,39 @@ async function main() {
   //   · 不在种子清单中的既有记录保留（orphans_kept，非破坏性，不删除）；
   //   · DRY_RUN=1 只读预览计数不写库。输出 created / updated / skipped。
   const DRY = process.env.DRY_RUN === "1";
-  console.log(`=== TOHOSHOU v8.0 AI産業チェーン Seed (idempotent${DRY ? " · DRY_RUN" : ""}) ===\n`);
+  console.log(`=== TOHOSHOU AI主题研究 Seed ${SEED_VERSION} (idempotent${DRY ? " · DRY_RUN" : ""}) ===\n`);
+
+  // ── P8-DATA-03 ⓪：核心标的纪律断言 —— isCore 仅允许 AI关联强度=3（importanceScore≥9）──
+  const coreViolations = ALL_THEMES.filter((r) => r.isCore && strengthOf(r.importanceScore) !== 3);
+  if (coreViolations.length) {
+    console.error(`❌ isCore 纪律违规 ${coreViolations.length} 条（isCore 仅限 AI关联强度=3）:`);
+    coreViolations.forEach((r) => console.error(`   ${r.symbol}/${r.theme} importanceScore=${r.importanceScore}`));
+    process.exit(1);
+  }
+
+  // ── P8-DATA-03 ①：Stock 存在性校验 —— 不存在/退市的 symbol 跳过并记录，不静默写入 ──
+  const seedSymbols = [...new Set(ALL_THEMES.map((r) => r.symbol))];
+  const stockRows = await prisma.stock.findMany({
+    where: { symbol: { in: seedSymbols } },
+    select: { symbol: true, isDelisted: true },
+  });
+  const tradable = new Set(stockRows.filter((s) => !s.isDelisted).map((s) => s.symbol));
+  const notInUniverse = seedSymbols.filter((s) => !tradable.has(s));
+  if (notInUniverse.length) {
+    console.log(`⚠️  跳过 ${notInUniverse.length} 个无 Stock 记录/已退市 symbol（不写入）: ${notInUniverse.join(", ")}\n`);
+  }
+
+  // ── P8-DATA-03 ②：只读预扫描 → 生成写入计划（DRY 与 APPLY 共用同一计划）──
+  const key = (s: string, t: string) => `${s}__${t}`;
+  const dataOf = (row: ThemeEntry) => ({
+    subTheme: row.subTheme,
+    role: row.role,
+    supplyChainLayer: row.supplyChainLayer,
+    importanceScore: row.importanceScore,
+    reason: row.reason,
+    riskNote: row.riskNote ?? null,
+    isCore: row.isCore,
+  });
 
   const existing = await prisma.aITheme.findMany({
     select: {
@@ -879,45 +1028,82 @@ async function main() {
       supplyChainLayer: true, importanceScore: true, reason: true, riskNote: true, isCore: true,
     },
   });
-  const key = (s: string, t: string) => `${s}__${t}`;
   const exMap = new Map(existing.map((r) => [key(r.symbol, r.theme), r]));
 
-  let created = 0, updated = 0, skipped = 0;
+  let skipped = 0, skippedMissing = 0;
   const seen = new Set<string>();
+  const plan: { kind: "create" | "update"; row: ThemeEntry }[] = [];
 
   for (const row of ALL_THEMES) {
+    // Stock 表无记录 / 已退市 → 跳过并记录，绝不静默写入。
+    if (!tradable.has(row.symbol)) { skippedMissing++; continue; }
     const k = key(row.symbol, row.theme);
     seen.add(k);
-    const data = {
-      subTheme: row.subTheme,
-      role: row.role,
-      supplyChainLayer: row.supplyChainLayer,
-      importanceScore: row.importanceScore,
-      reason: row.reason,
-      riskNote: row.riskNote ?? null,
-      isCore: row.isCore,
-    };
+    const d = dataOf(row);
     const cur = exMap.get(k);
     if (!cur) {
-      if (!DRY) await prisma.aITheme.create({ data: { symbol: row.symbol, theme: row.theme, ...data } });
-      created++;
+      plan.push({ kind: "create", row });
       console.log(`  + [${row.theme.padEnd(20)}] ${row.symbol.padEnd(8)}${row.isCore ? " ⭐" : ""}`);
     } else {
       const same =
-        cur.subTheme === data.subTheme && cur.role === data.role &&
-        cur.supplyChainLayer === data.supplyChainLayer && cur.importanceScore === data.importanceScore &&
-        cur.reason === data.reason && (cur.riskNote ?? null) === data.riskNote && cur.isCore === data.isCore;
-      if (same) {
-        skipped++;
-      } else {
-        if (!DRY) await prisma.aITheme.update({ where: { symbol_theme: { symbol: row.symbol, theme: row.theme } }, data });
-        updated++;
-        console.log(`  ~ [${row.theme.padEnd(20)}] ${row.symbol.padEnd(8)} (更新)`);
-      }
+        cur.subTheme === d.subTheme && cur.role === d.role &&
+        cur.supplyChainLayer === d.supplyChainLayer && cur.importanceScore === d.importanceScore &&
+        cur.reason === d.reason && (cur.riskNote ?? null) === d.riskNote && cur.isCore === d.isCore;
+      if (same) skipped++;
+      else { plan.push({ kind: "update", row }); console.log(`  ~ [${row.theme.padEnd(20)}] ${row.symbol.padEnd(8)} (更新)`); }
     }
   }
 
-  const orphans = existing.filter((r) => !seen.has(key(r.symbol, r.theme)));
+  const toRemove = existing.filter((r) => INVALID_SYMBOLS.includes(r.symbol));
+  const created = plan.filter((p) => p.kind === "create").length;
+  const updated = plan.filter((p) => p.kind === "update").length;
+  const removed = toRemove.length;
+  if (removed) {
+    console.log(`\n🗑  ${DRY ? "将移除" : "移除"}无效关联 ${removed} 条（${toRemove.map((t) => `${t.symbol}/${t.theme}`).join(", ")}）`);
+  }
+
+  // 期望终态：完全由种子数据 + 可交易过滤派生（非硬编码）
+  const live = ALL_THEMES.filter((r) => tradable.has(r.symbol));
+  const expected = {
+    records: live.length,
+    symbols: new Set(live.map((r) => r.symbol)).size,
+    themes: new Set(live.map((r) => r.theme)).size,
+    core: live.filter((r) => r.isCore).length,
+    downstream: live.filter((r) => r.supplyChainLayer === "DOWNSTREAM").length,
+  };
+
+  // ── P8-DATA-03 ③：单事务写入（移除 + 新增 + 更新）+ 写后断言，任一不符立即回滚 ──
+  if (!DRY) {
+    await prisma.$transaction(async (tx) => {
+      if (removed) await tx.aITheme.deleteMany({ where: { symbol: { in: INVALID_SYMBOLS } } });
+      for (const p of plan) {
+        const d = dataOf(p.row);
+        if (p.kind === "create") await tx.aITheme.create({ data: { symbol: p.row.symbol, theme: p.row.theme, ...d } });
+        else await tx.aITheme.update({ where: { symbol_theme: { symbol: p.row.symbol, theme: p.row.theme } }, data: d });
+      }
+      // 写后断言（在事务内校验终态；throw → 整体回滚，生产数据不变）
+      const after = await tx.aITheme.findMany({ select: { symbol: true, theme: true, isCore: true, supplyChainLayer: true } });
+      const a = {
+        records: after.length,
+        symbols: new Set(after.map((r) => r.symbol)).size,
+        themes: new Set(after.map((r) => r.theme)).size,
+        core: after.filter((r) => r.isCore).length,
+        downstream: after.filter((r) => r.supplyChainLayer === "DOWNSTREAM").length,
+        dup: after.length - new Set(after.map((r) => key(r.symbol, r.theme))).size,
+      };
+      const fails: string[] = [];
+      if (a.records !== expected.records) fails.push(`records ${a.records}≠${expected.records}`);
+      if (a.symbols !== expected.symbols) fails.push(`symbols ${a.symbols}≠${expected.symbols}`);
+      if (a.themes !== expected.themes) fails.push(`themes ${a.themes}≠${expected.themes}`);
+      if (a.core !== expected.core) fails.push(`core ${a.core}≠${expected.core}`);
+      if (a.downstream !== expected.downstream) fails.push(`DOWNSTREAM ${a.downstream}≠${expected.downstream}`);
+      if (a.dup !== 0) fails.push(`duplicate[symbol,theme]=${a.dup}`);
+      if (fails.length) throw new Error(`写后断言失败 → 事务回滚：${fails.join(" | ")}`);
+      console.log(`\n🔒 事务写后断言全部通过：records=${a.records} symbols=${a.symbols} themes=${a.themes} core=${a.core} DOWNSTREAM=${a.downstream} dup=${a.dup}`);
+    }, { timeout: 120_000, maxWait: 15_000 });
+  }
+
+  const orphans = existing.filter((r) => !seen.has(key(r.symbol, r.theme)) && !INVALID_SYMBOLS.includes(r.symbol));
 
   // Stats
   const byTheme = await prisma.aITheme.groupBy({
@@ -929,10 +1115,16 @@ async function main() {
   const uniqueSymbols = new Set(ALL_THEMES.map((r) => r.symbol));
   const coreCount = ALL_THEMES.filter((r) => r.isCore).length;
 
-  console.log(`\n✅ Seed 完成（幂等）`);
-  console.log(`   created=${created}  updated=${updated}  skipped=${skipped}${DRY ? "  (DRY_RUN 未写库)" : ""}`);
+  console.log(`\n✅ Seed 完成（幂等 · ${SEED_VERSION}）`);
+  console.log(`   created=${created}  updated=${updated}  unchanged=${skipped}  removed=${removed}  skipped_missing=${skippedMissing}${DRY ? "  (DRY_RUN 未写库)" : ""}`);
+  const byLayer = ALL_THEMES.filter((r) => tradable.has(r.symbol))
+    .reduce<Record<string, number>>((a, r) => { a[r.supplyChainLayer] = (a[r.supplyChainLayer] ?? 0) + 1; return a; }, {});
+  console.log(`   五层分布: ${["UPSTREAM", "MIDSTREAM", "INFRASTRUCTURE", "DOWNSTREAM", "APPLICATION"].map((l) => `${l}=${byLayer[l] ?? 0}`).join("  ")}`);
+  const st = ALL_THEMES.filter((r) => tradable.has(r.symbol))
+    .reduce<Record<number, number>>((a, r) => { const s = strengthOf(r.importanceScore); a[s] = (a[s] ?? 0) + 1; return a; }, {});
+  console.log(`   AI关联强度: 3=${st[3] ?? 0}  2=${st[2] ?? 0}  1=${st[1] ?? 0}`);
   console.log(`   orphans_kept=${orphans.length}${orphans.length ? "（保留未删除：" + orphans.slice(0, 10).map((o) => `${o.symbol}/${o.theme}`).join(", ") + (orphans.length > 10 ? " …" : "") + "）" : ""}`);
-  console.log(`   种子总主题数：14   记录数：${ALL_THEMES.length}   覆盖股票：${uniqueSymbols.size} 只   核心：${coreCount} 个`);
+  console.log(`   种子主题数：${new Set(ALL_THEMES.map((r) => r.theme)).size}   记录数：${ALL_THEMES.length}   覆盖股票：${uniqueSymbols.size} 只   核心：${coreCount} 个`);
   console.log("\n分类统计（库内实际）：");
 
   const THEME_LABELS: Record<string, string> = {

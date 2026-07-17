@@ -353,7 +353,7 @@ const jaJP: Messages = {
   "chat.send": "送信",
 
   // AI Theme
-  "theme.title": "AI投資テーマ",
+  "theme.title": "AIテーマ研究",
   "theme.core": "コア銘柄",
   "theme.related": "関連銘柄",
 
@@ -648,6 +648,12 @@ const jaJP: Messages = {
   "theme.detail_sorted": "重要度順",
   "theme.search_label": "検索：",
   "theme.core_only_label": "中核のみ",
+  "theme.subtheme_all": "全カテゴリ",
+  "theme.strength_all": "全強度",
+  "theme.strength_3": "強度3・中核AI",
+  "theme.strength_2": "強度2・明確受益",
+  "theme.strength_1": "強度1・間接受益",
+  "theme.strength_label": "強度",
   "theme.empty_data": "データなし",
   "theme.empty_no_data": "テーマデータがありません。管理者にお問い合わせください",
   "theme.empty_filtered": "現在の絞り込みに一致する銘柄がありません",

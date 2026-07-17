@@ -13,11 +13,15 @@ export const THEME_META: Record<string, { label: string; desc: string; color: st
   MEDICAL_LIFE:      { label: "AI医疗・生命科学",  desc: "AI药物发现/诊断设备/医疗平台",         color: "rose" },
   SECURITY_VISION:   { label: "AI安防・图像识别",  desc: "人脸识别/机器视觉/AI安防系统",         color: "red" },
   POWER_INFRA:       { label: "AI电力・能源",      desc: "AI DC供电/パワー电子/输电电缆",        color: "yellow" },
+  // ── P8-DATA-03 新增：补齐规格中缺独立覆盖的关键环节 ──
+  AI_STORAGE:        { label: "AI存储",            desc: "NAND/企业级SSD/HBM测试",              color: "emerald" },
+  AI_COOLING:        { label: "AI散热",            desc: "数据中心液冷/风冷/精密空调",           color: "cyan" },
+  AUTO_DRIVE:        { label: "自动驾驶",          desc: "ADAS/车载AI SoC/HD地图",              color: "pink" },
 };
 
 export const THEME_ORDER = [
   "CHIP_DESIGN", "SEMI_EQUIPMENT", "TEST_EQUIPMENT", "CHIP_MATERIAL",
-  "HBM_PACKAGING", "SENSOR_PRECISION", "SERVER_DC", "NETWORK",
-  "ROBOT_AUTO", "SOFTWARE_CLOUD", "INTERNET_PLATFORM", "MEDICAL_LIFE",
-  "SECURITY_VISION", "POWER_INFRA",
+  "HBM_PACKAGING", "SENSOR_PRECISION", "AI_STORAGE", "SERVER_DC", "NETWORK",
+  "AI_COOLING", "POWER_INFRA", "SOFTWARE_CLOUD", "INTERNET_PLATFORM",
+  "SECURITY_VISION", "ROBOT_AUTO", "AUTO_DRIVE", "MEDICAL_LIFE",
 ];

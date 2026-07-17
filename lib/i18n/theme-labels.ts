@@ -15,6 +15,10 @@ export const THEME_LABELS_LOCALE: Record<string, Record<Lang, string>> = {
   MEDICAL_LIFE:      { "zh-CN": "医疗AI",           "ja-JP": "医療AI",                        "en-US": "Medical AI" },
   SECURITY_VISION:   { "zh-CN": "安防・视觉",       "ja-JP": "セキュリティ・映像",            "en-US": "Security & Vision" },
   POWER_INFRA:       { "zh-CN": "能源基础设施",     "ja-JP": "エネルギーインフラ",            "en-US": "Energy Infrastructure" },
+  // ── P8-DATA-03 新增 ──
+  AI_STORAGE:        { "zh-CN": "AI存储",           "ja-JP": "AIストレージ",                  "en-US": "AI Storage" },
+  AI_COOLING:        { "zh-CN": "AI散热",           "ja-JP": "AI冷却",                        "en-US": "AI Cooling" },
+  AUTO_DRIVE:        { "zh-CN": "自动驾驶",         "ja-JP": "自動運転",                      "en-US": "Autonomous Driving" },
 };
 
 export function getThemeLabel(themeKey: string, lang: Lang): string {

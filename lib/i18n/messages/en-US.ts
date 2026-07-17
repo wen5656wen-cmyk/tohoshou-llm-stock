@@ -353,7 +353,7 @@ const enUS: Messages = {
   "chat.send": "Send",
 
   // AI Theme
-  "theme.title": "AI Value Chain",
+  "theme.title": "AI Theme Research",
   "theme.core": "Core Holdings",
   "theme.related": "Related Stocks",
 
@@ -648,6 +648,12 @@ const enUS: Messages = {
   "theme.detail_sorted": "by importance",
   "theme.search_label": "Search:",
   "theme.core_only_label": "Core only",
+  "theme.subtheme_all": "All Categories",
+  "theme.strength_all": "All Strengths",
+  "theme.strength_3": "S3 · Core AI",
+  "theme.strength_2": "S2 · Clear Beneficiary",
+  "theme.strength_1": "S1 · Indirect",
+  "theme.strength_label": "S",
   "theme.empty_data": "No data",
   "theme.empty_no_data": "No theme data yet. Please contact an administrator.",
   "theme.empty_filtered": "No stocks match the current filters.",

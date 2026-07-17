@@ -653,6 +653,12 @@ export type Messages = {
   "theme.detail_sorted": string;
   "theme.search_label": string;
   "theme.core_only_label": string;
+  "theme.subtheme_all": string;
+  "theme.strength_all": string;
+  "theme.strength_3": string;
+  "theme.strength_2": string;
+  "theme.strength_1": string;
+  "theme.strength_label": string;
   "theme.empty_data": string;
   "theme.empty_no_data": string;
   "theme.empty_filtered": string;

@@ -353,7 +353,7 @@ const zhCN: Messages = {
   "chat.send": "发送",
 
   // AI Theme
-  "theme.title": "AI产业链",
+  "theme.title": "AI主题研究",
   "theme.core": "核心标的",
   "theme.related": "关联标的",
 
@@ -648,6 +648,12 @@ const zhCN: Messages = {
   "theme.detail_sorted": "按产业链重要度排序",
   "theme.search_label": "搜索：",
   "theme.core_only_label": "仅核心",
+  "theme.subtheme_all": "全部分类",
+  "theme.strength_all": "全部强度",
+  "theme.strength_3": "强度3·核心AI",
+  "theme.strength_2": "强度2·明确受益",
+  "theme.strength_1": "强度1·间接受益",
+  "theme.strength_label": "强度",
   "theme.empty_data": "暂无数据",
   "theme.empty_no_data": "暂无主题数据，请联系管理员",
   "theme.empty_filtered": "当前筛选无匹配结果",

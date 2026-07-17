@@ -125,9 +125,21 @@ const THEME_COLORS: Record<string, string> = {
   SERVER_DC: "amber", NETWORK: "orange", ROBOT_AUTO: "emerald",
   SOFTWARE_CLOUD: "sky", INTERNET_PLATFORM: "pink", MEDICAL_LIFE: "rose",
   SECURITY_VISION: "red", POWER_INFRA: "yellow",
+  // P8-DATA-03 新增主题
+  AI_STORAGE: "emerald", AI_COOLING: "cyan", AUTO_DRIVE: "pink",
 };
 
 const PENDING_REC = { bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200" };
+
+// P8-DATA-03：AI 关联强度（0-3）← importanceScore（复用既有列，无 schema 改动）
+const strengthOf = (importanceScore: number): 0 | 1 | 2 | 3 =>
+  importanceScore >= 9 ? 3 : importanceScore >= 7 ? 2 : importanceScore >= 5 ? 1 : 0;
+const STRENGTH_BADGE: Record<number, string> = {
+  3: "bg-red-100 text-red-700",
+  2: "bg-amber-100 text-amber-700",
+  1: "bg-slate-100 text-slate-500",
+  0: "bg-slate-100 text-slate-400",
+};
 
 const LAYER_BADGE: Record<string, string> = {
   UPSTREAM:       "bg-green-100 text-green-700",
@@ -216,16 +228,25 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
                 {t("theme.pending_score")}
               </span>
             )}
-            {showTheme && (
-              <span className={`text-[10px] px-1 py-0.5 rounded border ${colors.chip}`}>
-                {getThemeLabel(stock.theme, lang)}
-              </span>
-            )}
+            {/* P8-DATA-03：主题标签始终展示（不再仅 ALL/HARDWARE 时显示） */}
+            <span className={`text-[10px] px-1 py-0.5 rounded border ${colors.chip}`}>
+              {getThemeLabel(stock.theme, lang)}
+            </span>
             {layer && (
               <span className={`text-[10px] px-1 py-0.5 rounded ${LAYER_BADGE[layer] ?? "bg-slate-100 text-slate-500"}`}>
                 {getLayerLabel(layer, lang)}
               </span>
             )}
+            {/* 细分类 */}
+            {stock.subTheme && (
+              <span className="text-[10px] px-1 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200">
+                {stock.subTheme}
+              </span>
+            )}
+            {/* AI 关联强度 */}
+            <span className={`text-[10px] px-1 py-0.5 rounded ${STRENGTH_BADGE[strengthOf(stock.importanceScore)]}`}>
+              {t("theme.strength_label")}{strengthOf(stock.importanceScore)}
+            </span>
           </div>
         </div>
         <div className="text-right shrink-0">
@@ -267,6 +288,13 @@ function StockCard({ stock, showTheme }: { stock: AiThemeStock; showTheme: boole
         </div>
       ) : (
         <p className="text-[10px] text-slate-400 border-t border-slate-100 pt-1.5">{t("theme.pending_calc")}</p>
+      )}
+
+      {/* P8-DATA-03：AI 关联理由（来自 ai_themes.reason，seed 源内可追溯的证据摘要） */}
+      {stock.reason && (
+        <p className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-slate-100 line-clamp-2">
+          {stock.reason}
+        </p>
       )}
     </div>
   );
@@ -349,6 +377,9 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
   const [searchQ, setSearchQ] = useState<string>("");
   const [coreOnly, setCoreOnly] = useState(false);
   const [recFilter, setRecFilter] = useState<string>("");
+  // P8-DATA-03：新增「分类(subTheme)」与「AI关联强度」两个过滤维度
+  const [subThemeFilter, setSubThemeFilter] = useState<string>("");
+  const [strengthFilter, setStrengthFilter] = useState<string>("");
 
   // 3 子 Tab（在组件内计算以取得 t()）。
   const SUB_TABS = useMemo(() => [
@@ -409,6 +440,8 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
     }
 
     if (layerFilter) stocks = stocks.filter((s) => s.supplyChainLayer === layerFilter);
+    if (subThemeFilter) stocks = stocks.filter((s) => s.subTheme === subThemeFilter);
+    if (strengthFilter) stocks = stocks.filter((s) => String(strengthOf(s.importanceScore)) === strengthFilter);
     // 概念股票的「仅看核心龙头」= 复用此 core 过滤（原龙头 Tab 已并入）。
     if (coreOnly) stocks = stocks.filter((s) => s.isCore);
     if (recFilter) stocks = stocks.filter((s) => s.recommendationV2 === recFilter || (!s.scored && recFilter === "PENDING"));
@@ -448,7 +481,7 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
         default: return 0;
       }
     });
-  }, [data, activeTab, sortKey, layerFilter, coreOnly, recFilter, searchQ]);
+  }, [data, activeTab, sortKey, layerFilter, coreOnly, recFilter, searchQ, subThemeFilter, strengthFilter]);
 
   // ── Chrome：头部 + 子 Tab 栏（始终渲染，含加载中/新闻子 Tab）───────────────
   const summary = data?.summary;
@@ -458,12 +491,14 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
         { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }
       )
     : null;
+  // 分类数改为动态（随 THEME_ORDER 增减，不再硬编码 14）。
+  const themeCount = data?.themes?.length ?? 0;
   const subtitle = summary
     ? lang === "zh-CN"
-      ? `14个分类 · ${summary.uniqueSymbols}只追踪 · ${summary.coreStocks}个核心标的`
+      ? `${themeCount}个分类 · ${summary.uniqueSymbols}只追踪 · ${summary.coreStocks}个核心标的`
       : lang === "ja-JP"
-      ? `14分類・${summary.uniqueSymbols}銘柄を追跡・${summary.coreStocks}銘柄が中核`
-      : `14 categories · ${summary.uniqueSymbols} tracked stocks · ${summary.coreStocks} core stocks`
+      ? `${themeCount}分類・${summary.uniqueSymbols}銘柄を追跡・${summary.coreStocks}銘柄が中核`
+      : `${themeCount} categories · ${summary.uniqueSymbols} tracked stocks · ${summary.coreStocks} core stocks`
     : "";
 
   const chrome = (
@@ -524,6 +559,15 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
 
   const { themes, layers } = data;
 
+  // P8-DATA-03：分类(subTheme) 选项随当前主题/层级动态派生（不硬编码）
+  const subThemeOptions = [...new Set(
+    data.stocks
+      .filter((s) => (activeTab === "ALL" || activeTab === "HARDWARE" ? true : s.theme === activeTab))
+      .filter((s) => (layerFilter ? s.supplyChainLayer === layerFilter : true))
+      .map((s) => s.subTheme)
+      .filter((x): x is string => !!x),
+  )].sort();
+
   const tabCounts: Record<string, number> = { ALL: summary.uniqueSymbols };
   let hardwareCount = 0;
   for (const th of themes) {
@@ -548,7 +592,7 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
       <StatCard label={t("theme.stat_core")} value={summary.coreStocks} sub="⭐ isCore" />
       <StatCard label={t("theme.stat_buy")} value={summary.buyCount} sub="recommendationV2" />
       <StatCard label={t("theme.stat_avg_score")} value={summary.avgScore} sub="adaptiveScore" />
-      <StatCard label={t("theme.stat_categories")} value={14} sub={`14 ${t("theme.sub_categories")}`} />
+      <StatCard label={t("theme.stat_categories")} value={themes.length} sub={`${themes.length} ${t("theme.sub_categories")}`} />
       <StatCard label={t("theme.stat_layers")} value={layers.filter((l) => l.symbolCount > 0).length} sub={t("theme.active_layers")} />
       <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3">
         <div className="text-sm font-bold text-slate-900 truncate leading-tight">
@@ -638,6 +682,26 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
           className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
         >
           {LAYER_OPTIONS.map((o) => (<option key={o.key} value={o.key}>{o.label}</option>))}
+        </select>
+        {/* P8-DATA-03：分类(subTheme) 过滤 —— 选项随当前主题/层级动态派生 */}
+        <select
+          value={subThemeFilter}
+          onChange={(e) => setSubThemeFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400 max-w-[150px]"
+        >
+          <option value="">{t("theme.subtheme_all")}</option>
+          {subThemeOptions.map((o) => (<option key={o} value={o}>{o}</option>))}
+        </select>
+        {/* P8-DATA-03：AI 关联强度 过滤 */}
+        <select
+          value={strengthFilter}
+          onChange={(e) => setStrengthFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
+        >
+          <option value="">{t("theme.strength_all")}</option>
+          <option value="3">{t("theme.strength_3")}</option>
+          <option value="2">{t("theme.strength_2")}</option>
+          <option value="1">{t("theme.strength_1")}</option>
         </select>
         <select
           value={recFilter}

@@ -2,6 +2,33 @@
 
 ---
 
+## [18.5.0] - 2026-07-17 — 🗾 P8-DATA-03 AI 主题宇宙与产业链补齐（Complete AI Theme Universe & Value Chain）
+
+全面补齐 AI 主题研究的日本上市公司覆盖与产业链结构。**零 schema 改动**（复用 `theme` 多行 + `subTheme` + `supplyChainLayer` + `importanceScore`）；未改评分 / GPT / Cron / Screener / 导航。
+
+### ROOT CAUSE / COVERAGE GAPS
+`DOWNSTREAM` 层**实际 0 条**——AI 软件/平台/SaaS/安全公司被错放进 APPLICATION；存储(Kioxia)、散热(ダイキン/ニデック)、自动驾驶(Denso)、云(IIJ)、AI安全(Trend Micro)等关键环节无覆盖；3 只无效关联（`6967.T` 新光电气 JIC 私有化 / `9613.T` NTT Data / `9719.T` SCSK）在 Stock 表无记录无法渲染。
+
+### APPLY 结果（事务写入 + 写后断言）
+`created=36  updated=26  unchanged=80  removed=3  skipped_missing=0`
+- **五层 BEFORE→AFTER**：UPSTREAM 20→**22** · MIDSTREAM 20→**37** · INFRASTRUCTURE 16→**28** · **DOWNSTREAM 0→20** · APPLICATION 33→**35**
+- **主题 14→17**（新增 **AI存储**/**AI散热**/**自动驾驶**，补规格点名缺独立覆盖的环节）
+- **记录 109→142 · 股票 84→115 · 核心 39→42**（scored 覆盖 81/84 → **115/115**）
+- **新增 36 只**全部经生产 `Stock`/`StockScore` 核验真实可交易（`skipped_missing=0` 即零虚构）：Kioxia 285A · Socionext 6526 · KOKUSAI 6525 · ULVAC 6728 · ダイキン 6367 · ニデック 6594 · Denso 6902 · PKSHA 3993 · Trend Micro 4704 · NRI 4307 · IIJ 3774 · 明電舎 6508 · メイコー 6787 · ハーモニック 6324 等
+- **移除 3 无效**（受控删除并报告，非清空）；剔除 NO_STOCK 的 4185 JSR / 9749 富士软件 / 4485 JTOWER / 6641 日新電機
+
+### 核心标的纪律
+审计发现 `isCore=45 > 强度3=42` → ABEJA 5574 / freee 4478 / Sansan 4443（importanceScore=8）违反「isCore 仅限 AI关联强度3」→ **降级为非核心**；新增**硬断言**（`isCore && 强度≠3` → `exit(1)`）。最终 core=42 与强度3 完全一致；强度分布 3=42 / 2=96 / 1=4 / **0=0**。
+
+### Seed 工程化
+`scripts/seed-ai-themes.ts`：写前**核心纪律断言** + **Stock 存在性校验**（无记录/退市跳过并记录，不静默写入）→ 只读预扫描生成计划 → **单 `$transaction` 执行 移除+新增+更新** → **事务内写后断言**（records/symbols/themes/core/DOWNSTREAM/dup 任一不符 `throw` **整体回滚**）。支持 `DRY_RUN=1`。**Provenance**：`SEED_VERSION=p8-data-03/2026-07-17`，每条 `reason`=AI关联证据摘要、`role`=主要产品业务，git 版本化可追溯（DB 不加列）。
+
+### UI（保留架构，无新增页面/导航/Hub/Workspace）
+标题「AI产业链」→**「AI主题研究」**（三语）· 分类数**动态化**（不再硬编码 14）· 3 新主题配色与三语标签 · 新增 **分类(subTheme)** 与 **AI关联强度** 过滤（层级/主题/核心已有）· 股票卡片增加 **主题标签（常驻）/ 细分类 / AI关联强度徽章 / AI关联理由**。
+
+### 验收
+Build ✅ tsc 0 · 生产 Health ✅ **CRITICAL=0**（✅62 ❌0 ⚠️4 既有）· `/api/ai-theme` **200**（stocks=142 / uniqueSymbols=115 / scored=115 / core=42 / 17 主题 count 全>0 / reason 142/142）· 五层均有数据 · 重复 `[symbol,theme]`=0 · core 中强度<3 = 0 · 无 Stock 记录的主题股 = 0 · 页面与 legacy 深链全 200。**备份/回滚点**：`/opt/tohoshou/backups/ai_themes_BEFORE_p8-data-03_20260717-1601.json`（109 条）。
+
 ## [18.4.1] - 2026-07-17 — 🔎 P8-DATA-02 AI 主题「数据为空」诊断 + seed 幂等化 + 空状态文案
 
 **ROOT CAUSE：并非数据问题。** 只读诊断证实生产 `ai_themes` 数据**完整**：total=109 / distinct_sym=84 / core=39 / themes=14，81/84 有 StockScore；`/api/ai-theme` HTTP 200 返回 **stocks=109**、summary uniqueSymbols=84/scored=81/core=39；默认筛选 概念股票=84 卡、仅核心=31、产业链层 UPSTREAM22/MIDSTREAM22/APPLICATION41/INFRASTRUCTURE24。页面「暂无数据。请运行 npx tsx …」是**前端空状态文案缺陷**（`filtered===0` 时对所有用户暴露终端命令），非缺数据。**故未盲跑 seed**（且原 seed 为 `deleteMany+create` 破坏性重置，跑它会清空有效数据，违反约束）。
