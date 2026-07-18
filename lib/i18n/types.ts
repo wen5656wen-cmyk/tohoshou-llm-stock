@@ -223,6 +223,9 @@ export type Messages = {
   "dv.ov2.title": string; "dv.ov2.actionTitle": string; "dv.ov2.totalPos": string; "dv.ov2.addPos": string; "dv.ov2.maxSingle": string; "dv.ov2.phaseLabel": string; "dv.ov2.blocked": string; "dv.ov2.stale": string; "dv.ov2.closed": string; "dv.ov2.executable": string; "dv.ov2.notExec": string; "dv.ov2.refPrice": string; "dv.ov2.funnelTitle": string; "dv.ov2.universe": string; "dv.ov2.tradable": string; "dv.ov2.candidates": string; "dv.ov2.shown": string; "dv.ov2.holdTitle": string; "dv.ov2.holdEmpty": string; "dv.ov2.sellPct": string; "dv.ov2.marketOk": string; "dv.ov2.marketClosed": string; "dv.ov2.nextDay": string;
   "dv.fresh.title": string; "dv.fresh.quote": string; "dv.fresh.ranking": string; "dv.fresh.decision": string; "dv.fresh.holdings": string; "dv.fresh.validUntil": string; "dv.fresh.next": string; "dv.fresh.realtime": string; "dv.fresh.eod": string;
   "dv.grp.executeNow": string; "dv.grp.waitList": string; "dv.grp.backups": string;
+  "dv.rt.enter.inZone": string; "dv.rt.enter.volume": string; "dv.rt.enter.momentum": string; "dv.rt.enter.rank": string;
+  "dv.rt.leave.displaced": string; "dv.rt.leave.stop": string; "dv.rt.leave.news": string; "dv.rt.leave.chase": string;
+  "dv.rt.new": string; "dv.rt.turnover": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;

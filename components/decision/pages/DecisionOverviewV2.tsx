@@ -77,18 +77,25 @@ export default function DecisionOverviewV2() {
   }));
 
   // ── 三组候选 ──
-  const toPickRow = (d: any): PickRow => ({
-    rank: d.universeRank != null ? String(d.universeRank) : "—",
-    symbol: d.symbol, name: d.name,
-    price: fmtJpy(d.currentPrice), changePct: fmtPct(d.changePct),
-    changeTone: (d.changePct ?? 0) > 0 ? "green" : (d.changePct ?? 0) < 0 ? "red" : "neutral",
-    actionLabel: t(`dv.act.${d.action}` as Parameters<typeof t>[0]), tone: actionTone(d.action) as Tone,
-    entry: d.buyRangeLow != null && d.buyRangeHigh != null ? `${fmtJpy(d.buyRangeLow)}~${fmtJpy(d.buyRangeHigh)}` : "—",
-    target: fmtJpy(d.targetPrice1), stop: fmtJpy(d.stopLossPrice),
-    pos: `${t("dv.stk.pos")} ${d.suggestedPositionPct != null ? d.suggestedPositionPct + "%" : "—"}`,
-    trigger: t((d.triggerConditionKey ?? d.actionReasonKey ?? "dv.trig.waitQuote") as Parameters<typeof t>[0]),
-    score: fmtScore(d.aiScore),
-  });
+  const toPickRow = (d: any): PickRow => {
+    const rc = d.rankChange;
+    const rankDelta = d.isNew ? t("dv.rt.new") : rc != null && rc > 0 ? `↑${rc}` : rc != null && rc < 0 ? `↓${Math.abs(rc)}` : undefined;
+    const deltaTone: Tone | undefined = d.isNew ? "amber" : rc != null && rc > 0 ? "green" : rc != null && rc < 0 ? "red" : undefined;
+    return {
+      rank: (d.runtimeRank ?? d.universeRank) != null ? String(d.runtimeRank ?? d.universeRank) : "—",
+      symbol: d.symbol, name: d.name,
+      price: fmtJpy(d.currentPrice), changePct: fmtPct(d.changePct),
+      changeTone: (d.changePct ?? 0) > 0 ? "green" : (d.changePct ?? 0) < 0 ? "red" : "neutral",
+      actionLabel: t(`dv.act.${d.action}` as Parameters<typeof t>[0]), tone: actionTone(d.action) as Tone,
+      entry: d.buyRangeLow != null && d.buyRangeHigh != null ? `${fmtJpy(d.buyRangeLow)}~${fmtJpy(d.buyRangeHigh)}` : "—",
+      target: fmtJpy(d.targetPrice1), stop: fmtJpy(d.stopLossPrice),
+      pos: `${t("dv.stk.pos")} ${d.suggestedPositionPct != null ? d.suggestedPositionPct + "%" : "—"}`,
+      trigger: t((d.triggerConditionKey ?? d.actionReasonKey ?? "dv.trig.waitQuote") as Parameters<typeof t>[0]),
+      score: fmtScore(d.aiScore),
+      rankDelta, deltaTone,
+      replaceReason: d.replaceReasonKey ? t(d.replaceReasonKey as Parameters<typeof t>[0]) : undefined,
+    };
+  };
   const pickLabels = { buy: t("dv.stk.buy"), target: t("dv.stk.target"), stop: t("dv.stk.stop"), validUntil: t("dv.stk.validUntil"), validValue: fr.validUntil ?? "—" };
 
   // ── 市场依据（第二层）──
@@ -114,11 +121,13 @@ export default function DecisionOverviewV2() {
   ];
 
   const s = o.top200Summary ?? {};
+  const turn = o.runtime?.turnover ?? s.turnover ?? {};
   const funnelSteps = [
     { label: t("dv.ov2.universe"), value: s.universe != null ? String(s.universe) : "—" },
     { label: "Top200", value: String(s.top200 ?? 200) },
     { label: t("dv.ov2.candidates"), value: String(s.candidates ?? 0) },
     { label: t("dv.ov2.shown"), value: String(s.shown ?? 0) },
+    { label: t("dv.rt.turnover"), value: String(turn.replacedToday ?? 0) },
   ];
 
   void lang;

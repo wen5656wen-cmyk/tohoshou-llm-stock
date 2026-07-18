@@ -107,6 +107,9 @@ export interface PickRow {
   rank: string; symbol: string; name: string; price: string; changePct: string; changeTone: Tone;
   actionLabel: string; tone: Tone; entry: string; target: string; stop: string; pos: string;
   trigger: string; score: string;
+  rankDelta?: string;        // "↑3" / "↓2" / NEW 标签
+  deltaTone?: Tone;          // 涨→green 跌→red 新→amber
+  replaceReason?: string;    // 进入/上升原因
 }
 export function PickGroup(p: { title: string; tone: Tone; count: number; rows: PickRow[]; labels: { buy: string; target: string; stop: string; validUntil: string; validValue: string } }) {
   const bar = p.tone === "green" ? COLORS.success : p.tone === "amber" ? COLORS.warning : COLORS.textFaint;
@@ -126,9 +129,13 @@ export function PickGroup(p: { title: string; tone: Tone; count: number; rows: P
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="flex items-center gap-2 min-w-0">
                   <span className="tabular-nums" style={{ fontSize: 11, color: COLORS.textFaint }}>#{r.rank}</span>
+                  {r.rankDelta && (
+                    <span className="tabular-nums" style={{ fontSize: 10, fontWeight: 700, color: r.deltaTone === "green" ? COLORS.success : r.deltaTone === "red" ? COLORS.danger : COLORS.warning }}>{r.rankDelta}</span>
+                  )}
                   <b style={{ fontSize: 14, color: COLORS.text }}>{r.name}</b>
                   <span className="tabular-nums" style={{ fontSize: 11, color: COLORS.textFaint }}>{r.symbol}</span>
                   <AppBadge tone={r.tone}>{r.actionLabel}</AppBadge>
+                  {r.replaceReason && <span style={{ fontSize: 10, color: COLORS.textFaint }}>· {r.replaceReason}</span>}
                 </span>
                 <span className="flex items-center gap-2 tabular-nums" style={{ fontSize: 13 }}>
                   <b style={{ color: COLORS.text }}>{r.price}</b>

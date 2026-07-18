@@ -64,7 +64,13 @@ export interface RealtimeStockDecision {
   symbol: string;
   name: string;
   universeRank: number | null;
-  previousRank: number | null; // v1 无盘中历史 → null（诚实）
+  previousRank: number | null;
+  // P15-01D 运行时重排元数据（盘中随排序变化）
+  runtimeRank?: number | null;
+  rankChange?: number | null;        // + = 上升
+  replaceReasonKey?: string | null;  // 进入/上升原因 i18n key
+  enterTime?: string | null;         // ISO（进入当前展示集时间）
+  isNew?: boolean;                    // 本轮新进入
   currentPrice: number | null;
   changePct: number | null;
   quoteUpdatedAt: string | null;

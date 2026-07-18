@@ -8,3 +8,8 @@ export { deriveStockDecision, groupPicks } from "./stock-decision";
 export { deriveHoldingAction, deriveHoldingActions, type PaperPositionInput } from "./holdings-decision";
 export { deriveGlobalDecision, type GlobalDecisionInput } from "./global-decision";
 export { computeFreshness, type FreshnessInput } from "./freshness";
+export {
+  buildRuntimeCandidate, runtimeRerank, emptyRuntimeState,
+  type StockScoreCandidate, type RuntimeQuote, type RuntimeContext,
+  type RuntimeCand, type RuntimeState, type RuntimeRankedRow, type RuntimeRerankResult,
+} from "./top200";

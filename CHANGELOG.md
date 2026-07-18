@@ -2,6 +2,26 @@
 
 ---
 
+## [18.14.0] - 2026-07-18 — 🔄 P15-01D Runtime Top200（盘中实时重排 · Top10 随行情变化）
+
+解决 P15-01B 最大限制：**决策会变但 Top10 名单不变**。本轮让 **Top200 成为运行时候选母池**，盘中重排 → Top10 实时变化 → Decision 自动同步。**纯排序，非重新评分**：`adaptiveScore`/StockScore 只读不改；**零新 API/Cron/Schema/GPT/Prompt**，未改 ClosingDecision、未重跑 compute-scores、未新增评分系统。
+
+**一、Runtime Ranking（新 `lib/decision-engine/top200.ts`，纯函数）**：候选母池 = StockScore(SSOT，按 `adaptiveScore`)，`buildRuntimeCandidate` 在**原始 adaptiveScore 之上叠加运行时调整分**（不写回 StockScore）：买点距离(在买区+/追高−)、实时量比(放量+)、今日动量(过热−)、MarketRegime(BEAR−)、News Risk(利空−)、持仓状态(已持−)、流动性(极低量−)、风险(EXTREME/HIGH−)。`runtimeRerank` 输出 Top12 + **`runtimeRank`/`previousRank`/`rankChange`/`replaceReasonKey`/`enterTime`**(进入/上升/离开原因) + leavers + **Top10 换手统计**(replacedToday/distinctToday/churnPct，首次填充不计换手)。**排序结果进 `deriveStockDecision`（复用 lib/decision-engine，零逻辑复制）→ Decision 自动更新**。
+
+**二、防抖（Ranking Hysteresis）**：现任加权 `STICKY=2.5` —— 挑战者运行时分须超出现任 >2.5 才替换，杜绝 #10↔#11 来回抖动；**硬退出绕过**（跌破止损/利空 → −999 强制出局，不受现任保护）。
+
+**三、聚合 API 改造（沿用 `/api/admin/decision-overview`，非新增）**：候选源由 closing.top10(冻结) → **StockScore 运行时池**；**仅对池头 `RUNTIME_POOL=50` + 持仓补实时价/量**(`fetchRichQuotes` 分批单请求，1s 超时回退 EOD)——**不扫全市场**；近期利空集合单查询(News Risk 输入)；运行时排名状态**内存持有**(模块级 `RT_STATE`，不落库)；**15s payload 缓存**(`RT_CACHE`)保 API<500ms；历史日期(`?date=`)回退 closing.top10 快照。
+
+**四、UI**：候选行新增 **运行时排名变化徽章**(↑n/↓n/`NEW`)+**进入原因**；Top200 漏斗加 **Top10 换手** 计数。i18n 三语 +10 键(`dv.rt.*`)。
+
+**性能**：缓存命中 **0.18s**、页面首屏 **0.27s(<2s)**、暖重算 ~0.5–1.3s、冷启动首次 ~1.3–2.3s(一次性 Yahoo 冷连接)。**未明显增加首屏耗时**(候选源换库内查询 + 仅 50 只实时 + 缓存)。
+
+**验收**：tsc0/build✅/eslint 净/生产 health CRITICAL=0/部署后 `/decision-v2?tab=overview` 200；API 实测 poolSize=50(StockScore 源)、Top12 由运行时产生、隔 16s 二次重排 `previousRank` 正确填充(1/2/3/4)+`rankChange=0`(周末无行情→稳定，防抖生效)、换手 `replacedToday=0/churn=0%`(首填不计)。**部署**：rsync `.next/`+`lib/` → 重启 web(cron 未改)。
+
+**已知/遗留**：①运行时提升仅限池头 50(最小实时)——base-rank>50 的名不能靠盘中信号跃入 Top10(必要的性能取舍，Top10 变化来自强头部重排)；②冷启动首次可达 ~2s(稳态 <0.5s，后续可加 stale-while-revalidate 消除)；③`RT_STATE` 进程内存，web 重启即重置(符合「内存即可」)；④真实盘中动态(实时 rankChange≠0/换手/leavers)须**交易日盘中**复验(当前周末只验静态路径)。
+
+---
+
 ## [18.13.0] - 2026-07-18 — 🧠 P15-01B Decision Overview V1（实时决策引擎 + 聚合 API + 首屏重构）
 
 按 P15-01A Technical Design（PASS/Freeze）实现「决策总览 = 打开即知此刻该 BUY/WAIT/HOLD/ADD/REDUCE/TAKE_PROFIT/STOP_LOSS/CASH」。核心原则：**实时刷新的是 Decision，不是 Score** —— StockScore/ClosingDecision 只读、不重算、不调 GPT、零新 Schema/Cron。
