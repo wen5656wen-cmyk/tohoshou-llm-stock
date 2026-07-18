@@ -43,11 +43,13 @@ export async function GET(req: Request) {
   const nowMs = now.getTime();
   const phase = marketPhase8(now);
   const tradingDay = isJPXTradingDay(now);
-  const dateArg = new URL(req.url).searchParams.get("date");
+  const url = new URL(req.url);
+  const dateArg = url.searchParams.get("date");
+  const debug = url.searchParams.get("debug") === "1"; // 只读观测(P15-01D-V)：附加 runtimeScore 等,零决策行为改变
   const runtimeMode = !dateArg;
 
-  // payload 缓存（仅 runtime 最新态）
-  if (runtimeMode && RT_CACHE && nowMs - RT_CACHE.at < RT_TTL_MS) {
+  // payload 缓存（仅 runtime 最新态；debug 强制重算以取实时快照，不读也不写缓存）
+  if (runtimeMode && !debug && RT_CACHE && nowMs - RT_CACHE.at < RT_TTL_MS) {
     const res = NextResponse.json({ ...RT_CACHE.body, cached: true });
     res.headers.set("Cache-Control", "s-maxage=15, stale-while-revalidate=30");
     return res;
@@ -107,6 +109,7 @@ export async function GET(req: Request) {
     let ranked: any[] = [];
     let turnover = { replacedToday: 0, distinctToday: 0, churnPct: 0 };
     let leavers: any[] = [];
+    let debugStats: any = null;
     if (runtimeMode) {
       const cands = poolRows.map((row: any, i: number) =>
         buildRuntimeCandidate(
@@ -118,6 +121,27 @@ export async function GET(req: Request) {
       const rr = runtimeRerank(cands, RT_STATE, nowMs, dateKey);
       RT_STATE = rr.state; // 推进内存状态
       ranked = rr.ranked; turnover = rr.turnover; leavers = rr.leavers;
+      if (debug) {
+        // 只读：候选池(50)各运行时调整项触发计数（不改逻辑，仅统计已算出的旗标）
+        const vr = (c: any) => c.volumeRatio;
+        debugStats = {
+          poolSize: cands.length, regime: regimeName,
+          inBuyZone: cands.filter((c: any) => c.inBuyZone).length,
+          breakout: cands.filter((c: any) => c.breakout).length,
+          volGte2: cands.filter((c: any) => vr(c) != null && vr(c) >= 2).length,
+          volGte15: cands.filter((c: any) => vr(c) != null && vr(c) >= 1.5 && vr(c) < 2).length,
+          volLt03: cands.filter((c: any) => vr(c) != null && vr(c) < 0.3).length,
+          volMissing: cands.filter((c: any) => vr(c) == null).length,
+          overext7: cands.filter((c: any) => (c.changePct ?? 0) > 7).length,
+          negNews: cands.filter((c: any) => c.negNews).length,
+          held: cands.filter((c: any) => heldSet.has(c.symbol)).length,
+          riskExtreme: cands.filter((c: any) => c.riskLevel === "EXTREME").length,
+          riskHigh: cands.filter((c: any) => c.riskLevel === "HIGH").length,
+          hardExit: cands.filter((c: any) => c.hardExit).length,
+          // 注：BEAR/BULL 为全池统一加分 → 对相对排序无影响（仅移动绝对 runtimeScore）
+          regimeUniformShift: regimeName === "BEAR" ? -5 : regimeName === "BULL" ? 1 : 0,
+        };
+      }
     } else {
       // 历史日期：回退收盘 top10 快照（无运行时重排）
       ranked = (Array.isArray(closing?.top10) ? (closing!.top10 as any[]) : []).map((r) => ({ ...r, runtimeRank: r.rank ?? null, previousRank: null, rankChange: null, replaceReasonKey: null, enterTime: null, isNew: false }));
@@ -132,6 +156,15 @@ export async function GET(req: Request) {
       sd.replaceReasonKey = r.replaceReasonKey ?? null;
       sd.enterTime = r.enterTime ?? null;
       sd.isNew = r.isNew ?? false;
+      if (debug) {
+        (sd as any)._debug = {
+          runtimeScore: r.runtimeScore ?? null,
+          runtimeAdjustment: r.runtimeScore != null && r.aiScore != null ? Math.round((r.runtimeScore - r.aiScore) * 100) / 100 : null,
+          adaptiveScore: r.aiScore ?? null, baseRank: r.baseRank ?? null,
+          volumeRatio: r.volumeRatio ?? null, inBuyZone: r.inBuyZone ?? null, breakout: r.breakout ?? null,
+          negNews: r.negNews ?? null, hardExit: r.hardExit ?? null,
+        };
+      }
       return sd;
     });
     const groups = groupPicks(decisions);
@@ -204,7 +237,8 @@ export async function GET(req: Request) {
       top200Summary: { universe, tradable: null, top200: 200, candidates: runtimeMode ? poolRows.length : ranked.length, shown, turnover },
       isExecutable: globalDecision.isExecutable, blockedReasonKey: globalDecision.blockedReasonKey,
     };
-    if (runtimeMode) RT_CACHE = { at: nowMs, body };
+    if (debug) { body._debugStats = debugStats; body.apiLatencyMs = Date.now() - nowMs; }
+    if (runtimeMode && !debug) RT_CACHE = { at: nowMs, body };
 
     const res = NextResponse.json(body);
     res.headers.set("Cache-Control", "s-maxage=15, stale-while-revalidate=30");

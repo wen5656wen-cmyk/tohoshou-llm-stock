@@ -119,6 +119,7 @@
     "test:ingest-equivalence": "npx tsx scripts/test-ingest-equivalence.ts",
     "event-shadow": "npx tsx scripts/event-shadow-report.ts",
     "event-shadow:30d": "npx tsx scripts/event-shadow-report.ts --days=30",
+    "validate:p15-01d": "npx tsx scripts/p15-01d-validate.ts",
     "fix-split-adjustment": "npx tsx scripts/fix-split-adjustment.ts",
     "fix-split-adjustment:apply": "npx tsx scripts/fix-split-adjustment.ts --apply --rescore"
   },

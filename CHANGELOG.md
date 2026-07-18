@@ -2,6 +2,17 @@
 
 ---
 
+## [18.14.1] - 2026-07-18 — 🔬 P15-01D-V 验证观测（只读 debug 字段 + 采样 harness，不改决策逻辑）
+
+为 P15-01D Runtime Ranking 的真实交易日验证提供观测能力。**纯只读/附加，零决策行为改变**：非 debug 路径逐字节不变。
+
+- **API 只读观测**（`/api/admin/decision-overview?debug=1`，gated）：附加每只 `_debug{runtimeScore/runtimeAdjustment/adaptiveScore/baseRank/volumeRatio/inBuyZone/breakout/negNews/hardExit}` + 顶层 `_debugStats`（候选池 50 各调整项触发计数）+ `apiLatencyMs`。debug 强制重算（不读不写 RT_CACHE，不污染缓存），默认路径不变。
+- **只读采样 harness** `scripts/p15-01d-validate.ts`（`npm run validate:p15-01d`）：仅对 API 发 GET，落 `reports/p15-01d-validation/`（A 组当日开盘基线冻结 + B 组每次 Runtime Top10 快照 + section-三 全字段）。**不写 DB、不改生产决策、不新增 Cron**。
+- **审计发现（本轮不改，仅记录）**：①`BEAR −5 / BULL +1` 为全池统一加分 → **对相对排序零影响**（仅移动绝对 runtimeScore），regime 的真实作用在 `deriveStockDecision` 动作映射(IN_ZONE+BEAR→WAIT)，不应夸大其重排价值；②`s-maxage=15` 当前无 proxy_cache 消费（惰性），仅进程内 RT_CACHE 生效 → 两层缓存错位为理论风险；③候选池中已持仓/破位股经 `−2`/`−999` 降权/淘汰仅影响**候选列表**，`holdingsActions` 独立源自 PaperPosition，**持仓永不因 Runtime Ranking 消失**（重点第 9/10 项 PASS）。
+- **验收**：tsc0/build✅/eslint 净/health CRITICAL=0/`?debug=1` 实测 poolSize=50、pick0 runtimeAdjustment=+3(买区+6+量比+2+BEAR−5 校验一致)。**结论：VALIDATION INCOMPLETE —— 0/3 交易日观测（休市日，下一窗口 07-21/22/23），精准度不得据此判定。** rsync `.next` 重启 web(cron 未改)。
+
+---
+
 ## [18.14.0] - 2026-07-18 — 🔄 P15-01D Runtime Top200（盘中实时重排 · Top10 随行情变化）
 
 解决 P15-01B 最大限制：**决策会变但 Top10 名单不变**。本轮让 **Top200 成为运行时候选母池**，盘中重排 → Top10 实时变化 → Decision 自动同步。**纯排序，非重新评分**：`adaptiveScore`/StockScore 只读不改；**零新 API/Cron/Schema/GPT/Prompt**，未改 ClosingDecision、未重跑 compute-scores、未新增评分系统。
