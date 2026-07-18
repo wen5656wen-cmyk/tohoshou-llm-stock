@@ -14,6 +14,7 @@ import { SubNav, DECISION_TABS } from "@/components/decision/ds/SubNav";
 import DecisionOverviewV2 from "@/components/decision/pages/DecisionOverviewV2";
 import DecisionStrategyV2 from "@/components/decision/pages/DecisionStrategyV2";
 import DecisionRecommendationsV2 from "@/components/decision/pages/DecisionRecommendationsV2";
+import DecisionPortfolioV2 from "@/components/decision/pages/DecisionPortfolioV2";
 
 const VALID = new Set<string>(DECISION_TABS.map((t) => t.key));
 
@@ -43,7 +44,7 @@ function Shell() {
         </div>
         <SubNav active={active} />
         <div className="pb-8">
-          {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : <Placeholder tab={active} />}
+          {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : active === "portfolio" ? <DecisionPortfolioV2 /> : <Placeholder tab={active} />}
         </div>
         {/* ⑧ Footer 系统状态条（真实状态，老板视角） */}
         <SystemStatusFooter />
