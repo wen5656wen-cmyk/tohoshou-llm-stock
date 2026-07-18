@@ -2,6 +2,12 @@
 
 ---
 
+## [18.18.1] - 2026-07-18 — 🎯 市场概况区层级化（纯 UI）
+
+右栏「市场快照」5 个等大方块 → **层级化「市场概况」`MarketPanel`**（§10.3）：主要 **TOPIX / Nikkei 225** 大字(16px)+涨跌%，**市场趋势** 徽章(regime)，次要 **USD/JPY · VIX · NASDAQ** 小字辅助行。新增 `dv.mk.title/trend` 三语。仅决策总览右栏改用 `MarketPanel`（`panels.tsx` 的 `MarketSnapshot` 保留供其它页）。未改任何数据/API/逻辑。验收：tsc0/build✅/eslint净/health CRITICAL=0/部署后实测 TOPIX 407.9 -2.8% 大字+市场趋势徽章。
+
+---
+
 ## [18.18.0] - 2026-07-18 — 🔎 P16-02 Decision Center UI Final + 单页 AI Research Report
 
 完整界面整改（纯 UI/交互）。**未改** Decision Engine/Runtime Ranking/adaptiveScore/runtimeScore/权重/Top200逻辑/deriveHoldingAction/GPT/Cron/Portfolio 收益逻辑/现有 API 契约/DB 字段含义；**未新增** API/Schema/Cron。只复用现有 `/api/stocks?q=`(搜索)、`/api/stocks/[symbol]/intelligence`·`/indicators`、`/api/financials`。

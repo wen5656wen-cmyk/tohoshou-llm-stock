@@ -241,6 +241,7 @@ export type Messages = {
   "dv.search.placeholder": string; "dv.search.noResult": string;
   "dv.rr.why.BUY": string; "dv.rr.why.ADD": string; "dv.rr.why.WAIT": string; "dv.rr.why.HOLD": string; "dv.rr.why.REDUCE": string; "dv.rr.why.TAKE_PROFIT": string; "dv.rr.why.STOP_LOSS": string; "dv.rr.why.default": string;
   "dv.rr.core": string; "dv.rr.upside": string; "dv.rr.downside": string; "dv.rr.holding": string; "dv.rr.notHeld": string; "dv.rr.chart": string; "dv.rr.tech": string; "dv.rr.scores": string; "dv.rr.news": string; "dv.rr.newsVerdict": string; "dv.rr.fin": string; "dv.rr.hist": string; "dv.rr.noHist": string; "dv.rr.emptyExec": string; "dv.rr.sysDetail": string;
+  "dv.mk.title": string; "dv.mk.trend": string;
   "dv.rr.d.tech": string; "dv.rr.d.fund": string; "dv.rr.d.money": string; "dv.rr.d.senti": string; "dv.rr.d.trend": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;

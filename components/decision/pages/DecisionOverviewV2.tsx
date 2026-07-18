@@ -13,8 +13,8 @@ import { fmtJpy, fmtPct, fmtScore, fmtJstClock, riskTone } from "@/lib/decision/
 import { actionIcon } from "@/lib/decision/verdict";
 import { useDecision } from "@/lib/decision/provider";
 import { useHoldings } from "@/lib/portfolio/use-holdings";
-import { MarketSnapshot, RiskPanel, type MktItem, type RiskItem } from "@/components/decision/ds/panels";
-import { DecisionBar, PortfolioSummaryBar, ActionSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, FunnelBar,
+import { RiskPanel, type RiskItem } from "@/components/decision/ds/panels";
+import { DecisionBar, PortfolioSummaryBar, ActionSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, MarketPanel, FunnelBar,
   type HoldRow, type PickRow, type ColLabels, type HistoryRow } from "@/components/decision/ds/overview-panels";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
 import StockSearch from "@/components/decision/StockSearch";
@@ -120,13 +120,15 @@ export default function DecisionOverviewV2() {
   ];
   const onActionClick = (a: string) => scrollTo(a === "BUY" ? "sec-exec" : a === "WAIT" ? "sec-wait" : a === "HOLD" ? "sec-watch" : "sec-holdings");
 
-  // 右栏
-  const mkItems: MktItem[] = [
-    { label: "Nikkei 225", value: mc.nikkei != null ? Math.round(mc.nikkei).toLocaleString() : "—", change: mc.nikkeiChange ?? null, pct: mc.nikkeiChange ?? null },
-    { label: "TOPIX", value: mc.topix != null ? String(Math.round(mc.topix * 10) / 10) : "—", change: mc.topixChange ?? null, pct: mc.topixChange ?? null },
-    { label: "USD/JPY", value: mc.usdjpy != null ? String(Math.round(mc.usdjpy * 100) / 100) : "—", change: null, pct: null },
-    { label: "VIX", value: mc.vix != null ? String(Math.round(mc.vix * 100) / 100) : "—", change: null, pct: null },
-    { label: "NASDAQ", value: mc.nasdaq != null ? Math.round(mc.nasdaq).toLocaleString() : "—", change: mc.nasdaqChange ?? null, pct: mc.nasdaqChange ?? null },
+  // 右栏 · 市场概况（层级化：TOPIX/Nikkei 主 → 趋势 → USD/JPY·VIX·NASDAQ 辅）
+  const mkPrimary = [
+    { label: "TOPIX", value: mc.topix != null ? String(Math.round(mc.topix * 10) / 10) : "—", chg: mc.topixChange != null ? fmtPct(mc.topixChange) : undefined, chgTone: ((mc.topixChange ?? 0) < 0 ? "red" : "green") as Tone },
+    { label: "Nikkei 225", value: mc.nikkei != null ? Math.round(mc.nikkei).toLocaleString() : "—", chg: mc.nikkeiChange != null ? fmtPct(mc.nikkeiChange) : undefined, chgTone: ((mc.nikkeiChange ?? 0) < 0 ? "red" : "green") as Tone },
+  ];
+  const mkSecondary = [
+    { label: "USD/JPY", value: mc.usdjpy != null ? String(Math.round(mc.usdjpy * 100) / 100) : "—" },
+    { label: "VIX", value: mc.vix != null ? String(Math.round(mc.vix * 100) / 100) : "—" },
+    { label: "NASDAQ", value: mc.nasdaq != null ? Math.round(mc.nasdaq).toLocaleString() : "—" },
   ];
   const riskItems: RiskItem[] = (o.risks ?? []).map((r: any) => ({ labelKey: r.key, level: r.level, tone: riskTone(r.level), note: r.note ?? undefined }));
   const dot = (ok: boolean) => (ok ? "#34C759" : "#9CA3AF");
@@ -184,7 +186,7 @@ export default function DecisionOverviewV2() {
           <div className="lg:sticky lg:top-16 space-y-3">
             <RiskPanel items={riskItems} overall={gd.riskLevel ?? "—"} overallTone={riskTone(gd.riskLevel)} />
             <SystemStatus title={t("dv.pf.ss.title")} items={ssItems} />
-            <MarketSnapshot items={mkItems} trend={mc.trendScore != null ? String(Math.round(mc.trendScore * 10) / 10) : "—"} breadth={mc.breadth != null ? `${Math.round(mc.breadth)}%` : "—"} vol={mc.volatility != null ? String(Math.round(mc.volatility * 10) / 10) : "—"} regimeLabel={regimeLabel} regimeTone={REGIME_TONE(regime)} asOf={mc.asOf ?? "—"} />
+            <MarketPanel title={t("dv.mk.title")} asOf={mc.asOf ?? "—"} primary={mkPrimary} trendLabel={t("dv.mk.trend")} trend={regimeLabel} trendTone={REGIME_TONE(regime)} secondary={mkSecondary} />
           </div>
         </div>
       </div>

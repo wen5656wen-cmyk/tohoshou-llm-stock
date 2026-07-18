@@ -262,6 +262,45 @@ export function HistoryPanel(p: { title: string; emptyLabel: string; rows: Histo
   );
 }
 
+// ── 市场概况（层级化：TOPIX/Nikkei 主 + 趋势 + USD/JPY·VIX 辅）─────────────────
+export function MarketPanel(p: {
+  title: string; asOf: string;
+  primary: { label: string; value: string; chg?: string; chgTone?: Tone }[];
+  trendLabel: string; trend: string; trendTone: Tone;
+  secondary: { label: string; value: string }[];
+}) {
+  return (
+    <Card style={{ padding: SP.md - 4 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: SP.sm }}>
+        <span style={{ fontSize: 11, letterSpacing: "0.05em", color: COLORS.textFaint, fontWeight: 600, textTransform: "uppercase" }}>{p.title}</span>
+        <span className="tabular-nums" style={{ fontSize: 10.5, color: COLORS.textFaint }}>{p.asOf}</span>
+      </div>
+      <div className="space-y-1.5">
+        {p.primary.map((m, i) => (
+          <div key={i} className="flex items-baseline justify-between gap-2">
+            <span style={{ fontSize: 12.5, color: COLORS.textSecondary }}>{m.label}</span>
+            <span className="flex items-baseline gap-2 tabular-nums">
+              <b style={{ fontSize: 16, color: COLORS.text }}>{m.value}</b>
+              {m.chg && <span style={{ fontSize: 12, fontWeight: 600, color: m.chgTone === "red" ? COLORS.danger : m.chgTone === "green" ? COLORS.success : COLORS.textFaint }}>{m.chg}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2" style={{ marginTop: SP.sm, paddingTop: SP.sm, borderTop: `1px solid ${TERM.gridLine}` }}>
+        <span style={{ fontSize: 12, color: COLORS.textFaint }}>{p.trendLabel}</span>
+        <AppBadge tone={p.trendTone}>{p.trend}</AppBadge>
+      </div>
+      {p.secondary.length > 0 && (
+        <div className="flex items-center flex-wrap" style={{ gap: `${SP.xs}px ${SP.lg}px`, marginTop: SP.sm, paddingTop: SP.sm, borderTop: `1px solid ${TERM.gridLine}` }}>
+          {p.secondary.map((s, i) => (
+            <span key={i} className="flex items-baseline gap-1.5"><span style={{ fontSize: 11, color: COLORS.textFaint }}>{s.label}</span><b className="tabular-nums" style={{ fontSize: 12.5, color: COLORS.textSecondary }}>{s.value}</b></span>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function FunnelBar(p: { title: string; steps: { label: string; value: string }[] }) {
   return (
     <Card style={{ padding: `${SP.sm}px ${SP.md - 2}px` }}>

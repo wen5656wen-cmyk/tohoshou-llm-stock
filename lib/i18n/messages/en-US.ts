@@ -1929,6 +1929,7 @@ const enUS: Messages = {
   "dv.search.placeholder": "Search code or name, e.g. 7203 / Toyota", "dv.search.noResult": "No stock found",
   "dv.rr.why.BUY": "Why Buy", "dv.rr.why.ADD": "Why Add", "dv.rr.why.WAIT": "Why Wait", "dv.rr.why.HOLD": "Why Hold", "dv.rr.why.REDUCE": "Why Reduce", "dv.rr.why.TAKE_PROFIT": "Why Take Profit", "dv.rr.why.STOP_LOSS": "Why Stop Loss", "dv.rr.why.default": "Why Watch",
   "dv.rr.core": "Core Decision", "dv.rr.upside": "Upside", "dv.rr.downside": "Downside", "dv.rr.holding": "Position", "dv.rr.notHeld": "Not held", "dv.rr.chart": "Price", "dv.rr.tech": "Technicals", "dv.rr.scores": "AI Rationale", "dv.rr.news": "Recent News", "dv.rr.newsVerdict": "AI News Read", "dv.rr.fin": "Fundamentals", "dv.rr.hist": "AI Decision Log", "dv.rr.noHist": "No decision history", "dv.rr.emptyExec": "No qualifying buy setups today — AI suggests waiting", "dv.rr.sysDetail": "System Details",
+  "dv.mk.title": "Market", "dv.mk.trend": "Trend",
   "dv.rr.d.tech": "Technical", "dv.rr.d.fund": "Fundamental", "dv.rr.d.money": "Money Flow", "dv.rr.d.senti": "Sentiment", "dv.rr.d.trend": "Trend",
   "dv.stk.rank": "Rank", "dv.stk.buy": "Buy", "dv.stk.target": "Target", "dv.stk.stop": "Stop", "dv.stk.pos": "Size", "dv.stk.trigger": "Trigger", "dv.stk.validUntil": "Valid", "dv.stk.changeToday": "Today",
   "dv.ctx.position": "Suggested Position",

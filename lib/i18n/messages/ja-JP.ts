@@ -1929,6 +1929,7 @@ const jaJP: Messages = {
   "dv.search.placeholder": "コード・銘柄名で検索 例 7203 / トヨタ", "dv.search.noResult": "該当銘柄なし",
   "dv.rr.why.BUY": "なぜ買う", "dv.rr.why.ADD": "なぜ買い増し", "dv.rr.why.WAIT": "なぜ待機", "dv.rr.why.HOLD": "なぜ保有", "dv.rr.why.REDUCE": "なぜ縮小", "dv.rr.why.TAKE_PROFIT": "なぜ利確", "dv.rr.why.STOP_LOSS": "なぜ損切り", "dv.rr.why.default": "なぜ監視",
   "dv.rr.core": "コア判断", "dv.rr.upside": "上値余地", "dv.rr.downside": "下値リスク", "dv.rr.holding": "保有状況", "dv.rr.notHeld": "未保有", "dv.rr.chart": "価格推移", "dv.rr.tech": "テクニカル", "dv.rr.scores": "AI 判断根拠", "dv.rr.news": "最近のニュース", "dv.rr.newsVerdict": "AI ニュース判断", "dv.rr.fin": "ファンダメンタル", "dv.rr.hist": "AI 決定履歴", "dv.rr.noHist": "決定履歴なし", "dv.rr.emptyExec": "本日は条件を満たす買い候補なし。待機推奨", "dv.rr.sysDetail": "システム稼働詳細",
+  "dv.mk.title": "マーケット概況", "dv.mk.trend": "市場トレンド",
   "dv.rr.d.tech": "テクニカル", "dv.rr.d.fund": "ファンダ", "dv.rr.d.money": "資金", "dv.rr.d.senti": "センチメント", "dv.rr.d.trend": "トレンド",
   "dv.stk.rank": "ランク", "dv.stk.buy": "買い", "dv.stk.target": "目標", "dv.stk.stop": "損切り", "dv.stk.pos": "比率", "dv.stk.trigger": "条件", "dv.stk.validUntil": "有効期限", "dv.stk.changeToday": "本日",
   "dv.ctx.position": "推奨ポジション",

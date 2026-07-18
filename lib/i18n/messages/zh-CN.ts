@@ -1929,6 +1929,7 @@ const zhCN: Messages = {
   "dv.search.placeholder": "搜索代码或名称，如 7203 / 丰田", "dv.search.noResult": "未找到该股票",
   "dv.rr.why.BUY": "为什么买", "dv.rr.why.ADD": "为什么加仓", "dv.rr.why.WAIT": "为什么等待", "dv.rr.why.HOLD": "为什么持有", "dv.rr.why.REDUCE": "为什么减仓", "dv.rr.why.TAKE_PROFIT": "为什么止盈", "dv.rr.why.STOP_LOSS": "为什么止损", "dv.rr.why.default": "为什么观察",
   "dv.rr.core": "核心决策", "dv.rr.upside": "上涨空间", "dv.rr.downside": "下行风险", "dv.rr.holding": "持仓状态", "dv.rr.notHeld": "当前未持有", "dv.rr.chart": "价格走势", "dv.rr.tech": "技术状态", "dv.rr.scores": "AI 判断依据", "dv.rr.news": "最近新闻", "dv.rr.newsVerdict": "AI 新闻判断", "dv.rr.fin": "基本面", "dv.rr.hist": "AI 决策记录", "dv.rr.noHist": "暂无决策历史", "dv.rr.emptyExec": "今日暂无符合条件的买入机会，AI 建议继续等待", "dv.rr.sysDetail": "系统运行详情",
+  "dv.mk.title": "市场概况", "dv.mk.trend": "市场趋势",
   "dv.rr.d.tech": "技术", "dv.rr.d.fund": "基本面", "dv.rr.d.money": "资金", "dv.rr.d.senti": "情绪", "dv.rr.d.trend": "趋势",
   "dv.stk.rank": "排名", "dv.stk.buy": "买入", "dv.stk.target": "目标", "dv.stk.stop": "止损", "dv.stk.pos": "仓位", "dv.stk.trigger": "触发条件", "dv.stk.validUntil": "有效至", "dv.stk.changeToday": "今日",
   "dv.ctx.position": "建议仓位",
