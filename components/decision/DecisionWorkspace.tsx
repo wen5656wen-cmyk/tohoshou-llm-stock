@@ -13,6 +13,7 @@ import SystemStatusFooter from "@/components/decision/ds/SystemStatusFooter";
 import { SubNav, DECISION_TABS } from "@/components/decision/ds/SubNav";
 import DecisionOverviewV2 from "@/components/decision/pages/DecisionOverviewV2";
 import DecisionStrategyV2 from "@/components/decision/pages/DecisionStrategyV2";
+import DecisionRecommendationsV2 from "@/components/decision/pages/DecisionRecommendationsV2";
 
 const VALID = new Set<string>(DECISION_TABS.map((t) => t.key));
 
@@ -31,8 +32,8 @@ function Shell() {
   const { t } = useI18n();
   const sp = useSearchParams();
   const raw = sp.get("tab");
-  // "today" 为 strategy 的别名（任务 URL ?tab=today），指向今日策略
-  const active = raw === "today" ? "strategy" : raw && VALID.has(raw) ? raw : "overview";
+  // "today"→strategy、"recommendations"→picks 为任务 URL 别名
+  const active = raw === "today" ? "strategy" : raw === "recommendations" ? "picks" : raw && VALID.has(raw) ? raw : "overview";
   return (
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
       <DecisionProvider>
@@ -42,7 +43,7 @@ function Shell() {
         </div>
         <SubNav active={active} />
         <div className="pb-8">
-          {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : <Placeholder tab={active} />}
+          {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : <Placeholder tab={active} />}
         </div>
         {/* ⑧ Footer 系统状态条（真实状态，老板视角） */}
         <SystemStatusFooter />

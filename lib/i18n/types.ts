@@ -237,6 +237,16 @@ export type Messages = {
   "dv.st.rkChecklist": string; "dv.st.rk.policy": string; "dv.st.rk.model": string;
   "dv.st.closing": string; "dv.st.closingNote": string;
   "dv.st.notes": string; "dv.st.dataLimit": string; "dv.st.limitList": string;
+  // P14-DEV-04 AI Recommendations
+  "dv.rc.summaryTitle": string; "dv.rc.total": string; "dv.rc.avgUpside": string; "dv.rc.avgRisk": string; "dv.rc.totalPos": string; "dv.rc.model": string; "dv.rc.notSnapshot": string;
+  "dv.rc.lv.STRONG_BUY": string; "dv.rc.lv.BUY": string; "dv.rc.lv.WATCH": string; "dv.rc.lv.SKIP": string;
+  "dv.rc.col.upside": string; "dv.rc.col.downside": string; "dv.rc.col.prob": string; "dv.rc.col.period": string; "dv.rc.col.level": string; "dv.rc.col.pos": string; "dv.rc.col.today": string;
+  "dv.rc.st.READY": string; "dv.rc.st.WATCH": string; "dv.rc.st.INZONE": string; "dv.rc.st.INVALID": string; "dv.rc.st.NA": string;
+  "dv.rc.detail": string; "dv.rc.conclusion": string; "dv.rc.reasonTitle": string; "dv.rc.combined": string; "dv.rc.selectHint": string;
+  "dv.rc.exec": string; "dv.rc.ex.entry": string; "dv.rc.ex.firstPos": string; "dv.rc.ex.tp": string; "dv.rc.ex.sl": string; "dv.rc.ex.period": string; "dv.rc.ex.state": string; "dv.rc.ex.abandon": string;
+  "dv.rc.similar": string; "dv.rc.confidence": string; "dv.rc.consistency": string; "dv.rc.dataComplete": string; "dv.rc.histCase": string; "dv.rc.modelVer": string;
+  "dv.rc.filter": string; "dv.rc.reset": string; "dv.rc.sortBy": string; "dv.rc.rank": string;
+  "dv.rc.noReliable": string; "dv.rc.snapshotTag": string; "dv.rc.liveTag": string; "dv.rc.probNote": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;
