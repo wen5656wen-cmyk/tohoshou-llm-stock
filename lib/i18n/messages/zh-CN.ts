@@ -1760,6 +1760,17 @@ const zhCN: Messages = {
   "explain.panel.empty": "暂无AI解释",
   "explain.panel.nodata": "暂无数据",
   "explain.panel.provider_rule": "规则引擎",
+  "ed.tagline": "今天，我要不要交易",
+  "ed.today": "今日决策",
+  "ed.rec": "今日推荐",
+  "ed.portfolio": "今日组合",
+  "ed.market": "市场快照",
+  "ed.perf": "AI 近期表现",
+  "ed.risk": "今日风险",
+  "ed.quick": "快速进入",
+  "ed.viewFull": "查看完整",
+  "ed.riskNone": "无重大风险",
+  "ed.goResearch": "研究",
 };
 
 export default zhCN;

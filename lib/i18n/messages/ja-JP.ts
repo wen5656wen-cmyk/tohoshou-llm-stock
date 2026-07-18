@@ -1760,6 +1760,17 @@ const jaJP: Messages = {
   "explain.panel.empty": "AI説明はありません",
   "explain.panel.nodata": "データなし",
   "explain.panel.provider_rule": "ルールエンジン",
+  "ed.tagline": "今日、取引すべきか",
+  "ed.today": "今日の判断",
+  "ed.rec": "本日の推奨",
+  "ed.portfolio": "本日ポートフォリオ",
+  "ed.market": "マーケット概況",
+  "ed.perf": "AI 直近パフォーマンス",
+  "ed.risk": "本日のリスク",
+  "ed.quick": "クイックアクセス",
+  "ed.viewFull": "詳細を見る",
+  "ed.riskNone": "重大リスクなし",
+  "ed.goResearch": "リサーチ",
 };
 
 export default jaJP;

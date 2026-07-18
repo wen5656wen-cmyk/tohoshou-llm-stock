@@ -18,10 +18,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppLoading, AppEmptyState, AppBadge, COLORS } from "@/components/ui";
 import { localeSector } from "@/lib/i18n/market-labels";
+import { HOLD_DAYS, evaluateOutcome, type Bar, type Outcome } from "@/lib/decision/outcome";
 
-const HOLD_DAYS = 5; // 一周 ≈ 5 个交易日
-
-interface Bar { date: string; open?: number; high?: number; low?: number; close: number; adjClose?: number | null }
 interface Snap {
   date: string;
   verdict: "BUY_TODAY" | "WATCH_ONLY" | "STAY_CASH" | null;
@@ -34,28 +32,10 @@ interface Snap {
   portfolio: { symbol: string; name: string | null; weight: number }[];
   top10: { symbol: string; sector?: string | null; reason?: string | null }[];
 }
-type Outcome = {
-  status: "verifying" | "done";
-  daysElapsed: number;
-  weekReturn: number | null;
-  day1: number | null;
-  day3: number | null;
-  maxDD: number | null;
-  holdDays: number | null;
-  actualHighRaw: number | null;
-  reachedTarget: boolean | null;
-  reachedT2: boolean | null;
-  hitStop: boolean | null;
-  stars: number | null;
-  review: string;
-};
-
 const VERDICT_TONE: Record<string, "green" | "amber" | "red"> = { BUY_TODAY: "green", WATCH_ONLY: "amber", STAY_CASH: "red" };
 const jpy = (v: number | null | undefined) => (v == null ? "—" : `¥${Math.round(v).toLocaleString()}`);
 const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}%`);
 
-/** 由已实现收益派生星级（客观复盘，不含任何预测）：≥+10% 5★ / ≥+5% 4★ / ≥0 3★ / ≥−5% 2★ / else 1★ */
-const starsOf = (r: number): number => (r >= 10 ? 5 : r >= 5 ? 4 : r >= 0 ? 3 : r >= -5 ? 2 : 1);
 /** Outcome Badge：星级 → i18n key（Excellent/Good/Neutral/Weak/Failed） */
 const OUTCOME_KEY: Record<number, string> = { 5: "dc.h.oExcellent", 4: "dc.h.oGood", 3: "dc.h.oNeutral", 2: "dc.h.oWeak", 1: "dc.h.oFailed" };
 /** AI 置信度校准：高分低收益→过度乐观 / 中低分高收益→偏保守 / 其余→校准良好（仅描述，不改评分） */
@@ -82,54 +62,6 @@ function mistakeKey(o: Outcome): string {
   return "dc.rv.mNeg";
 }
 const isFailure = (o: Outcome) => o.status === "done" && (o.hitStop === true || (o.weekReturn ?? 0) < 0);
-
-/** 用复权序列计算推荐日之后的真实表现；交易日不足 → verifying（绝不提前判定成败） */
-function evaluate(bars: Bar[], d: string, target: number | null, target2: number | null, stop: number | null): Outcome | null {
-  const asc = [...bars].sort((a, b) => (a.date < b.date ? -1 : 1));
-  const i = asc.findIndex((b) => b.date === d);
-  if (i < 0) return null; // 推荐日不在序列中（停牌等）→ 无法验证，安全空态
-  const base = asc[i];
-  const baseAdj = base.adjClose ?? base.close;
-  if (!(baseAdj > 0)) return null;
-  const ratio = base.close > 0 ? baseAdj / base.close : 1; // D 日复权比例：原始价 → 复权尺度
-
-  const after = asc.slice(i + 1); // ← 严格只用 D 之后已发生的 bar，杜绝前视偏差
-  if (after.length < HOLD_DAYS) {
-    return { status: "verifying", daysElapsed: after.length, weekReturn: null, day1: null, day3: null, maxDD: null, holdDays: null, actualHighRaw: null, reachedTarget: null, reachedT2: null, hitStop: null, stars: null, review: "" };
-  }
-  const win = after.slice(0, HOLD_DAYS);
-  const adjC = (b: Bar) => b.adjClose ?? b.close;
-  const weekReturn = (adjC(win[HOLD_DAYS - 1]) / baseAdj - 1) * 100;
-  const day1 = (adjC(win[0]) / baseAdj - 1) * 100;
-  const day3 = (adjC(win[2]) / baseAdj - 1) * 100;
-  const adjOf = (b: Bar, v: number | undefined) => (v != null && b.close > 0 ? v * ((b.adjClose ?? b.close) / b.close) : (b.adjClose ?? b.close));
-  const actualHigh = Math.max(...win.map((b) => adjOf(b, b.high)));
-  const actualLow = Math.min(...win.map((b) => adjOf(b, b.low)));
-  const maxDD = (actualLow / baseAdj - 1) * 100; // 相对入场的最大回撤（≤0）
-
-  const targetAdj = target != null ? target * ratio : null;
-  const target2Adj = target2 != null ? target2 * ratio : null;
-  const stopAdj = stop != null ? stop * ratio : null;
-  const reachedTarget = targetAdj != null ? actualHigh >= targetAdj : null;
-  const reachedT2 = target2Adj != null ? actualHigh >= target2Adj : null;
-  const hitStop = stopAdj != null ? actualLow <= stopAdj : null;
-  // 达标持有天数：窗口内首次触及 T1 的交易日序号；未触及则记为完整窗口
-  let holdDays = HOLD_DAYS;
-  if (targetAdj != null) {
-    const idx = win.findIndex((b) => adjOf(b, b.high) >= targetAdj);
-    holdDays = idx >= 0 ? idx + 1 : HOLD_DAYS;
-  }
-
-  const review = reachedTarget
-    ? `${HOLD_DAYS} 个交易日内触及目标价，达标`
-    : hitStop
-    ? `${HOLD_DAYS} 个交易日内触及止损价`
-    : weekReturn >= 0
-    ? "未触及目标价，但收于正收益"
-    : "未触及目标价，收于负收益";
-
-  return { status: "done", daysElapsed: after.length, weekReturn, day1, day3, maxDD, holdDays, actualHighRaw: ratio > 0 ? actualHigh / ratio : actualHigh, reachedTarget, reachedT2, hitStop, stars: starsOf(weekReturn), review };
-}
 
 export default function DecisionHistory() {
   const { t, lang } = useI18n();
@@ -170,7 +102,7 @@ export default function DecisionHistory() {
     try {
       const j = await fetch(`/api/stocks/${encodeURIComponent(s.top1.symbol)}/indicators`, { cache: "no-store" }).then((r) => r.json());
       const bars: Bar[] = Array.isArray(j?.series?.all) ? j.series.all : [];
-      setOutcomes((o) => ({ ...o, [s.date]: evaluate(bars, s.date, s.top1!.target1, s.top1!.target2, s.top1!.stopLoss) }));
+      setOutcomes((o) => ({ ...o, [s.date]: evaluateOutcome(bars, s.date, s.top1!.target1, s.top1!.target2, s.top1!.stopLoss) }));
     } catch { setOutcomes((o) => ({ ...o, [s.date]: null })); }
   }, []);
 

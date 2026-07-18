@@ -1760,6 +1760,17 @@ const enUS: Messages = {
   "explain.panel.empty": "No AI explanation",
   "explain.panel.nodata": "No data",
   "explain.panel.provider_rule": "Rule Engine",
+  "ed.tagline": "Today — should I trade?",
+  "ed.today": "Today's Decision",
+  "ed.rec": "Today's Recommendation",
+  "ed.portfolio": "Today's Portfolio",
+  "ed.market": "Market Snapshot",
+  "ed.perf": "AI Performance",
+  "ed.risk": "Today's Risk",
+  "ed.quick": "Quick Action",
+  "ed.viewFull": "View full",
+  "ed.riskNone": "No major risk",
+  "ed.goResearch": "Research",
 };
 
 export default enUS;

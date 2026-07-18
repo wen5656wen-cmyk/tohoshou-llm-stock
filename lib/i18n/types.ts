@@ -206,6 +206,10 @@ export type Messages = {
   "wl.sinceBasis": string; "wl.todayBasis": string; "wl.frozen": string; "wl.refreshCond": string;
   "wl.empty": string; "wl.loading": string; "wl.noData": string; "wl.noStop": string;
   "wl.save": string; "wl.cancel": string; "wl.notePlaceholder": string;
+  // P13-DECISION-07 Executive Dashboard（老板驾驶舱）
+  "ed.tagline": string; "ed.today": string; "ed.rec": string; "ed.portfolio": string;
+  "ed.market": string; "ed.perf": string; "ed.risk": string; "ed.quick": string;
+  "ed.viewFull": string; "ed.riskNone": string; "ed.goResearch": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;
