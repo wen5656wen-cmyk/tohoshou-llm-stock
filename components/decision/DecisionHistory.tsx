@@ -27,7 +27,7 @@ interface Snap {
   verdictReason: string | null;
   top1: {
     symbol: string; name: string | null; aiScore: number | null; gptScore: number | null;
-    price: number | null; target1: number | null; stopLoss: number | null;
+    price: number | null; target1: number | null; target2: number | null; stopLoss: number | null;
     entryLow: number | null; entryHigh: number | null; confidence: string | null; holdPeriod: string | null;
   } | null;
   portfolio: { symbol: string; name: string | null; weight: number }[];
@@ -36,8 +36,13 @@ type Outcome = {
   status: "verifying" | "done";
   daysElapsed: number;
   weekReturn: number | null;
+  day1: number | null;
+  day3: number | null;
+  maxDD: number | null;
+  holdDays: number | null;
   actualHighRaw: number | null;
   reachedTarget: boolean | null;
+  reachedT2: boolean | null;
   hitStop: boolean | null;
   stars: number | null;
   review: string;
@@ -49,9 +54,18 @@ const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "
 
 /** 由已实现收益派生星级（客观复盘，不含任何预测）：≥+10% 5★ / ≥+5% 4★ / ≥0 3★ / ≥−5% 2★ / else 1★ */
 const starsOf = (r: number): number => (r >= 10 ? 5 : r >= 5 ? 4 : r >= 0 ? 3 : r >= -5 ? 2 : 1);
+/** Outcome Badge：星级 → i18n key（Excellent/Good/Neutral/Weak/Failed） */
+const OUTCOME_KEY: Record<number, string> = { 5: "dc.h.oExcellent", 4: "dc.h.oGood", 3: "dc.h.oNeutral", 2: "dc.h.oWeak", 1: "dc.h.oFailed" };
+/** AI 置信度校准：高分低收益→过度乐观 / 中低分高收益→偏保守 / 其余→校准良好（仅描述，不改评分） */
+function calibrate(ai: number | null, ret: number | null): "opt" | "cons" | "ok" | null {
+  if (ai == null || ret == null) return null;
+  if (ai >= 80 && ret < 2) return "opt";
+  if (ai < 75 && ret >= 8) return "cons";
+  return "ok";
+}
 
 /** 用复权序列计算推荐日之后的真实表现；交易日不足 → verifying（绝不提前判定成败） */
-function evaluate(bars: Bar[], d: string, target: number | null, stop: number | null): Outcome | null {
+function evaluate(bars: Bar[], d: string, target: number | null, target2: number | null, stop: number | null): Outcome | null {
   const asc = [...bars].sort((a, b) => (a.date < b.date ? -1 : 1));
   const i = asc.findIndex((b) => b.date === d);
   if (i < 0) return null; // 推荐日不在序列中（停牌等）→ 无法验证，安全空态
@@ -62,19 +76,30 @@ function evaluate(bars: Bar[], d: string, target: number | null, stop: number | 
 
   const after = asc.slice(i + 1); // ← 严格只用 D 之后已发生的 bar，杜绝前视偏差
   if (after.length < HOLD_DAYS) {
-    return { status: "verifying", daysElapsed: after.length, weekReturn: null, actualHighRaw: null, reachedTarget: null, hitStop: null, stars: null, review: "" };
+    return { status: "verifying", daysElapsed: after.length, weekReturn: null, day1: null, day3: null, maxDD: null, holdDays: null, actualHighRaw: null, reachedTarget: null, reachedT2: null, hitStop: null, stars: null, review: "" };
   }
   const win = after.slice(0, HOLD_DAYS);
-  const endAdj = win[win.length - 1].adjClose ?? win[win.length - 1].close;
-  const weekReturn = (endAdj / baseAdj - 1) * 100;
+  const adjC = (b: Bar) => b.adjClose ?? b.close;
+  const weekReturn = (adjC(win[HOLD_DAYS - 1]) / baseAdj - 1) * 100;
+  const day1 = (adjC(win[0]) / baseAdj - 1) * 100;
+  const day3 = (adjC(win[2]) / baseAdj - 1) * 100;
   const adjOf = (b: Bar, v: number | undefined) => (v != null && b.close > 0 ? v * ((b.adjClose ?? b.close) / b.close) : (b.adjClose ?? b.close));
   const actualHigh = Math.max(...win.map((b) => adjOf(b, b.high)));
   const actualLow = Math.min(...win.map((b) => adjOf(b, b.low)));
+  const maxDD = (actualLow / baseAdj - 1) * 100; // 相对入场的最大回撤（≤0）
 
   const targetAdj = target != null ? target * ratio : null;
+  const target2Adj = target2 != null ? target2 * ratio : null;
   const stopAdj = stop != null ? stop * ratio : null;
   const reachedTarget = targetAdj != null ? actualHigh >= targetAdj : null;
+  const reachedT2 = target2Adj != null ? actualHigh >= target2Adj : null;
   const hitStop = stopAdj != null ? actualLow <= stopAdj : null;
+  // 达标持有天数：窗口内首次触及 T1 的交易日序号；未触及则记为完整窗口
+  let holdDays = HOLD_DAYS;
+  if (targetAdj != null) {
+    const idx = win.findIndex((b) => adjOf(b, b.high) >= targetAdj);
+    holdDays = idx >= 0 ? idx + 1 : HOLD_DAYS;
+  }
 
   const review = reachedTarget
     ? `${HOLD_DAYS} 个交易日内触及目标价，达标`
@@ -84,7 +109,7 @@ function evaluate(bars: Bar[], d: string, target: number | null, stop: number | 
     ? "未触及目标价，但收于正收益"
     : "未触及目标价，收于负收益";
 
-  return { status: "done", daysElapsed: after.length, weekReturn, actualHighRaw: ratio > 0 ? actualHigh / ratio : actualHigh, reachedTarget, hitStop, stars: starsOf(weekReturn), review };
+  return { status: "done", daysElapsed: after.length, weekReturn, day1, day3, maxDD, holdDays, actualHighRaw: ratio > 0 ? actualHigh / ratio : actualHigh, reachedTarget, reachedT2, hitStop, stars: starsOf(weekReturn), review };
 }
 
 export default function DecisionHistory() {
@@ -125,7 +150,7 @@ export default function DecisionHistory() {
     try {
       const j = await fetch(`/api/stocks/${encodeURIComponent(s.top1.symbol)}/indicators`, { cache: "no-store" }).then((r) => r.json());
       const bars: Bar[] = Array.isArray(j?.series?.all) ? j.series.all : [];
-      setOutcomes((o) => ({ ...o, [s.date]: evaluate(bars, s.date, s.top1!.target1, s.top1!.stopLoss) }));
+      setOutcomes((o) => ({ ...o, [s.date]: evaluate(bars, s.date, s.top1!.target1, s.top1!.target2, s.top1!.stopLoss) }));
     } catch { setOutcomes((o) => ({ ...o, [s.date]: null })); }
   }, []);
 
@@ -138,10 +163,79 @@ export default function DecisionHistory() {
   if (error) return <AppEmptyState title={t("dc.ov.loadFail")} desc={error} />;
   if (!snaps.length) return <AppEmptyState title={t("dc.h.empty")} />;
 
+  // ── P13-DECISION-04 决策准确度 + 置信度校准（仅统计已验证 done 决策，无 done → 等待验证）──
+  const RECENT = 20;
+  const doneRows = snaps.slice(0, RECENT)
+    .map((s) => ({ s, o: outcomes[s.date] }))
+    .filter((x): x is { s: Snap; o: Outcome } => !!x.o && x.o.status === "done" && !!x.s.top1);
+  const n = doneRows.length;
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  const acc = n
+    ? {
+        n,
+        successRate: (doneRows.filter((x) => (x.o.weekReturn ?? 0) >= 0).length / n) * 100,
+        avgReturn: mean(doneRows.map((x) => x.o.weekReturn ?? 0)),
+        avgDD: mean(doneRows.map((x) => x.o.maxDD ?? 0)),
+        avgHold: mean(doneRows.map((x) => x.o.holdDays ?? 0)),
+        t1Rate: (doneRows.filter((x) => x.o.reachedTarget).length / n) * 100,
+        stopRate: (doneRows.filter((x) => x.o.hitStop).length / n) * 100,
+      }
+    : null;
+  const calRows = doneRows.map((x) => ({ date: x.s.date, symbol: x.s.top1!.symbol, name: x.s.top1!.name, ai: x.s.top1!.aiScore, ret: x.o.weekReturn, cal: calibrate(x.s.top1!.aiScore, x.o.weekReturn) }));
+  const calTone: Record<string, string> = { opt: COLORS.danger, cons: COLORS.warning, ok: COLORS.success };
+  const calLabel = (c: string | null) => (c === "opt" ? t("dc.h.calOptimistic") : c === "cons" ? t("dc.h.calConservative") : c === "ok" ? t("dc.h.calAccurate") : "—");
+
   return (
     <div className="max-w-[980px] mx-auto space-y-3">
       <AppCard>
         <div className="text-[11px]" style={{ color: COLORS.textFaint }}>ℹ️ {t("dc.h.basis")}</div>
+      </AppCard>
+
+      {/* ═══ 决策准确度（最近 N 次已验证第一推荐）═══ */}
+      <AppCard header={
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.h.accuracy")}</span>
+          {acc && <span className="text-[11px]" style={{ color: COLORS.textFaint }}>{t("dc.h.recent")} {acc.n}</span>}
+        </div>
+      }>
+        {acc ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            <AccTile k={t("dc.h.successRate")} v={pct1(acc.successRate).replace("+", "")} tone={acc.successRate >= 50 ? COLORS.success : COLORS.danger} />
+            <AccTile k={t("dc.h.avgReturn")} v={pct1(acc.avgReturn)} tone={acc.avgReturn >= 0 ? COLORS.success : COLORS.danger} />
+            <AccTile k={t("dc.h.avgDD")} v={pct1(acc.avgDD)} tone={COLORS.danger} />
+            <AccTile k={t("dc.h.avgHold")} v={`${Math.round(acc.avgHold * 10) / 10} ${t("dc.h.days")}`} />
+            <AccTile k={t("dc.h.t1Rate")} v={pct1(acc.t1Rate).replace("+", "")} tone={COLORS.primary} />
+            <AccTile k={t("dc.h.stopRate")} v={pct1(acc.stopRate).replace("+", "")} tone={acc.stopRate > 0 ? COLORS.danger : COLORS.textSecondary} />
+          </div>
+        ) : (
+          <div className="text-[12px]" style={{ color: COLORS.textFaint }}>⚪ {t("dc.h.waiting")}</div>
+        )}
+      </AppCard>
+
+      {/* ═══ AI 置信度校准 ═══ */}
+      <AppCard header={
+        <div>
+          <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dc.h.calibration")}</span>
+          <span className="text-[11px] ml-2" style={{ color: COLORS.textFaint }}>{t("dc.h.calNote")}</span>
+        </div>
+      }>
+        {calRows.length ? (
+          <div className="space-y-1">
+            {calRows.map((c) => (
+              <div key={c.date} className="flex items-center justify-between gap-2 text-[12px] py-1" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+                <span className="truncate min-w-0" style={{ color: COLORS.text }}>{c.name ?? c.symbol} <span className="font-mono text-[10px]" style={{ color: COLORS.textFaint }}>{c.symbol}</span></span>
+                <span className="flex items-center gap-2 shrink-0 tabular-nums">
+                  <span style={{ color: COLORS.textSecondary }}>AI {c.ai ?? "—"}</span>
+                  <span style={{ color: COLORS.textFaint }}>→</span>
+                  <span style={{ color: (c.ret ?? 0) >= 0 ? COLORS.success : COLORS.danger }}>{pct1(c.ret)}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: `${calTone[c.cal ?? "ok"]}14`, color: calTone[c.cal ?? "ok"] }}>{calLabel(c.cal)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[12px]" style={{ color: COLORS.textFaint }}>⚪ {t("dc.h.waiting")}</div>
+        )}
       </AppCard>
 
       <div className="rounded-xl overflow-hidden" style={{ background: COLORS.card, border: `1px solid ${COLORS.border}` }}>
@@ -192,10 +286,15 @@ export default function DecisionHistory() {
                       <Kv k={t("dc.ov.holdPeriod")} v={s.top1.holdPeriod ?? "—"} />
                       {o?.status === "done" ? (
                         <>
+                          <Kv k={t("dc.h.day1")} v={pct1(o.day1)} tone={(o.day1 ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
+                          <Kv k={t("dc.h.day3")} v={pct1(o.day3)} tone={(o.day3 ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
+                          <Kv k={t("dc.h.day5")} v={pct1(o.weekReturn)} tone={(o.weekReturn ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
+                          <Kv k={t("dc.h.maxDD")} v={pct1(o.maxDD)} tone={COLORS.danger} />
                           <Kv k={t("dc.h.actualHigh")} v={jpy(o.actualHighRaw)} />
-                          <Kv k={t("dc.h.finalReturn")} v={pct1(o.weekReturn)} tone={(o.weekReturn ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
-                          <Kv k={t("dc.h.reached")} v={o.reachedTarget ? "✅" : "❌"} />
-                          <Kv k={t("dc.h.review")} v={o.review} />
+                          <Kv k={`T1 / ${t("dc.h.t2")}`} v={`${o.reachedTarget ? "✅" : "❌"} / ${o.reachedT2 == null ? "—" : o.reachedT2 ? "✅" : "❌"}`} />
+                          <Kv k={t("dc.ov.stopLossP")} v={o.hitStop ? "⚠️" : "✅"} tone={o.hitStop ? COLORS.danger : COLORS.success} />
+                          <Kv k={t("dc.h.outcome")} v={o.stars ? `${"★".repeat(o.stars)} ${t(OUTCOME_KEY[o.stars] as Parameters<typeof t>[0])}` : "—"} tone={COLORS.warning} />
+                          <div className="md:col-span-2 pt-1" style={{ color: COLORS.textSecondary }}>{o.review}</div>
                         </>
                       ) : (
                         <Kv k={t("dc.h.success")} v={`${t("dc.h.verifying")} · ${t("dc.h.needMore")}${o?.status === "verifying" ? `（${o.daysElapsed}/${HOLD_DAYS}）` : ""}`} tone={COLORS.textFaint} />
@@ -218,6 +317,15 @@ function Kv({ k, v, tone }: { k: string; v: string; tone?: string }) {
     <div className="flex items-center justify-between py-0.5" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
       <span style={{ color: COLORS.textFaint }}>{k}</span>
       <span className="font-medium text-right ml-3" style={{ color: tone ?? COLORS.text }}>{v}</span>
+    </div>
+  );
+}
+
+function AccTile({ k, v, tone }: { k: string; v: string; tone?: string }) {
+  return (
+    <div className="rounded-lg px-2.5 py-2" style={{ background: COLORS.tile }}>
+      <div className="text-[10px] leading-tight" style={{ color: COLORS.textFaint }}>{k}</div>
+      <div className="text-[15px] font-bold tabular-nums mt-0.5" style={{ color: tone ?? COLORS.text }}>{v}</div>
     </div>
   );
 }

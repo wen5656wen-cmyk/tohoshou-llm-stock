@@ -145,6 +145,18 @@ export default function TodayDecisionView({ onNavigate }: { onNavigate: (tab: st
   const rr = expReturn != null && slPct != null && slPct !== 0 ? Math.abs(expReturn / slPct) : null;
   const top1Leg = top1 ? legs.find((l) => l.symbol === top1.symbol) : undefined;
 
+  // ── P13-DECISION-04 决策状态（当前价 vs 买区/止损，全部现有字段，不预测）──
+  type DsKey = "inZone" | "wait" | "invalid" | "pending";
+  const decisionStatus: DsKey = (() => {
+    const p = top1?.price, lo = top1?.entryLow, hi = top1?.entryHigh, sl = top1?.stopLoss;
+    if (p == null || (lo == null && hi == null)) return "pending";
+    if (sl != null && p <= sl) return "invalid";
+    if (hi != null && p > hi) return "wait";
+    return "inZone";
+  })();
+  const STATUS_ICON: Record<DsKey, string> = { inZone: "🟢", wait: "🟡", invalid: "🔴", pending: "⚪" };
+  const STATUS_TONE: Record<DsKey, "green" | "amber" | "red" | "neutral"> = { inZone: "green", wait: "amber", invalid: "red", pending: "neutral" };
+
   // WHY BUY ≤3（真实来源，无则不编造）
   const top1Row = top1 ? t10.get(top1.symbol) : null;
   const whyBuy = [top1Row?.reason, top1Row?.gptNote, c?.verdictReason]
@@ -293,6 +305,17 @@ export default function TodayDecisionView({ onNavigate }: { onNavigate: (tab: st
               <Row k={t("dc.ov.holdPeriod")} v={top1.holdPeriod ?? "—"} />
               <Row k={t("dc.ov.expReturn")} v={expReturn != null ? pct1(expReturn) : "—"} tone={(expReturn ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
               <Row k={t("dc.ov.rr")} v={rr != null ? `${rr.toFixed(1)} : 1` : "—"} />
+            </div>
+            {/* P13-DECISION-04：决策状态（当前）+ 预期情景（计划） */}
+            <div className="pt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5" style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
+              <span className="flex items-center gap-1.5">
+                <span className="text-[11px]" style={{ color: COLORS.textFaint }}>{t("dc.td.status")}</span>
+                <AppBadge tone={STATUS_TONE[decisionStatus]}>{STATUS_ICON[decisionStatus]} {t(`dc.td.st.${decisionStatus}` as Parameters<typeof t>[0])}</AppBadge>
+              </span>
+              <span className="text-[11.5px]" style={{ color: COLORS.textSecondary }}>
+                <b style={{ color: COLORS.textFaint }}>{t("dc.td.scenario")}：</b>
+                {t("dc.td.scExpect")} {top1.holdPeriod ?? "—"} · {t("dc.ov.target")} {jpy(top1.target1)}{top1.target2 != null ? ` → ${jpy(top1.target2)}` : ""} · {t("dc.ov.stopLossP")} {jpy(top1.stopLoss)}
+              </span>
             </div>
           </div>
         ) : <div className="text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>}
