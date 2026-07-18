@@ -19,6 +19,7 @@ import { useI18n } from "@/lib/i18n";
 import { AppCard, AppLoading, AppEmptyState, AppBadge, COLORS } from "@/components/ui";
 import { localeSector } from "@/lib/i18n/market-labels";
 import { HOLD_DAYS, evaluateOutcome, type Bar, type Outcome } from "@/lib/decision/outcome";
+import { verdictTone } from "@/lib/decision/verdict";
 
 interface Snap {
   date: string;
@@ -32,7 +33,6 @@ interface Snap {
   portfolio: { symbol: string; name: string | null; weight: number }[];
   top10: { symbol: string; sector?: string | null; reason?: string | null }[];
 }
-const VERDICT_TONE: Record<string, "green" | "amber" | "red"> = { BUY_TODAY: "green", WATCH_ONLY: "amber", STAY_CASH: "red" };
 const jpy = (v: number | null | undefined) => (v == null ? "—" : `¥${Math.round(v).toLocaleString()}`);
 const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}%`);
 
@@ -228,7 +228,7 @@ export default function DecisionHistory() {
                   <button onClick={() => setOpen(isOpen ? null : s.date)} className="w-full text-left">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-[12px] tabular-nums font-semibold" style={{ color: COLORS.text }}>{s.date}</span>
-                      {s.verdict && <AppBadge tone={VERDICT_TONE[s.verdict]}>{t(`dc.verdict.${s.verdict}` as Parameters<typeof t>[0])}</AppBadge>}
+                      {s.verdict && <AppBadge tone={verdictTone(s.verdict)}>{t(`dc.verdict.${s.verdict}` as Parameters<typeof t>[0])}</AppBadge>}
                       <span className="text-[12px] truncate min-w-0 flex-1" style={{ color: COLORS.text }}>{s.top1 ? <>{s.top1.name ?? s.top1.symbol} <span className="font-mono text-[10px]" style={{ color: COLORS.textFaint }}>{s.top1.symbol}</span></> : "—"}</span>
                       <span className="text-[13px] font-semibold tabular-nums shrink-0" style={{ color: done ? ((o!.weekReturn ?? 0) >= 0 ? COLORS.success : COLORS.danger) : COLORS.textFaint }}>{done ? pct1(o!.weekReturn) : t("dc.h.verifying")}</span>
                       {done && o!.stars && <span className="text-[12px] shrink-0" style={{ color: COLORS.warning }}>{"★".repeat(o!.stars)}</span>}

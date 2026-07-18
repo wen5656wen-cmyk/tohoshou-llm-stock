@@ -11,7 +11,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppBadge, AppLoading, COLORS } from "@/components/ui";
-import { getThemeLabel } from "@/lib/i18n/theme-labels";
+import { verdictIcon, verdictTone } from "@/lib/decision/verdict";
+import { themeMomentum } from "@/lib/decision/themes";
 import ExplainReportButton from "@/components/explain/ExplainReportButton";
 import { evaluateOutcome, summarizeOutcomes, type OutcomeSummary } from "@/lib/decision/outcome";
 
@@ -23,11 +24,8 @@ interface DcApi { ok?: boolean; market?: { regime: string | null; riskLevel: str
 interface ThemeStock { symbol: string; theme: string; return5d: number | null; scored: boolean }
 interface ThemeApi { stocks?: ThemeStock[]; themes?: { theme: string }[] }
 
-const VERDICT_ICON: Record<string, string> = { BUY_TODAY: "🟢", WATCH_ONLY: "🟡", STAY_CASH: "⚪" };
-const VERDICT_TONE: Record<string, "green" | "amber" | "red"> = { BUY_TODAY: "green", WATCH_ONLY: "amber", STAY_CASH: "red" };
 const jpy = (v: number | null | undefined) => (v == null ? "—" : `¥${Math.round(v).toLocaleString()}`);
 const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}%`);
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 export default function ExecutiveDashboard() {
   const { t, lang } = useI18n();
@@ -86,11 +84,8 @@ export default function ExecutiveDashboard() {
 
   // 今日组合表现（组合腿现价需 top1 数据里没有 → 用 closing top10 的现价近似不可得，故仅展示权重+推荐；
   //   收益类留给盯盘实时页，这里只给结构与第一推荐执行计划，避免伪造）
-  // 市场快照热点主题
-  const stocks = th?.stocks ?? []; const themes = th?.themes ?? [];
-  const hotThemes = themes
-    .map((x) => { const g = stocks.filter((s) => s.theme === x.theme && s.scored); return { theme: x.theme, label: getThemeLabel(x.theme, lang), r5: avg(g.map((s) => s.return5d).filter((v): v is number => v != null)) }; })
-    .filter((x) => x.r5 != null).sort((a, b) => (b.r5 ?? 0) - (a.r5 ?? 0)).slice(0, 4);
+  // 市场快照热点主题（SSOT）
+  const hotThemes = themeMomentum(th?.stocks ?? [], th?.themes ?? [], lang).slice(0, 4);
 
   // 今日风险（最大风险，一句）
   const riskNote = verdict === "STAY_CASH" ? (c?.verdictReason ?? null) : regime === "BEAR" ? t("dc.regime.BEAR") : null;
@@ -110,7 +105,7 @@ export default function ExecutiveDashboard() {
         <AppCard>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <span className="text-5xl">{verdict ? VERDICT_ICON[verdict] : "—"}</span>
+              <span className="text-5xl">{verdictIcon(verdict)}</span>
               <div>
                 <div className="text-[11px] font-medium" style={{ color: COLORS.textFaint }}>{t("ed.tagline")}</div>
                 <div className="text-[30px] font-bold tracking-tight leading-none mt-0.5" style={{ color: COLORS.text }}>
@@ -120,7 +115,7 @@ export default function ExecutiveDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <AppBadge tone={verdict ? VERDICT_TONE[verdict] : "neutral"}>{regimeLabel}</AppBadge>
+              <AppBadge tone={verdictTone(verdict)}>{regimeLabel}</AppBadge>
               {vol != null && <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("db.riskLevel")} {riskLevel ?? Math.round(vol * 10) / 10}</span>}
               {c?.market?.qualifiedCount != null && <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("dc.ov.oppCount")} <b style={{ color: COLORS.primary }}>{c.market.qualifiedCount}</b></span>}
             </div>

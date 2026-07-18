@@ -23,7 +23,9 @@ import ExplainReportButton from "@/components/explain/ExplainReportButton";
 import ExplainCompare from "@/components/explain/ExplainCompare";
 import { buildAvoidList, recommendedSymbols, type AvoidReasonKey } from "@/lib/decision/avoid";
 import { buildCatalysts, buildRiskView, starStr, L2_NOTE, type Catalyst, type RiskView } from "@/lib/explain/gap";
-import { getThemeLabel } from "@/lib/i18n/theme-labels";
+import { deriveLiveStatus, type LiveStatus } from "@/lib/decision/live-status";
+import { verdictIcon, verdictTone } from "@/lib/decision/verdict";
+import { themeMomentum } from "@/lib/decision/themes";
 
 interface Top1 {
   symbol: string; name: string | null; aiScore: number | null; gptScore: number | null;
@@ -54,11 +56,8 @@ interface ThemeStock { symbol: string; theme: string; return5d: number | null; r
 interface ThemeApi { stocks?: ThemeStock[]; themes?: { theme: string; count: number }[] }
 interface Disc { symbol: string; title: string; category: string | null; sentiment: string | null; importance: number | null; publishedAt: string }
 
-const VERDICT_TONE: Record<string, "green" | "amber" | "red"> = { BUY_TODAY: "green", WATCH_ONLY: "amber", STAY_CASH: "red" };
-const VERDICT_ICON: Record<string, string> = { BUY_TODAY: "🟢", WATCH_ONLY: "🟡", STAY_CASH: "⚪" };
 const jpy = (v: number | null | undefined) => (v == null ? "—" : `¥${Math.round(v).toLocaleString()}`);
 const pct1 = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}%`);
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 type StepStatus = "pass" | "warn" | "fail";
 type BadgeKey = "tradable" | "watch" | "blocked";
@@ -145,15 +144,15 @@ export default function TodayDecisionView({ onNavigate }: { onNavigate: (tab: st
   const rr = expReturn != null && slPct != null && slPct !== 0 ? Math.abs(expReturn / slPct) : null;
   const top1Leg = top1 ? legs.find((l) => l.symbol === top1.symbol) : undefined;
 
-  // ── P13-DECISION-04 决策状态（当前价 vs 买区/止损，全部现有字段，不预测）──
+  // ── 决策状态：判定统一来自 live-status SSOT（deriveLiveStatus），映射到 Today 的 4 态显示 ──
   type DsKey = "inZone" | "wait" | "invalid" | "pending";
-  const decisionStatus: DsKey = (() => {
-    const p = top1?.price, lo = top1?.entryLow, hi = top1?.entryHigh, sl = top1?.stopLoss;
-    if (p == null || (lo == null && hi == null)) return "pending";
-    if (sl != null && p <= sl) return "invalid";
-    if (hi != null && p > hi) return "wait";
-    return "inZone";
-  })();
+  const DS_FROM_LIVE: Record<LiveStatus, DsKey> = {
+    IN_ZONE: "inZone", BELOW_ZONE: "inZone", ABOVE_ZONE: "wait", REACHED_TARGET: "wait",
+    BELOW_STOP: "invalid", WAIT_QUOTE: "pending", CANCELLED: "pending", NO_ZONE: "pending",
+  };
+  const decisionStatus: DsKey = top1
+    ? DS_FROM_LIVE[deriveLiveStatus({ price: top1.price, entryLow: top1.entryLow, entryHigh: top1.entryHigh, target: top1.target1, stop: top1.stopLoss })]
+    : "pending";
   const STATUS_ICON: Record<DsKey, string> = { inZone: "🟢", wait: "🟡", invalid: "🔴", pending: "⚪" };
   const STATUS_TONE: Record<DsKey, "green" | "amber" | "red" | "neutral"> = { inZone: "green", wait: "amber", invalid: "red", pending: "neutral" };
 
@@ -201,14 +200,7 @@ export default function TodayDecisionView({ onNavigate }: { onNavigate: (tab: st
 
   // ── Section 5 市场摘要 ──
   // 今日热点主题：成分股 5日动能均值 Top5（真实价格，非资金流）
-  const stocks = th?.stocks ?? [];
-  const themes = th?.themes ?? [];
-  const hotThemes = themes
-    .map((x) => {
-      const g = stocks.filter((s) => s.theme === x.theme && s.scored);
-      return { theme: x.theme, label: getThemeLabel(x.theme, lang), r5: avg(g.map((s) => s.return5d).filter((v): v is number => v != null)) };
-    })
-    .filter((x) => x.r5 != null).sort((a, b) => (b.r5 ?? 0) - (a.r5 ?? 0)).slice(0, 5);
+  const hotThemes = themeMomentum(th?.stocks ?? [], th?.themes ?? [], lang).slice(0, 5);
   // 今日风险：top10 风险股，排除 top1，Top3
   const marketRisks = top10
     .filter((r) => r.symbol !== (top1?.symbol ?? ""))
@@ -255,7 +247,7 @@ export default function TodayDecisionView({ onNavigate }: { onNavigate: (tab: st
       <AppCard>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-4xl">{verdict ? VERDICT_ICON[verdict] : "—"}</span>
+            <span className="text-4xl">{verdictIcon(verdict)}</span>
             <div>
               <div className="text-[24px] font-bold tracking-tight leading-tight" style={{ color: COLORS.text }}>
                 {verdict ? t(`dc.verdict.${verdict}` as Parameters<typeof t>[0]) : t("dc.ov.noData")}
@@ -265,7 +257,7 @@ export default function TodayDecisionView({ onNavigate }: { onNavigate: (tab: st
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("dc.ov.marketState")}</span>
-            <AppBadge tone={verdict ? VERDICT_TONE[verdict] : "neutral"}>{regimeLabel}</AppBadge>
+            <AppBadge tone={verdictTone(verdict)}>{regimeLabel}</AppBadge>
             {vol != null && <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("db.riskLevel")} {riskLevel ?? Math.round(vol * 10) / 10}</span>}
             {oppCount != null && <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>{t("dc.ov.oppCount")} <b style={{ color: COLORS.primary }}>{oppCount}</b></span>}
           </div>

@@ -18,7 +18,8 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppLoading, AppEmptyState, AppBadge, COLORS } from "@/components/ui";
-import { getThemeLabel, getLayerLabel } from "@/lib/i18n/theme-labels";
+import { getLayerLabel } from "@/lib/i18n/theme-labels";
+import { themeMomentum } from "@/lib/decision/themes";
 
 interface Market { regime: string | null; riskLevel: string | null; volatility: number | null; topix: number | null; topixChange: number | null; nikkei: number | null; nikkeiChange: number | null }
 interface DcApi { ok?: boolean; dateJst?: string; market?: Market }
@@ -67,18 +68,8 @@ export default function DecisionCockpitView() {
   const stocks = th?.stocks ?? [];
   const themes = th?.themes ?? [];
 
-  // 主题动能：成分股 5日/20日涨幅均值（真实价格数据，非资金流）
-  const momentum = themes
-    .map((x) => {
-      const g = stocks.filter((s) => s.theme === x.theme && s.scored);
-      return {
-        theme: x.theme, label: getThemeLabel(x.theme, lang), count: g.length,
-        r5: avg(g.map((s) => s.return5d).filter((v): v is number => v != null)),
-        r20: avg(g.map((s) => s.return20d).filter((v): v is number => v != null)),
-      };
-    })
-    .filter((x) => x.count > 0 && x.r5 != null)
-    .sort((a, b) => (b.r5 ?? 0) - (a.r5 ?? 0));
+  // 主题动能（SSOT lib/decision/themes）：成分股 5日/20日涨幅均值（真实价格，非资金流）
+  const momentum = themeMomentum(stocks, themes, lang);
 
   // 产业链热度 TOP10：按 5 日动能排序的标准分类(subTheme)
   const bySub = new Map<string, { layer: string | null; rs: number[] }>();
