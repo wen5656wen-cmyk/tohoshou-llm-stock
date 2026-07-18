@@ -2,6 +2,17 @@
 
 ---
 
+## [18.23.1] - 2026-07-19 — 🧹 P17-03A Decision Center 信息架构去重（删「今日 AI 决策」）
+
+删除 P17-03 顶部与下方已有「当前持有 / AI 推荐 / 等待 / 观察 / Decision Timeline」**重复展示同一批股票**的模块。**仅删首页展示，不删任何数据**；Trading Engine/Decision Timeline/Review/History 全部保留；未改 DB/API/Trading Loop/Decision Engine/Portfolio/Review。
+
+- **移除顶部整行**：`Today's AI Decisions`（BUY/HOLD/REDUCE/SELL/WATCH 汇总）+ 同行的 `今日观点变化`（二者同处一行、均由持仓/Timeline 派生，属重复展示）。删除后页面自动上移，**无空白/无占位**（账户总览 → 今日决策条 → 直接进入当前持有表）。
+- **保留**：底部「组合健康度 / AI 表现 / AI 超额收益 / 学习状态」四栏（真实分析，不与表重复）。
+- **死代码清理**：移除 `insight-panels.tsx` 中 `TodayDecisions`/`DecisionChanges` 组件 + `TodayItem` 类型 + 未用 `actionColor`/`t` 参数；删除已无引用的 6 个 i18n key（`dv.ci.today`/`dv.ci.changes`/`dv.tc.sell`/`dv.tc.watch`/`dv.tc.empty`/`dv.dc.none`，三语言同步）。`/api/decision/insights` 未改（`changes` 字段保留，属 API，禁改）。
+- **验收**：无引用错误 / 无空组件 / 无死代码；tsc 0 / eslint 0（含 no-unused-vars）/ build ✅ / health CRITICAL=0；生产截图确认顶部块已移除、页面上移无空白、无横向溢出。
+
+---
+
 ## [18.23.0] - 2026-07-19 — 🧊 P17-03 AI Decision Center V1.0（Final Polish & FREEZE）
 
 把全部 AI 决策能力收敛到 **AI Decision Center**——打开即 30 秒知道：①今天买什么 ②卖什么 ③AI 改了什么观点 ④组合健康度 ⑤AI 表现 ⑥是否跑赢市场。**复用现有 Decision Center 页，无新一级导航/独立页/弹窗/复杂图表**；**未改** Trading Engine/Trading Loop/五维/Runtime/Recommendation/核心表/同步/Cron/Broker/Learning。**无 DB 变更**。

@@ -303,8 +303,7 @@ export type Messages = {
   "dv.tl.rk.buy": string; "dv.tl.rk.add": string; "dv.tl.rk.sellTp": string; "dv.tl.rk.sellStop": string; "dv.tl.rk.sellManual": string; "dv.tl.rk.sellRebal": string; "dv.tl.rk.sellOther": string;
   "dv.tl.oc.HIT": string; "dv.tl.oc.MISS": string;
   // ── AI Decision Center V1.0（P17-03 · 洞察模块）──────────────────────────────
-  "dv.ci.today": string; "dv.ci.changes": string; "dv.ci.health": string; "dv.ci.perf": string; "dv.ci.alpha": string; "dv.ci.learning": string;
-  "dv.tc.sell": string; "dv.tc.watch": string; "dv.tc.empty": string; "dv.dc.none": string;
+  "dv.ci.health": string; "dv.ci.perf": string; "dv.ci.alpha": string; "dv.ci.learning": string;
   "dv.ph.empty": string; "dv.ph.excellent": string; "dv.ph.good": string; "dv.ph.normal": string; "dv.ph.weak": string;
   "dv.ph.r.concHigh": string; "dv.ph.r.concMid": string; "dv.ph.r.concLow": string; "dv.ph.r.sectorNarrow": string; "dv.ph.r.sectorWide": string; "dv.ph.r.cashNeg": string; "dv.ph.r.cashHigh": string; "dv.ph.r.cashOk": string; "dv.ph.r.riskHigh": string; "dv.ph.r.riskLow": string; "dv.ph.r.volHigh": string;
   "dv.ph.m.conc": string; "dv.ph.m.sector": string; "dv.ph.m.cash": string; "dv.ph.m.risk": string;

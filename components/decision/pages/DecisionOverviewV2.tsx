@@ -15,7 +15,7 @@ import { useDecision } from "@/lib/decision/provider";
 import { useHoldings } from "@/lib/portfolio/use-holdings";
 import { computePortfolioHealth } from "@/lib/decision/portfolio-health";
 import { RiskPanel, type RiskItem } from "@/components/decision/ds/panels";
-import { TodayDecisions, DecisionChanges, PortfolioHealth, AiPerformance, AiAlpha, LearningStatus, type TodayItem } from "@/components/decision/ds/insight-panels";
+import { PortfolioHealth, AiPerformance, AiAlpha, LearningStatus } from "@/components/decision/ds/insight-panels";
 import { DecisionBar, AccountSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, MarketPanel, FunnelBar,
   type HoldRow, type PickRow, type ColLabels, type HistoryRow } from "@/components/decision/ds/overview-panels";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
@@ -179,17 +179,7 @@ export default function DecisionOverviewV2() {
   const marketClosed = !o.tradingDay || o.marketPhase === "NON_TRADING";
   const focusSearch = () => setSearchFocus((n) => n + 1);
 
-  // ── P17-03 AI Decision Center V1.0 洞察模块（复用已加载数据 + insights 聚合，Apple 风）──
-  const mkHold = (acts: string[]): TodayItem[] => userHoldings.filter((h) => acts.includes(h.action)).map((h) => ({ symbol: h.symbol, name: h.name, action: h.action, confidence: h.ai ?? null, reason: h.reasonKey ? t(h.reasonKey as Parameters<typeof t>[0]) : "" }));
-  const mkCand = (arr: any[]): TodayItem[] => arr.map((d) => ({ symbol: d.symbol, name: d.name, action: d.action, confidence: d.aiScore ?? null, reason: d.actionReasonKey ? t(d.actionReasonKey as Parameters<typeof t>[0]) : "" }));
-  const todayGroups = [
-    { action: "BUY", label: actLabel("BUY"), items: mkCand(exec) },
-    { action: "HOLD", label: actLabel("HOLD"), items: mkHold(["HOLD", "ADD"]) },
-    { action: "REDUCE", label: actLabel("REDUCE"), items: mkHold(["REDUCE"]) },
-    { action: "STOP_LOSS", label: t("dv.tc.sell"), items: mkHold(["STOP_LOSS", "TAKE_PROFIT"]) },
-    { action: "WAIT", label: t("dv.tc.watch"), items: mkCand([...wait, ...watch]) },
-  ];
-
+  // ── P17-03 AI Decision Center V1.0 分析模块（复用已加载数据 + insights 聚合，Apple 风）──
   // ⑥ Portfolio Health
   const highRiskCount = riskItems.filter((r) => r.level === "HIGH" || r.level === "EXTREME").length;
   const health = computePortfolioHealth({ summary: sum ? { count: sum.count, marketValue: sum.marketValue, positionPct: sum.positionPct, cashPct: sum.cashPct } : null, holdings: userHoldings.map((h) => ({ symbol: h.symbol, marketValue: h.marketValue ?? null, sector: h.sector ?? null })), riskLevel: gd.riskLevel ?? null, highRiskCount });
@@ -219,7 +209,6 @@ export default function DecisionOverviewV2() {
   // ⑧ AI Alpha / ⑨ Learning（来自 insights 聚合）
   const alphaData = insights?.alpha ?? { windows: [], sinceStart: { port: null, topix: null, nikkei: null, alpha: null } };
   const learning = insights?.learning ?? { closedTrades: 0, decisionRecords: 0, reviewRecords: 0, hit: 0, miss: 0, datasetSize: 0, readyKey: "dv.ls.collecting" };
-  const changes = insights?.changes ?? [];
   const readyTone = learning.readyKey === "dv.ls.ready" ? "#34C759" : learning.readyKey === "dv.ls.partial" ? "#F5A623" : "#9CA3AF";
 
   return (
@@ -239,12 +228,6 @@ export default function DecisionOverviewV2() {
 
       {accLayer1.length > 0 && <AccountSummary layer1={accLayer1} layer2={accLayer2} layer3Label={t("dv.acc.aiActions")} actions={actionItems} onAction={onActionClick} />}
       <DecisionBar {...bar} />
-
-      {/* P17-03 ①：今日 AI 决策（第一优先）+ 今日观点变化 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <div className="lg:col-span-8 min-w-0"><TodayDecisions title={t("dv.ci.today")} groups={todayGroups} emptyLabel={t("dv.tc.empty")} onPick={(s) => openDetail(s)} t={t} /></div>
-        <div className="lg:col-span-4 min-w-0"><DecisionChanges title={t("dv.ci.changes")} changes={changes} noChangeLabel={t("dv.dc.none")} onPick={(s) => openDetail(s)} t={t} /></div>
-      </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-9 space-y-3 min-w-0">
           <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={{ action: cols.action, current: cols.current, cost: t("dv.pf.avgCost"), shares: t("dv.pf.shares"), pnl: cols.pnl, target: cols.target, stop: cols.stop }} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} addLabel={t("dv.pf.btnAdd")} onAddClick={focusSearch} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
@@ -265,7 +248,7 @@ export default function DecisionOverviewV2() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <PortfolioHealth title={t("dv.ci.health")} health={health} metrics={healthMetrics} t={t} />
         <AiPerformance title={t("dv.ci.perf")} rows={perfRows} emptyLabel={t("dv.perf.empty")} />
-        <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} t={t} />
+        <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} />
         <LearningStatus title={t("dv.ci.learning")} learning={learning} labels={{ closed: t("dv.ls.closed"), decisions: t("dv.ls.decisions"), reviews: t("dv.ls.reviews"), hit: t("dv.ls.hit"), miss: t("dv.ls.miss"), dataset: t("dv.ls.dataset") }} readyLabel={t(learning.readyKey as Parameters<typeof t>[0])} readyTone={readyTone} />
       </div>
 

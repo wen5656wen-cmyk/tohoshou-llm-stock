@@ -5,7 +5,7 @@
 // 纯展示（哑组件）；数据来自前端派生 + /api/decision/insights 聚合。复用 Decision Center 页，无新页/弹窗。
 import type { ReactNode } from "react";
 import { COLORS, fmtPct } from "@/lib/decision/ds";
-import { SP, actionColor } from "@/lib/decision/terminal";
+import { SP } from "@/lib/decision/terminal";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type T = (k: any) => string;
@@ -27,62 +27,7 @@ function Stars({ n }: { n: number }) {
 }
 const tone = (v: number | null | undefined) => (v == null ? COLORS.text : v < 0 ? COLORS.danger : COLORS.success);
 
-// ── ④ Today's AI Decisions ────────────────────────────────────────────────────
-export interface TodayItem { symbol: string; name: string; action: string; confidence: number | null; reason: string }
-export function TodayDecisions({ title, groups, emptyLabel, onPick, t }: { title: string; groups: { action: string; label: string; items: TodayItem[] }[]; emptyLabel: string; onPick: (s: string) => void; t: T }) {
-  const nonEmpty = groups.filter((g) => g.items.length > 0);
-  return (
-    <Card title={title} right={<span style={{ fontSize: 11, color: COLORS.textFaint }}>{nonEmpty.reduce((a, g) => a + g.items.length, 0)}</span>}>
-      {nonEmpty.length === 0 ? <Muted>{emptyLabel}</Muted> : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" style={{ gap: `${SP.sm}px ${SP.lg}px` }}>
-          {nonEmpty.map((g) => (
-            <div key={g.action}>
-              <div className="flex items-center gap-1.5" style={{ marginBottom: 4 }}>
-                <span style={{ width: 7, height: 7, borderRadius: 7, background: actionColor(g.action) }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: actionColor(g.action) }}>{g.label}</span>
-                <span style={{ fontSize: 10.5, color: COLORS.textFaint }}>{g.items.length}</span>
-              </div>
-              <div className="space-y-1">
-                {g.items.slice(0, 6).map((it) => (
-                  <button key={it.symbol} onClick={() => onPick(it.symbol)} className="w-full text-left flex items-baseline gap-1.5" style={{ fontSize: 12 }}>
-                    <b className="tabular-nums shrink-0" style={{ color: COLORS.text }}>{it.symbol}</b>
-                    <span className="truncate" style={{ color: COLORS.textSecondary, flex: 1, minWidth: 0 }}>{it.reason || it.name}</span>
-                    {it.confidence != null && <span className="tabular-nums shrink-0" style={{ fontSize: 10.5, color: COLORS.textFaint }}>{Math.round(it.confidence)}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-// ── ⑤ Today Decision Changes ──────────────────────────────────────────────────
-export function DecisionChanges({ title, changes, noChangeLabel, onPick, t }: { title: string; changes: any[]; noChangeLabel: string; onPick: (s: string) => void; t: T }) {
-  return (
-    <Card title={title} right={<span style={{ fontSize: 11, color: COLORS.textFaint }}>{changes.length || ""}</span>}>
-      {changes.length === 0 ? <Muted>{noChangeLabel}</Muted> : (
-        <div className="space-y-1.5">
-          {changes.map((c, i) => (
-            <button key={i} onClick={() => onPick(c.symbol)} className="w-full text-left flex items-baseline gap-2" style={{ fontSize: 12 }}>
-              <b className="tabular-nums shrink-0" style={{ color: COLORS.text, width: 58 }}>{c.symbol}</b>
-              <span className="shrink-0" style={{ fontWeight: 600 }}>
-                <span style={{ color: COLORS.textFaint }}>{t(`dv.act.${c.prevAction}` as any) || c.prevAction}→</span>
-                <span style={{ color: actionColor(c.action) }}>{t(`dv.act.${c.action}` as any) || c.action}</span>
-              </span>
-              <span className="truncate" style={{ flex: 1, minWidth: 0, color: COLORS.textSecondary }}>{c.reasonKey ? t(c.reasonKey) : ""}</span>
-              {c.returnPct != null && <span className="tabular-nums shrink-0" style={{ color: tone(c.returnPct) }}>{fmtPct(c.returnPct)}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-// ── ⑥ Portfolio Health ────────────────────────────────────────────────────────
+// ── Portfolio Health ──────────────────────────────────────────────────────────
 export function PortfolioHealth({ title, health, metrics, t }: { title: string; health: { stars: number | null; labelKey: string; reasonKeys: string[] }; metrics: { label: string; value: string }[]; t: T }) {
   return (
     <Card title={title} right={health.stars != null ? <Stars n={health.stars} /> : undefined}>
@@ -116,7 +61,7 @@ export function AiPerformance({ title, rows, emptyLabel }: { title: string; rows
 }
 
 // ── ⑧ AI Alpha ────────────────────────────────────────────────────────────────
-export function AiAlpha({ title, windows, sinceStart, labels, t }: { title: string; windows: any[]; sinceStart: any; labels: { port: string; topix: string; nikkei: string; alpha: string; sinceStart: string }; t: T }) {
+export function AiAlpha({ title, windows, sinceStart, labels }: { title: string; windows: any[]; sinceStart: any; labels: { port: string; topix: string; nikkei: string; alpha: string; sinceStart: string } }) {
   const rows = [...windows, { key: labels.sinceStart, ...sinceStart, isStart: true }];
   const hasData = rows.some((r) => r.port != null || r.topix != null);
   return (
