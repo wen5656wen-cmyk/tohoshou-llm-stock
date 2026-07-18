@@ -59,10 +59,10 @@ export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symb
         ref={inputRef}
         value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} onFocus={() => { if (rows.length) setOpen(true); }}
         placeholder={t("dv.search.placeholder")}
-        style={{ width: "100%", height: 38, padding: "0 14px", fontSize: 13, border: `1px solid ${COLORS.border}`, borderRadius: 9, background: "#fff", color: COLORS.text }}
+        style={{ width: "100%", height: 44, padding: "0 14px", fontSize: 13, border: `1px solid ${COLORS.border}`, borderRadius: 9, background: "#fff", color: COLORS.text }}
       />
       {open && (
-        <div style={{ position: "absolute", top: 42, left: 0, right: 0, background: "#fff", border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.12)", zIndex: 70, overflow: "hidden", maxHeight: 360, overflowY: "auto" }}>
+        <div style={{ position: "absolute", top: 48, left: 0, right: 0, background: "#fff", border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.12)", zIndex: 70, overflow: "hidden", maxHeight: 360, overflowY: "auto" }}>
           {rows.length === 0 ? (
             <div style={{ padding: "12px 14px", fontSize: 12.5, color: COLORS.textFaint }}>{loading ? "…" : t("dv.search.noResult")}</div>
           ) : rows.map((r, i) => (

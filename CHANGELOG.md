@@ -2,6 +2,21 @@
 
 ---
 
+## [18.19.2] - 2026-07-19 — 📐 P16-05 Portfolio Summary 紧凑化（账户总览 · 纯布局/字号/间距/响应式）
+
+仅改 **AI Decision Center 顶部 Header + Portfolio Summary** 的布局/字号/间距/响应式，**数据/API/DB/Schema/Portfolio 计算/盈亏计算/AI 动作计算/Decision Engine/Runtime Ranking/字段含义均不变**，未新增/删除功能，未触碰其他页面。
+
+- **Header 压缩**：主标题 22px/600，副标题「AI Portfolio Manager」12px #8E8E93（降视觉权重、保留），竖向 padding 10px、`minHeight:60`；搜索框高度 44px、宽度/功能不变。实测 Header 高 **66px**。
+- **Portfolio Summary 第一层横排**：总资产为唯一视觉中心（40px/600 hero，靠左），今日盈亏/累计浮盈靠右（26px/600 + 百分比 15px/500），不再三数字同级。
+- **KPI 单行**：持仓/仓位/现金/胜率/累计收益/跑赢TOPIX，Label 14px 灰、Value 15px/600，item 间距紧凑、纵向 padding 14px，无独立卡片/边框；层间仅一条极浅分隔线 `#F0F1F3`。
+- **AI 动作**：单行 badge，高度 28px（沿用 P16-04 的 0 值隐藏）。
+- **响应式**：桌面单行；平板/手机自然换行——Header 在窄屏将搜索框整行下移（`flex-wrap`+order），Portfolio Summary 自动折行，二者**自身无横向溢出**。
+- **压缩结果**：Portfolio Summary 实测 **201px**（规格目标 ≤230px，达成；相较改版前竖排版约 −30%）。
+- 已知项（**非本轮范围**）：手机/平板页面级横向溢出来自下方候选/持仓表格固定列宽（P16-02/03 遗留），Header 与 Portfolio Summary 不涉及。
+- 验收：tsc 0 错 / build ✅ / health CRITICAL=0 / 1440·834·390 三档截图。
+
+---
+
 ## [18.19.1] - 2026-07-19 — 🍎 P16-04 Portfolio Summary 视觉层级优化（Apple 信息层级 · 纯视觉）
 
 `AccountSummary` 视觉重构，仅调字号/字重/行高/留白/分隔线，**数据/逻辑/计算不变**。**总资产 = 唯一视觉中心**：hero **42px/weight600**（label 14px #8E8E93）；**今日盈亏/累计浮盈降为次级**（27px/600 + 百分比 16px/500），不再三数字同级。**减少横线**：仅保留一条极浅分隔线 `#F1F2F5`（原两条→一条），余用留白；总资产与数字间距加大、层间距收紧成整体。**第二层指标分两组**（持仓/仓位/现金 ｜ 胜率/累计收益/Alpha）中间细分隔。**AI 动作隐藏 0 值**（建仓0/止盈0 不显示，仅留有意义项）。保持系统字体(SF Pro/-apple-system)。参考 Apple Wallet/SBI/IBKR。验收：tsc0/build✅/health CRITICAL=0/截图证一个视觉中心。

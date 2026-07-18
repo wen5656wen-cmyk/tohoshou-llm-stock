@@ -172,13 +172,13 @@ export default function DecisionOverviewV2() {
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 space-y-2.5">
       {/* ④ 顶部工具栏（AI Decision Center + 搜索 + 市场状态，64–72px，无大标题） */}
-      <div className="flex items-center gap-4" style={{ minHeight: 66, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "0 16px" }}>
-        <div className="min-w-0" style={{ flex: "0 0 auto" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>AI Decision Center</div>
-          <div style={{ fontSize: 11, color: "#6B7280" }}>AI Portfolio Manager</div>
+      <div className="flex items-center flex-wrap gap-x-4 gap-y-2" style={{ minHeight: 60, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "10px 16px" }}>
+        <div className="min-w-0 order-1" style={{ flex: "0 0 auto" }}>
+          <div style={{ fontSize: 22, fontWeight: 600, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.1 }}>AI Decision Center</div>
+          <div style={{ fontSize: 12, color: "#8E8E93", marginTop: 2 }}>AI Portfolio Manager</div>
         </div>
-        <div className="flex-1 flex justify-center min-w-0"><StockSearch onPick={(s, n) => openDetail(s, n)} focusSignal={searchFocus} /></div>
-        <div style={{ flex: "0 0 auto", textAlign: "right" }}>
+        <div className="flex justify-center min-w-0 order-3 sm:order-2" style={{ flex: "1 1 260px" }}><StockSearch onPick={(s, n) => openDetail(s, n)} focusSignal={searchFocus} /></div>
+        <div className="ml-auto order-2 sm:order-3" style={{ flex: "0 0 auto", textAlign: "right" }}>
           <div style={{ fontSize: 12.5, color: marketClosed ? "#6B7280" : "#34C759", fontWeight: 600 }}>{t(marketClosed ? "dv.ov2.marketClosed" : "dv.ov2.marketOk")}</div>
           <div className="tabular-nums" style={{ fontSize: 11, color: "#9CA3AF" }}>{fmtJstClock(fr.quoteUpdatedAt)} JST</div>
         </div>

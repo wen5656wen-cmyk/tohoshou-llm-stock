@@ -74,8 +74,9 @@ export function DecisionBar(p: DecisionBarProps) {
 // 视觉层级：总资产(hero 42px) → 今日/累计浮盈(次级 27px) → 指标两组(14px) → AI动作(隐藏0)。
 // 极浅分隔线 #F1F2F5，多用留白。纯视觉，数据/逻辑不变。
 const LABEL = "#8E8E93";
-const HAIR = "#F1F2F5";
+const HAIR = "#F0F1F3";
 const tone2 = (t?: Tone) => (t === "red" ? COLORS.danger : t === "green" ? COLORS.success : t === "amber" ? "#F5A623" : COLORS.text);
+// P16-05 紧凑化：第一层横向(总资产左·今日/累计右) + 压缩留白，整体高度降约 25–35%。
 export function AccountSummary(p: {
   layer1: { label: string; value: string; sub?: string; subTone?: Tone }[];
   layer2: { label: string; value: string; tone?: Tone }[];
@@ -87,48 +88,49 @@ export function AccountSummary(p: {
   const g1 = p.layer2.slice(0, 3), g2 = p.layer2.slice(3);
   const acts = p.actions.filter((x) => x.count > 0);
   const Metric = ({ it }: { it: { label: string; value: string; tone?: Tone } }) => (
-    <span className="flex items-baseline gap-1.5"><span style={{ fontSize: 13, color: LABEL, fontWeight: 400 }}>{it.label}</span><b className="tabular-nums" style={{ fontSize: 14, fontWeight: 600, color: tone2(it.tone) }}>{it.value}</b></span>
+    <span className="flex items-baseline gap-1.5"><span style={{ fontSize: 14, color: LABEL, fontWeight: 400 }}>{it.label}</span><b className="tabular-nums" style={{ fontSize: 15, fontWeight: 600, color: tone2(it.tone) }}>{it.value}</b></span>
   );
   return (
-    <Card style={{ padding: `${SP.lg}px ${SP.lg}px ${SP.md}px` }}>
-      {/* 总资产：唯一视觉中心 */}
-      {hero && (
-        <div>
-          <div style={{ fontSize: 14, color: LABEL, fontWeight: 400, marginBottom: 6 }}>{hero.label}</div>
-          <b className="tabular-nums" style={{ fontSize: 42, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.02em", lineHeight: 1 }}>{hero.value}</b>
-        </div>
-      )}
-      {/* 次级：今日盈亏 / 累计浮盈 */}
-      {second.length > 0 && (
-        <div className="flex flex-wrap" style={{ gap: `${SP.sm}px ${SP.xxl}px`, marginTop: SP.md }}>
-          {second.map((it, i) => (
-            <div key={i}>
-              <div style={{ fontSize: 12, color: LABEL, fontWeight: 400, marginBottom: 2 }}>{it.label}</div>
-              <div className="flex items-baseline gap-1.5">
-                <b className="tabular-nums" style={{ fontSize: 27, fontWeight: 600, color: tone2(it.subTone), letterSpacing: "-0.01em" }}>{it.value}</b>
-                {it.sub && <span className="tabular-nums" style={{ fontSize: 16, fontWeight: 500, color: tone2(it.subTone) }}>{it.sub}</span>}
+    <Card style={{ padding: "20px 20px 16px" }}>
+      {/* 第一层（横向）：总资产 左 · 今日盈亏/累计浮盈 右 */}
+      <div className="flex items-end justify-between flex-wrap" style={{ gap: `${SP.md}px ${SP.xl}px` }}>
+        {hero && (
+          <div style={{ flex: "0 0 auto" }}>
+            <div style={{ fontSize: 13, color: LABEL, fontWeight: 400, marginBottom: 8 }}>{hero.label}</div>
+            <b className="tabular-nums" style={{ fontSize: 40, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.02em", lineHeight: 1.1 }}>{hero.value}</b>
+          </div>
+        )}
+        {second.length > 0 && (
+          <div className="flex flex-wrap" style={{ gap: `${SP.md}px ${SP.xl}px` }}>
+            {second.map((it, i) => (
+              <div key={i}>
+                <div style={{ fontSize: 12, color: LABEL, fontWeight: 400, marginBottom: 6 }}>{it.label}</div>
+                <div className="flex items-baseline gap-1.5">
+                  <b className="tabular-nums" style={{ fontSize: 26, fontWeight: 600, color: tone2(it.subTone), letterSpacing: "-0.01em", lineHeight: 1.1 }}>{it.value}</b>
+                  {it.sub && <span className="tabular-nums" style={{ fontSize: 15, fontWeight: 500, color: tone2(it.subTone) }}>{it.sub}</span>}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {/* 指标：两组，中间留白 */}
-      <div className="flex items-center flex-wrap" style={{ gap: `${SP.sm}px ${SP.lg}px`, marginTop: SP.md, paddingTop: SP.md, borderTop: `1px solid ${HAIR}` }}>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* 第二层 KPI：单行 + 上方一条浅线 */}
+      <div className="flex items-center flex-wrap" style={{ gap: `${SP.sm}px ${SP.lg + 8}px`, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${HAIR}` }}>
         {g1.map((it, i) => <Metric key={`a${i}`} it={it} />)}
         {g2.length > 0 && <span style={{ width: 1, height: 14, background: HAIR }} />}
         {g2.map((it, i) => <Metric key={`b${i}`} it={it} />)}
       </div>
-      {/* AI 动作：隐藏 0 值 */}
+      {/* 第三层 AI 动作：留白分隔（无线），隐藏 0 值 */}
       {acts.length > 0 && (
-        <div className="flex items-center flex-wrap" style={{ gap: `${SP.xs}px ${SP.md}px`, marginTop: SP.md }}>
-          <span style={{ fontSize: 12, color: LABEL, fontWeight: 400 }}>{p.layer3Label}</span>
+        <div className="flex items-center flex-wrap" style={{ gap: `${SP.xs}px ${SP.sm + 2}px`, marginTop: 12 }}>
+          <span style={{ fontSize: 14, color: LABEL, fontWeight: 400 }}>{p.layer3Label}</span>
           {acts.map((x) => {
             const c = actionColor(x.action);
             return (
-              <button key={x.action} onClick={() => p.onAction?.(x.action)} className="flex items-center gap-1.5" style={{ padding: "2px 9px", borderRadius: 7, background: `${c}10` }}>
+              <button key={x.action} onClick={() => p.onAction?.(x.action)} className="flex items-center gap-1.5" style={{ height: 28, padding: "0 11px", borderRadius: 8, background: `${c}10` }}>
                 <span style={{ width: 6, height: 6, borderRadius: 6, background: c }} />
-                <span style={{ fontSize: 12, color: COLORS.textSecondary }}>{x.label}</span>
-                <b className="tabular-nums" style={{ fontSize: 12.5, color: c }}>{x.count}</b>
+                <span style={{ fontSize: 13, color: COLORS.textSecondary }}>{x.label}</span>
+                <b className="tabular-nums" style={{ fontSize: 13, color: c }}>{x.count}</b>
               </button>
             );
           })}
