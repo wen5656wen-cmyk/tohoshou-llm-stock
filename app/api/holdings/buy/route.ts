@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logManualDecision } from "@/lib/trading/decision-log";
 
 export const dynamic = "force-dynamic";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -34,6 +35,13 @@ export async function POST(req: Request) {
       holding = await p.userHolding.create({ data: { symbol, name, shares, avgCost: price, openDate: tradeDate, note: b.note ? String(b.note) : null } });
     }
     await p.userTrade.create({ data: { symbol, name, side: "BUY", shares, price, fee, tradeDate, note: b.note ? String(b.note) : null } });
+
+    // P17-02：追加决策时间线（附属，失败不影响主流程）。首次=BUY，已有持仓=ADD；带当时 AI 分/技术。
+    const sc = await p.stockScore.findUnique({ where: { symbol }, select: { adaptiveScore: true, rsi14: true, maTrend: true } }).catch(() => null);
+    await logManualDecision({
+      symbol, name, action: existing ? "ADD" : "BUY", price, aiScore: sc?.adaptiveScore ?? null,
+      rsi: sc?.rsi14 ?? null, maTrend: sc?.maTrend ?? null, reasonText: b.note ? String(b.note) : null, tradeDate,
+    });
 
     // 账户现金减（自动建账户）
     const acc = await p.userAccount.findFirst({ orderBy: { id: "asc" } });

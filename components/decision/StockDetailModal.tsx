@@ -34,14 +34,16 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
   const [intel, setIntel] = useState<any>(null);
   const [bars, setBars] = useState<ChartBar[]>([]);
   const [fin, setFin] = useState<any[]>([]);
+  const [tl, setTl] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const isHeld = !!report?.held;
 
   useEffect(() => {
     if (!open || !symbol) return;
     let alive = true;
     const g = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     (async () => {
-      setIntel(null); setBars([]); setFin([]); setLoading(true);
+      setIntel(null); setBars([]); setFin([]); setTl(null); setLoading(true);
       const [it, ind, f] = await Promise.all([g(`/api/stocks/${encodeURIComponent(symbol)}/intelligence`), g(`/api/stocks/${encodeURIComponent(symbol)}/indicators`), g(`/api/financials/${encodeURIComponent(symbol)}`)]);
       if (!alive) return;
       setIntel(it && !it.error ? it : null);
@@ -49,9 +51,11 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
       setBars(series.length ? buildChartBars(series, 132) : []);
       setFin(Array.isArray(f?.financials) ? f.financials : Array.isArray(f) ? f : []);
       setLoading(false);
+      // P17-02：持仓时拉取 AI 决策/复盘时间线（懒触发当日复盘）。
+      if (isHeld) { const tld = await g(`/api/holdings/${encodeURIComponent(symbol)}/timeline`); if (alive) setTl(tld && !tld.error ? tld : null); }
     })();
     return () => { alive = false; };
-  }, [open, symbol]);
+  }, [open, symbol, isHeld]);
 
   if (!report) return null;
   const sc = intel?.score, st = intel?.stock, ind = intel?.indicators;
@@ -198,7 +202,7 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
               ]} />
             </Section>
 
-            {/* 持仓状态 */}
+            {/* 持仓状态 + 决策记录（P17-02 持仓上下文：最初依据 / 最新判断 / 下次复盘 / Decision Timeline）*/}
             <Section title={t("dv.rr.holding")}>
               {held ? (
                 <div>
@@ -207,6 +211,21 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
                     [t("dv.dm.currentReturn"), fmtPct(held.returnPct), (held.returnPct ?? 0) < 0 ? COLORS.danger : COLORS.success],
                     [t("dv.pf.sumHoldings"), fmtJpy(held.marketValue)], [t("dv.dm.rank"), `${held.holdingDays ?? "—"}d`], [t("dv.col.action"), t(`dv.act.${held.action}` as Parameters<typeof t>[0])],
                   ]} />
+                  {tl && (tl.original || tl.latest) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: `${SP.xs}px ${SP.lg}px`, marginTop: SP.sm }}>
+                      {tl.original && <ThesisCell label={t("dv.tl.original")} date={tl.original.date} text={reasonLabel(t, tl.original)} />}
+                      {tl.latest && <ThesisCell label={t("dv.tl.latest")} date={tl.latest.date} text={reasonLabel(t, tl.latest)} tone={accent} />}
+                      <ThesisCell label={t("dv.tl.nextReview")} date={tl.nextReview} text="" />
+                    </div>
+                  )}
+                  {tl && Array.isArray(tl.events) && tl.events.length > 0 && (
+                    <div style={{ marginTop: SP.md }}>
+                      <div style={{ fontSize: 11, color: COLORS.textFaint, marginBottom: SP.xs }}>{t("dv.tl.title")}</div>
+                      <div className="space-y-1.5">
+                        {tl.events.slice(0, 8).map((e: any) => <TlRow key={e.id} e={e} t={t} />)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : <Muted>{t("dv.rr.notHeld")}</Muted>}
             </Section>
@@ -302,6 +321,36 @@ function RList({ title, items, mark, markColor }: { title: string; items: string
     <div>
       <div style={{ fontSize: 11, color: COLORS.textFaint, marginBottom: 4 }}>{title}</div>
       <ul className="space-y-1">{items.map((r, i) => <li key={i} className="flex gap-1.5" style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: markColor }}>{mark}</span><span>{r}</span></li>)}</ul>
+    </div>
+  );
+}
+// 时间线：动作标签（SELL/CLOSED 用 dv.tl.act.*，其余复用 dv.act.*）+ 依据标签
+function tlActLabel(t: T, action: string): string {
+  return action === "SELL" || action === "CLOSED" ? t(`dv.tl.act.${action}`) : t(`dv.act.${action}`);
+}
+function reasonLabel(t: T, e: any): string {
+  if (e?.reasonText) return e.reasonText;
+  return e?.reasonKey ? t(e.reasonKey) : "";
+}
+function ThesisCell({ label, date, text, tone }: { label: string; date: string; text: string; tone?: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10.5, color: COLORS.textFaint }}>{label} <span className="tabular-nums">{date}</span></div>
+      <div style={{ fontSize: 12.5, color: tone ?? COLORS.textSecondary, lineHeight: 1.4, marginTop: 1 }}>{text || "—"}</div>
+    </div>
+  );
+}
+function TlRow({ e, t }: { e: any; t: T }) {
+  const col = e.action === "STOP_LOSS" || e.action === "REDUCE" || e.action === "SELL" || e.action === "CLOSED" ? COLORS.danger
+    : e.action === "TAKE_PROFIT" ? COLORS.success : e.action === "BUY" || e.action === "ADD" ? COLORS.primary : COLORS.textSecondary;
+  return (
+    <div className="flex items-baseline gap-2" style={{ fontSize: 12 }}>
+      <span className="tabular-nums shrink-0" style={{ color: COLORS.textFaint, width: 66 }}>{e.date}</span>
+      <span className="shrink-0" style={{ fontWeight: 700, color: col, width: 52 }}>{tlActLabel(t, e.action)}</span>
+      <span style={{ flex: 1, color: COLORS.textSecondary }}>{reasonLabel(t, e)}</span>
+      {e.outcome && <span className="shrink-0" style={{ fontSize: 10.5, fontWeight: 700, color: e.outcome === "HIT" ? COLORS.success : COLORS.danger }}>{t(`dv.tl.oc.${e.outcome}`)}</span>}
+      {e.returnPct != null && <span className="tabular-nums shrink-0" style={{ color: e.returnPct < 0 ? COLORS.danger : COLORS.success }}>{fmtPct(e.returnPct)}</span>}
+      <span className="shrink-0" style={{ fontSize: 10, color: COLORS.textFaint }}>{t(`dv.tl.src.${e.source === "MANUAL_TRADE" ? "trade" : "review"}`)}</span>
     </div>
   );
 }

@@ -297,6 +297,11 @@ export type Messages = {
   "dv.aiv.slR.tight": string; "dv.aiv.slR.normal": string; "dv.aiv.slR.wide": string; "dv.aiv.slR.long": string;
   "dv.aiv.period.scalp": string; "dv.aiv.period.w12": string; "dv.aiv.period.m13": string; "dv.aiv.period.long": string;
   "dv.aiv.holdR.scalp": string; "dv.aiv.holdR.momentum": string; "dv.aiv.holdR.trend": string; "dv.aiv.holdR.long": string; "dv.aiv.holdR.default": string;
+  // ── Decision Timeline（P17-02 · 交易闭环决策记录）─────────────────────────
+  "dv.tl.title": string; "dv.tl.original": string; "dv.tl.latest": string; "dv.tl.nextReview": string; "dv.tl.empty": string;
+  "dv.tl.src.trade": string; "dv.tl.src.review": string; "dv.tl.act.SELL": string; "dv.tl.act.CLOSED": string;
+  "dv.tl.rk.buy": string; "dv.tl.rk.add": string; "dv.tl.rk.sellTp": string; "dv.tl.rk.sellStop": string; "dv.tl.rk.sellManual": string; "dv.tl.rk.sellRebal": string; "dv.tl.rk.sellOther": string;
+  "dv.tl.oc.HIT": string; "dv.tl.oc.MISS": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;

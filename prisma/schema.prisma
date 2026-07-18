@@ -1858,3 +1858,30 @@ model UserTrade {
   @@index([side, tradeDate(sort: Desc)])
   @@map("user_trades")
 }
+
+// AI 决策/复盘时间线（P17-02 · 轻量附属表；不改任何核心交易表）。
+// 一行 = 对某真实持仓的一次 AI 决策事件：成交触发(MANUAL_TRADE) 或 每日复盘(DAILY_REVIEW)。
+// 用途：Decision Timeline（§7）/ Original·Latest Thesis（§6）/ Daily Review History（§9）/ Learning Record（§14）。
+// AI 由此「知道自己过去说过什么」，不再每天从零分析。
+model TradeDecisionHistory {
+  id         Int       @id @default(autoincrement())
+  symbol     String
+  name       String
+  action     String    // WATCH | BUY | HOLD | ADD | REDUCE | SELL | CLOSED
+  source     String    // MANUAL_TRADE | DAILY_REVIEW
+  price      Float?     // 当时价格
+  returnPct  Float?     // 当时浮盈 %（相对成本）
+  aiScore    Float?     // 当时 adaptiveScore
+  reasonKey  String?    // i18n 依据键（复用 deriveHoldingActions / ai-verdict）
+  reasonText String?    // 自由文本（用户备注 / 首因）
+  rsi        Float?
+  maTrend    String?
+  outcome    String?    // 仅 SELL/CLOSED：HIT | MISS（AI 是否正确，供 Learning）
+  holdingDays Int?      // 仅 SELL/CLOSED
+  realizedPnl Float?    // 仅 SELL/CLOSED
+  decidedAt  DateTime  @default(now())
+  tradeDate  DateTime? @db.Date // 若由成交触发
+
+  @@index([symbol, decidedAt(sort: Desc)])
+  @@map("trade_decision_history")
+}

@@ -2,6 +2,21 @@
 
 ---
 
+## [18.22.0] - 2026-07-19 — 🔄 P17-02 Trading Loop（AI 交易闭环 V1 · 决策时间线/每日复盘/Learning）
+
+打通真实持仓完整生命周期：AI 推荐 → 买入 → 持仓管理 → **每日 AI 跟踪** → 加仓/持有/减仓 → 卖出 → 历史 → 复盘。核心解决「AI 每天从零分析、不知道自己过去说过什么」。**未改** UI 布局/导航/Decision Center/Portfolio Summary/Runtime/StockScore/五维/评分/Cron/行情同步/资金链路/历史收益计算；**未动**任何核心交易表。
+
+- **审计结论**：真实持仓闭环已存在（`user_holdings`/`user_trades`/`user_accounts` + `/api/holdings/*` buy·sell·history，单一数据源）；缺失的是 **AI 决策/复盘时间线持久化**（`deriveHoldingActions` 实时算完即丢）。
+- **新增 1 张轻量附属表**（经用户授权，§15 允许，不动核心表）：`TradeDecisionHistory`（`trade_decision_history`）——一行 = 一次 AI 决策事件（`MANUAL_TRADE` 成交触发 / `DAILY_REVIEW` 每日复盘）。
+- **Trading Engine `lib/trading/decision-log.ts`**（纯附属，写失败不影响主交易）：`logManualDecision`（成交追加时间线）/ `runReview`（重算动作，仅动作变化时追加复盘行，幂等去重）/ `shapeTimeline`（Original·Latest Thesis + Next Review）。复盘动作单一来源 = `deriveHoldingAction`，与 GET /api/holdings 一致。
+- **改 buy/sell 路由**：成交时追加时间线行（BUY/ADD/REDUCE/CLOSED；SELL 带 `outcome` HIT/MISS + realizedPnl/holdingDays 供 Learning §13/§14）。
+- **新增 REST API**（不重复 Position/Trade API）：`GET /api/holdings/[symbol]/timeline`（时间线 + 懒触发当日复盘）+ `POST /api/holdings/review`（Daily Review 全量按需，**§2 禁改 Cron → 按需触发**）。
+- **Portfolio 上下文（复用 StockDetailModal，不重做 UI）**：持仓区新增 最初依据 / 最新判断 / 持有天数 / 下次复盘 / **Decision Timeline**（日期·动作·依据·收益·命中·来源）。
+- **i18n**：新增 18 个 `dv.tl.*` 双语 key（仅日/中）。
+- **验收（生产真实数据）**：Flow A `BUY→SELL(CLOSED,HIT)`、Flow B `BUY→ADD→REDUCE(HIT)→SELL(CLOSED,MISS)` 时间线全捕获；DAILY_REVIEW 懒触发 + 幂等去重验证通过；测试数据（7203/6501/8035）测后**彻底清理并还原账户现金**，6 只真实持仓零影响；zh/ja 截图确认；tsc 0 / eslint 0 / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.21.0] - 2026-07-19 — 🧠 P17-01 AI Decision Quality（AI 决策质量升级 · 可解释决策）
 
 让用户打开任意股票 **30 秒内**知道：能不能买 / 为什么 / 风险 / 买点 / 止盈 / 止损 / 持有多久 / AI 多大把握。**未改** UI 框架/导航/Portfolio Summary/Decision Center 布局/Schema/API 数据结构/评分算法/五维权重/BUY·HOLD 阈值/Runtime Ranking/Daily Picks 排序/Cron/同步——**纯推导 + 报告新增区块**。

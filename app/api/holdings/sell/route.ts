@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logManualDecision, sellReasonKey } from "@/lib/trading/decision-log";
 
 export const dynamic = "force-dynamic";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -54,6 +55,14 @@ export async function POST(req: Request) {
     const remaining = holding.shares - shares;
     if (remaining <= 1e-6) await p.userHolding.delete({ where: { symbol } });
     else await p.userHolding.update({ where: { symbol }, data: { shares: remaining } }); // avgCost 不变
+
+    // P17-02：追加决策时间线 + Learning（全部卖出=CLOSED，部分=REDUCE；outcome 由本次收益方向）。
+    await logManualDecision({
+      symbol, name: holding.name, action: remaining <= 1e-6 ? "CLOSED" : "REDUCE",
+      price, returnPct, realizedPnl, holdingDays, reasonKey: sellReasonKey(reason),
+      outcome: returnPct != null ? (returnPct > 0 ? "HIT" : "MISS") : null,
+      reasonText: b.note ? String(b.note) : null, tradeDate,
+    });
 
     const acc = await p.userAccount.findFirst({ orderBy: { id: "asc" } });
     const proceeds = price * shares - fee;
