@@ -2,6 +2,24 @@
 
 ---
 
+## [18.23.0] - 2026-07-19 — 🧊 P17-03 AI Decision Center V1.0（Final Polish & FREEZE）
+
+把全部 AI 决策能力收敛到 **AI Decision Center**——打开即 30 秒知道：①今天买什么 ②卖什么 ③AI 改了什么观点 ④组合健康度 ⑤AI 表现 ⑥是否跑赢市场。**复用现有 Decision Center 页，无新一级导航/独立页/弹窗/复杂图表**；**未改** Trading Engine/Trading Loop/五维/Runtime/Recommendation/核心表/同步/Cron/Broker/Learning。**无 DB 变更**。
+
+- **审计**：已有 AccountSummary/DecisionBar/持仓表/候选表×3/历史/风险/系统状态/市场；空白=无「今日决策汇总/观点变化/组合健康/AI表现/Alpha/学习状态」。目标提升信息密度而非复杂度。
+- **①Today's AI Decisions（§4，首页第一优先）**：汇总 BUY/HOLD/REDUCE/SELL/WATCH，每项 代码+名称+AI信心+一句原因，点击进详情。**全部来自当前真实 AI Decision**（持仓 reasonKey + 候选 actionReasonKey），不维护第二套。
+- **②Decision Changes（§5）**：今日 vs 昨日 Action 变化（旧→新+原因，来自 Decision Timeline）；无变化显「今日无观点变化」。
+- **③Portfolio Health（§6）**：纯派生 `lib/decision/portfolio-health.ts`（集中度/风险/现金/行业分散/波动 → ★+评级+一句解释）。
+- **④AI Performance（§7）**：胜率/平均收益/平均持有/盈亏比（来自平仓历史真实统计）。
+- **⑤AI Alpha（§8）**：Portfolio vs TOPIX/Nikkei，7D/30D/90D/建仓以来（DailyPrice 加权 + GlobalMarket 基准，真实计算）。
+- **⑥Learning Status（§9）**：已平仓/决策记录/复盘记录/数据集/命中/失误 + 就绪评级（仅统计，**不实现 Learning**）。
+- **新增 1 个聚合 API**：`GET /api/decision/insights`（changes+alpha+learning，**批量查询无 N+1**，生产 **0.14s**）。④⑥⑦ 前端派生。整页净 **+1 请求**（§11）。
+- **双语**：新增 ~50 个 `dv.ci/tc/dc/ph/perf/alpha/ls.*` key（日/中，接口强制完整，无英文）。
+- **验收**：生产真实 6 持仓——Today's Decisions（保有4/减仓1/卖出1/观察7）、组合健康度 ★★★★★ 优秀、Alpha 7D+3.9%/30D+9.1%/90D+3.9% 跑赢 TOPIX、学习采集中；zh/ja 全语言、1440/834/390 无横向溢出；tsc 0/eslint 0/build ✅/health CRITICAL=0。
+- **🧊 AI Decision Center V1.0 FREEZE**：后续仅修 Bug / 加数据源 / 优化 AI 能力，原则上不再调布局。
+
+---
+
 ## [18.22.1] - 2026-07-19 — 🔁 P17-02A Daily Holding Review Automation（持仓每日自动复盘 V1）
 
 让 AI 每天真正持续管理持仓：收盘后扫描全部真实持仓 → 重算 AI Action → 变化则写 Decision Timeline。**无 Schema 变更**（prevAction 读取时派生）；**未改** UI/导航/评分/五维/Recommendation/Runtime/行情同步/资金链路/`user_holdings`/`user_trades`/历史收益/Cron 数量。

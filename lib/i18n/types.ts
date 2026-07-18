@@ -302,6 +302,15 @@ export type Messages = {
   "dv.tl.src.trade": string; "dv.tl.src.review": string; "dv.tl.act.SELL": string; "dv.tl.act.CLOSED": string;
   "dv.tl.rk.buy": string; "dv.tl.rk.add": string; "dv.tl.rk.sellTp": string; "dv.tl.rk.sellStop": string; "dv.tl.rk.sellManual": string; "dv.tl.rk.sellRebal": string; "dv.tl.rk.sellOther": string;
   "dv.tl.oc.HIT": string; "dv.tl.oc.MISS": string;
+  // ── AI Decision Center V1.0（P17-03 · 洞察模块）──────────────────────────────
+  "dv.ci.today": string; "dv.ci.changes": string; "dv.ci.health": string; "dv.ci.perf": string; "dv.ci.alpha": string; "dv.ci.learning": string;
+  "dv.tc.sell": string; "dv.tc.watch": string; "dv.tc.empty": string; "dv.dc.none": string;
+  "dv.ph.empty": string; "dv.ph.excellent": string; "dv.ph.good": string; "dv.ph.normal": string; "dv.ph.weak": string;
+  "dv.ph.r.concHigh": string; "dv.ph.r.concMid": string; "dv.ph.r.concLow": string; "dv.ph.r.sectorNarrow": string; "dv.ph.r.sectorWide": string; "dv.ph.r.cashNeg": string; "dv.ph.r.cashHigh": string; "dv.ph.r.cashOk": string; "dv.ph.r.riskHigh": string; "dv.ph.r.riskLow": string; "dv.ph.r.volHigh": string;
+  "dv.ph.m.conc": string; "dv.ph.m.sector": string; "dv.ph.m.cash": string; "dv.ph.m.risk": string;
+  "dv.perf.winRate": string; "dv.perf.avgReturn": string; "dv.perf.avgDays": string; "dv.perf.riskReward": string; "dv.perf.empty": string;
+  "dv.alpha.port": string; "dv.alpha.alpha": string; "dv.alpha.sinceStart": string;
+  "dv.ls.closed": string; "dv.ls.decisions": string; "dv.ls.reviews": string; "dv.ls.hit": string; "dv.ls.miss": string; "dv.ls.dataset": string; "dv.ls.ready": string; "dv.ls.partial": string; "dv.ls.collecting": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;
