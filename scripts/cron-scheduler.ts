@@ -321,6 +321,8 @@ cron.schedule("0 17 * * 5", async () => {
 cron.schedule("15 15 * * *", async () => {
   log("INFO", "⏰ 15:15 触发：Closing Decision（P6-T12 收盘决策）");
   await runAsync("generate-closing-decision.ts", "Closing Decision (P6-T12)", 5 * 60 * 1000);
+  // P17-02A：收盘决策后紧接持仓每日复盘（已有收盘链路内的一步，不新增 cron.schedule）。
+  await runAsync("daily-holding-review.ts", "Daily Holding Review (P17-02A)", 5 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
 // ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────

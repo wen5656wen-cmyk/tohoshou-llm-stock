@@ -343,10 +343,11 @@ function ThesisCell({ label, date, text, tone }: { label: string; date: string; 
 function TlRow({ e, t }: { e: any; t: T }) {
   const col = e.action === "STOP_LOSS" || e.action === "REDUCE" || e.action === "SELL" || e.action === "CLOSED" ? COLORS.danger
     : e.action === "TAKE_PROFIT" ? COLORS.success : e.action === "BUY" || e.action === "ADD" ? COLORS.primary : COLORS.textSecondary;
+  const showPrev = e.prevAction && e.prevAction !== e.action;
   return (
     <div className="flex items-baseline gap-2" style={{ fontSize: 12 }}>
       <span className="tabular-nums shrink-0" style={{ color: COLORS.textFaint, width: 66 }}>{e.date}</span>
-      <span className="shrink-0" style={{ fontWeight: 700, color: col, width: 52 }}>{tlActLabel(t, e.action)}</span>
+      <span className="shrink-0" style={{ fontWeight: 700, color: col, minWidth: 52 }}>{showPrev && <span style={{ fontWeight: 400, color: COLORS.textFaint }}>{tlActLabel(t, e.prevAction)}→</span>}{tlActLabel(t, e.action)}</span>
       <span style={{ flex: 1, color: COLORS.textSecondary }}>{reasonLabel(t, e)}</span>
       {e.outcome && <span className="shrink-0" style={{ fontSize: 10.5, fontWeight: 700, color: e.outcome === "HIT" ? COLORS.success : COLORS.danger }}>{t(`dv.tl.oc.${e.outcome}`)}</span>}
       {e.returnPct != null && <span className="tabular-nums shrink-0" style={{ color: e.returnPct < 0 ? COLORS.danger : COLORS.success }}>{fmtPct(e.returnPct)}</span>}

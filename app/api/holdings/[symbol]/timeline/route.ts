@@ -26,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ symbol:
         p.stockScore.findUnique({ where: { symbol: decoded }, select: { adaptiveScore: true, actionRiskLevel: true, target1: true, stopLoss: true, rsi14: true, maTrend: true } }).catch(() => null),
       ]);
       const quote = (quotes as Quote[]).find((q) => q.symbol === decoded);
-      await runReview({ symbol: decoded, name: holding.name, avgCost: holding.avgCost, quote, score: sc });
+      await runReview({ symbol: decoded, name: holding.name, avgCost: holding.avgCost, openDate: holding.openDate, quote, score: sc });
     }
     const rows = await p.tradeDecisionHistory.findMany({ where: { symbol: decoded }, orderBy: { decidedAt: "desc" }, take: 60 });
     const tl = shapeTimeline(rows);

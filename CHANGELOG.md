@@ -2,6 +2,21 @@
 
 ---
 
+## [18.22.1] - 2026-07-19 — 🔁 P17-02A Daily Holding Review Automation（持仓每日自动复盘 V1）
+
+让 AI 每天真正持续管理持仓：收盘后扫描全部真实持仓 → 重算 AI Action → 变化则写 Decision Timeline。**无 Schema 变更**（prevAction 读取时派生）；**未改** UI/导航/评分/五维/Recommendation/Runtime/行情同步/资金链路/`user_holdings`/`user_trades`/历史收益/Cron 数量。
+
+- **Review Audit**：`POST /api/holdings/review` 已具全量 review；`runReview` 已幂等（动作未变→不写）。缺的是显式 skipped/failed 计数、dryRun、单只失败隔离、参数化、收盘 Cron 接入。
+- **Daily Review Engine `lib/trading/daily-review.ts`**：批量读取（1 次 Yahoo 批量 + 1 次 StockScore `in`，**无 N+1**）；逐只 `reviewHolding`；返回 Review Summary（reviewed/changed/skipped/failed/nextReview/results）。
+- **`reviewHolding(input, dryRun)`**（重构自 runReview，单一来源=deriveHoldingAction）：动作未变→`skipped`（不写 Timeline，§5）；变化→`changed`（追加行，带 holdingDays）；出错→`failed`（不影响其它持仓，§10）；`dryRun`→只算不写（§14⑤）。
+- **Decision Timeline Old→New（§6）**：`prevAction` 在 `shapeTimeline` 由前一条事件动作派生（无需存列）；弹窗 TlRow 显示 `旧→新`。
+- **Cron 接入（§9，不新增 cron.schedule）**：新 `scripts/daily-holding-review.ts` 作为已有 **15:15 JST 收盘任务**（generate-closing-decision）之后的一步执行。
+- **API（§12）**：`POST /api/holdings/review` 支持 `reviewSymbol=XXXX` / `dryRun=true`（body 或 query）；返回 §13 Summary。
+- **Next Review（§8）**：确定性次交易日，永不为空。
+- **验收（生产真实数据）**：§14 全过——①动作不变 Timeline 不增(skipped)②BUY→review 加 BUY→HOLD 行③HOLD→SELL 加 CLOSED(HIT)④重复 review 不重复记录⑤dryRun 不写库（真实持仓行数 1→1 不变）；生产 cron 脚本经 tsx dry-run 6 持仓 1.0s（§11：100 持仓 ≤30s 达标）、§13 摘要格式正确；测试标的 7203.T 测后彻底清理 + 还原账户现金 -2425500，6 只真实持仓零影响；tsc 0 / eslint 0 / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.22.0] - 2026-07-19 — 🔄 P17-02 Trading Loop（AI 交易闭环 V1 · 决策时间线/每日复盘/Learning）
 
 打通真实持仓完整生命周期：AI 推荐 → 买入 → 持仓管理 → **每日 AI 跟踪** → 加仓/持有/减仓 → 卖出 → 历史 → 复盘。核心解决「AI 每天从零分析、不知道自己过去说过什么」。**未改** UI 布局/导航/Decision Center/Portfolio Summary/Runtime/StockScore/五维/评分/Cron/行情同步/资金链路/历史收益计算；**未动**任何核心交易表。
