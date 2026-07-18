@@ -367,6 +367,7 @@ export type Messages = {
   "dv.dh.regime.BULL": string;
   "dv.dh.regime.BEAR": string;
   "dv.dh.regime.SIDEWAYS": string;
+  "nav.workspace": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;

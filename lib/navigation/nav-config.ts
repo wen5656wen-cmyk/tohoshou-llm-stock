@@ -69,7 +69,7 @@ export const NAV_NODES: NavNode[] = [
     ],
   },
   { key: "strategy", workspace: "boss", labelKey: "ws.strategy", href: "/strategy", Icon: LineChart, glyph: "◆" },
-  { key: "trading", workspace: "boss", labelKey: "ws.myPortfolio", href: "/portfolio", Icon: Bot, glyph: "◇", badge: "Paper" },
+  { key: "trading", workspace: "boss", labelKey: "ws.myPortfolio", href: "/portfolio", Icon: Bot, glyph: "◇", badge: "Simulation" },
 
   // ═══ 管理员工作区（P7-06：收敛为唯一入口 = Mission Control Hub，内含 8 Tab）═══
   {

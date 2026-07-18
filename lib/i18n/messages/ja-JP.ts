@@ -676,6 +676,7 @@ const jaJP: Messages = {
   "dv.dh.regime.BULL": "強気",
   "dv.dh.regime.BEAR": "弱気",
   "dv.dh.regime.SIDEWAYS": "レンジ",
+  "nav.workspace": "ワークスペース",
   "dc.ov.verdict": "本日の判断",
   "dc.ov.firstPick": "本日の一番手",
   "dc.ov.portfolio": "本日の推奨組合",

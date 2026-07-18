@@ -676,6 +676,7 @@ const enUS: Messages = {
   "dv.dh.regime.BULL": "Bull",
   "dv.dh.regime.BEAR": "Bear",
   "dv.dh.regime.SIDEWAYS": "Sideways",
+  "nav.workspace": "Workspace",
   "dc.ov.verdict": "Today's Call",
   "dc.ov.firstPick": "Top Pick",
   "dc.ov.portfolio": "Suggested Portfolio",

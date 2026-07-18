@@ -676,6 +676,7 @@ const zhCN: Messages = {
   "dv.dh.regime.BULL": "牛市",
   "dv.dh.regime.BEAR": "熊市",
   "dv.dh.regime.SIDEWAYS": "震荡",
+  "nav.workspace": "工作区",
   "dc.ov.verdict": "今日建议",
   "dc.ov.firstPick": "今日第一推荐",
   "dc.ov.portfolio": "今日建议组合",

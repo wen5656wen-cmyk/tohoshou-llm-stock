@@ -24,19 +24,23 @@ export default function WorkspaceSwitcher({ dark = false }: { dark?: boolean }) 
 
   const trackBg = dark ? "rgba(255,255,255,0.06)" : "#F0F0F3";
   const idleColor = dark ? "#9aa4b2" : "#6e6e73";
+  // 段控件：高 40 / 圆角 12；Active 蓝底，Inactive 白底（浅色）
+  const idleBg = dark ? "transparent" : "#FFFFFF";
 
   return (
-    <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-full" style={{ background: trackBg }}>
+    <div className="flex items-center w-full" style={{ height: 40, gap: 4, padding: 4, borderRadius: 12, background: trackBg }}>
       {WORKSPACES.map((ws) => {
         const on = ws === current;
         return (
           <button
             key={ws}
             onClick={() => go(ws)}
-            className="flex-1 text-[11px] font-semibold py-1.5 rounded-md transition-colors text-center"
+            className="flex-1 h-full text-[12px] font-semibold transition-colors text-center"
             style={{
-              background: on ? "#007AFF" : "transparent",
+              borderRadius: 8,
+              background: on ? "#007AFF" : idleBg,
               color: on ? "#fff" : idleColor,
+              boxShadow: on ? "0 1px 2px rgba(0,0,0,0.10)" : dark ? "none" : "0 1px 1px rgba(0,0,0,0.04)",
             }}
             aria-pressed={on}
           >
