@@ -156,7 +156,7 @@ export default function ExecutiveDashboard() {
           <AppCard header={
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("ed.portfolio")}</span>
-              <Link href="/decision-center?tab=live" className="text-[11px]" style={{ color: COLORS.primary }}>{t("wl.title")} →</Link>
+              <Link href="/decision-legacy?tab=live" className="text-[11px]" style={{ color: COLORS.primary }}>{t("wl.title")} →</Link>
             </div>
           }>
             {alts.length ? (
@@ -233,7 +233,7 @@ export default function ExecutiveDashboard() {
           <div className="text-[11px] font-medium mb-1.5 px-1" style={{ color: COLORS.textFaint }}>{t("ed.quick")}</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <QuickBtn href="/decision-v2?tab=strategy" label={t("dc.tab.today")} icon="◎" />
-            <QuickBtn href="/decision-center?tab=live" label={t("dc.tab.live")} icon="🟢" />
+            <QuickBtn href="/decision-legacy?tab=live" label={t("dc.tab.live")} icon="🟢" />
             <QuickBtn href="/decision-v2?tab=history" label={t("dc.tab.review")} icon="↺" />
             <QuickBtn href="/admin/research" label={t("ed.goResearch")} icon="🔬" />
           </div>
