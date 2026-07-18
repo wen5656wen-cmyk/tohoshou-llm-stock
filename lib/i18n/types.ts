@@ -238,6 +238,10 @@ export type Messages = {
   "dv.pf.sumHoldings": string; "dv.pf.sumUnrealized": string; "dv.pf.sumToday": string; "dv.pf.sumPosition": string; "dv.pf.sumCash": string; "dv.pf.actionSummary": string;
   "dv.pf.ss.title": string; "dv.pf.ss.quote": string; "dv.pf.ss.decision": string; "dv.pf.ss.runtime": string; "dv.pf.ss.holdings": string; "dv.pf.ss.next": string; "dv.pf.ss.realtime": string; "dv.pf.ss.latest": string; "dv.pf.ss.synced": string;
   "dv.pf.histTitle": string; "dv.pf.histEmpty": string;
+  "dv.search.placeholder": string; "dv.search.noResult": string;
+  "dv.rr.why.BUY": string; "dv.rr.why.ADD": string; "dv.rr.why.WAIT": string; "dv.rr.why.HOLD": string; "dv.rr.why.REDUCE": string; "dv.rr.why.TAKE_PROFIT": string; "dv.rr.why.STOP_LOSS": string; "dv.rr.why.default": string;
+  "dv.rr.core": string; "dv.rr.upside": string; "dv.rr.downside": string; "dv.rr.holding": string; "dv.rr.notHeld": string; "dv.rr.chart": string; "dv.rr.tech": string; "dv.rr.scores": string; "dv.rr.news": string; "dv.rr.newsVerdict": string; "dv.rr.fin": string; "dv.rr.hist": string; "dv.rr.noHist": string; "dv.rr.emptyExec": string; "dv.rr.sysDetail": string;
+  "dv.rr.d.tech": string; "dv.rr.d.fund": string; "dv.rr.d.money": string; "dv.rr.d.senti": string; "dv.rr.d.trend": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;

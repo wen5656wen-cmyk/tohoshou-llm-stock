@@ -73,8 +73,8 @@ function Shell() {
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
       <DecisionProvider>
         <DecisionContextBar />
-        {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar。P15-01B：AppHeader 大卡 → 紧凑 Header。 */}
-        <CompactHeader active={active} />
+        {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar。P16-02：决策总览由页内顶部工具栏(含搜索)承载，故此处不渲染。 */}
+        {active !== "overview" && <CompactHeader active={active} />}
         <div className="pb-8">
           {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : active === "portfolio" ? <DecisionPortfolioV2 /> : active === "history" ? <DecisionHistoryV2 /> : <Placeholder tab={active} />}
         </div>

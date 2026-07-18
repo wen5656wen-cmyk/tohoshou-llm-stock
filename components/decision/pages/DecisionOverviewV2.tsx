@@ -11,13 +11,13 @@ import { AppLoading } from "@/components/ui";
 import type { Tone } from "@/lib/design-tokens";
 import { fmtJpy, fmtPct, fmtScore, fmtJstClock, riskTone } from "@/lib/decision/ds";
 import { actionIcon } from "@/lib/decision/verdict";
-import { actionColor } from "@/lib/decision/terminal";
 import { useDecision } from "@/lib/decision/provider";
 import { useHoldings } from "@/lib/portfolio/use-holdings";
 import { MarketSnapshot, RiskPanel, type MktItem, type RiskItem } from "@/components/decision/ds/panels";
 import { DecisionBar, PortfolioSummaryBar, ActionSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, FunnelBar,
   type HoldRow, type PickRow, type ColLabels, type HistoryRow } from "@/components/decision/ds/overview-panels";
-import StockDetailModal, { type DetailRow } from "@/components/decision/StockDetailModal";
+import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
+import StockSearch from "@/components/decision/StockSearch";
 import HoldingDialogs, { type HoldingDialog } from "@/components/decision/HoldingDialogs";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30,7 +30,7 @@ export default function DecisionOverviewV2() {
   const { overview, loading } = useDecision();
   const { data: pf, history, refresh } = useHoldings();
   const o = overview as any;
-  const [detail, setDetail] = useState<DetailRow | null>(null);
+  const [detail, setDetail] = useState<ReportTarget | null>(null);
   const [dlg, setDlg] = useState<HoldingDialog>(null);
   const sel = detail?.symbol ?? null;
 
@@ -83,20 +83,16 @@ export default function DecisionOverviewV2() {
   };
   const exec: any[] = o.executeNow ?? [], wait: any[] = o.waitList ?? [], watch: any[] = o.backups ?? [];
   const pickMap = new Map<string, any>([...exec, ...wait, ...watch].map((d) => [d.symbol, d]));
-  const detailFor = (sym: string): DetailRow | null => {
-    const h = userHoldMap.get(sym);
-    if (h) return { symbol: sym, name: h.name, action: h.action, actionLabel: actLabel(h.action), actionColor: actionColor(h.action), currentPrice: h.currentPrice, returnPct: h.returnPct, target1: h.target, stopLoss: h.stop, aiScore: h.ai, isHolding: true };
-    const d = pickMap.get(sym);
-    if (d) return { symbol: sym, name: d.name, action: d.action, actionLabel: actLabel(d.action), actionColor: actionColor(d.action), currentPrice: d.currentPrice, changePct: d.changePct, entryLow: d.buyRangeLow, entryHigh: d.buyRangeHigh, target1: d.targetPrice1, target2: d.targetPrice2, stopLoss: d.stopLossPrice, aiScore: d.aiScore, runtimeRank: d.runtimeRank, riskLevel: d.riskLevel, isHolding: false };
-    return null;
+  // 打开 AI Research Report（任意股票：持仓/推荐/搜索。数据由报告内 intelligence 拉取）
+  const openDetail = (sym: string, nameHint?: string) => {
+    const h = userHoldMap.get(sym); const d = pickMap.get(sym);
+    setDetail({ symbol: sym, name: nameHint ?? h?.name ?? d?.name ?? sym, action: h?.action ?? d?.action ?? null, currentPrice: h?.currentPrice ?? d?.currentPrice ?? null, held: h ?? null });
   };
-  const openDetail = (sym: string) => setDetail(detailFor(sym));
 
   // Portfolio 操作
-  const heldSet = new Set<string>(userHoldings.map((h) => h.symbol));
   const priceOf = (sym: string) => userHoldMap.get(sym)?.currentPrice ?? pickMap.get(sym)?.currentPrice ?? null;
   const nameOf = (sym: string) => userHoldMap.get(sym)?.name ?? pickMap.get(sym)?.name ?? sym;
-  const onAdd = (sym: string) => setDlg({ mode: "buy", symbol: sym, name: nameOf(sym), price: priceOf(sym) });
+  const onAdd = (sym: string) => setDlg({ mode: "buy", symbol: sym, name: detail?.symbol === sym ? detail.name : nameOf(sym), price: (detail?.symbol === sym ? detail.currentPrice : priceOf(sym)) ?? null });
   const onSell = (sym: string) => { const h = userHoldMap.get(sym); if (h) setDlg({ mode: "sell", symbol: sym, name: h.name, shares: h.shares, price: h.currentPrice }); };
   const onEdit = (sym: string) => { const h = userHoldMap.get(sym); if (h) setDlg({ mode: "edit", symbol: sym, name: h.name, avgCost: h.avgCost, shares: h.shares, note: h.note }); };
   const onDelete = async (sym: string) => { if (!window.confirm(t("dv.pf.deleteConfirm"))) return; await fetch(`/api/holdings/${encodeURIComponent(sym)}`, { method: "DELETE" }); refresh(); };
@@ -155,15 +151,31 @@ export default function DecisionOverviewV2() {
     { label: t("dv.ov2.candidates"), value: String(s.candidates ?? 0) }, { label: t("dv.ov2.shown"), value: String(s.shown ?? 0) }, { label: t("dv.rt.turnover"), value: String(turn.replacedToday ?? 0) },
   ];
 
+  const marketClosed = !o.tradingDay || o.marketPhase === "NON_TRADING";
+  const focusSearch = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
   return (
-    <div className="max-w-[1760px] mx-auto px-4 sm:px-6 py-3 space-y-2.5">
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 space-y-2.5">
+      {/* ④ 顶部工具栏（AI Decision Center + 搜索 + 市场状态，64–72px，无大标题） */}
+      <div className="flex items-center gap-4" style={{ minHeight: 66, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "0 16px" }}>
+        <div className="min-w-0" style={{ flex: "0 0 auto" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>AI Decision Center</div>
+          <div style={{ fontSize: 11, color: "#6B7280" }}>AI Portfolio Manager</div>
+        </div>
+        <div className="flex-1 flex justify-center min-w-0"><StockSearch onPick={(s, n) => openDetail(s, n)} /></div>
+        <div style={{ flex: "0 0 auto", textAlign: "right" }}>
+          <div style={{ fontSize: 12.5, color: marketClosed ? "#6B7280" : "#34C759", fontWeight: 600 }}>{t(marketClosed ? "dv.ov2.marketClosed" : "dv.ov2.marketOk")}</div>
+          <div className="tabular-nums" style={{ fontSize: 11, color: "#9CA3AF" }}>{fmtJstClock(fr.quoteUpdatedAt)} JST</div>
+        </div>
+      </div>
+
       {summaryItems.length > 0 && <PortfolioSummaryBar items={summaryItems} />}
       <DecisionBar {...bar} />
       <ActionSummary title={t("dv.pf.actionSummary")} items={actionItems} onClick={onActionClick} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-9 space-y-3 min-w-0">
-          <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={cols} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
-          <div id="sec-exec"><OpportunityTable title={t("dv.ov2.recTitle")} tone="#34C759" count={exec.length} rows={exec.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
+          <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={cols} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} addLabel={t("dv.pf.btnAdd")} onAddClick={focusSearch} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
+          <div id="sec-exec"><OpportunityTable title={t("dv.ov2.recTitle")} tone="#34C759" count={exec.length} rows={exec.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} emptyLabel={t("dv.rr.emptyExec")} onDetail={openDetail} onAdd={onAdd} /></div>
           <div id="sec-wait"><OpportunityTable title={t("dv.grp.waitList")} tone="#F5A623" count={wait.length} rows={wait.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
           <div id="sec-watch"><OpportunityTable title={t("dv.ov2.watchTitle")} tone="#9AA0A6" count={watch.length} rows={watch.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
           {histRows.length > 0 && <HistoryPanel title={t("dv.pf.histTitle")} emptyLabel={t("dv.pf.histEmpty")} rows={histRows} cols={{ date: "", pnl: "", days: "", vs: "" }} />}
@@ -176,8 +188,13 @@ export default function DecisionOverviewV2() {
           </div>
         </div>
       </div>
-      <FunnelBar title={t("dv.ov2.funnelTitle")} steps={funnelSteps} />
-      <StockDetailModal row={detail} heldSet={heldSet} onBuy={onAdd} onSell={onSell} onEdit={onEdit} onClose={() => setDetail(null)} />
+      {/* Top200 Runtime 默认折叠（系统运行详情） */}
+      <details style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8 }}>
+        <summary style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", cursor: "pointer", fontWeight: 600 }}>{t("dv.rr.sysDetail")}</summary>
+        <div style={{ padding: "0 14px 12px" }}><FunnelBar title={t("dv.ov2.funnelTitle")} steps={funnelSteps} /></div>
+      </details>
+
+      <StockDetailModal report={detail} onBuy={onAdd} onSell={onSell} onEdit={onEdit} onClose={() => setDetail(null)} />
       <HoldingDialogs dialog={dlg} onClose={() => setDlg(null)} onDone={dlgDone} />
     </div>
   );

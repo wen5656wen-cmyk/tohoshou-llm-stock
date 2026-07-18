@@ -2,6 +2,22 @@
 
 ---
 
+## [18.18.0] - 2026-07-18 — 🔎 P16-02 Decision Center UI Final + 单页 AI Research Report
+
+完整界面整改（纯 UI/交互）。**未改** Decision Engine/Runtime Ranking/adaptiveScore/runtimeScore/权重/Top200逻辑/deriveHoldingAction/GPT/Cron/Portfolio 收益逻辑/现有 API 契约/DB 字段含义；**未新增** API/Schema/Cron。只复用现有 `/api/stocks?q=`(搜索)、`/api/stocks/[symbol]/intelligence`·`/indicators`、`/api/financials`。
+
+**一、股票搜索入口（任意股票可研究）**：新增 `components/decision/StockSearch.tsx`——复用 `/api/stocks?q=`(symbol/中/日/英名 contains)，输入 7203/7203.T/トヨタ/丰田/Toyota 均命中，下拉≤8条(代码/名/价/涨跌)，↑↓选择/Enter打开/Esc关闭/无结果提示。**AI 推荐不再是加入持仓的唯一入口**：搜索任意股(含非Top200/非推荐/非持仓，如 9984.T)→打开报告→可加入持仓。
+
+**二、单页 AI Research Report（取消多 Tab）**：`StockDetailModal` 从 8-Tab 重写为**单页纵向滚动**。`min(1120px,100vw-48px)`×`calc(100vh-48px)`，Header 固定 + Body 滚动 + 底部操作栏固定。内容：Header(代码/名/市场·动作·AI等级·风险·价) → **为什么X**(动态标题 为什么买/等待/持有/减仓/止盈/止损/观察 + 结论 + ✓理由，**剥除 adaptiveScore=/runtimeScore=/[source_tag] 等调试文本**) → 核心决策(当前价/买区/目标/止损/上涨空间/下行风险/风险/AI置信) → 持仓状态(未持→加入持有 / 已持→数量/成本/市值/收益/天数+编辑/卖出) → 价格走势(复用 LightweightStockChart MA5/20/60+量) → 技术状态 → AI判断依据(5维水平条) → 最近新闻(AI判断+利好/中性/利空) → 基本面(最近4期) → AI决策记录(无源诚实置「暂无决策历史」)。底部：未持有=关闭/加入持有(Primary) · 已持有=编辑/卖出(Danger Outline)/买入。**买卖编辑全部复用现有 Dialog，不建第二套表单。**
+
+**三、首页信息层级重排**：删突兀大标题 → **顶部工具栏 66px**(AI Decision Center + AI Portfolio Manager + 搜索框 + 市场状态/时间)；组合摘要条 → 今日决策(≤120px) → 今日行动摘要 → **当前持有(核心，+添加持仓→聚焦搜索)** → 机会/等待/观察(加入按钮 + 空状态) → 右栏(风险→系统状态→市场)；Top200 Runtime 默认折叠到底部「系统运行详情」。max-w 1440。overview tab 不再渲染旧 CompactHeader。i18n 三语 +32 键(dv.search/dv.rr.*)。
+
+**验收**：tsc0/build✅/eslint净/CJK守卫0/health CRITICAL=0/页200(0.69s)。**真实截图(Playwright+缓存Chromium，1920/1440/1280+搜索展开+未持有/已持有报告)**。**任意非推荐股(9984.T)开报告实测通过**；搜索「トヨタ/7203/丰田」命中。部署：rsync .next+lib 重启 web(无 schema/cron/API 改动)。
+
+**遗留**：①搜索下拉未显示 AI动作/等级(需 join StockScore，为免第二数据源暂略，动作/等级在报告内)；②部分高价股(如 9984/7203)StockScore 无 entry/target → 报告「买区」显「—」(诚实)；③决策历史 Tab 待 P15-01H；④现金存取/券商同步为未来。
+
+---
+
 ## [18.17.0] - 2026-07-18 — 💼 P16-01 Portfolio Management（AI Portfolio Manager · 完整投资闭环）
 
 Decision Center 升级为 **AI Portfolio Manager**：**AI推荐 → 加入持有 → AI每日管理 → 卖出(部分/全部) → History → 统计收益** 完整闭环。**未改** Decision Engine / Runtime Ranking / adaptiveScore / runtimeScore / 权重 / GPT / Cron / 现有 API 契约（本轮仅**新增** Portfolio Schema + `/api/holdings/*` API，属允许范围）。
