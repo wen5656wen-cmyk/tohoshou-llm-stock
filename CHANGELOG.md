@@ -2,6 +2,37 @@
 
 ---
 
+## [18.10.1] - 2026-07-18 — 🩹 Mission Control 周末假「逾期未执行」修复（交易日守卫对齐 cron）
+
+**症状**：周六 07-18 Mission Control「同步股票行情」步骤显示 `覆盖率 99% (3684/3720)逾期未执行`（FAILED），
+但行情同步实际健康（最新交易日覆盖 99% > 95% 阈值 = NORMAL）。
+
+**根因（展示层假阳性，非数据/非同步故障，同 v17.84.1 的 S33 周末假 CRITICAL 一类）**：
+`app/api/admin/mission-control/route.ts` 的 `STEP_DEFS` 把 `sync_prices`（06:00）/`compute_scores` /
+`gen_recs` / `day_settle`（07:30 流水线）标为 `EVERY_DAY`，但这些步骤在 `scripts/cron-scheduler.ts`
+里由 `isTradingDayGuard()` 守卫（`sync-all-prices` line 367 / `scoring-pipeline` line 416），
+**非交易日（周末/日本祝日/年末年初）由 cron 主动跳过**。于是过了「计划时刻 + 150min 宽限」后，
+Mission Control 把本就不该运行的步骤判为 FAILED，`errorMessage` 兜底为「逾期未执行」。
+
+**修复**：新增 `TRADING_DAY = (d) => isJPXTradingDay(d)` 谓词（复用 `lib/trading-calendar/jpx.ts`，
+与 cron 守卫同一日历），把上述 4 个交易日专属步骤由 `EVERY_DAY` 改为 `TRADING_DAY`；
+`global_market`（05:30）/`sync_news`（07:00）**无 cron 守卫、确应每日运行 → 保持 `EVERY_DAY` 不变**。
+非交易日这 4 步现判为 `SKIPPED`（`applies=false` 分支优先于 groundTruth，且被 `applicableSteps` 过滤，
+不计入完成率）；交易日 `isJPXTradingDay=true`，行为与原 `EVERY_DAY` 完全一致 → **零行为回归**。
+
+**未改动**：cron 时序/调度、评分算法、三策略、资金链、DB schema、其它步骤判定；纯展示层 API 路由。
+`today`（JST 日历日 UTC 午夜）经 `jstYMD` 的 `Intl` Asia/Tokyo 格式化正确解析，时区无双重偏移。
+
+**验收**：tsc 0 / `npm run build` ✅ / 生产 `health:data` **CRITICAL=0**（❌0 ⚠️6 既有）/ 部署后
+生产 `/api/admin/mission-control` 实测：`sync_prices`/`compute_scores`/`gen_recs`/`day_settle` = **SKIPPED**
+（errorMessage=null，「逾期未执行」消失）、`global_market`/`sync_news` = SUCCESS。
+**部署**：仅 app/ API 路由 → rsync `.next/` + 重启 `tohoshou-web`（cron-scheduler 未改，**不重启 cron**）。
+
+**说明**：数据层本身正常 —— 周五 07-17 收盘数据将于下个交易日（周一 07-20 海の日休市 → **周二 07-21**）
+06:00 同步入库；周末/假日无任何交易决策运行，属既定设计，无害。
+
+---
+
 ## [18.10.0] - 2026-07-17 — 🔌 P12-INFRA-03 News Admin API 接线 Ingestion Core（单入口 · 外部行为不变）
 
 **只切一个入口**：`app/api/sync/news/route.ts` → `lib/ingest` News Core。

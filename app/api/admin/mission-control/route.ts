@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isJPXTradingDay } from "@/lib/trading-calendar/jpx";
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
@@ -129,6 +130,10 @@ type StepDef = {
 };
 const WORKDAY = (d: Date) => { const dow = d.getUTCDay(); return dow >= 1 && dow <= 5; };
 const EVERY_DAY = () => true;
+// JPX 交易日守卫：与 cron-scheduler.ts 的 isTradingDayGuard 对齐。价格同步(06:00
+// sync-all-prices)与评分流水线(07:30 scoring-pipeline)在非交易日(周末/日本祝日/
+// 年末年初)由 cron 主动跳过，故这些步骤在非交易日应判为 SKIPPED 而非「逾期未执行」。
+const TRADING_DAY = (d: Date) => isJPXTradingDay(d);
 const SATURDAY_ONLY = (d: Date) => d.getUTCDay() === 6;
 const MONTH_END_ONLY = (d: Date) => {
   const next = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1));
@@ -137,11 +142,11 @@ const MONTH_END_ONLY = (d: Date) => {
 
 const STEP_DEFS: StepDef[] = [
   { key: "global_market", name: "同步全球指数",     scheduledLabel: "05:30 JST",       stage: "fetch-global-market",              scheduledHour: 5,  scheduledMinute: 30, appliesToday: EVERY_DAY },
-  { key: "sync_prices",   name: "同步股票行情",     scheduledLabel: "06:00 JST",       stage: "sync-all-prices",                  scheduledHour: 6,  scheduledMinute: 0,  appliesToday: EVERY_DAY },
+  { key: "sync_prices",   name: "同步股票行情",     scheduledLabel: "06:00 JST",       stage: "sync-all-prices",                  scheduledHour: 6,  scheduledMinute: 0,  appliesToday: TRADING_DAY },
   { key: "sync_news",     name: "同步新闻资讯",     scheduledLabel: "07:00 JST",       stage: "sync-news",                        scheduledHour: 7,  scheduledMinute: 0,  appliesToday: EVERY_DAY },
-  { key: "compute_scores",name: "计算综合评分",     scheduledLabel: "07:30 JST",       stage: "compute-scores",                   scheduledHour: 7,  scheduledMinute: 30, appliesToday: EVERY_DAY },
-  { key: "gen_recs",      name: "生成三策略推荐",   scheduledLabel: "07:30 JST",       stage: "generate-strategy-recommendations",scheduledHour: 7,  scheduledMinute: 30, appliesToday: EVERY_DAY },
-  { key: "day_settle",    name: "结算日内策略",     scheduledLabel: "07:30+ JST (T+1)",stage: "day-strategy",                     scheduledHour: 7,  scheduledMinute: 30, appliesToday: EVERY_DAY },
+  { key: "compute_scores",name: "计算综合评分",     scheduledLabel: "07:30 JST",       stage: "compute-scores",                   scheduledHour: 7,  scheduledMinute: 30, appliesToday: TRADING_DAY },
+  { key: "gen_recs",      name: "生成三策略推荐",   scheduledLabel: "07:30 JST",       stage: "generate-strategy-recommendations",scheduledHour: 7,  scheduledMinute: 30, appliesToday: TRADING_DAY },
+  { key: "day_settle",    name: "结算日内策略",     scheduledLabel: "07:30+ JST (T+1)",stage: "day-strategy",                     scheduledHour: 7,  scheduledMinute: 30, appliesToday: TRADING_DAY },
   { key: "swing_update",  name: "更新波段策略",     scheduledLabel: "16:35 JST",       stage: "swing-strategy",                   scheduledHour: 16, scheduledMinute: 35, appliesToday: WORKDAY },
   { key: "long_update",   name: "更新长线策略",     scheduledLabel: "16:40 JST",       stage: "long-strategy",                    scheduledHour: 16, scheduledMinute: 40, appliesToday: WORKDAY },
   { key: "backtest",      name: "策略回测",         scheduledLabel: "16:45 JST",       stage: "strategy-backtest",                scheduledHour: 16, scheduledMinute: 45, appliesToday: WORKDAY },
