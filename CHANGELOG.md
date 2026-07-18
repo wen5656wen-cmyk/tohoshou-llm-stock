@@ -2,6 +2,25 @@
 
 ---
 
+## [18.21.0] - 2026-07-19 — 🧠 P17-01 AI Decision Quality（AI 决策质量升级 · 可解释决策）
+
+让用户打开任意股票 **30 秒内**知道：能不能买 / 为什么 / 风险 / 买点 / 止盈 / 止损 / 持有多久 / AI 多大把握。**未改** UI 框架/导航/Portfolio Summary/Decision Center 布局/Schema/API 数据结构/评分算法/五维权重/BUY·HOLD 阈值/Runtime Ranking/Daily Picks 排序/Cron/同步——**纯推导 + 报告新增区块**。
+
+- **新增纯推导模块 `lib/decision/ai-verdict.ts`**：`deriveAiVerdict(intel)` 输入 = 现有 intelligence 字段，输出结构化决策（全部返回 i18n key + 数值，条条可追溯，无编造，无「可能/大概/也许」）。
+- **AI Research Report 顶部新增「AI 最终决策」区块**（`StockDetailModal.tsx`）：
+  - **AI 最终决策**：★星级（按 adaptiveScore 分档）+ 动作 + 一句话结论（强势维度共振 + 动作句，均来自数据）。
+  - **买入理由 / 谨慎理由**：各 ≤3 条，来自五维评分 + 均线/MACD/百分位。
+  - **最佳买点**：立即买入 / 等待回调 / 等待突破 / 继续观察——来自 RSI/MA/MACD/趋势 + **已解析展示动作**（保证与顶部动作不矛盾）。
+  - **止盈**：按 stockStyle（成长+15%/周期+12%/价值+8%/优质长期持有）。
+  - **止损**：按 风险等级/波动率/风格（-5%/-8%/-10%/长期配置）。
+  - **建议持有**：短线/1~2周/1~3月/长期（gpt.timeHorizon 优先，否则按 Style/Trend）。
+  - **AI 信心来源**：★星级 = 核心维度（技术/资金/趋势）一致性 + 解释「因为…」；WATCH 档封顶且与「信心不足」同口径，避免自相矛盾。
+  - **主要风险**：≤3 条，来自 riskAnalysis/波动/新闻/超买。
+- **i18n**：新增 68 个 `dv.aiv.*` key（types.ts 接口 + ja-JP + zh-CN，接口强制两语言完整），仅日本語/中文，无英文。
+- **验收**：生产真实数据验证 BUY(4424/7792/7984)/HOLD(4446/3092/6592)/WATCH(7203/6758/7374) 三类各输出完整八项且无矛盾；ja/zh/桌面/手机(390 无溢出) 截图确认；tsc 0 / eslint 0 error / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.20.0] - 2026-07-19 — 🌐 P17-00 Internationalization Cleanup（彻底移除英文界面 · 只支持 日本語/中文）
 
 **TOHOSHOU 从本版本起只支持：日本語（默认）/ 中文（辅助）。English 已正式移除。** 本轮仅做国际化清理，未改 UI 结构/视觉/Decision Center/Portfolio/AI 逻辑/引擎/Ranking/评分/持仓/交易/DB/Schema/API/Cron/导航/业务字段。

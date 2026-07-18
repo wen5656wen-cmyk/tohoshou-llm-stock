@@ -13,6 +13,7 @@ import { COLORS } from "@/components/ui";
 import { fmtJpy, fmtPct, fmtScore } from "@/lib/decision/ds";
 import { SP, gradeFor, actionColor } from "@/lib/decision/terminal";
 import { buildChartBars, type ChartBar } from "@/components/charts/LightweightStockChart";
+import { deriveAiVerdict } from "@/lib/decision/ai-verdict";
 
 const LightweightStockChart = dynamic(() => import("@/components/charts/LightweightStockChart"), { ssr: false });
 
@@ -119,6 +120,47 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
 
           {/* Body 滚动 */}
           <div style={{ flex: 1, overflow: "auto", padding: `${SP.md}px ${SP.lg}px` }}>
+            {/* AI 最终决策（P17-01 · 30 秒决策：结论/买点/止盈/止损/周期/信心/风险，全部由已有数据推导）*/}
+            {sc && (() => {
+              const v = deriveAiVerdict({ action, score: sc, indicators: ind ?? null, risk: intel?.riskAnalysis ?? null, gpt: intel?.gpt ?? null });
+              const lead = v.finalDecision.strongDims.length >= 2 ? v.finalDecision.strongDims.map((k) => t(k as Parameters<typeof t>[0])).join("、") + t("dv.aiv.resonate") : "";
+              const tp = v.takeProfit.pct != null ? `+${v.takeProfit.pct}%` : t("dv.aiv.long");
+              const sl = v.stopLoss.pct != null ? `${v.stopLoss.pct}%` : t("dv.aiv.longCfg");
+              const drivers = v.confidence.driverKeys.map((k) => t(k as Parameters<typeof t>[0])).join("、");
+              return (
+                <Section title={t("dv.aiv.final")}>
+                  <div className="flex items-center gap-3" style={{ marginBottom: SP.xs }}>
+                    <Stars n={v.finalDecision.stars} color={accent} />
+                    <b style={{ fontSize: 16, fontWeight: 800, color: accent }}>{t(`dv.act.${action}` as Parameters<typeof t>[0])}</b>
+                  </div>
+                  <p style={{ fontSize: 13.5, color: COLORS.text, lineHeight: 1.6, marginBottom: SP.md }}>{lead && <b style={{ color: accent }}>{lead}　</b>}{t(v.finalDecision.conclKey as Parameters<typeof t>[0])}</p>
+                  {(v.whyBuy.length > 0 || v.whyNotBuy.length > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: `${SP.xs}px ${SP.xl}px`, marginBottom: SP.md }}>
+                      {v.whyBuy.length > 0 && <RList title={t("dv.aiv.whyBuy")} items={v.whyBuy.map((k) => t(k as Parameters<typeof t>[0]))} mark="✓" markColor={COLORS.success} />}
+                      {v.whyNotBuy.length > 0 && <RList title={t("dv.aiv.whyNot")} items={v.whyNotBuy.map((k) => t(k as Parameters<typeof t>[0]))} mark="⚠" markColor="#F5A623" />}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: `${SP.sm + 2}px ${SP.lg}px`, marginBottom: SP.md }}>
+                    <DecCell label={t("dv.aiv.entry")} value={t(v.bestEntry.modeKey as Parameters<typeof t>[0])} note={t(v.bestEntry.reasonKey as Parameters<typeof t>[0])} tone={accent} />
+                    <DecCell label={t("dv.aiv.tp")} value={tp} note={t(v.takeProfit.reasonKey as Parameters<typeof t>[0])} tone={COLORS.success} />
+                    <DecCell label={t("dv.aiv.sl")} value={sl} note={t(v.stopLoss.reasonKey as Parameters<typeof t>[0])} tone={COLORS.danger} />
+                    <DecCell label={t("dv.aiv.hold")} value={t(v.holdingPeriod.labelKey as Parameters<typeof t>[0])} note={t(v.holdingPeriod.reasonKey as Parameters<typeof t>[0])} />
+                  </div>
+                  <div className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 12, marginBottom: v.keyRisks.length ? SP.md : 0 }}>
+                    <span style={{ color: COLORS.textFaint }}>{t("dv.aiv.conf")}</span>
+                    <Stars n={v.confidence.stars} color="#F5A623" small />
+                    <span style={{ color: COLORS.textSecondary }}>{drivers ? `${t("dv.aiv.because")}：${drivers}` : ""}{v.confidence.weak ? (drivers ? "，" : "") + t("dv.aiv.confWeak") : ""}</span>
+                  </div>
+                  {v.keyRisks.length > 0 && (
+                    <div className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 12.5 }}>
+                      <span style={{ color: COLORS.textFaint }}>{t("dv.aiv.risks")}</span>
+                      {v.keyRisks.map((k, i) => <span key={i} style={{ color: COLORS.textSecondary }}><span style={{ color: "#F5A623" }}>⚠</span> {t(k as Parameters<typeof t>[0])}</span>)}
+                    </div>
+                  )}
+                </Section>
+              );
+            })()}
+
             {/* 第一页：AI观点（结论→理由，自然语言，禁数字/开发者字段）*/}
             <Section title={t("dv.rr.opinion")}>
               {loading && !intel ? <Muted>…</Muted> : (
@@ -252,6 +294,26 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
 
 type T = (k: any) => string;
 const Muted = ({ children }: { children: React.ReactNode }) => <div style={{ fontSize: 12.5, color: COLORS.textFaint }}>{children}</div>;
+function Stars({ n, color, small }: { n: number; color: string; small?: boolean }) {
+  return <span style={{ fontSize: small ? 12 : 15, letterSpacing: 1, lineHeight: 1 }}><span style={{ color }}>{"★".repeat(n)}</span><span style={{ color: "#D7D9DE" }}>{"★".repeat(5 - n)}</span></span>;
+}
+function RList({ title, items, mark, markColor }: { title: string; items: string[]; mark: string; markColor: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: COLORS.textFaint, marginBottom: 4 }}>{title}</div>
+      <ul className="space-y-1">{items.map((r, i) => <li key={i} className="flex gap-1.5" style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: markColor }}>{mark}</span><span>{r}</span></li>)}</ul>
+    </div>
+  );
+}
+function DecCell({ label, value, note, tone }: { label: string; value: string; note: string; tone?: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10.5, color: COLORS.textFaint }}>{label}</div>
+      <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700, color: tone ?? COLORS.text }}>{value}</div>
+      <div style={{ fontSize: 10.5, color: COLORS.textFaint, lineHeight: 1.4, marginTop: 1 }}>{note}</div>
+    </div>
+  );
+}
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <div style={{ marginBottom: SP.lg }}><div style={{ fontSize: 12, letterSpacing: "0.03em", color: COLORS.text, fontWeight: 600, marginBottom: SP.sm, paddingBottom: 4, borderBottom: `1px solid ${COLORS.borderSoft ?? "#F0F0F3"}` }}>{title}</div>{children}</div>;
 }

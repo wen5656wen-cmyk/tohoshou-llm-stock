@@ -284,6 +284,19 @@ export type Messages = {
   "dv.rr.tx.volHigh": string;
   "dv.rr.tx.volLow": string;
   "dv.rr.tx.volMid": string;
+  // ── AI Verdict（P17-01 · 专业分析师式决策推导）─────────────────────────────
+  "dv.aiv.final": string; "dv.aiv.whyBuy": string; "dv.aiv.whyNot": string; "dv.aiv.entry": string; "dv.aiv.tp": string; "dv.aiv.sl": string; "dv.aiv.hold": string; "dv.aiv.conf": string; "dv.aiv.risks": string;
+  "dv.aiv.long": string; "dv.aiv.longCfg": string; "dv.aiv.resonate": string; "dv.aiv.because": string; "dv.aiv.confWeak": string;
+  "dv.aiv.dim.tech": string; "dv.aiv.dim.fund": string; "dv.aiv.dim.money": string; "dv.aiv.dim.senti": string; "dv.aiv.dim.trend": string;
+  "dv.aiv.buy.scoreTop": string; "dv.aiv.buy.tech": string; "dv.aiv.buy.money": string; "dv.aiv.buy.trend": string; "dv.aiv.buy.fund": string; "dv.aiv.buy.senti": string; "dv.aiv.buy.maUp": string; "dv.aiv.buy.macd": string; "dv.aiv.buy.percentile": string;
+  "dv.aiv.not.rsiHigh": string; "dv.aiv.not.vol": string; "dv.aiv.not.fundWeak": string; "dv.aiv.not.confLow": string; "dv.aiv.not.maDown": string; "dv.aiv.not.moneyOut": string; "dv.aiv.not.sentiWeak": string; "dv.aiv.not.highRisk": string;
+  "dv.aiv.risk.vol": string; "dv.aiv.risk.overbought": string; "dv.aiv.risk.news": string; "dv.aiv.risk.fund": string; "dv.aiv.risk.tech": string; "dv.aiv.risk.overall": string;
+  "dv.aiv.entry.now": string; "dv.aiv.entry.pullback": string; "dv.aiv.entry.breakout": string; "dv.aiv.entry.watch": string;
+  "dv.aiv.entryR.now": string; "dv.aiv.entryR.pullback": string; "dv.aiv.entryR.breakout": string; "dv.aiv.entryR.watch": string;
+  "dv.aiv.tpR.growth": string; "dv.aiv.tpR.cyclical": string; "dv.aiv.tpR.value": string; "dv.aiv.tpR.quality": string; "dv.aiv.tpR.default": string;
+  "dv.aiv.slR.tight": string; "dv.aiv.slR.normal": string; "dv.aiv.slR.wide": string; "dv.aiv.slR.long": string;
+  "dv.aiv.period.scalp": string; "dv.aiv.period.w12": string; "dv.aiv.period.m13": string; "dv.aiv.period.long": string;
+  "dv.aiv.holdR.scalp": string; "dv.aiv.holdR.momentum": string; "dv.aiv.holdR.trend": string; "dv.aiv.holdR.long": string; "dv.aiv.holdR.default": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;
