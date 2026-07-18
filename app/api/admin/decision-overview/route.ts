@@ -227,11 +227,19 @@ export async function GET(req: Request) {
     const universe = await p.stockScore.count({ where: { priceCount: { gte: 20 } } });
     const shown = groups.executeNow.length + groups.waitList.length + groups.backups.length;
 
+    // names 映射（symbol → 日文原名 name + 中文 nameZh），供前端按 locale 解析候选名称（避免日文用户看到中译名）。
+    const shownSyms = Array.from(new Set([...groups.executeNow, ...groups.waitList, ...groups.backups].map((c: any) => c.symbol)));
+    const nameRows = shownSyms.length
+      ? await p.stockScore.findMany({ where: { symbol: { in: shownSyms } }, select: { symbol: true, name: true, nameZh: true } })
+      : [];
+    const names: Record<string, { name: string | null; nameZh: string | null }> = {};
+    for (const r of nameRows) names[r.symbol] = { name: r.name ?? null, nameZh: r.nameZh ?? null };
+
     const body: any = {
       ok: true, empty: !closing || closing.empty === true,
       asOfDate: closing?.date ? new Date(closing.date).toISOString().slice(0, 10) : null,
       marketPhase: phase, tradingDay, nextTradingDay: tradingDay ? null : freshness.nextDecisionAt,
-      globalDecision, holdingsActions, executeNow: groups.executeNow, waitList: groups.waitList, backups: groups.backups,
+      globalDecision, holdingsActions, executeNow: groups.executeNow, waitList: groups.waitList, backups: groups.backups, names,
       marketContext, risks, freshness, news, catalysts, timeline: [],
       runtime: { poolSize: poolRows.length, turnover, leavers },
       top200Summary: { universe, tradable: null, top200: 200, candidates: runtimeMode ? poolRows.length : ranked.length, shown, turnover },

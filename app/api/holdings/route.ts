@@ -59,7 +59,8 @@ export async function GET() {
       if (price != null && prev != null) todayPnl += h.shares * (price - prev);
       const act = actions.get(h.symbol);
       return {
-        symbol: h.symbol, name: h.name, shares: h.shares, avgCost: h.avgCost, openDate: h.openDate.toISOString().slice(0, 10), note: h.note ?? null,
+        // name = 日文原名（StockScore 规范名，回退持仓记录名）；nameZh 供前端按 locale 解析。
+        symbol: h.symbol, name: sc?.name ?? h.name, nameZh: sc?.nameZh ?? null, shares: h.shares, avgCost: h.avgCost, openDate: h.openDate.toISOString().slice(0, 10), note: h.note ?? null,
         currentPrice: price, cost, marketValue: mv, unrealizedPnl: upnl, returnPct: h.avgCost > 0 && price != null ? (price / h.avgCost - 1) * 100 : null,
         todayChangePct: todayChg, holdingDays: daysBetween(new Date(h.openDate), now),
         action: act?.action ?? "HOLD", sellPct: act?.sellPct ?? 0, reasonKey: act?.reasonKey ?? "dv.hold.rk.hold",

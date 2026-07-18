@@ -14,6 +14,7 @@ import { fmtJpy, fmtPct } from "@/lib/decision/ds";
 import { SP, gradeFor, actionColor } from "@/lib/decision/terminal";
 import { buildChartBars, type ChartBar } from "@/components/charts/LightweightStockChart";
 import { deriveAiVerdict } from "@/lib/decision/ai-verdict";
+import { getPrimaryName } from "@/lib/company-name";
 
 const LightweightStockChart = dynamic(() => import("@/components/charts/LightweightStockChart"), { ssr: false });
 
@@ -59,6 +60,8 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
 
   if (!report) return null;
   const sc = intel?.score, st = intel?.stock, ind = intel?.indicators;
+  // 名称按 locale 解析（ja→日文原名 name，zh→nameZh）；intel 未加载时回退传入名。
+  const displayName = st ? getPrimaryName({ name: st.name, nameZh: st.nameZh, nameEn: st.nameEn }, lang) : report.name;
   const held = report.held;
   const action = report.action || (sc ? fallbackAction(sc.recommendationV2, sc.tradingAction) : "WAIT");
   const accent = actionColor(action);
@@ -101,7 +104,7 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <Dialog.Title asChild><b className="tabular-nums" style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{symbol}</b></Dialog.Title>
-                <span className="truncate" style={{ fontSize: 14, color: COLORS.textSecondary }}>{report.name}</span>
+                <span className="truncate" style={{ fontSize: 14, color: COLORS.textSecondary }}>{displayName}</span>
                 <span style={{ fontSize: 11, color: COLORS.textFaint }}>{st?.market ?? ""}</span>
               </div>
               <div className="flex items-center gap-2">

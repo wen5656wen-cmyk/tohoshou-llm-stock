@@ -2,6 +2,20 @@
 
 ---
 
+## [18.23.4] - 2026-07-19 — 🇯🇵 股票名称按 locale 显示（日文原名 vs 中译名）
+
+日文用户到处看到**中译名**（如 6592「马渕电机」应为「マブチモーター」、4446「Link−U集团」应为「Ｌｉｎｋ−Ｕグループ」）。根因：API 层硬编码 `nameZh ?? name`（中文优先），前端又直接用 raw name、未走 locale 解析。**规则**（`lib/company-name.ts getPrimaryName`）：ja→`name`(J-Quants 日文原名)，zh→`nameZh`。
+
+- **API 返回双名，不再预选**：
+  - `/api/holdings`：`name` 改为规范日文原名（StockScore.name），新增 `nameZh`。
+  - `/api/admin/decision-overview`：新增 `names` 映射（symbol→{name,nameZh}），供前端解析候选名（避免深改 runtime 候选管线）。
+- **前端按 locale 解析**（`getPrimaryName(lang)`）：Decision Center 持仓表 / 机会·等待·观察候选表 / 历史 / 买卖·编辑对话框 / 打开详情；`StockSearch` 下拉与选中；`StockDetailModal` 头部（用 intelligence.stock 双名）。
+- **效果**：ja → マブチモーター/ＫＤＤＩ/Ｌｉｎｋ−Ｕグループ；zh → 马渕电机/KDDI/Link−U集团（无回退）。
+- 未改评分/引擎/Schema/交易；仅名称展示解析 + API 加名称字段（additive）。
+- 验收：ja/zh 持仓表 + API 双名校验截图；tsc 0 / eslint 0 / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.23.3] - 2026-07-19 — 🔢 弹窗基本面数字可读化（億/兆 · 双语单位）
 
 `StockDetailModal` 基本面「营收/净利」原样展示原始日元整数（如 `5,080,353,000,000` / `1,890,000,000`），几乎无法阅读。**仅改数字格式化，未改数据/单位/接口**（原值单位确认为「円」）。

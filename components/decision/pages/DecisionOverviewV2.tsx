@@ -14,6 +14,7 @@ import { actionIcon } from "@/lib/decision/verdict";
 import { useDecision } from "@/lib/decision/provider";
 import { useHoldings } from "@/lib/portfolio/use-holdings";
 import { computePortfolioHealth } from "@/lib/decision/portfolio-health";
+import { getPrimaryName } from "@/lib/company-name";
 import { RiskPanel, type RiskItem } from "@/components/decision/ds/panels";
 import { PortfolioHealth, AiPerformance, AiAlpha, LearningStatus } from "@/components/decision/ds/insight-panels";
 import { DecisionBar, AccountSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, MarketPanel, FunnelBar,
@@ -28,7 +29,7 @@ const pctv = (v: number | null | undefined) => (v == null ? "—" : `${Math.roun
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
 export default function DecisionOverviewV2() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { overview, loading } = useDecision();
   const { data: pf, history, refresh } = useHoldings();
   const o = overview as any;
@@ -56,6 +57,11 @@ export default function DecisionOverviewV2() {
   const actLabel = (a: string) => t(`dv.act.${a}` as Parameters<typeof t>[0]);
   const cols: ColLabels = { symbol: t("dv.col.symbol"), action: t("dv.col.action"), current: t("dv.col.current"), pnl: t("dv.col.pnl"), change: t("dv.col.change"), entry: t("dv.col.entry"), target: t("dv.col.target"), stop: t("dv.col.stop"), ai: t("dv.col.ai"), detail: t("dv.col.detail") };
 
+  // 名称按 locale 解析（ja→日文原名 name，zh→nameZh）；候选名从 overview.names 映射取，回退行内名。
+  const nameMap: Record<string, { name: string | null; nameZh: string | null }> = o.names ?? {};
+  const dispName = (symbol: string, fallbackName?: string | null, nameZh?: string | null) =>
+    getPrimaryName({ name: nameMap[symbol]?.name ?? fallbackName ?? symbol, nameZh: nameMap[symbol]?.nameZh ?? nameZh ?? null }, lang);
+
   // ① 今日决策条
   const bar = {
     icon: actionIcon(gd.action), actionLabel: gd.headlineKey ? t(gd.headlineKey as Parameters<typeof t>[0]) : "—",
@@ -74,7 +80,7 @@ export default function DecisionOverviewV2() {
   const userHoldings: any[] = pf?.holdings ?? [];
   const userHoldMap = new Map<string, any>(userHoldings.map((h) => [h.symbol, h]));
   const holdRows: HoldRow[] = userHoldings.map((h) => ({
-    symbol: h.symbol, name: h.name, action: h.action, actionLabel: actLabel(h.action),
+    symbol: h.symbol, name: dispName(h.symbol, h.name, h.nameZh), action: h.action, actionLabel: actLabel(h.action),
     pnl: fmtPct(h.returnPct), pnlTone: (h.returnPct ?? 0) < 0 ? "red" : "green",
     current: fmtJpy(h.currentPrice), cost: fmtJpy(h.avgCost), shares: String(h.shares), target: fmtJpy(h.target), stop: fmtJpy(h.stop), ai: h.ai ?? null,
   }));
@@ -86,7 +92,7 @@ export default function DecisionOverviewV2() {
       rank: (d.runtimeRank ?? d.universeRank) != null ? String(d.runtimeRank ?? d.universeRank) : "—",
       rankDelta: d.isNew ? t("dv.rt.new") : rc != null && rc > 0 ? `↑${rc}` : rc != null && rc < 0 ? `↓${Math.abs(rc)}` : undefined,
       deltaTone: d.isNew ? "amber" : rc != null && rc > 0 ? "green" : rc != null && rc < 0 ? "red" : undefined,
-      symbol: d.symbol, name: d.name, ai: d.aiScore ?? null, action: d.action, actionLabel: actLabel(d.action),
+      symbol: d.symbol, name: dispName(d.symbol, d.name), ai: d.aiScore ?? null, action: d.action, actionLabel: actLabel(d.action),
       price: fmtJpy(d.currentPrice), changePct: fmtPct(d.changePct), changeTone: (d.changePct ?? 0) > 0 ? "green" : (d.changePct ?? 0) < 0 ? "red" : "neutral",
       entry: d.buyRangeLow != null && d.buyRangeHigh != null ? `${fmtJpy(d.buyRangeLow)}~${fmtJpy(d.buyRangeHigh)}` : "—",
       target: fmtJpy(d.targetPrice1), stop: fmtJpy(d.stopLossPrice),
@@ -97,15 +103,15 @@ export default function DecisionOverviewV2() {
   // 打开 AI Research Report（任意股票：持仓/推荐/搜索。数据由报告内 intelligence 拉取）
   const openDetail = (sym: string, nameHint?: string) => {
     const h = userHoldMap.get(sym); const d = pickMap.get(sym);
-    setDetail({ symbol: sym, name: nameHint ?? h?.name ?? d?.name ?? sym, action: h?.action ?? d?.action ?? null, currentPrice: h?.currentPrice ?? d?.currentPrice ?? null, held: h ?? null });
+    setDetail({ symbol: sym, name: dispName(sym, nameHint ?? h?.name ?? d?.name, h?.nameZh), action: h?.action ?? d?.action ?? null, currentPrice: h?.currentPrice ?? d?.currentPrice ?? null, held: h ?? null });
   };
 
   // Portfolio 操作
   const priceOf = (sym: string) => userHoldMap.get(sym)?.currentPrice ?? pickMap.get(sym)?.currentPrice ?? null;
-  const nameOf = (sym: string) => userHoldMap.get(sym)?.name ?? pickMap.get(sym)?.name ?? sym;
+  const nameOf = (sym: string) => dispName(sym, userHoldMap.get(sym)?.name ?? pickMap.get(sym)?.name, userHoldMap.get(sym)?.nameZh);
   const onAdd = (sym: string) => setDlg({ mode: "buy", symbol: sym, name: detail?.symbol === sym ? detail.name : nameOf(sym), price: (detail?.symbol === sym ? detail.currentPrice : priceOf(sym)) ?? null });
-  const onSell = (sym: string) => { const h = userHoldMap.get(sym); if (h) setDlg({ mode: "sell", symbol: sym, name: h.name, shares: h.shares, price: h.currentPrice }); };
-  const onEdit = (sym: string) => { const h = userHoldMap.get(sym); if (h) setDlg({ mode: "edit", symbol: sym, name: h.name, avgCost: h.avgCost, shares: h.shares, note: h.note }); };
+  const onSell = (sym: string) => { const h = userHoldMap.get(sym); if (h) setDlg({ mode: "sell", symbol: sym, name: dispName(sym, h.name, h.nameZh), shares: h.shares, price: h.currentPrice }); };
+  const onEdit = (sym: string) => { const h = userHoldMap.get(sym); if (h) setDlg({ mode: "edit", symbol: sym, name: dispName(sym, h.name, h.nameZh), avgCost: h.avgCost, shares: h.shares, note: h.note }); };
   const onDelete = async (sym: string) => { if (!window.confirm(t("dv.pf.deleteConfirm"))) return; await fetch(`/api/holdings/${encodeURIComponent(sym)}`, { method: "DELETE" }); refresh(); };
   const dlgDone = () => { setDlg(null); refresh(); };
 
@@ -165,7 +171,7 @@ export default function DecisionOverviewV2() {
 
   // ⑧ 历史
   const histRows: HistoryRow[] = (history?.history ?? []).map((h: any) => ({
-    symbol: h.symbol, name: h.name, sellDate: h.sellDate, returnPct: fmtPct(h.returnPct), retTone: (h.returnPct ?? 0) < 0 ? "red" : "green",
+    symbol: h.symbol, name: dispName(h.symbol, h.name), sellDate: h.sellDate, returnPct: fmtPct(h.returnPct), retTone: (h.returnPct ?? 0) < 0 ? "red" : "green",
     pnl: h.realizedPnl != null ? fmtJpy(h.realizedPnl) : "—", days: h.holdingDays != null ? `${h.holdingDays}d` : "—",
     reason: h.reason ? t(`dv.pf.r.${h.reason}` as Parameters<typeof t>[0]) : "—", beatTopix: h.beatTopix, beatNikkei: h.beatNikkei,
   }));

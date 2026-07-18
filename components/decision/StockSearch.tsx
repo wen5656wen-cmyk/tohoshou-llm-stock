@@ -7,10 +7,12 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { COLORS } from "@/components/ui";
 import { fmtJpy, fmtPct } from "@/lib/decision/ds";
+import { getPrimaryName } from "@/lib/company-name";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symbol: string, name: string) => void; focusSignal?: number }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const disp = (r: any) => getPrimaryName({ name: r?.name ?? r?.symbol, nameZh: r?.nameZh ?? null }, lang);
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -44,7 +46,7 @@ export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symb
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const pick = (r: any) => { if (!r) return; onPick(r.symbol, r.nameZh || r.name || r.symbol); setQ(""); setRows([]); setOpen(false); };
+  const pick = (r: any) => { if (!r) return; onPick(r.symbol, disp(r)); setQ(""); setRows([]); setOpen(false); };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") { setOpen(false); (e.target as HTMLInputElement).blur(); return; }
     if (!open || !rows.length) return;
@@ -71,7 +73,7 @@ export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symb
               style={{ padding: "8px 12px", background: i === sel ? "#F1F6FF" : "#fff", borderBottom: `1px solid ${COLORS.borderSoft ?? "#F0F0F3"}` }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="tabular-nums" style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>{r.symbol}</div>
-                <div className="truncate" style={{ fontSize: 11, color: COLORS.textFaint }}>{r.nameZh || r.name}</div>
+                <div className="truncate" style={{ fontSize: 11, color: COLORS.textFaint }}>{disp(r)}</div>
               </div>
               <div className="tabular-nums" style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 13, color: COLORS.text }}>{r.price != null ? fmtJpy(r.price) : "—"}</div>
