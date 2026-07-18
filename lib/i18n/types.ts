@@ -213,6 +213,7 @@ export type Messages = {
   // P14-DEV-01 Decision v2（Foundation：工作流子导航 + Context Bar + 壳）
   "dv.title": string; "dv.placeholder": string;
   "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
+  "dv.nav.sectors": string; "dv.nav.industry": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;
   // P14-DEV-02 Decision Overview 模块
@@ -449,6 +450,7 @@ export type Messages = {
   "ws.boss": string;
   "ws.admin": string;
   "ws.research": string;
+  "ws.comingSoon": string;
   "ws.stockCenter": string;
   "ws.strategy": string;
   "ws.myPortfolio": string;

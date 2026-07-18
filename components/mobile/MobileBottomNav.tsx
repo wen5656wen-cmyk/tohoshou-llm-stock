@@ -11,7 +11,7 @@ function BottomNavInner() {
   const pathname = usePathname();
   const tab = useSearchParams().get("tab");
   const { t } = useI18n();
-  const ws = workspaceForPath(pathname);
+  const ws = workspaceForPath(pathname, tab);
   const items = mobileBottomNodes(ws);
   return (
     <div className="flex items-stretch">

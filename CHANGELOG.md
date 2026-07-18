@@ -2,6 +2,26 @@
 
 ---
 
+## [18.12.0] - 2026-07-18 — 🧭 P14-UI-04 Decision-First IA（决策区并入行业分析/产业研究 · 研究/管理暂缓灰显）
+
+**纯导航 IA / 展示层**变更。**未改**任何评分/推荐算法、StockScore、Schema、Cron、交易逻辑、旧 API、页面业务内容。目标 IA 由用户显式给定并授权直接落实现（决策先行，研究/管理暂缓）。
+
+**一、决策工作区 5 → 7 页**（`lib/navigation/nav-config.ts`）：在原 5 页（决策总览/今日策略/AI推荐/模拟持仓/历史决策）后新增 **行业分析**（`/screener?tab=sectors`）与 **产业研究**（`/screener?tab=themes`，即 AI 主题/产业链）两项，复用现有 screener 页面，零新页面。
+
+**二、跨区路由特判（关键）**：`行业分析/产业研究` 的 URL 仍是 `/screener?tab=*`，而 `/screener` 前缀原本整体归属研究区。为避免点进去掉入「已禁用的研究区」导致工作区回跳/高亮错乱，将 `workspaceForPath(pathname, tab?)` 改为 **tab 感知**：`/screener?tab=sectors|themes → boss`，其余 `/screener → research`。因 `usePathname()` 不含 query，4 个调用点（Sidebar / 移动底栏 / 移动抽屉 / `useWorkspace`）统一改为把当前 `?tab` 显式传入。
+
+**三、研究/管理「暂不开发」= 灰显禁用**（`components/navigation/WorkspaceSwitcher.tsx`）：新增单一开关 `ENABLED_WORKSPACES=["boss"]` + `isWorkspaceEnabled()`。切换器保留三段，研究/管理段灰显、`disabled`、`aria-disabled`、`cursor-not-allowed`、`title=暂不开发`、点击 no-op；控件下方统一标注 `ws.comingSoon`。放开某区只需把它加进 `ENABLED_WORKSPACES`（单一来源）。两区页面仍可经直链访问（未删路由）。
+
+**四、Suspense 边界**：`useWorkspace` 现读 `useSearchParams`，故 `WorkspaceSwitcher`（Sidebar + MobileDrawer 两处使用）补 `<Suspense>` 包裹；Sidebar 的工作区标题+一级导航合并进同一 tab 感知的 `NavItems`（置于既有 Suspense 内）。
+
+**五、i18n（三语齐全）**：新增 `dv.nav.sectors`（行业分析/業種分析/Sector Analysis）、`dv.nav.industry`（产业研究/産業研究/Industry Research）、`ws.comingSoon`（研究·管理暂未开放/リサーチ・管理は準備中/Research & Management — coming soon）。
+
+**验收**：tsc **EXIT=0** / `npm run build` **✅ Compiled successfully**（26/26 静态页）/ eslint 干净 / CJK-in-tsx 守卫 0 命中 / 生产 `health:data` **CRITICAL=0**（✅60 ❌0 ⚠️6 既有）/ 部署后 `/decision-v2?tab=overview`·`/screener?tab=sectors`·`/screener?tab=themes` 全 **200**。**部署**：rsync `.next/`+`lib/` → 重启 `tohoshou-web`（restart 390，cron 未改不重启，仍 restart 71 / uptime 8D）。
+
+**遗留/说明**：①移动底栏最多 5 项（`mobileBottomNodes` 取前 5），故行业分析/产业研究在移动端仅出现在抽屉，符合既有设计；②研究区节点（含 rs-sectors/rs-themes）保留未删 → sectors/themes 页在两区导航里各出现一次，但研究区经切换器不可达，无实际重复暴露，且可逆；③Design First 治理下这是按用户授权的功能性 cut-over，绕过了 Design Compare≥90 门禁（Decision Design 仍 86.6 未过，与 P15 Research 放行状态无关）。
+
+---
+
 ## [18.11.0] - 2026-07-18 — 🎯 Decision V2 决策工作台上线 + Sidebar IA v1.0 + Design First 治理
 
 本次为**前端展示层 + 导航 IA**变更，**未改**任何评分/推荐算法、StockScore、Schema、Cron、交易逻辑、旧 API 返回结构。

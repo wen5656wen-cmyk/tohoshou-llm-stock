@@ -6,7 +6,7 @@
 // 不使用数据库、不新增鉴权。
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { workspaceForPath, type Workspace } from "./nav-config";
 
 const KEY = "tohoshou.workspace";
@@ -22,10 +22,15 @@ export function readWorkspace(): Workspace | null {
   } catch { return null; }
 }
 
-/** 当前工作区（由 URL 推导）。副作用：持久化到 localStorage。 */
+/**
+ * 当前工作区（由 URL 推导）。副作用：持久化到 localStorage。
+ * tab 感知：读取 ?tab，使 /screener?tab=sectors|themes 正确归入决策(boss)。
+ * useSearchParams 需 Suspense 边界 —— 调用方（WorkspaceSwitcher）已包在 Suspense 内。
+ */
 export function useWorkspace(): Workspace {
   const pathname = usePathname();
-  const workspace = workspaceForPath(pathname);
+  const tab = useSearchParams().get("tab");
+  const workspace = workspaceForPath(pathname, tab);
   useEffect(() => { persistWorkspace(workspace); }, [workspace]);
   return workspace;
 }

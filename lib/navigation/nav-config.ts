@@ -18,6 +18,10 @@ export type NavIcon = (p: { size?: number; strokeWidth?: number }) => React.Reac
 export type Workspace = "boss" | "admin" | "research";
 // 工作区顺序（P14-UI-03）：决策 → 研究 → 管理
 export const WORKSPACES: Workspace[] = ["boss", "research", "admin"];
+// 已开放工作区（其余在切换器中灰显禁用，标注「暂不开发」）。
+// 目标 IA：决策先行，研究/管理暂缓。放开某区时把它加进这里即可（单一开关）。
+export const ENABLED_WORKSPACES: Workspace[] = ["boss"];
+export const isWorkspaceEnabled = (ws: Workspace): boolean => ENABLED_WORKSPACES.includes(ws);
 
 export type NavNode = {
   key: string;
@@ -45,6 +49,10 @@ export const NAV_NODES: NavNode[] = [
   { key: "dv-picks", workspace: "boss", labelKey: "dv.nav.picks", href: "/decision-v2?tab=recommendations", Icon: Star, glyph: "★" },
   { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑" },
   { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },
+  // 行业分析 / 产业研究：复用 screener 的 sectors/themes 两页，归属决策工作区。
+  // 其 URL 由 workspaceForPath 特判为 boss（见下），以免落入已禁用的研究区。
+  { key: "dv-sectors", workspace: "boss", labelKey: "dv.nav.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },
+  { key: "dv-industry", workspace: "boss", labelKey: "dv.nav.industry", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈" },
 
   // ═══ 研究工作区（Research · 股票研究 Hub + 股票研究五页 /screener?tab=*）═══
   { key: "rs-home", workspace: "research", labelKey: "nav.researchHome", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
@@ -69,9 +77,21 @@ const RESEARCH_PREFIXES = [
 function matchPrefix(p: string, list: string[]): boolean {
   return list.some((x) => p === x || p.startsWith(x + "/") || p.startsWith(x + "?"));
 }
-/** 当前路径归属的工作区。research/admin 前缀命中对应区，其余（含决策/首页/回退壳）归决策(boss)。 */
-export function workspaceForPath(pathname: string | null | undefined): Workspace {
+/** 决策工作区借用 screener 的两个 tab（行业分析=sectors / 产业研究=themes）。 */
+const BOSS_SCREENER_TABS = new Set(["sectors", "themes"]);
+/**
+ * 当前路径归属的工作区。research/admin 前缀命中对应区，其余（含决策/首页/回退壳）归决策(boss)。
+ * tab 感知：/screener?tab=sectors|themes 属决策(boss)，其余 /screener 属研究(research)。
+ * 注：usePathname() 不含 query，故调用方需显式把当前 ?tab 传入才能命中特判。
+ */
+export function workspaceForPath(pathname: string | null | undefined, tab?: string | null): Workspace {
   const p = pathname || "/";
+  const base = p.split("?")[0];
+  if (base === "/screener") {
+    // tab 未传时回退从 pathname 里解析（防御：某些调用方可能带 query）。
+    const t = tab ?? (p.includes("?") ? new URLSearchParams(p.split("?")[1]).get("tab") : null);
+    if (t && BOSS_SCREENER_TABS.has(t)) return "boss";
+  }
   if (matchPrefix(p, RESEARCH_PREFIXES)) return "research";
   if (matchPrefix(p, ADMIN_PREFIXES)) return "admin";
   return "boss";

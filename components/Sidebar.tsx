@@ -14,12 +14,17 @@ import { nodesForWorkspace, workspaceForPath, navItemActive, type NavNode, type 
 const WS_LABEL: Record<Workspace, string> = { boss: "ws.boss", research: "ws.research", admin: "ws.admin" };
 const EYEBROW: React.CSSProperties = { fontSize: 11, letterSpacing: "0.06em", color: "#9CA3AF", fontWeight: 600 };
 
-function NavItems({ ws }: { ws: Workspace }) {
+// 一次性读取 pathname+tab（tab 感知，使 /screener?tab=sectors|themes 归入决策区），
+// 计算当前工作区 → 渲染工作区标题 + 一级导航清单。整体置于 Sidebar 的 Suspense 内。
+function NavItems() {
   const { t } = useI18n();
   const pathname = usePathname();
   const tab = useSearchParams().get("tab");
+  const ws = workspaceForPath(pathname, tab);
   const nodes = nodesForWorkspace(ws);
   return (
+    <>
+    <div className="px-2 pb-2" style={EYEBROW}>{t(WS_LABEL[ws] as Parameters<typeof t>[0]).toUpperCase()}</div>
     <div className="space-y-1">
       {nodes.map((node: NavNode) => {
         const active = navItemActive(node.href, pathname, tab);
@@ -46,13 +51,12 @@ function NavItems({ ws }: { ws: Workspace }) {
         );
       })}
     </div>
+    </>
   );
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
   const { t } = useI18n();
-  const ws = workspaceForPath(pathname);
 
   return (
     <aside className="hidden md:flex fixed left-0 top-0 h-full flex-col z-40 dash-font" style={{ width: 240, background: "#FFFFFF", borderRight: "1px solid #ECECEC" }}>
@@ -72,14 +76,15 @@ export default function Sidebar() {
       {/* ── 工作区切换 ── */}
       <div className="px-4 pt-4 pb-1">
         <div className="px-1 pb-2" style={EYEBROW}>{t("nav.workspace").toUpperCase()}</div>
-        <WorkspaceSwitcher />
+        <Suspense fallback={<div style={{ height: 40 }} />}>
+          <WorkspaceSwitcher />
+        </Suspense>
       </div>
 
-      {/* ── 当前工作区一级导航（组标题 = 工作区名）── */}
+      {/* ── 当前工作区一级导航（组标题 = 工作区名，随工作区在 NavItems 内渲染）── */}
       <nav className="flex-1 px-3 pt-3 overflow-y-auto">
-        <div className="px-2 pb-2" style={EYEBROW}>{t(WS_LABEL[ws] as Parameters<typeof t>[0]).toUpperCase()}</div>
         <Suspense fallback={<div style={{ height: 46 }} />}>
-          <NavItems ws={ws} />
+          <NavItems />
         </Suspense>
       </nav>
 

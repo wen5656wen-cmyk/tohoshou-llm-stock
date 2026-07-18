@@ -13,7 +13,7 @@ function DrawerItems({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const pathname = usePathname();
   const tab = useSearchParams().get("tab");
-  const ws = workspaceForPath(pathname);
+  const ws = workspaceForPath(pathname, tab);
   return (
     <>
       {nodesForWorkspace(ws).map((node) => {
@@ -75,7 +75,9 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
 
         {/* 工作区切换器 */}
         <div className="px-3 pt-3 shrink-0">
-          <WorkspaceSwitcher dark />
+          <Suspense fallback={<div style={{ height: 40 }} />}>
+            <WorkspaceSwitcher dark />
+          </Suspense>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
