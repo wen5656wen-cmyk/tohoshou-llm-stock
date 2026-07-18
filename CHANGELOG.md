@@ -2,6 +2,26 @@
 
 ---
 
+## [18.19.0] - 2026-07-18 — 📑 P16-03 AI Research Report Polish + Portfolio Summary 重构（纯 UI）
+
+纯 UI 重构，**未新增** API/Schema/数据源/算法/评分/按钮/Tab/流程；**未改** Decision Engine/Runtime Ranking/Portfolio 逻辑/现有 API 契约。全部由现有数据(intelligence/holdings/history)**实时聚合**。
+
+**一、AI Research Report → 真正的研究报告（结论→理由→数据→证据）**：
+- **第一页「AI观点」**(取代"为什么X"标题+数字堆叠)：**建议[动作]大字** + 自然语言结论 + **优势✓/风险△**(由 5 维评分+风控派生为句子) + **AI总结**(按动作，如 WAIT「现在不是不能买，而是等待更好的买点」)。**第一页禁一切数字/开发者字段**——`clean()` 升级剥除 `技术面23/30`维度数字、`（61分）`、`adaptiveScore=`、`[source_tag]`。
+- **核心决策 2×4**：数字统一(目标/止损/AI信心 中性色，仅上涨绿/下跌红)。
+- **图表压缩** 280→200px。
+- **技术状态**：每项「状态+数值+一句解释」(趋势/MA/RSI/MACD/成交量)。
+- **AI判断依据**：5 维水平条统一(≥70 绿/45–70 蓝/<45 橙)。
+- **新闻**：AI 判断优先(无新闻→「近30天暂无重大新闻，市场情绪中性，无明显利空」)再列表。
+- **基本面**：最近一期概览(营收/净利/EPS/ROE)+「查看更多财务」折叠，不默认长表/陈旧年度。
+- 阅读节奏：AI观点→核心决策→走势→技术→评分→新闻→基本面→决策记录，单页滚动无 Tab。
+
+**二、Portfolio Summary → 三层账户概览 `AccountSummary`**(取代 5 项平铺)：**第一层**核心大数字(总资产/今日盈亏±/累计浮盈±，24px)；**第二层**指标(持仓/仓位/现金/胜率/累计收益/跑赢TOPIX)；**第三层**AI动作统计(建仓/等待/持有/减仓/止盈/止损，可点击滚动)。全部页面刷新时实时聚合 user_holdings+user_trades+cash+realtime quote，**不存重复统计字段**(alpha=已实现 avg(收益−TOPIX基准)，胜率/累计收益取自 /api/holdings/history)。参考 SBI/IBKR 证券账户。i18n 三语 +48 键(dv.acc.*/dv.rr.*)。
+
+**验收**：tsc0/build✅/eslint净/CJK守卫0/health CRITICAL=0。**Playwright 真实截图**：账户概览三层、报告 AI观点首页(维度数字已清除，优势✓技术面强势/风险△大盘承压/AI总结)。9984.T 非推荐股开报告正常。部署 rsync .next+lib 重启 web(无 schema/cron/API 改动)。
+
+---
+
 ## [18.18.2] - 2026-07-18 — 🩹 当前持有：加入按钮聚焦搜索 + 标出取得价格（纯 UI）
 
 - **「+加入」按钮修复**：原仅 `window.scrollTo` 不聚焦(感觉无效) → 改为向 `StockSearch` 递增 `focusSignal`，点击后**真正聚焦顶部搜索框**并居中滚入(实测 activeElement=搜索输入)。

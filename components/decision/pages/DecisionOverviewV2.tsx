@@ -14,7 +14,7 @@ import { actionIcon } from "@/lib/decision/verdict";
 import { useDecision } from "@/lib/decision/provider";
 import { useHoldings } from "@/lib/portfolio/use-holdings";
 import { RiskPanel, type RiskItem } from "@/components/decision/ds/panels";
-import { DecisionBar, PortfolioSummaryBar, ActionSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, MarketPanel, FunnelBar,
+import { DecisionBar, AccountSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, MarketPanel, FunnelBar,
   type HoldRow, type PickRow, type ColLabels, type HistoryRow } from "@/components/decision/ds/overview-panels";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
 import StockSearch from "@/components/decision/StockSearch";
@@ -99,27 +99,39 @@ export default function DecisionOverviewV2() {
   const onDelete = async (sym: string) => { if (!window.confirm(t("dv.pf.deleteConfirm"))) return; await fetch(`/api/holdings/${encodeURIComponent(sym)}`, { method: "DELETE" }); refresh(); };
   const dlgDone = () => { setDlg(null); refresh(); };
 
-  // ⑮ 组合摘要
+  // ⑮ 账户概览（三层，实时聚合 user_holdings + user_trades + cash + realtime quote）
   const sum = pf?.summary;
-  const summaryItems = sum ? [
+  const closedTrades: any[] = history?.history ?? [];
+  const withBench = closedTrades.filter((x) => x.returnPct != null && x.benchTopixPct != null);
+  const alpha = withBench.length ? withBench.reduce((a, x) => a + (x.returnPct - x.benchTopixPct), 0) / withBench.length : null;
+  const winRate = history?.summary?.winRate ?? null;
+  const realizedTotal = history?.summary?.realizedTotal ?? null;
+  const sJpy = (v: number | null | undefined) => (v == null ? "—" : `${v >= 0 ? "+" : "−"}${fmtJpy(Math.abs(v))}`);
+  const accLayer1 = sum ? [
+    { label: t("dv.acc.totalEquity"), value: fmtJpy(sum.equity) },
+    { label: t("dv.acc.today"), value: sJpy(sum.todayPnl), sub: sum.todayPct != null ? fmtPct(sum.todayPct) : undefined, subTone: ((sum.todayPnl ?? 0) < 0 ? "red" : "green") as Tone },
+    { label: t("dv.acc.unrealized"), value: sJpy(sum.unrealizedPnl), sub: sum.unrealizedPct != null ? fmtPct(sum.unrealizedPct) : undefined, subTone: ((sum.unrealizedPnl ?? 0) < 0 ? "red" : "green") as Tone },
+  ] : [];
+  const accLayer2 = sum ? [
     { label: t("dv.pf.sumHoldings"), value: String(sum.count) },
-    { label: t("dv.pf.sumUnrealized"), value: sum.unrealizedPct != null ? fmtPct(sum.unrealizedPct) : "—", tone: (sum.unrealizedPnl ?? 0) < 0 ? "red" as Tone : "green" as Tone },
-    { label: t("dv.pf.sumToday"), value: sum.todayPct != null ? fmtPct(sum.todayPct) : "—", tone: (sum.todayPnl ?? 0) < 0 ? "red" as Tone : "green" as Tone },
     { label: t("dv.pf.sumPosition"), value: pctv(sum.positionPct) },
     { label: t("dv.pf.sumCash"), value: pctv(sum.cashPct) },
+    { label: t("dv.acc.winRate"), value: winRate != null ? `${Math.round(winRate)}%` : "—" },
+    { label: t("dv.acc.realized"), value: sJpy(realizedTotal), tone: ((realizedTotal ?? 0) < 0 ? "red" : "green") as Tone },
+    { label: t("dv.acc.alpha"), value: alpha != null ? fmtPct(alpha) : "—", tone: ((alpha ?? 0) < 0 ? "red" : "green") as Tone },
   ] : [];
 
-  // ⑪ 今日行动摘要
+  // 第三层 AI 动作统计（BUY/WAIT=市场机会，HOLD/REDUCE/TP/SL=我的持仓）
   const hc = (a: string) => userHoldings.filter((h) => h.action === a).length;
   const actionItems = [
-    { action: "BUY", label: t("dv.rate.buy"), count: exec.length },
-    { action: "WAIT", label: t("dv.rate.wait"), count: wait.length },
-    { action: "HOLD", label: t("dv.rate.watch"), count: watch.length },
-    { action: "STOP_LOSS", label: actLabel("STOP_LOSS"), count: hc("STOP_LOSS") },
+    { action: "BUY", label: actLabel("BUY"), count: exec.length },
+    { action: "WAIT", label: actLabel("WAIT"), count: wait.length },
+    { action: "HOLD", label: actLabel("HOLD"), count: hc("HOLD") + hc("ADD") },
     { action: "REDUCE", label: actLabel("REDUCE"), count: hc("REDUCE") },
     { action: "TAKE_PROFIT", label: actLabel("TAKE_PROFIT"), count: hc("TAKE_PROFIT") },
+    { action: "STOP_LOSS", label: actLabel("STOP_LOSS"), count: hc("STOP_LOSS") },
   ];
-  const onActionClick = (a: string) => scrollTo(a === "BUY" ? "sec-exec" : a === "WAIT" ? "sec-wait" : a === "HOLD" ? "sec-watch" : "sec-holdings");
+  const onActionClick = (a: string) => scrollTo(a === "BUY" ? "sec-exec" : a === "WAIT" ? "sec-wait" : "sec-holdings");
 
   // 右栏 · 市场概况（层级化：TOPIX/Nikkei 主 → 趋势 → USD/JPY·VIX·NASDAQ 辅）
   const mkPrimary = [
@@ -172,9 +184,8 @@ export default function DecisionOverviewV2() {
         </div>
       </div>
 
-      {summaryItems.length > 0 && <PortfolioSummaryBar items={summaryItems} />}
+      {accLayer1.length > 0 && <AccountSummary layer1={accLayer1} layer2={accLayer2} layer3Label={t("dv.acc.aiActions")} actions={actionItems} onAction={onActionClick} />}
       <DecisionBar {...bar} />
-      <ActionSummary title={t("dv.pf.actionSummary")} items={actionItems} onClick={onActionClick} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-9 space-y-3 min-w-0">
           <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={{ action: cols.action, current: cols.current, cost: t("dv.pf.avgCost"), shares: t("dv.pf.shares"), pnl: cols.pnl, target: cols.target, stop: cols.stop }} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} addLabel={t("dv.pf.btnAdd")} onAddClick={focusSearch} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
