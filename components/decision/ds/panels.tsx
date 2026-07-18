@@ -140,10 +140,10 @@ export function OpportunityRadar(p: { cats: RadarCat[] }) {
 
 // ── 5. RiskPanel（综合=后端口径，不前端平均 · 数据完整性真实反映）──
 export type RiskItem = { labelKey: string; level: string; tone: Tone; note?: string };
-export function RiskPanel(p: { items: RiskItem[]; overall: string; overallTone: Tone }) {
+export function RiskPanel(p: { items: RiskItem[]; overall: string; overallTone: Tone; titleKey?: string }) {
   const { t } = useI18n();
   return (
-    <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.ov.risk")}</span><AppBadge tone={p.overallTone}>{t("dv.ov.rk.overall")} {p.overall}</AppBadge></div>}>
+    <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t((p.titleKey ?? "dv.ov.risk") as Parameters<typeof t>[0])}</span><AppBadge tone={p.overallTone}>{t("dv.ov.rk.overall")} {p.overall}</AppBadge></div>}>
       <div className="space-y-1">
         {p.items.map((r) => (
           <div key={r.labelKey} className="flex items-center justify-between gap-2 text-[12px] py-0.5">

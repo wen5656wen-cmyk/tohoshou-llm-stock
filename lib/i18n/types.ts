@@ -227,6 +227,16 @@ export type Messages = {
   "dv.ov.confTip": string; "dv.ov.probNA": string;
   "dv.foot.normal": string; "dv.foot.delay": string; "dv.foot.error": string;
   "dv.foot.quote": string; "dv.foot.news": string; "dv.foot.score": string; "dv.foot.engine": string; "dv.foot.lastTask": string;
+  // P14-DEV-03 Today's Strategy
+  "dv.st.summary": string; "dv.st.strategyLabel": string;
+  "dv.st.timeline": string; "dv.st.timelineNote": string; "dv.st.pending": string; "dv.st.generated": string;
+  "dv.st.past": string; "dv.st.upcoming": string; "dv.st.aiAdvice": string; "dv.st.action": string; "dv.st.done": string;
+  "dv.st.p1": string; "dv.st.p2": string; "dv.st.p3": string; "dv.st.p4": string; "dv.st.p5": string; "dv.st.p6": string; "dv.st.p7": string; "dv.st.p8": string;
+  "dv.st.playbook": string; "dv.st.pb.breakout": string; "dv.st.pb.pullback": string; "dv.st.pb.hot": string; "dv.st.pb.news": string; "dv.st.pb.trend": string;
+  "dv.st.sector": string; "dv.st.col.heat": string; "dv.st.col.perf": string; "dv.st.col.trend": string; "dv.st.researchSoon": string;
+  "dv.st.rkChecklist": string; "dv.st.rk.policy": string; "dv.st.rk.model": string;
+  "dv.st.closing": string; "dv.st.closingNote": string;
+  "dv.st.notes": string; "dv.st.dataLimit": string; "dv.st.limitList": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;
