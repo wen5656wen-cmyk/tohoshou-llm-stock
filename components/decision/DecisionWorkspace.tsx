@@ -9,7 +9,9 @@ import { useI18n } from "@/lib/i18n";
 import { AppHeader, COLORS } from "@/components/ui";
 import { DecisionProvider } from "@/lib/decision/provider";
 import DecisionContextBar from "@/components/decision/ds/ContextBar";
+import SystemStatusFooter from "@/components/decision/ds/SystemStatusFooter";
 import { SubNav, DECISION_TABS } from "@/components/decision/ds/SubNav";
+import DecisionOverviewV2 from "@/components/decision/pages/DecisionOverviewV2";
 
 const VALID = new Set<string>(DECISION_TABS.map((t) => t.key));
 
@@ -38,15 +40,10 @@ function Shell() {
         </div>
         <SubNav active={active} />
         <div className="pb-8">
-          <Placeholder tab={active} />
+          {active === "overview" ? <DecisionOverviewV2 /> : <Placeholder tab={active} />}
         </div>
-        {/* ⑧ Footer 系统状态条（DEV-01 占位，DEV-07 Integration 接真实状态） */}
-        <div className="sticky bottom-0 z-20" style={{ background: COLORS.card, borderTop: `1px solid ${COLORS.border}` }}>
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-8 flex items-center gap-4 text-[11px]" style={{ color: COLORS.textFaint }}>
-            <span>{t("dv.footer.data")} · {t("dv.footer.cron")} · {t("dv.footer.ai")} · {t("dv.footer.health")}</span>
-            <span className="ml-auto">/decision-v2 · preview</span>
-          </div>
-        </div>
+        {/* ⑧ Footer 系统状态条（真实状态，老板视角） */}
+        <SystemStatusFooter />
       </DecisionProvider>
     </div>
   );

@@ -215,6 +215,18 @@ export type Messages = {
   "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;
+  // P14-DEV-02 Decision Overview 模块
+  "dv.ov.summary": string; "dv.ov.winRate": string; "dv.ov.dataTime": string; "dv.ov.goStrategy": string;
+  "dv.ov.market": string; "dv.ov.trend": string; "dv.ov.breadth": string; "dv.ov.vol": string;
+  "dv.ov.picks": string; "dv.ov.viewAll": string;
+  "dv.ov.radar": string; "dv.ov.rad.breakout": string; "dv.ov.rad.pullback": string; "dv.ov.rad.volume": string;
+  "dv.ov.rad.hot": string; "dv.ov.rad.news": string; "dv.ov.rad.flow": string; "dv.ov.noSignal": string; "dv.ov.avgScore": string;
+  "dv.ov.risk": string; "dv.ov.rk.index": string; "dv.ov.rk.sector": string; "dv.ov.rk.vol": string;
+  "dv.ov.rk.news": string; "dv.ov.rk.fx": string; "dv.ov.rk.data": string; "dv.ov.rk.overall": string;
+  "dv.ov.news": string; "dv.ov.catalyst": string; "dv.ov.stale": string; "dv.ov.emptyNews": string; "dv.ov.emptyCat": string;
+  "dv.ov.confTip": string; "dv.ov.probNA": string;
+  "dv.foot.normal": string; "dv.foot.delay": string; "dv.foot.error": string;
+  "dv.foot.quote": string; "dv.foot.news": string; "dv.foot.score": string; "dv.foot.engine": string; "dv.foot.lastTask": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;
