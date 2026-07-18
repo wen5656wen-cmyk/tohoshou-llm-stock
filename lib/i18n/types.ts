@@ -214,6 +214,16 @@ export type Messages = {
   "dv.title": string; "dv.placeholder": string;
   "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
   "dv.nav.sectors": string; "dv.nav.industry": string;
+  // P15-01B Decision Overview V1 — 9 态动作 / 指令 / 触发 / 持仓 / 阶段 / 新鲜度 / 分组 / 个股
+  "dv.act.BUY": string; "dv.act.ADD": string; "dv.act.HOLD": string; "dv.act.WAIT": string; "dv.act.REDUCE": string; "dv.act.TAKE_PROFIT": string; "dv.act.STOP_LOSS": string; "dv.act.CASH": string; "dv.act.NO_TRADE": string;
+  "dv.instr.BUY": string; "dv.instr.ADD": string; "dv.instr.HOLD": string; "dv.instr.WAIT": string; "dv.instr.REDUCE": string; "dv.instr.TAKE_PROFIT": string; "dv.instr.STOP_LOSS": string; "dv.instr.CASH": string; "dv.instr.NO_TRADE": string;
+  "dv.trig.inZone": string; "dv.trig.belowZone": string; "dv.trig.aboveZone": string; "dv.trig.reachedTarget": string; "dv.trig.belowStop": string; "dv.trig.waitQuote": string; "dv.trig.noZone": string; "dv.trig.bearHold": string;
+  "dv.hold.rk.stop": string; "dv.hold.rk.reduce": string; "dv.hold.rk.tp": string; "dv.hold.rk.hold": string;
+  "dv.phase.PRE_OPEN": string; "dv.phase.OPEN_CONFIRM": string; "dv.phase.MORNING": string; "dv.phase.MIDDAY": string; "dv.phase.AFTERNOON": string; "dv.phase.LATE_SESSION": string; "dv.phase.POST_CLOSE": string; "dv.phase.NON_TRADING": string;
+  "dv.ov2.title": string; "dv.ov2.actionTitle": string; "dv.ov2.totalPos": string; "dv.ov2.addPos": string; "dv.ov2.maxSingle": string; "dv.ov2.phaseLabel": string; "dv.ov2.blocked": string; "dv.ov2.stale": string; "dv.ov2.closed": string; "dv.ov2.executable": string; "dv.ov2.notExec": string; "dv.ov2.refPrice": string; "dv.ov2.funnelTitle": string; "dv.ov2.universe": string; "dv.ov2.tradable": string; "dv.ov2.candidates": string; "dv.ov2.shown": string; "dv.ov2.holdTitle": string; "dv.ov2.holdEmpty": string; "dv.ov2.sellPct": string; "dv.ov2.marketOk": string; "dv.ov2.marketClosed": string; "dv.ov2.nextDay": string;
+  "dv.fresh.title": string; "dv.fresh.quote": string; "dv.fresh.ranking": string; "dv.fresh.decision": string; "dv.fresh.holdings": string; "dv.fresh.validUntil": string; "dv.fresh.next": string; "dv.fresh.realtime": string; "dv.fresh.eod": string;
+  "dv.grp.executeNow": string; "dv.grp.waitList": string; "dv.grp.backups": string;
+  "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;
   // P14-DEV-02 Decision Overview 模块

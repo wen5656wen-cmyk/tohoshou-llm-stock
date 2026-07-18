@@ -21,6 +21,9 @@ export interface MarketData {
   market?: { regime?: string | null; riskLevel?: string | null; volatility?: number | null; topix?: number | null; topixChange?: number | null; nikkei?: number | null; nikkeiChange?: number | null } | null;
 }
 export interface ThemeData { stocks?: { symbol: string; theme: string; return5d: number | null; return20d?: number | null; scored: boolean }[]; themes?: { theme: string }[] }
+// P15-01B：决策总览唯一聚合入口（/api/admin/decision-overview）。字段以 API 返回为准，
+// 页面细化。松类型 —— 仅决策总览页消费，其它四页仍用 closing/market/themes。
+export type OverviewData = Record<string, unknown> & { ok?: boolean; empty?: boolean };
 
 interface DecisionContextValue {
   date: string | null;
@@ -28,6 +31,7 @@ interface DecisionContextValue {
   closing: ClosingData | null;
   market: MarketData | null;
   themes: ThemeData | null;
+  overview: OverviewData | null;
   loading: boolean;
   error: string | null;
   lastUpdated: string | null;
@@ -35,7 +39,7 @@ interface DecisionContextValue {
 }
 
 const Ctx = createContext<DecisionContextValue>({
-  date: null, setDate: () => {}, closing: null, market: null, themes: null,
+  date: null, setDate: () => {}, closing: null, market: null, themes: null, overview: null,
   loading: true, error: null, lastUpdated: null, refresh: () => {},
 });
 
@@ -44,6 +48,7 @@ export function DecisionProvider({ initialDate, children }: { initialDate?: stri
   const [closing, setClosing] = useState<ClosingData | null>(null);
   const [market, setMarket] = useState<MarketData | null>(null);
   const [themes, setThemes] = useState<ThemeData | null>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -60,14 +65,15 @@ export function DecisionProvider({ initialDate, children }: { initialDate?: stri
       setLoading(true); setError(null);
       const q = date ? `?date=${encodeURIComponent(date)}` : "";
       try {
-        const [cj, mj, tj] = await Promise.all([
+        const [cj, mj, tj, oj] = await Promise.all([
           get(`/api/admin/closing-decision${q}`),
           get(`/api/admin/decision-center`),
           get(`/api/ai-theme`),
+          get(`/api/admin/decision-overview${q}`),
         ]);
         if (!alive) return;
         setClosing(cj && !cj.empty ? cj : (cj ?? null));
-        setMarket(mj); setThemes(tj);
+        setMarket(mj); setThemes(tj); setOverview(oj);
         setLastUpdated(new Date().toISOString());
       } catch (e) { if (alive) setError(e instanceof Error ? e.message : "load failed"); }
       finally { if (alive) setLoading(false); }
@@ -76,7 +82,7 @@ export function DecisionProvider({ initialDate, children }: { initialDate?: stri
   }, [date, nonce]);
 
   return (
-    <Ctx.Provider value={{ date, setDate, closing, market, themes, loading, error, lastUpdated, refresh }}>
+    <Ctx.Provider value={{ date, setDate, closing, market, themes, overview, loading, error, lastUpdated, refresh }}>
       {children}
     </Ctx.Provider>
   );

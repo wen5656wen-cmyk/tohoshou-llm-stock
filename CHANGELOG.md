@@ -2,6 +2,30 @@
 
 ---
 
+## [18.13.0] - 2026-07-18 — 🧠 P15-01B Decision Overview V1（实时决策引擎 + 聚合 API + 首屏重构）
+
+按 P15-01A Technical Design（PASS/Freeze）实现「决策总览 = 打开即知此刻该 BUY/WAIT/HOLD/ADD/REDUCE/TAKE_PROFIT/STOP_LOSS/CASH」。核心原则：**实时刷新的是 Decision，不是 Score** —— StockScore/ClosingDecision 只读、不重算、不调 GPT、零新 Schema/Cron。
+
+**一、Decision Engine（新 `lib/decision-engine/`，纯函数，L5 单点）**：`types` · `phase`(8 态 marketPhase8 + 下一交易日/下一次决策) · `stock-decision`(复用 `deriveLiveStatus`，实时价 vs 买区/目标/止损 → 9 态动作 + 三组) · `holdings-decision`(6 档 + 优先级 止损→风险减仓→止盈→持有，止损止盈基准改为**策略级%基于建仓价**，修正 P0-4) · `global-decision`(全局唯一决策 + 冲突消解：持仓需卖→禁扩仓、BEAR/STAY_CASH→不建仓、HIGH→禁 ADD、stale/休市→不可执行) · `freshness`(6 时间戳分离 + stale 判定)。9 态动作 SSOT 扩在 `lib/decision/verdict.ts`（`DECISION_ACTION_META`），不新建枚举。
+
+**二、聚合 API（新 `GET /api/admin/decision-overview`，组合层，只读）**：只读 ClosingDecision(15:15 快照)+MarketRegime+GlobalMarket+PaperBroker 持仓+News，**仅对当前展示标的(top10+持仓)补实时价**(`fetchQuotesBatch`，1.5s 超时回退 EOD)，调引擎派生 `globalDecision/holdingsActions/executeNow/waitList/backups/marketContext/risks/freshness/top200Summary`。**未引 feature-platform**（性能护栏），`Cache-Control: s-maxage=30`。
+
+**三、DecisionProvider 收敛**：新增 `overview` 唯一聚合入口（决策总览页只读它，删除页内 market-data/news/disclosures 三处散拉）。
+
+**四、首屏重构（`DecisionOverviewV2` 全面重写）**：行动优先 —— ①全宽「AI 当前实时决策」卡(9 态动作+一句话指令+总仓位/新增/单股上限+风险/信心/阶段+决策/有效至/下次) ②需立即处理的持仓(止损/减仓置顶) ③左 2/3 三组(立即执行/等待条件/备用替补) · 右 1/3 市场/风险/新鲜度/新闻(降为第二层，指数卡不再当主角) ④Top200 漏斗。新增哑组件 `components/decision/ds/overview-panels.tsx`。
+
+**五、Header 紧凑化**：`DecisionWorkspace` 删除旧 `AppHeader` 大卡与大留白 → 紧凑 Header（当前 tab 标题 + JST 时钟 + 行情状态徽章，≈60px）。
+
+**六、i18n**：三语新增 80 键（`dv.act.*` 9 态 / `dv.instr.*` 指令 / `dv.trig.*` 触发 / `dv.hold.rk.*` / `dv.phase.*` 8 阶段 / `dv.ov2.*` / `dv.fresh.*` / `dv.grp.*` / `dv.stk.*`），无硬编码 CJK UI 串。
+
+**未改**：评分算法/StockScore/ClosingDecision 生成器/GPT/三策略/资金链/Schema/Cron/Sidebar IA/其它页面。**未做** DecisionSnapshot 表与盘中 cron（属 P15-01C/D/H，本轮零 Schema/零 Cron/零新 AI）。
+
+**验收**：tsc0 / build ✅ / eslint 干净 / 生产 health CRITICAL=0(✅60❌0⚠️6) / 部署后 `/decision-v2?tab=overview` 200、`/api/admin/decision-overview` 实测 `ok=true`：周六正确判 `NON_TRADING→NO_TRADE`、`blocked=closed`、`validUntil/next=2026-07-21 15:15`(正确跳过周日+07-20 海の日)、持仓 6 档动作(STOP_LOSS/REDUCE/TAKE_PROFIT 按优先级)、三组 0/4/3(BEAR→WAIT)、`quoteSource=realtime`、`stale=false`、totalPos=15(BEAR 基准)。**API 延迟 0.1–0.27s（<2s 达标）**。**部署**：rsync `.next/`+`lib/` → 重启 web（cron 未改不重启，仍 restart 71 / 8D）。
+
+**已知/遗留（非本轮）**：previousRank/suggestedPositionPct v1 为 null（诚实降级，待 P15-01D 盘中重排补）；盘中分时决策/DecisionSnapshot 历史属 P15-01C/D/H；催化剂 catLabel 用 category 原码（避免 CJK 硬编码）。
+
+---
+
 ## [18.12.0] - 2026-07-18 — 🧭 P14-UI-04 Decision-First IA（决策区并入行业分析/产业研究 · 研究/管理暂缓灰显）
 
 **纯导航 IA / 展示层**变更。**未改**任何评分/推荐算法、StockScore、Schema、Cron、交易逻辑、旧 API、页面业务内容。目标 IA 由用户显式给定并授权直接落实现（决策先行，研究/管理暂缓）。
