@@ -114,6 +114,7 @@
     "test:institution-features": "npx tsx scripts/test-institution-features.ts",
     "test:feature-validation": "npx tsx scripts/test-feature-validation.ts",
     "test:split-adjustment": "npx tsx scripts/test-split-adjustment.ts",
+    "test:live-status": "npx tsx scripts/test-live-status.ts",
     "test:event-classify": "npx tsx scripts/test-event-classify.ts",
     "test:ingest-equivalence": "npx tsx scripts/test-ingest-equivalence.ts",
     "event-shadow": "npx tsx scripts/event-shadow-report.ts",
