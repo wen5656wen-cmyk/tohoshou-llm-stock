@@ -2,6 +2,12 @@
 
 ---
 
+## [18.19.1] - 2026-07-19 — 🍎 P16-04 Portfolio Summary 视觉层级优化（Apple 信息层级 · 纯视觉）
+
+`AccountSummary` 视觉重构，仅调字号/字重/行高/留白/分隔线，**数据/逻辑/计算不变**。**总资产 = 唯一视觉中心**：hero **42px/weight600**（label 14px #8E8E93）；**今日盈亏/累计浮盈降为次级**（27px/600 + 百分比 16px/500），不再三数字同级。**减少横线**：仅保留一条极浅分隔线 `#F1F2F5`（原两条→一条），余用留白；总资产与数字间距加大、层间距收紧成整体。**第二层指标分两组**（持仓/仓位/现金 ｜ 胜率/累计收益/Alpha）中间细分隔。**AI 动作隐藏 0 值**（建仓0/止盈0 不显示，仅留有意义项）。保持系统字体(SF Pro/-apple-system)。参考 Apple Wallet/SBI/IBKR。验收：tsc0/build✅/health CRITICAL=0/截图证一个视觉中心。
+
+---
+
 ## [18.19.0] - 2026-07-18 — 📑 P16-03 AI Research Report Polish + Portfolio Summary 重构（纯 UI）
 
 纯 UI 重构，**未新增** API/Schema/数据源/算法/评分/按钮/Tab/流程；**未改** Decision Engine/Runtime Ranking/Portfolio 逻辑/现有 API 契约。全部由现有数据(intelligence/holdings/history)**实时聚合**。
