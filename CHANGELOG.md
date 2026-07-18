@@ -2,6 +2,25 @@
 
 ---
 
+## [18.11.0] - 2026-07-18 — 🎯 Decision V2 决策工作台上线 + Sidebar IA v1.0 + Design First 治理
+
+本次为**前端展示层 + 导航 IA**变更，**未改**任何评分/推荐算法、StockScore、Schema、Cron、交易逻辑、旧 API 返回结构。
+
+**一、Decision V2（并行预览 → 转正）** — 全新决策工作台 `/decision-v2`，5 页只读聚合、后端统一计算、前端零指标计算、缺字段诚实降级、三语言：
+- P14-DEV-02 决策总览 · P14-DEV-03 今日策略 · P14-DEV-04 AI 推荐（`GET /api/decision/recommendations`）
+- P14-DEV-05 模拟持仓（`GET /api/decision/portfolio`，SSOT=AI Paper Broker，StrategySnapshot 逐日 NAV+真实回撤）
+- P14-DEV-06 历史决策（`GET /api/decision/history`，SSOT=BacktestPositionResult 7d 前瞻收益 join DailyRecommendation TOP10；AI Learning 硬降级不伪造）
+
+**二、入口转正** — 正式侧边栏/工作区落地/首页按钮由旧 `/decision-center` 切到 `/decision-v2`；新增 `/decision-legacy` 兼容入口；旧页全部保留、旧链接 200 不 404。
+
+**三、Sidebar IA v1.0（P14-UI-03）** — 工作区重命名+重排 **决策/研究/管理**（弃用 老板/管理员）；左侧改为「当前工作区一级页面清单」（决策5/研究6/管理1），新增 tab 感知高亮 `navItemActive`（桌面+移动底栏+抽屉同源）；删除内容区重复一级 Tab（Decision SubNav、StockResearchHub Tab bar）；持仓去重（`/portfolio` 302→模拟持仓）；删除 Simulation Badge；图标统一 Lucide 20/stroke2；固定 240px。
+
+**四、Design First 治理（P0-GOV-01/02）** — 新增 `docs/DESIGN_FIRST_GOVERNANCE.md`（12 步流水线 + Design Compare 22 项 + Design System Freeze + Language Review）。Decision Design Score 86.6，**未 PASS，Design 层暂缓进入 P15 Research**（语言混杂与组件统一待修，详见文档台账）。
+
+**Commits**：5af189e / 6091a71 / bc89c02 / 87c7283 / 251af6c / 38b86b2 / 0f2bf6f（+ 治理文档 7c3fae7 / 3e6add3）。Deployments #200–#206。Cron 全程未动（PID 1641452 / restart 71）。
+
+---
+
 ## [18.10.1] - 2026-07-18 — 🩹 Mission Control 周末假「逾期未执行」修复（交易日守卫对齐 cron）
 
 **症状**：周六 07-18 Mission Control「同步股票行情」步骤显示 `覆盖率 99% (3684/3720)逾期未执行`（FAILED），
