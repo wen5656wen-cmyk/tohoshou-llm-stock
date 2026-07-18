@@ -1800,3 +1800,61 @@ model ClosingDecision {
 
   @@map("closing_decisions")
 }
+
+// ═══════════════════════════════════════════════════════════
+// P16-01 · User Portfolio（真实用户持仓 · 手工维护，非 PaperBroker/AI）
+// 完整投资闭环：加入持有 → AI 每日管理 → 卖出(部分/全部) → History → 统计收益。
+// additive：不影响 Decision Engine / Runtime Ranking / PaperBroker / 任何现有逻辑。
+// ═══════════════════════════════════════════════════════════
+
+// 单一用户账户（现金余额，供仓位/现金占比计算）
+model UserAccount {
+  id             Int      @id @default(autoincrement())
+  cash           Float    @default(0) // 可用现金（用户可存取；买入减、卖出加）
+  initialCapital Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_accounts")
+}
+
+// 当前持有（按 symbol 聚合的持仓；部分卖出减 shares，全部卖出删除）
+model UserHolding {
+  id        Int      @id @default(autoincrement())
+  symbol    String   @unique
+  name      String
+  shares    Float // 当前持有股数
+  avgCost   Float // 加权平均成本
+  openDate  DateTime @db.Date // 首次建仓日（用于持仓天数/基准对比）
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_holdings")
+}
+
+// 交易流水（买卖账本；SELL 行 = History）
+model UserTrade {
+  id            Int      @id @default(autoincrement())
+  symbol        String
+  name          String
+  side          String // BUY | SELL
+  shares        Float
+  price         Float
+  fee           Float    @default(0)
+  tradeDate     DateTime @db.Date
+  reason        String? // SELL: TAKE_PROFIT | STOP_LOSS | MANUAL | REBALANCE | OTHER
+  note          String?
+  // 平仓统计（仅 SELL）
+  avgCostAtSell Float?
+  realizedPnl   Float? // (price - avgCost) × shares - fee
+  returnPct     Float?
+  holdingDays   Int?
+  benchTopixPct Float? // 同期 TOPIX 涨跌 %（跑赢判断）
+  benchNikkeiPct Float? // 同期 Nikkei 涨跌 %
+  createdAt     DateTime @default(now())
+
+  @@index([symbol])
+  @@index([side, tradeDate(sort: Desc)])
+  @@map("user_trades")
+}

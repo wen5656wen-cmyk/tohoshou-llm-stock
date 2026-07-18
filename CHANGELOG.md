@@ -2,6 +2,26 @@
 
 ---
 
+## [18.17.0] - 2026-07-18 — 💼 P16-01 Portfolio Management（AI Portfolio Manager · 完整投资闭环）
+
+Decision Center 升级为 **AI Portfolio Manager**：**AI推荐 → 加入持有 → AI每日管理 → 卖出(部分/全部) → History → 统计收益** 完整闭环。**未改** Decision Engine / Runtime Ranking / adaptiveScore / runtimeScore / 权重 / GPT / Cron / 现有 API 契约（本轮仅**新增** Portfolio Schema + `/api/holdings/*` API，属允许范围）。
+
+**一、Current Holdings 正式定义 = 真实用户持仓**（手工维护，非 PaperBroker/AI/Runtime Pool）。新增 3 张 additive 表：`UserAccount`(现金)、`UserHolding`(按 symbol 聚合持仓：shares/avgCost/openDate)、`UserTrade`(买卖账本；SELL 行=History，含 realizedPnl/returnPct/holdingDays/benchTopixPct/benchNikkeiPct)。
+
+**二、Portfolio API（新 `/api/holdings/*`）**：`GET`(持仓+实时估值+AI动作+汇总，实时价 Yahoo 1.5s 超时回退，**复用 `deriveHoldingAction` 纯函数**算 止损/减仓/止盈/持有) · `POST /buy`(加入/加仓，加权平均成本) · `POST /sell`(部分/全部卖出，自动算收益/持仓天数/同期 TOPIX·Nikkei 基准) · `PATCH/DELETE /[symbol]`(编辑/删除) · `GET /history`(平仓历史+跑赢基准)。
+
+**三、自动计算 + 部分/全部卖出**：收益率/收益金额/持仓天数/剩余数量/平均成本全自动；部分卖出减 shares(成本不变)，全部卖出移出持有并进入 History。
+
+**四、UI（决策总览重组）**：⑮组合摘要条(持仓/浮盈/今日/仓位/现金) · ⑨今日决策条(≤120px) · ⑪今日行动摘要(买入/等待/观察/止损/减仓/止盈，点击滚动到对应列表) · ②当前持有(symbol 第一视觉，编辑/卖出/删除) · ③④⑤机会/等待/观察(每行「加入」) · 右栏顺序调整为 **风险→系统状态→市场** · ⑬「数据新鲜度」改名 **System Status**(行情/AI决策/Runtime/持仓/下一更新，🟢+时间) · ⑧历史交易(收益/持仓时间/原因/跑赢TOPIX·Nikkei)。
+
+**五、统一 Modal 加 买入/卖出/编辑 按钮**（`StockDetailModal` 8 页 Tab 保留，头部加 Portfolio 操作，持仓股显示卖出/编辑）。新增 `HoldingDialogs`(加入/加仓/卖出/编辑 表单，卖出原因 AI止盈/AI止损/手动/调仓/其它)。i18n 三语 +42 键(`dv.pf.*`)。
+
+**验收**：tsc0/build✅/eslint 净/CJK 守卫 0/生产 health CRITICAL=0/schema `db push` 同步 3 表/部署后 `/decision-v2?tab=overview` 200(0.27s)。**端到端闭环实测**(生产)：BUY 7203.T 100@2800 → 持仓实时价 2899.5/+3.55%/HOLD/9天 → 部分卖 40(+3.54%/3960円/剩60) → 仓位% 修正为 100%(修 P0：负现金致比率失真) → 全部卖 60(closed) → History 2 条(realizedTotal 10560/胜率100%/跑赢TOPIX·Nikkei/原因正确)；**测试数据已清理，生产还原空状态**。**部署**：scp schema+`db push`+`generate` → rsync `.next`+`lib` → 重启 web(cron 未改)。
+
+**遗留**：①1920/1440/1280 像素截图无头环境无法捕获(见生产 URL)；②仓位/现金比率用 max(0,cash)——用户未注资现金则视为满仓，注资入口(存取现金)待后续；③SBI/Rakuten 自动同步为未来目标，当前手工维护；④决策历史 Tab 仍待 P15-01H。
+
+---
+
 ## [18.16.0] - 2026-07-18 — 🖥️ P15-03 Decision Terminal V2（统一 Terminal Design System）
 
 **纯 UI/Layout/Interaction**：在 P15-02 基础上建立统一终端视觉规范并升级为 Bloomberg/TradingView/IBKR 风格。**未改** Decision Engine / Runtime Ranking / adaptiveScore / runtimeScore / 权重 / API / Schema / Cron / GPT / SSOT / Runtime Pool（只读复用 overview + 现有 `/api/stocks/[symbol]/intelligence`·`/indicators`·`/api/financials`）。

@@ -232,6 +232,12 @@ export type Messages = {
   "dv.col.symbol": string; "dv.col.action": string; "dv.col.current": string; "dv.col.pnl": string; "dv.col.change": string; "dv.col.entry": string; "dv.col.target": string; "dv.col.stop": string; "dv.col.ai": string; "dv.col.detail": string;
   "dv.tab.summary": string; "dv.tab.price": string; "dv.tab.chart": string; "dv.tab.tech": string; "dv.tab.news": string; "dv.tab.financial": string; "dv.tab.decisionHist": string; "dv.tab.recHist": string;
   "dv.fin.year": string; "dv.fin.revenue": string; "dv.fin.netProfit": string; "dv.fin.eps": string; "dv.fin.roe": string;
+  "dv.pf.addTitle": string; "dv.pf.sellTitle": string; "dv.pf.editTitle": string; "dv.pf.price": string; "dv.pf.shares": string; "dv.pf.avgCost": string; "dv.pf.date": string; "dv.pf.fee": string; "dv.pf.note": string; "dv.pf.reason": string;
+  "dv.pf.r.TAKE_PROFIT": string; "dv.pf.r.STOP_LOSS": string; "dv.pf.r.MANUAL": string; "dv.pf.r.REBALANCE": string; "dv.pf.r.OTHER": string;
+  "dv.pf.confirm": string; "dv.pf.cancel": string; "dv.pf.failed": string; "dv.pf.btnBuy": string; "dv.pf.btnSell": string; "dv.pf.btnEdit": string; "dv.pf.btnAdd": string; "dv.pf.delete": string; "dv.pf.deleteConfirm": string; "dv.pf.empty": string;
+  "dv.pf.sumHoldings": string; "dv.pf.sumUnrealized": string; "dv.pf.sumToday": string; "dv.pf.sumPosition": string; "dv.pf.sumCash": string; "dv.pf.actionSummary": string;
+  "dv.pf.ss.title": string; "dv.pf.ss.quote": string; "dv.pf.ss.decision": string; "dv.pf.ss.runtime": string; "dv.pf.ss.holdings": string; "dv.pf.ss.next": string; "dv.pf.ss.realtime": string; "dv.pf.ss.latest": string; "dv.pf.ss.synced": string;
+  "dv.pf.histTitle": string; "dv.pf.histEmpty": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;

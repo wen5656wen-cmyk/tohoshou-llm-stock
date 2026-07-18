@@ -27,7 +27,7 @@ export interface DetailRow {
 type TabKey = "summary" | "price" | "chart" | "tech" | "news" | "financial" | "decisionHist" | "recHist";
 const TAB_KEYS: TabKey[] = ["summary", "price", "chart", "tech", "news", "financial", "decisionHist", "recHist"];
 
-export default function StockDetailModal({ row, onClose }: { row: DetailRow | null; onClose: () => void }) {
+export default function StockDetailModal({ row, onClose, heldSet, onBuy, onSell, onEdit }: { row: DetailRow | null; onClose: () => void; heldSet?: Set<string>; onBuy?: (s: string) => void; onSell?: (s: string) => void; onEdit?: (s: string) => void }) {
   const { t } = useI18n();
   const open = !!row;
   const symbol = row?.symbol ?? "";
@@ -79,7 +79,12 @@ export default function StockDetailModal({ row, onClose }: { row: DetailRow | nu
               {row.actionLabel && <span style={{ fontSize: 11, fontWeight: 700, color: accent, background: `${accent}18`, padding: "2px 8px", borderRadius: 6 }}>{row.actionLabel}</span>}
               <span className="tabular-nums" style={{ fontSize: 12, fontWeight: 700, color: grade.color }}>{grade.grade}<span style={{ color: COLORS.textFaint, fontWeight: 500 }}> {fmtScore(row.aiScore)}</span></span>
             </div>
-            <Dialog.Close asChild><button aria-label={t("common.close")} style={{ width: 28, height: 28, borderRadius: 8, color: COLORS.textFaint }}>✕</button></Dialog.Close>
+            <div className="flex items-center gap-1.5">
+              {onBuy && <button onClick={() => onBuy(row.symbol)} style={{ fontSize: 11.5, fontWeight: 600, color: "#fff", background: COLORS.success, padding: "4px 10px", borderRadius: 7 }}>{t("dv.pf.btnBuy")}</button>}
+              {heldSet?.has(row.symbol) && onSell && <button onClick={() => onSell(row.symbol)} style={{ fontSize: 11.5, fontWeight: 600, color: "#fff", background: COLORS.danger, padding: "4px 10px", borderRadius: 7 }}>{t("dv.pf.btnSell")}</button>}
+              {heldSet?.has(row.symbol) && onEdit && <button onClick={() => onEdit(row.symbol)} style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textSecondary, background: "#F0F0F3", padding: "4px 10px", borderRadius: 7 }}>{t("dv.pf.btnEdit")}</button>}
+              <Dialog.Close asChild><button aria-label={t("common.close")} style={{ width: 28, height: 28, borderRadius: 8, color: COLORS.textFaint }}>✕</button></Dialog.Close>
+            </div>
           </div>
 
           {/* Tabs */}
