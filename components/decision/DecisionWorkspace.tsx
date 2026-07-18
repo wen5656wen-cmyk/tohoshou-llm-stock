@@ -10,7 +10,7 @@ import { AppHeader, COLORS } from "@/components/ui";
 import { DecisionProvider } from "@/lib/decision/provider";
 import DecisionContextBar from "@/components/decision/ds/ContextBar";
 import SystemStatusFooter from "@/components/decision/ds/SystemStatusFooter";
-import { SubNav, DECISION_TABS } from "@/components/decision/ds/SubNav";
+import { DECISION_TABS } from "@/components/decision/ds/SubNav";
 import DecisionOverviewV2 from "@/components/decision/pages/DecisionOverviewV2";
 import DecisionStrategyV2 from "@/components/decision/pages/DecisionStrategyV2";
 import DecisionRecommendationsV2 from "@/components/decision/pages/DecisionRecommendationsV2";
@@ -40,10 +40,10 @@ function Shell() {
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
       <DecisionProvider>
         <DecisionContextBar />
+        {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar，内容区不再放同名一级 Tab（SubNav 已移除）。 */}
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-4">
           <AppHeader title={t("dv.title")} />
         </div>
-        <SubNav active={active} />
         <div className="pb-8">
           {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : active === "portfolio" ? <DecisionPortfolioV2 /> : active === "history" ? <DecisionHistoryV2 /> : <Placeholder tab={active} />}
         </div>

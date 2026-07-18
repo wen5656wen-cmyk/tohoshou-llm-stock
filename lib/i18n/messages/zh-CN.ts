@@ -677,6 +677,7 @@ const zhCN: Messages = {
   "dv.dh.regime.BEAR": "熊市",
   "dv.dh.regime.SIDEWAYS": "震荡",
   "nav.workspace": "工作区",
+  "nav.researchHome": "股票研究",
   "dc.ov.verdict": "今日建议",
   "dc.ov.firstPick": "今日第一推荐",
   "dc.ov.portfolio": "今日建议组合",
@@ -754,8 +755,8 @@ const zhCN: Messages = {
   "theme.ai.subtitle": "基于现有 AI 评分与因子的主题级摘要（只读派生，不重算）",
   "theme.ai.noReason": "暂无 AI 解读",
   // P7-04A 三工作区
-  "ws.boss": "老板",
-  "ws.admin": "管理员",
+  "ws.boss": "决策",
+  "ws.admin": "管理",
   "ws.research": "研究",
   "ws.stockCenter": "股票中心",
   "ws.strategy": "策略",

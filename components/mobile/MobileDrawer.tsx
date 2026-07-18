@@ -1,21 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "../LanguageSwitcher";
 import WorkspaceSwitcher from "../navigation/WorkspaceSwitcher";
-import { nodesForWorkspace, workspaceForPath, isNavActive } from "@/lib/navigation/nav-config";
+import { nodesForWorkspace, workspaceForPath, navItemActive } from "@/lib/navigation/nav-config";
 
-// P7-04A：抽屉顶部工作区切换器 + 当前工作区全部一级入口，与桌面/底栏同源。
-export default function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const pathname = usePathname();
+// P14-UI-03：抽屉 = 工作区切换器 + 当前工作区全部一级页面，与桌面/底栏同源、tab 感知高亮。
+function DrawerItems({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
+  const pathname = usePathname();
+  const tab = useSearchParams().get("tab");
   const ws = workspaceForPath(pathname);
-  const items = nodesForWorkspace(ws).map((n) => ({ href: n.href, label: t(n.labelKey as Parameters<typeof t>[0]), icon: n.glyph }));
+  return (
+    <>
+      {nodesForWorkspace(ws).map((node) => {
+        const active = navItemActive(node.href, pathname, tab);
+        return (
+          <Link
+            key={node.key}
+            href={node.href}
+            onClick={onClose}
+            className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${
+              active ? "bg-blue-600/20 text-blue-300 font-medium" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
+            }`}
+          >
+            <span className="text-base w-5 text-center shrink-0">{node.glyph}</span>
+            {t(node.labelKey as Parameters<typeof t>[0])}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
 
-  const isActive = (href: string) => isNavActive(href, pathname);
+export default function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useI18n();
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -57,21 +79,9 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {items.map(({ href, label, icon }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${
-                isActive(href)
-                  ? "bg-blue-600/20 text-blue-300 font-medium"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-              }`}
-            >
-              <span className="text-base w-5 text-center shrink-0">{icon}</span>
-              {label}
-            </Link>
-          ))}
+          <Suspense fallback={null}>
+            <DrawerItems onClose={onClose} />
+          </Suspense>
         </nav>
 
         <div className="px-4 py-4 border-t border-slate-700/50 shrink-0 space-y-3">

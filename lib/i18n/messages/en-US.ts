@@ -677,6 +677,7 @@ const enUS: Messages = {
   "dv.dh.regime.BEAR": "Bear",
   "dv.dh.regime.SIDEWAYS": "Sideways",
   "nav.workspace": "Workspace",
+  "nav.researchHome": "Stock Research",
   "dc.ov.verdict": "Today's Call",
   "dc.ov.firstPick": "Top Pick",
   "dc.ov.portfolio": "Suggested Portfolio",
@@ -754,8 +755,8 @@ const enUS: Messages = {
   "theme.ai.subtitle": "Theme-level digest derived from existing AI scores & factors (read-only, no recompute)",
   "theme.ai.noReason": "No AI note yet",
   // P7-04A 3 workspaces
-  "ws.boss": "Boss",
-  "ws.admin": "Admin",
+  "ws.boss": "Decision",
+  "ws.admin": "Management",
   "ws.research": "Research",
   "ws.stockCenter": "Stock Center",
   "ws.strategy": "Strategy",

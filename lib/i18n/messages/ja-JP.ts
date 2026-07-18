@@ -677,6 +677,7 @@ const jaJP: Messages = {
   "dv.dh.regime.BEAR": "弱気",
   "dv.dh.regime.SIDEWAYS": "レンジ",
   "nav.workspace": "ワークスペース",
+  "nav.researchHome": "銘柄リサーチ",
   "dc.ov.verdict": "本日の判断",
   "dc.ov.firstPick": "本日の一番手",
   "dc.ov.portfolio": "本日の推奨組合",
@@ -754,8 +755,8 @@ const jaJP: Messages = {
   "theme.ai.subtitle": "既存のAIスコアとファクターに基づくテーマ別サマリー（読み取り専用・再計算なし）",
   "theme.ai.noReason": "AI解説はまだありません",
   // P7-04A 3 ワークスペース
-  "ws.boss": "ボス",
-  "ws.admin": "管理者",
+  "ws.boss": "意思決定",
+  "ws.admin": "管理",
   "ws.research": "リサーチ",
   "ws.stockCenter": "銘柄センター",
   "ws.strategy": "戦略",

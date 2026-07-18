@@ -10,14 +10,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  Target, Search, LineChart, Bot, Settings, Microscope,
+  LayoutGrid, Target, Star, PieChart, Clock,
+  Microscope, SlidersHorizontal, Layers, Boxes, Newspaper, BarChart3, Settings,
 } from "@/components/dashboard/icons";
 
-export type NavIcon = (p: { size?: number }) => React.ReactElement;
+export type NavIcon = (p: { size?: number; strokeWidth?: number }) => React.ReactElement;
 export type Workspace = "boss" | "admin" | "research";
-export const WORKSPACES: Workspace[] = ["boss", "admin", "research"];
-
-export type NavTab = { key: string; labelKey: string; legacyRoutes?: string[] };
+// 工作区顺序（P14-UI-03）：决策 → 研究 → 管理
+export const WORKSPACES: Workspace[] = ["boss", "research", "admin"];
 
 export type NavNode = {
   key: string;
@@ -27,92 +27,49 @@ export type NavNode = {
   glyph: string;
   badge?: string;
   workspace: Workspace;
-  tabs?: NavTab[];
 };
 
 // ── 三工作区默认落地页 ──────────────────────────────────────────────────────
 export const WORKSPACE_HOME: Record<Workspace, string> = {
-  boss: "/decision-v2",
-  admin: "/admin/mission-control",
+  boss: "/decision-v2?tab=overview",
   research: "/admin/research",
+  admin: "/admin/mission-control",
 };
 
-// ── 全部一级入口（按工作区）─────────────────────────────────────────────────
+// ── 全部导航项（按工作区展开为一级页面清单）───────────────────────────────────
+// P14-UI-03 IA v1.0：左侧 = 当前工作区的一级页面清单（内容区不再放同名一级 Tab）。
 export const NAV_NODES: NavNode[] = [
-  // ═══ 老板工作区（4 入口）═══
-  {
-    // P14 cut-over：正式「决策中心」入口切到 Decision V2（并行预览转正）。
-    // 旧 /decision-center 及其 Tab 作为回退保留（legacyRoutes 映射，仍归老板工作区）。
-    key: "decision", workspace: "boss", labelKey: "nav.decisionHub", href: "/decision-v2",
-    Icon: Target, glyph: "◎",
-    tabs: [
-      { key: "overview", labelKey: "dv.nav.overview" },
-      { key: "strategy", labelKey: "dv.nav.strategy" },
-      { key: "picks", labelKey: "dv.nav.picks" },
-      { key: "portfolio", labelKey: "dv.nav.portfolio" },
-      { key: "history", labelKey: "dv.nav.history", legacyRoutes: ["/decision-center", "/admin/closing-decision", "/admin/decision-center", "/admin/ai-top-picks", "/watchlist/daily"] },
-    ],
-  },
-  {
-    key: "stocks", workspace: "boss", labelKey: "ws.stockCenter", href: "/screener",
-    Icon: Search, glyph: "✦",
-    tabs: [
-      // P8-UI-02 合并产业链；P8-UI-03 移除一级「研究分析」（重复挂载 → 研究工作区）。
-      // 旧深链应用内不失效（StockResearchHub LEGACY 表）：
-      //   ?tab=research→/admin/research · ?tab=industry-chain/leaders/ai-analysis→主题研究子Tab
-      //   ?tab=theme-news→新闻 Tab（相关新闻已删）。
-      { key: "screen", labelKey: "sr.tab.screen" },
-      { key: "sectors", labelKey: "sr.tab.sectors", legacyRoutes: ["/sectors"] },
-      { key: "themes", labelKey: "sr.tab.themes", legacyRoutes: ["/ai-theme", "/screener?tab=industry-chain", "/screener?tab=leaders", "/screener?tab=ai-analysis"] },
-      { key: "news", labelKey: "sr.tab.news", legacyRoutes: ["/news", "/screener?tab=theme-news"] },
-      { key: "indicators", labelKey: "sr.tab.indicators", legacyRoutes: ["/indicators"] },
-    ],
-  },
-  { key: "strategy", workspace: "boss", labelKey: "ws.strategy", href: "/strategy", Icon: LineChart, glyph: "◆" },
-  { key: "trading", workspace: "boss", labelKey: "ws.myPortfolio", href: "/portfolio", Icon: Bot, glyph: "◇", badge: "Simulation" },
+  // ═══ 决策工作区（Decision · 5 页 → /decision-v2?tab=*）═══
+  { key: "dv-overview", workspace: "boss", labelKey: "dv.nav.overview", href: "/decision-v2?tab=overview", Icon: LayoutGrid, glyph: "◎" },
+  { key: "dv-strategy", workspace: "boss", labelKey: "dv.nav.strategy", href: "/decision-v2?tab=strategy", Icon: Target, glyph: "◆" },
+  { key: "dv-picks", workspace: "boss", labelKey: "dv.nav.picks", href: "/decision-v2?tab=recommendations", Icon: Star, glyph: "★" },
+  { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑" },
+  { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },
 
-  // ═══ 管理员工作区（P7-06：收敛为唯一入口 = Mission Control Hub，内含 8 Tab）═══
-  {
-    key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control",
-    Icon: Settings, glyph: "⚙",
-    tabs: [
-      { key: "overview", labelKey: "sys.tab.overview" },
-      { key: "runtime", labelKey: "sys.tab.runtime", legacyRoutes: ["/admin/runtime"] },
-      { key: "health", labelKey: "sys.tab.health" },
-      { key: "verify", labelKey: "sys.tab.verify", legacyRoutes: ["/admin/verify"] },
-      { key: "sync", labelKey: "sys.tab.sync", legacyRoutes: ["/sync"] },
-      { key: "cron", labelKey: "sys.tab.cron" },
-      { key: "deploy", labelKey: "sys.tab.deploy" },
-      { key: "log", labelKey: "sys.tab.log" },
-    ],
-  },
+  // ═══ 研究工作区（Research · 股票研究 Hub + 股票研究五页 /screener?tab=*）═══
+  { key: "rs-home", workspace: "research", labelKey: "nav.researchHome", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
+  { key: "rs-screen", workspace: "research", labelKey: "sr.tab.screen", href: "/screener?tab=screen", Icon: SlidersHorizontal, glyph: "✦" },
+  { key: "rs-sectors", workspace: "research", labelKey: "sr.tab.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },
+  { key: "rs-themes", workspace: "research", labelKey: "sr.tab.themes", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈" },
+  { key: "rs-news", workspace: "research", labelKey: "sr.tab.news", href: "/screener?tab=news", Icon: Newspaper, glyph: "▤" },
+  { key: "rs-indicators", workspace: "research", labelKey: "sr.tab.indicators", href: "/screener?tab=indicators", Icon: BarChart3, glyph: "▮" },
 
-  // ═══ 研究工作区（P7-05：收敛为唯一入口 = 研究综合 Hub，内含 7 顶级 Tab）═══
-  {
-    key: "research", workspace: "research", labelKey: "ws.researchOverview", href: "/admin/research",
-    Icon: Microscope, glyph: "🔬",
-    tabs: [
-      { key: "overview", labelKey: "rw.overview" },
-      { key: "factors", labelKey: "rw.factors", legacyRoutes: ["/admin/features", "/admin/feature-promotion", "/admin/feature-platform"] },
-      { key: "alpha", labelKey: "rw.alpha", legacyRoutes: ["/alpha", "/fusion/report", "/market-regime"] },
-      { key: "v3", labelKey: "rw.v3" },
-      { key: "learning", labelKey: "rw.learning", legacyRoutes: ["/admin/learning-report"] },
-      { key: "experiments", labelKey: "rw.experiments", legacyRoutes: ["/admin/experiments", "/admin/versions"] },
-      { key: "backtest", labelKey: "rw.backtest", legacyRoutes: ["/backtest"] },
-    ],
-  },
+  // ═══ 管理工作区（Management · 保留现有入口 = Mission Control Hub，本轮不重构）═══
+  { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },
 ];
 
 // ── 路径 → 工作区 推导（软切换核心：URL 决定当前工作区）──────────────────────
 const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime"];
 const RESEARCH_PREFIXES = [
+  // 研究工作区：研究综合 Hub + 股票研究（screener 及其旧深链重定向桩）+ 量化研究
   "/admin/research", "/admin/features", "/admin/feature-promotion", "/admin/feature-platform",
   "/admin/learning-report", "/admin/experiments", "/admin/versions", "/backtest", "/alpha", "/fusion", "/market-regime",
+  "/screener", "/sectors", "/ai-theme", "/news", "/indicators", "/stocks",
 ];
 function matchPrefix(p: string, list: string[]): boolean {
   return list.some((x) => p === x || p.startsWith(x + "/") || p.startsWith(x + "?"));
 }
-/** 当前路径归属的工作区。admin/research 前缀命中对应区，其余（含叶子/首页/重定向壳）归老板。 */
+/** 当前路径归属的工作区。research/admin 前缀命中对应区，其余（含决策/首页/回退壳）归决策(boss)。 */
 export function workspaceForPath(pathname: string | null | undefined): Workspace {
   const p = pathname || "/";
   if (matchPrefix(p, RESEARCH_PREFIXES)) return "research";
@@ -122,12 +79,32 @@ export function workspaceForPath(pathname: string | null | undefined): Workspace
 
 // ── 派生 ────────────────────────────────────────────────────────────────────
 export const nodesForWorkspace = (ws: Workspace): NavNode[] => NAV_NODES.filter((n) => n.workspace === ws);
-/** 移动底栏：当前工作区节点，最多 5（老板恰 4）。 */
+/** 移动底栏：当前工作区节点，最多 5。 */
 export const mobileBottomNodes = (ws: Workspace): NavNode[] => nodesForWorkspace(ws).slice(0, 5);
 
-/** 一级入口 active 判定（首页精确匹配，其余前缀匹配）。 */
-export function isNavActive(href: string, pathname: string): boolean {
+// ── 当前项 active 判定（tab 感知：/decision-v2 与 /screener 用 ?tab 区分同基址多项）──
+function normTab(base: string, tab: string | null | undefined): string {
+  if (base === "/decision-v2") {
+    if (tab == null || tab === "") return "overview";
+    if (tab === "picks") return "recommendations";
+    if (tab === "today") return "strategy";
+    return tab;
+  }
+  if (base === "/screener") return tab && tab !== "" ? tab : "screen";
+  return tab ?? "";
+}
+/** tab 感知的一级项 active 判定。tab = 当前 URL 的 ?tab 值（可空）。 */
+export function navItemActive(href: string, pathname: string, tab: string | null | undefined): boolean {
   if (href === "/") return pathname === "/";
-  const base = href.split("?")[0];
+  const [base, q] = href.split("?");
+  const hrefTab = q ? new URLSearchParams(q).get("tab") : null;
+  if (hrefTab != null) {
+    if (pathname !== base) return false;
+    return normTab(base, hrefTab) === normTab(base, tab);
+  }
   return pathname === base || pathname.startsWith(base + "/");
+}
+/** 兼容旧签名（无 tab）。仅用于不便取 searchParams 处；同基址多项场景请用 navItemActive。 */
+export function isNavActive(href: string, pathname: string): boolean {
+  return navItemActive(href, pathname, null);
 }

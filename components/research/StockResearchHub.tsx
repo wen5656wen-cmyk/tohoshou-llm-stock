@@ -59,11 +59,6 @@ export default function StockResearchHub() {
   const initialSub = legacy?.sub;
   const active = legacy?.redirect ? "screen" : legacy?.tab ?? (raw && VALID.has(raw) ? raw : "screen");
 
-  const go = (key: string) => {
-    if (key === active) return;
-    router.replace(`/screener?tab=${key}`, { scroll: false });
-  };
-
   // 研究分析旧链跳转中：占位加载态（避免闪现选股）。
   if (legacy?.redirect) {
     return (
@@ -76,31 +71,8 @@ export default function StockResearchHub() {
   return (
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-5">
-        <AppHeader title={t("nav.stockResearch")} />
-
-        {/* Tab bar — 移动端横向滚动 */}
-        <div className="mt-4 mb-5 overflow-x-auto">
-          <div className="flex gap-1.5 min-w-max">
-            {TABS.map((tab) => {
-              const on = tab.key === active;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => go(tab.key)}
-                  className="px-3.5 py-2 rounded-xl text-[13px] whitespace-nowrap transition-colors active:scale-[0.99]"
-                  style={{
-                    background: on ? COLORS.text : COLORS.card,
-                    color: on ? "#fff" : COLORS.textSecondary,
-                    fontWeight: on ? 600 : 500,
-                    border: `1px solid ${on ? COLORS.text : COLORS.border}`,
-                  }}
-                >
-                  {t(tab.labelKey as Parameters<typeof t>[0])}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar，内容区不再放同名一级 Tab（Tab bar 已移除）。 */}
+        <div className="mt-4" />
 
         {/* 仅激活 Tab 挂载 → 懒加载对应 API。选股用完整 ScreenerBody(保留全部筛选/排序/分页)。 */}
         {active === "screen" && <ScreenerBody />}
