@@ -210,6 +210,11 @@ export type Messages = {
   "ed.tagline": string; "ed.today": string; "ed.rec": string; "ed.portfolio": string;
   "ed.market": string; "ed.perf": string; "ed.risk": string; "ed.quick": string;
   "ed.viewFull": string; "ed.riskNone": string; "ed.goResearch": string;
+  // P14-DEV-01 Decision v2（Foundation：工作流子导航 + Context Bar + 壳）
+  "dv.title": string; "dv.placeholder": string;
+  "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
+  "dv.ctx.position": string; "dv.ctx.confidence": string;
+  "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;

@@ -1771,6 +1771,19 @@ const jaJP: Messages = {
   "ed.viewFull": "詳細を見る",
   "ed.riskNone": "重大リスクなし",
   "ed.goResearch": "リサーチ",
+  "dv.title": "意思決定",
+  "dv.placeholder": "このページは後続フェーズで構築",
+  "dv.nav.overview": "意思決定サマリー",
+  "dv.nav.strategy": "本日の戦略",
+  "dv.nav.picks": "AI 推奨",
+  "dv.nav.portfolio": "模擬ポートフォリオ",
+  "dv.nav.history": "意思決定履歴",
+  "dv.ctx.position": "推奨ポジション",
+  "dv.ctx.confidence": "AI 信頼度",
+  "dv.footer.data": "データ",
+  "dv.footer.cron": "タスク",
+  "dv.footer.ai": "AI",
+  "dv.footer.health": "ヘルス",
 };
 
 export default jaJP;

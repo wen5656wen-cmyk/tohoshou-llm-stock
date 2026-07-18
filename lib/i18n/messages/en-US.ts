@@ -1771,6 +1771,19 @@ const enUS: Messages = {
   "ed.viewFull": "View full",
   "ed.riskNone": "No major risk",
   "ed.goResearch": "Research",
+  "dv.title": "Decision",
+  "dv.placeholder": "This page will be built in later phases",
+  "dv.nav.overview": "Decision Overview",
+  "dv.nav.strategy": "Today's Strategy",
+  "dv.nav.picks": "AI Picks",
+  "dv.nav.portfolio": "Paper Portfolio",
+  "dv.nav.history": "Decision History",
+  "dv.ctx.position": "Suggested Position",
+  "dv.ctx.confidence": "AI Confidence",
+  "dv.footer.data": "Data",
+  "dv.footer.cron": "Tasks",
+  "dv.footer.ai": "AI",
+  "dv.footer.health": "Health",
 };
 
 export default enUS;
