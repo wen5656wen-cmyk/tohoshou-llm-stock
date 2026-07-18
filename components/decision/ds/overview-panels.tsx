@@ -237,7 +237,8 @@ export function OpportunityTable(p: {
     <Card>
       <SectionHead title={p.title} count={p.count} tone={p.tone} />
       {p.rows.length === 0 ? <div style={{ padding: `${SP.md - 4}px ${SP.md - 4}px`, fontSize: 12.5, color: COLORS.textFaint }}>{p.emptyLabel ?? "—"}</div> : (
-        <>
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 720 }}>
           <div className="flex items-center" style={{ padding: `6px ${SP.md - 4}px`, gap: SP.sm, background: TERM.header, borderBottom: `1px solid ${TERM.gridLine}` }}>
             <div style={{ flex: 1 }}><span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: TERM.headerText, textTransform: "uppercase" }}>{p.cols.symbol}</span></div>
             <HCell w={COLW.action}>{p.cols.action}</HCell>
@@ -277,7 +278,8 @@ export function OpportunityTable(p: {
               </div>
             );
           })}
-        </>
+          </div>
+        </div>
       )}
     </Card>
   );

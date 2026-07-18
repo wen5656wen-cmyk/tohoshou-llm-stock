@@ -2,6 +2,18 @@
 
 ---
 
+## [18.19.3] - 2026-07-19 — 🧹 P16 收尾 Final UI Cleanup（修复页面级横向滚动 · P16 UI Freeze）
+
+**唯一目标**：消除决策总览手机端页面级横向滚动。**未改任何业务/数据/API/排序/列内容/颜色**。
+
+- **真凶更正（事实核查）**：任务原诊断「OpportunityTable 固定宽度导致溢出」经生产 Playwright 定位**不成立**——当前「AI 推荐机会 0」，OpportunityTable 走空状态未渲染表格；HoldingsTable 早有 `overflowX:auto`+`minWidth:720` 且正确裁剪。页面级横滚（390px scrollW 635）**真凶 = 跨 5 决策页常驻顶部条 `DecisionContextBar`（ds/ContextBar.tsx）**：单行 `h-11 flex` 全 `shrink-0`、无换行。
+- **修复①（真凶，经用户授权 · 超出原 OpportunityTable 范围）**：`ContextBar.tsx` L33 `h-11 flex items-center gap-3` → `min-h-11 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1`。桌面/平板单行外观**完全不变**（有富余不换行），手机 390px 自然换到 2 行（行1 结论/市场/风险 ｜ 行2 建议仓位/AI信心/日期/▾）。
+- **修复②（一致性硬化 · OpportunityTable 允许范围内）**：`OpportunityTable` 对齐 `HoldingsTable`，行内容用 `overflowX:auto` + `minWidth:720` 双层包裹，防止**将来**机会有行时溢出。行内业务/列/颜色/排序**零改动**。
+- **验收（生产实测 · 1440/834/390）**：`hOverflow=false` 三档全过（scrollW == winW）；桌面顶部条外观逐像素不变；tsc 0 / build ✅ / health CRITICAL=0。
+- **P16 UI Freeze**，等待 P17。
+
+---
+
 ## [18.19.2] - 2026-07-19 — 📐 P16-05 Portfolio Summary 紧凑化（账户总览 · 纯布局/字号/间距/响应式）
 
 仅改 **AI Decision Center 顶部 Header + Portfolio Summary** 的布局/字号/间距/响应式，**数据/API/DB/Schema/Portfolio 计算/盈亏计算/AI 动作计算/Decision Engine/Runtime Ranking/字段含义均不变**，未新增/删除功能，未触碰其他页面。

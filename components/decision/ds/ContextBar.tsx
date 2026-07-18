@@ -30,7 +30,7 @@ export default function DecisionContextBar() {
 
   return (
     <div className="sticky top-0 z-30" style={{ background: COLORS.card, borderBottom: `1px solid ${COLORS.border}` }}>
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-11 flex items-center gap-3 text-[12px]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 min-h-11 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
         {/* 结论 */}
         <span className="flex items-center gap-1.5 shrink-0">
           <span className="text-[16px] leading-none">{verdictIcon(verdict)}</span>
