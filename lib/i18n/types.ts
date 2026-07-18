@@ -226,6 +226,9 @@ export type Messages = {
   "dv.rt.enter.inZone": string; "dv.rt.enter.volume": string; "dv.rt.enter.momentum": string; "dv.rt.enter.rank": string;
   "dv.rt.leave.displaced": string; "dv.rt.leave.stop": string; "dv.rt.leave.news": string; "dv.rt.leave.chase": string;
   "dv.rt.new": string; "dv.rt.turnover": string;
+  "dv.ov2.holdingsTitle": string; "dv.ov2.recTitle": string; "dv.ov2.watchTitle": string;
+  "dv.rate.strongBuy": string; "dv.rate.buy": string; "dv.rate.wait": string; "dv.rate.watch": string; "dv.rate.backup": string;
+  "dv.dm.why": string; "dv.dm.detail": string; "dv.dm.aiAnalysis": string; "dv.dm.buyReasons": string; "dv.dm.risks": string; "dv.dm.position": string; "dv.dm.holdPeriod": string; "dv.dm.chart": string; "dv.dm.news": string; "dv.dm.currentReturn": string; "dv.dm.curPrice": string; "dv.dm.noReport": string; "dv.dm.rank": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;

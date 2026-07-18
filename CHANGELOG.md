@@ -2,6 +2,28 @@
 
 ---
 
+## [18.15.0] - 2026-07-18 — 🎨 P15-02 Decision Center UI/UX 重设计（专业交易终端）
+
+**纯 UI/UX**：把决策总览从「后台管理页」重做为 Bloomberg/TradingView 风格的高密度交易终端。**未改** Decision Engine / Runtime Ranking / adaptiveScore / runtimeScore / 权重 / SSOT / API 契约 / Schema / Cron / GPT（只读复用 P15-01B/D 的 `overview` + 现有 `/api/explain`·`/api/stocks/[symbol]/indicators`·`/api/news`）。
+
+**一、页面重排 + 高密度**：新顺序 **①今日决策 → ②当前持有 → ③AI推荐机会 → ④等待条件 → ⑤观察名单 → ⑥数据新鲜度 ⑦风险监控 ⑧市场快照(底部三栏辅助)**。模块间距/内边距压缩(`space-y-2.5`、行 6–7px padding)、删除大留白、一屏看更多。**删除首页新闻流**（相关新闻只在个股 Modal）。
+
+**二、当前持有（Current Holdings）**：改名「当前持有」(弃「需立即处理的持仓」)，**永远第一**(紧随今日决策)；左侧 action 色条按 6 档分类(🔴止损/🟠减仓/🟢止盈/⚪持有)；与 AI 推荐**彻底分开**(同股可同时出现，语义不同：持仓=已有仓位怎么处理，推荐=今天是否值得买)——源自 PaperPosition，独立不受 Runtime Ranking 影响。
+
+**三、AI 推荐恢复信息**：每只推荐恢复 **★星级标签**(★★★★★强烈买入/★★★★买入/★★★等待/★★观察)、AI评分、当前价、买入区间、目标价、止损价、触发条件；**「为什么买」+「详情」按钮**，全部弹窗**不跳页**。
+
+**四、统一详情 Modal**（新 `components/decision/StockDetailModal.tsx`，受控 Radix Dialog）：所有股票(持仓/推荐/等待/观察)点击 → 同一弹窗，含 当前价/推荐价/买入区间/目标/止损/当前收益(持仓)/AI评分/Runtime排名/风险 + **AI分析**(懒加载 `/api/explain/[symbol]/report`) + **技术图**(懒加载 `/api/stocks/[symbol]/indicators`→`buildChartBars`→`LightweightStockChart`，`next/dynamic`) + **相关新闻**；缺数据诚实降级不伪造。
+
+**五、列表视觉**：保持列表(非全卡片)；**斑马纹**(奇白/偶浅灰)、**Hover 浅蓝**、**左侧 action 色条**(STOP红/BUY·ADD·TP绿/WAIT·REDUCE橙/HOLD灰)提升扫读；紧凑双行(主行 名称/星级/价/涨跌/动作 + 次行 买/目标/止损/AI/触发/按钮)。
+
+**六、i18n**：三语 +21 键(`dv.ov2.holdingsTitle/recTitle/watchTitle`·`dv.rate.*`·`dv.dm.*`)，无硬编码 CJK。
+
+**验收**：tsc0/build✅/eslint 净/CJK 守卫 0/生产 health CRITICAL=0/部署后 `/decision-v2?tab=overview` 200(0.57s，无错误)/Modal 数据端点 `/api/explain/:sym/report`·`/api/stocks/:sym/indicators` 均 200。**部署**：rsync `.next`+`lib`→重启 web(cron/API 未改)。
+
+**遗留**：①**Before/After 像素截图无法在本无头环境捕获**——见生产 URL 实看；②部分标的 explain 报告字段稀疏(无 GPT)→Modal 的 AI 分析区诚实显示可得内容/降级，非缺陷；③Modal 相关新闻用全局 news 客户端按代码过滤(命中率有限)，后续可接 by-symbol 新闻端点。
+
+---
+
 ## [18.14.1] - 2026-07-18 — 🔬 P15-01D-V 验证观测（只读 debug 字段 + 采样 harness，不改决策逻辑）
 
 为 P15-01D Runtime Ranking 的真实交易日验证提供观测能力。**纯只读/附加，零决策行为改变**：非 debug 路径逐字节不变。
