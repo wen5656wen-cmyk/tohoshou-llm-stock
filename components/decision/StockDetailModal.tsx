@@ -229,14 +229,14 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
                 {fin.length ? (
                   <div>
                     <Facts items={[
-                      [t("dv.fin.revenue"), fin[0].revenue != null ? Math.round(Number(fin[0].revenue)).toLocaleString() : "—"],
-                      [t("dv.fin.netProfit"), fin[0].netProfit != null ? Math.round(Number(fin[0].netProfit)).toLocaleString() : "—"],
-                      [t("dv.fin.eps"), fin[0].eps ?? "—"],
+                      [t("dv.fin.revenue"), fmtBigYen(fin[0].revenue, lang)],
+                      [t("dv.fin.netProfit"), fmtBigYen(fin[0].netProfit, lang)],
+                      [t("dv.fin.eps"), fin[0].eps != null ? `${fin[0].eps}` : "—"],
                       [t("dv.fin.roe"), fin[0].roe != null ? `${Math.round(fin[0].roe * 10) / 10}%` : "—"],
                     ]} />
                     {fin.length > 1 && <details style={{ marginTop: SP.sm }}>
                       <summary style={{ fontSize: 11.5, color: COLORS.primary, cursor: "pointer" }}>{t("dv.rr.finMore")}</summary>
-                      <div style={{ marginTop: SP.sm }}><FinTable rows={fin} t={t} /></div>
+                      <div style={{ marginTop: SP.sm }}><FinTable rows={fin} t={t} lang={lang} /></div>
                     </details>}
                   </div>
                 ) : <Muted>{t("dv.dm.comingSoon")}</Muted>}
@@ -264,6 +264,15 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
 }
 
 type T = (k: any) => string;
+// 大额日元金额 → 可读「億/兆」（单位随语言：ja 億/兆，zh 亿/万亿；< 1 億用「万」）。原值单位=円。
+function fmtBigYen(v: number | null | undefined, lang: string): string {
+  if (v == null || Number.isNaN(Number(v))) return "—";
+  const n = Number(v), abs = Math.abs(n), ja = lang === "ja-JP";
+  if (abs >= 1e12) return `${(n / 1e12).toFixed(2)}${ja ? "兆" : "万亿"}`;
+  if (abs >= 1e8) { const oku = n / 1e8; return `${Math.abs(oku) >= 100 ? Math.round(oku).toLocaleString() : oku.toFixed(1)}${ja ? "億" : "亿"}`; }
+  if (abs >= 1e4) return `${Math.round(n / 1e4).toLocaleString()}万`;
+  return Math.round(n).toLocaleString();
+}
 const Muted = ({ children }: { children: React.ReactNode }) => <div style={{ fontSize: 12.5, color: COLORS.textFaint }}>{children}</div>;
 function Stars({ n, color, small }: { n: number; color: string; small?: boolean }) {
   return <span style={{ fontSize: small ? 12 : 15, letterSpacing: 1, lineHeight: 1 }}><span style={{ color }}>{"★".repeat(n)}</span><span style={{ color: "#D7D9DE" }}>{"★".repeat(5 - n)}</span></span>;
@@ -344,8 +353,7 @@ function TechRow({ label, value, note, valTone }: { label: string; value: string
     </div>
   );
 }
-function FinTable({ rows, t }: { rows: any[]; t: T }) {
-  const fmt = (v: any) => (v == null ? "—" : Math.round(Number(v)).toLocaleString());
+function FinTable({ rows, t, lang }: { rows: any[]; t: T; lang: string }) {
   return (
     <div style={{ fontSize: 12 }}>
       <div className="flex" style={{ color: COLORS.textFaint, fontSize: 10, fontWeight: 600, padding: "0 0 5px", borderBottom: `1px solid ${COLORS.border}` }}>
@@ -354,7 +362,7 @@ function FinTable({ rows, t }: { rows: any[]; t: T }) {
       {rows.slice(0, 4).map((f, i) => (
         <div key={i} className="flex tabular-nums" style={{ padding: "5px 0", borderBottom: `1px solid ${COLORS.borderSoft ?? "#F0F0F3"}`, color: COLORS.textSecondary }}>
           <span style={{ flex: 1, color: COLORS.text }}>{f.fiscalYear}{f.quarter ? `Q${f.quarter}` : ""}</span>
-          <span style={{ width: 100, textAlign: "right" }}>{fmt(f.revenue)}</span><span style={{ width: 88, textAlign: "right" }}>{fmt(f.netProfit)}</span>
+          <span style={{ width: 100, textAlign: "right" }}>{fmtBigYen(f.revenue, lang)}</span><span style={{ width: 88, textAlign: "right" }}>{fmtBigYen(f.netProfit, lang)}</span>
           <span style={{ width: 60, textAlign: "right" }}>{f.eps ?? "—"}</span><span style={{ width: 56, textAlign: "right" }}>{f.roe != null ? `${Math.round(f.roe * 10) / 10}%` : "—"}</span>
         </div>
       ))}
