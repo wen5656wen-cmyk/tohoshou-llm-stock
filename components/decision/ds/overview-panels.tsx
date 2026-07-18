@@ -1,168 +1,193 @@
 "use client";
 
-// ── Decision Overview 交易终端组件（P15-02 UI/UX 重设计）──────────────────────
-// 专业交易终端风格（Bloomberg/TradingView/IBKR）：高密度、斑马纹、左侧 action 色条、
-// 可扫读、点击行 → 统一详情 Modal。纯展示（哑组件），i18n 由页面解析后传入。
+// ── Decision Terminal V2 组件（P15-03 · 专业交易终端）─────────────────────────
+// 统一 Terminal Design System（lib/decision/terminal）：56px 行、列头对齐、斑马纹、Hover、
+// Selected、左侧 action 色条、AI 等级(A+/A/B)取代星级、8pt 间距。纯展示（哑组件）。
 import type { ReactNode } from "react";
 import { AppBadge } from "@/components/ui";
 import { COLORS } from "@/lib/decision/ds";
+import { SP, ROW_H, TERM, COLW, actionColor, gradeFor } from "@/lib/decision/terminal";
 import type { Tone } from "@/lib/design-tokens";
 
-const ORANGE = "#FF9F0A";
-// action → 左侧色条 & 语义色（STOP 红 / REDUCE 橙 / TP·BUY·ADD 绿 / WAIT 橙 / HOLD 灰）
-export const ACTION_COLOR: Record<string, string> = {
-  STOP_LOSS: COLORS.danger, REDUCE: ORANGE, TAKE_PROFIT: COLORS.success,
-  BUY: COLORS.success, ADD: COLORS.success, WAIT: COLORS.warning, HOLD: "#9CA3AF",
-  CASH: "#9CA3AF", NO_TRADE: "#9CA3AF",
-};
-export const actionColor = (a: string | null | undefined) => (a && ACTION_COLOR[a]) || "#9CA3AF";
-const ZEBRA = "#FAFAFB";
-const HOVER = "#F5F9FF";
-const stars = (n: number) => "★".repeat(Math.max(0, Math.min(5, n))) + "☆".repeat(Math.max(0, 5 - Math.min(5, n)));
-
 function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 14, overflow: "hidden", ...style }}>{children}</div>;
+  return <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 12, overflow: "hidden", ...style }}>{children}</div>;
 }
-const Eyebrow = ({ children }: { children: ReactNode }) => (
-  <div style={{ fontSize: 11, letterSpacing: "0.05em", color: COLORS.textFaint, fontWeight: 600, textTransform: "uppercase" }}>{children}</div>
-);
-function SectionHead({ title, count, tone }: { title: string; count?: number; tone?: string }) {
+function SectionHead({ title, count, tone, right }: { title: string; count?: number; tone?: string; right?: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+    <div className="flex items-center gap-2" style={{ padding: `${SP.sm}px ${SP.md - 4}px`, borderBottom: `1px solid ${TERM.gridLine}` }}>
       {tone && <span style={{ width: 7, height: 7, borderRadius: 7, background: tone }} />}
-      <b style={{ fontSize: 12.5, color: COLORS.text }}>{title}</b>
+      <b style={{ fontSize: 12.5, color: COLORS.text, letterSpacing: "0.01em" }}>{title}</b>
       {count != null && <span style={{ fontSize: 11, color: COLORS.textFaint }}>{count}</span>}
+      {right && <span className="ml-auto">{right}</span>}
     </div>
   );
 }
+const Cell = ({ w, children, align = "left", color, mono }: { w: number; children: ReactNode; align?: "left" | "right" | "center"; color?: string; mono?: boolean }) => (
+  <div className={mono ? "tabular-nums" : ""} style={{ width: w, flex: `0 0 ${w}px`, textAlign: align, color: color ?? COLORS.text, fontSize: 12.5, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{children}</div>
+);
+const HCell = ({ w, children, align = "left" }: { w: number; children: ReactNode; align?: "left" | "right" | "center" }) => (
+  <div style={{ width: w, flex: `0 0 ${w}px`, textAlign: align, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: TERM.headerText, textTransform: "uppercase" }}>{children}</div>
+);
 
-// ── ① 全宽全局决策卡（紧凑）──────────────────────────────────────────────────
-export interface ActionHeroProps {
-  title: string; icon: string; actionLabel: string; tone: Tone; instruction: string;
+// ── ① 今日决策条（≤140px，非 Hero）──────────────────────────────────────────
+export interface DecisionBarProps {
+  icon: string; actionLabel: string; instruction: string;
   totalPosLabel: string; totalPos: string; addPosLabel: string; addPos: string; maxSingleLabel: string; maxSingle: string;
-  riskLabel: string; risk: string; riskTone: Tone; confLabel: string; confidence: string; phaseLabel: string; phase: string;
-  executable: boolean; execLabel: string; blockedLabel: string | null; freshLine: string;
+  riskLabel: string; risk: string; riskTone: Tone; confLabel: string; confidence: string;
+  phaseLabel: string; phase: string; executable: boolean; execLabel: string; blockedLabel: string | null; freshLine: string;
 }
-export function ActionHero(p: ActionHeroProps) {
-  const stripe = p.blockedLabel ? COLORS.danger : p.executable ? COLORS.success : COLORS.warning;
+export function DecisionBar(p: DecisionBarProps) {
+  const stripe = p.blockedLabel ? COLORS.danger : p.executable ? COLORS.success : "#F5A623";
+  const chip = (label: string, value: string, tone?: Tone, accent?: boolean) => {
+    const c = tone === "red" ? COLORS.danger : tone === "amber" ? "#F5A623" : tone === "green" ? COLORS.success : accent ? COLORS.primary : COLORS.text;
+    return <span className="flex items-baseline gap-1.5"><span style={{ fontSize: 11, color: COLORS.textFaint }}>{label}</span><b style={{ fontSize: 14, color: c }}>{value}</b></span>;
+  };
   return (
     <Card>
-      <div style={{ display: "flex" }}>
+      <div style={{ display: "flex", alignItems: "stretch" }}>
         <div style={{ width: 4, background: stripe, flexShrink: 0 }} />
-        <div style={{ flex: 1, padding: "12px 16px" }}>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2.5">
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{p.icon}</span>
-              <span style={{ fontSize: 21, fontWeight: 800, color: COLORS.text }}>{p.actionLabel}</span>
-              <span style={{ fontSize: 13, color: COLORS.textSecondary }}>{p.instruction}</span>
-            </div>
-            <span className="flex items-center gap-2 text-[11px]" style={{ color: COLORS.textFaint }}>
-              <AppBadge tone={p.blockedLabel ? "red" : p.executable ? "green" : "amber"}>{p.blockedLabel ?? p.execLabel}</AppBadge>
-              <span>{p.phaseLabel} {p.phase}</span>
-            </span>
-          </div>
-          <div className="flex items-center flex-wrap gap-x-5 gap-y-1 mt-2" style={{ fontSize: 13 }}>
-            <Metric label={p.totalPosLabel} value={p.totalPos} />
-            <Metric label={p.addPosLabel} value={p.addPos} />
-            <Metric label={p.maxSingleLabel} value={p.maxSingle} />
-            <Metric label={p.riskLabel} value={p.risk} tone={p.riskTone} />
-            <Metric label={p.confLabel} value={p.confidence} accent />
-            <span className="ml-auto" style={{ fontSize: 11, color: COLORS.textFaint }}>{p.freshLine}</span>
-          </div>
+        <div className="flex items-center flex-wrap" style={{ gap: `${SP.sm}px ${SP.lg}px`, padding: `${SP.md - 4}px ${SP.md}px`, flex: 1 }}>
+          <span className="flex items-center gap-2.5">
+            <span style={{ fontSize: 22, lineHeight: 1 }}>{p.icon}</span>
+            <b style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, letterSpacing: "-0.01em" }}>{p.actionLabel}</b>
+            <span style={{ fontSize: 13, color: COLORS.textSecondary }}>{p.instruction}</span>
+          </span>
+          <span className="w-px self-stretch" style={{ background: TERM.gridLine }} />
+          {chip(p.totalPosLabel, p.totalPos)}
+          {chip(p.addPosLabel, p.addPos)}
+          {chip(p.maxSingleLabel, p.maxSingle)}
+          {chip(p.riskLabel, p.risk, p.riskTone)}
+          {chip(p.confLabel, p.confidence, undefined, true)}
+          <span className="ml-auto flex items-center gap-2.5">
+            <AppBadge tone={p.blockedLabel ? "red" : p.executable ? "green" : "amber"}>{p.blockedLabel ?? p.execLabel}</AppBadge>
+            <span style={{ fontSize: 11, color: COLORS.textFaint }}>{p.phaseLabel} {p.phase}</span>
+          </span>
+          <span className="w-full" style={{ fontSize: 11, color: COLORS.textFaint }}>{p.freshLine}</span>
         </div>
       </div>
     </Card>
   );
 }
-function Metric({ label, value, tone, accent }: { label: string; value: string; tone?: Tone; accent?: boolean }) {
-  const c = tone === "red" ? COLORS.danger : tone === "amber" ? COLORS.warning : tone === "green" ? COLORS.success : accent ? COLORS.primary : COLORS.text;
-  return <span className="flex items-baseline gap-1.5"><span style={{ color: COLORS.textFaint }}>{label}</span><b style={{ color: c, fontSize: 14, fontWeight: 700 }}>{value}</b></span>;
+
+// 通用终端行外壳
+function TermRow({ action, selected, index, onClick, children }: { action: string; selected: boolean; index: number; onClick: () => void; children: ReactNode }) {
+  const bg = selected ? TERM.selected : index % 2 ? TERM.zebra : COLORS.card;
+  return (
+    <div onClick={onClick} className="flex items-center cursor-pointer"
+      style={{ minHeight: ROW_H, borderLeft: `4px solid ${actionColor(action)}`, background: bg, padding: `0 ${SP.md - 4}px`, gap: SP.sm, borderBottom: `1px solid ${TERM.gridLine}` }}
+      onMouseEnter={(e) => { if (!selected) e.currentTarget.style.background = TERM.hover; }}
+      onMouseLeave={(e) => { if (!selected) e.currentTarget.style.background = index % 2 ? TERM.zebra : COLORS.card; }}>
+      {children}
+    </div>
+  );
+}
+function NameCell({ name, symbol, rank, rankDelta, deltaTone }: { name: string; symbol: string; rank?: string; rankDelta?: string; deltaTone?: Tone }) {
+  return (
+    <div className="flex items-center gap-1.5" style={{ flex: 1, minWidth: 0 }}>
+      {rank && <span className="tabular-nums" style={{ fontSize: 11, color: COLORS.textFaint, width: 30 }}>#{rank}</span>}
+      {rankDelta && <span className="tabular-nums" style={{ fontSize: 10, fontWeight: 700, color: deltaTone === "green" ? COLORS.success : deltaTone === "red" ? COLORS.danger : "#F5A623" }}>{rankDelta}</span>}
+      <div style={{ minWidth: 0 }}>
+        <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, lineHeight: 1.25 }}>{name}</div>
+        <div className="tabular-nums" style={{ fontSize: 10.5, color: COLORS.textFaint }}>{symbol}</div>
+      </div>
+    </div>
+  );
+}
+function ActionTag({ action, label }: { action: string; label: string }) {
+  const c = actionColor(action);
+  return <Cell w={COLW.action}><span style={{ fontSize: 11, fontWeight: 700, color: c, background: `${c}18`, padding: "2px 7px", borderRadius: 6 }}>{label}</span></Cell>;
+}
+function GradeCell({ ai }: { ai: number | null }) {
+  const g = gradeFor(ai);
+  return <Cell w={COLW.ai} align="right"><span className="tabular-nums" style={{ fontSize: 12.5, fontWeight: 700, color: g.color }}>{g.grade}</span> <span className="tabular-nums" style={{ fontSize: 10.5, color: COLORS.textFaint }}>{ai != null ? Math.round(ai) : "—"}</span></Cell>;
 }
 
-// ── ② 当前持有（Current Holdings · 动作永远第一）───────────────────────────────
+// ── ② 当前持有（Terminal List · 永远第一）─────────────────────────────────────
 export interface HoldRow {
   symbol: string; name: string; action: string; actionLabel: string;
-  returnPct: string; returnTone: Tone; sellPct: string; cost: string; price: string; reason: string;
+  pnl: string; pnlTone: Tone; cost: string; price: string; target: string; stop: string; sellPct: string; ai: number | null;
 }
-export function HoldingsPanel(p: { title: string; emptyLabel: string; rows: HoldRow[]; detailLabel: string; onDetail: (symbol: string) => void }) {
+export function HoldingsTable(p: { title: string; emptyLabel: string; rows: HoldRow[]; selected: string | null; detailLabel: string; cols: ColLabels; onDetail: (s: string) => void }) {
   return (
     <Card>
       <SectionHead title={p.title} count={p.rows.length} />
-      {p.rows.length === 0 ? (
-        <div className="px-3.5 py-3" style={{ fontSize: 12.5, color: COLORS.textFaint }}>{p.emptyLabel}</div>
-      ) : p.rows.map((r, i) => {
-        const c = actionColor(r.action);
-        return (
-          <div key={r.symbol} onClick={() => p.onDetail(r.symbol)} className="flex items-center gap-2 cursor-pointer"
-            style={{ borderLeft: `3px solid ${c}`, background: i % 2 ? ZEBRA : COLORS.card, padding: "7px 10px 7px 9px" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = HOVER)} onMouseLeave={(e) => (e.currentTarget.style.background = i % 2 ? ZEBRA : COLORS.card)}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: c, minWidth: 40 }}>{r.actionLabel}</span>
-            <b className="truncate" style={{ fontSize: 13, color: COLORS.text, flex: 1, minWidth: 0 }}>{r.name} <span className="tabular-nums" style={{ fontSize: 11, color: COLORS.textFaint }}>{r.symbol}</span></b>
-            <span className="tabular-nums" style={{ fontSize: 12, color: COLORS.textFaint }}>{r.cost}→{r.price}</span>
-            <b className="tabular-nums" style={{ fontSize: 13, color: r.returnTone === "red" ? COLORS.danger : COLORS.success, minWidth: 56, textAlign: "right" }}>{r.returnPct}</b>
-            {r.sellPct && <span className="tabular-nums" style={{ fontSize: 11, color: ORANGE, minWidth: 40, textAlign: "right" }}>{r.sellPct}</span>}
+      {p.rows.length === 0 ? <div style={{ padding: `${SP.md - 4}px`, fontSize: 12.5, color: COLORS.textFaint }}>{p.emptyLabel}</div> : (
+        <>
+          <div className="flex items-center" style={{ padding: `6px ${SP.md - 4}px`, gap: SP.sm, background: TERM.header, borderBottom: `1px solid ${TERM.gridLine}` }}>
+            <div style={{ flex: 1 }}><span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: TERM.headerText, textTransform: "uppercase" }}>{p.cols.symbol}</span></div>
+            <HCell w={COLW.action}>{p.cols.action}</HCell>
+            <HCell w={COLW.current} align="right">{p.cols.current}</HCell>
+            <HCell w={COLW.pnl} align="right">{p.cols.pnl}</HCell>
+            <HCell w={COLW.target} align="right">{p.cols.target}</HCell>
+            <HCell w={COLW.stop} align="right">{p.cols.stop}</HCell>
+            <HCell w={COLW.detail} align="right">{p.cols.detail}</HCell>
           </div>
-        );
-      })}
+          {p.rows.map((r, i) => (
+            <TermRow key={r.symbol} action={r.action} selected={p.selected === r.symbol} index={i} onClick={() => p.onDetail(r.symbol)}>
+              <NameCell name={r.name} symbol={r.symbol} />
+              <ActionTag action={r.action} label={r.actionLabel} />
+              <Cell w={COLW.current} align="right" mono>{r.price}</Cell>
+              <Cell w={COLW.pnl} align="right" mono color={r.pnlTone === "red" ? COLORS.danger : COLORS.success}><b>{r.pnl}</b></Cell>
+              <Cell w={COLW.target} align="right" mono color={COLORS.textSecondary}>{r.target}</Cell>
+              <Cell w={COLW.stop} align="right" mono color={COLORS.danger}>{r.stop}</Cell>
+              <Cell w={COLW.detail} align="right"><span style={{ fontSize: 11, color: COLORS.primary }}>{p.detailLabel} ›</span></Cell>
+            </TermRow>
+          ))}
+        </>
+      )}
     </Card>
   );
 }
 
-// ── ③④⑤ 候选终端列表（斑马纹 + 左色条 + 星级 + 详情按钮）────────────────────
+// ── ③④⑤ 机会 / 等待 / 观察（Terminal List）────────────────────────────────
 export interface PickRow {
-  rank: string; rankDelta?: string; deltaTone?: Tone; symbol: string; name: string;
-  stars: number; starLabel: string; price: string; changePct: string; changeTone: Tone;
-  action: string; actionLabel: string; tone: Tone;
-  entry: string; target: string; stop: string; score: string; trigger: string; replaceReason?: string;
+  rank: string; rankDelta?: string; deltaTone?: Tone; symbol: string; name: string; ai: number | null;
+  action: string; actionLabel: string; price: string; changePct: string; changeTone: Tone;
+  entry: string; target: string; stop: string;
 }
-export function StockList(p: {
-  title: string; tone: string; count: number; rows: PickRow[];
-  labels: { buy: string; target: string; stop: string; why: string; detail: string };
-  onDetail: (symbol: string) => void;
-}) {
+export interface ColLabels { symbol: string; action: string; current: string; pnl: string; change: string; entry: string; target: string; stop: string; ai: string; detail: string; }
+export function OpportunityTable(p: { title: string; tone: string; count: number; rows: PickRow[]; selected: string | null; cols: ColLabels; detailLabel: string; onDetail: (s: string) => void }) {
   return (
     <Card>
       <SectionHead title={p.title} count={p.count} tone={p.tone} />
-      {p.rows.length === 0 ? (
-        <div className="px-3.5 py-2.5" style={{ fontSize: 12, color: COLORS.textFaint }}>—</div>
-      ) : p.rows.map((r, i) => {
-        const c = actionColor(r.action);
-        return (
-          <div key={r.symbol} onClick={() => p.onDetail(r.symbol)} className="cursor-pointer"
-            style={{ borderLeft: `3px solid ${c}`, background: i % 2 ? ZEBRA : COLORS.card, padding: "6px 10px 6px 9px" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = HOVER)} onMouseLeave={(e) => (e.currentTarget.style.background = i % 2 ? ZEBRA : COLORS.card)}>
-            <div className="flex items-center gap-2">
-              <span className="tabular-nums" style={{ fontSize: 11, color: COLORS.textFaint, minWidth: 24 }}>#{r.rank}</span>
-              {r.rankDelta && <span className="tabular-nums" style={{ fontSize: 10, fontWeight: 700, color: r.deltaTone === "green" ? COLORS.success : r.deltaTone === "red" ? COLORS.danger : COLORS.warning }}>{r.rankDelta}</span>}
-              <b className="truncate" style={{ fontSize: 13, color: COLORS.text, minWidth: 0 }}>{r.name}</b>
-              <span className="tabular-nums" style={{ fontSize: 10, color: COLORS.textFaint }}>{r.symbol}</span>
-              <span title={r.starLabel} style={{ fontSize: 11, color: "#F5A623", letterSpacing: "-1px" }}>{stars(r.stars)}</span>
-              <span className="ml-auto tabular-nums" style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>{r.price}</span>
-              <span className="tabular-nums" style={{ fontSize: 11, color: r.changeTone === "red" ? COLORS.danger : r.changeTone === "green" ? COLORS.success : COLORS.textFaint, minWidth: 48, textAlign: "right" }}>{r.changePct}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: c, minWidth: 34, textAlign: "right" }}>{r.actionLabel}</span>
-            </div>
-            <div className="flex items-center gap-x-3 gap-y-0.5 flex-wrap mt-0.5 tabular-nums" style={{ fontSize: 10.5, color: COLORS.textSecondary, paddingLeft: 26 }}>
-              <span>{p.labels.buy} {r.entry}</span>
-              <span>{p.labels.target} {r.target}</span>
-              <span>{p.labels.stop} {r.stop}</span>
-              <span>AI {r.score}</span>
-              <span style={{ color: COLORS.textFaint }}>{r.replaceReason ?? r.trigger}</span>
-              <button onClick={(e) => { e.stopPropagation(); p.onDetail(r.symbol); }} className="ml-auto" style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.primary, padding: "1px 7px", borderRadius: 6, background: `${COLORS.primary}12` }}>{p.labels.why}</button>
-              <button onClick={(e) => { e.stopPropagation(); p.onDetail(r.symbol); }} style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.textSecondary, padding: "1px 7px", borderRadius: 6, background: "#F0F0F3" }}>{p.labels.detail}</button>
-            </div>
+      {p.rows.length === 0 ? <div style={{ padding: `${SP.sm}px ${SP.md - 4}px`, fontSize: 12, color: COLORS.textFaint }}>—</div> : (
+        <>
+          <div className="flex items-center" style={{ padding: `6px ${SP.md - 4}px`, gap: SP.sm, background: TERM.header, borderBottom: `1px solid ${TERM.gridLine}` }}>
+            <div style={{ flex: 1 }}><span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: TERM.headerText, textTransform: "uppercase" }}>{p.cols.symbol}</span></div>
+            <HCell w={COLW.action}>{p.cols.action}</HCell>
+            <HCell w={COLW.current} align="right">{p.cols.current}</HCell>
+            <HCell w={COLW.pnl} align="right">{p.cols.change}</HCell>
+            <HCell w={COLW.entry} align="right">{p.cols.entry}</HCell>
+            <HCell w={COLW.target} align="right">{p.cols.target}</HCell>
+            <HCell w={COLW.stop} align="right">{p.cols.stop}</HCell>
+            <HCell w={COLW.ai} align="right">{p.cols.ai}</HCell>
+            <HCell w={COLW.detail} align="right">{p.cols.detail}</HCell>
           </div>
-        );
-      })}
+          {p.rows.map((r, i) => (
+            <TermRow key={r.symbol} action={r.action} selected={p.selected === r.symbol} index={i} onClick={() => p.onDetail(r.symbol)}>
+              <NameCell name={r.name} symbol={r.symbol} rank={r.rank} rankDelta={r.rankDelta} deltaTone={r.deltaTone} />
+              <ActionTag action={r.action} label={r.actionLabel} />
+              <Cell w={COLW.current} align="right" mono><b>{r.price}</b></Cell>
+              <Cell w={COLW.pnl} align="right" mono color={r.changeTone === "red" ? COLORS.danger : r.changeTone === "green" ? COLORS.success : COLORS.textFaint}>{r.changePct}</Cell>
+              <Cell w={COLW.entry} align="right" mono color={COLORS.textSecondary}>{r.entry}</Cell>
+              <Cell w={COLW.target} align="right" mono color={COLORS.textSecondary}>{r.target}</Cell>
+              <Cell w={COLW.stop} align="right" mono color={COLORS.danger}>{r.stop}</Cell>
+              <GradeCell ai={r.ai} />
+              <Cell w={COLW.detail} align="right"><span style={{ fontSize: 11, color: COLORS.primary }}>{p.detailLabel} ›</span></Cell>
+            </TermRow>
+          ))}
+        </>
+      )}
     </Card>
   );
 }
 
-// ── ⑥ 数据新鲜度（紧凑）──────────────────────────────────────────────────────
+// ── 辅助面板（右栏，紧凑）──────────────────────────────────────────────────
 export function FreshnessPanel(p: { title: string; items: { label: string; value: string; tone?: Tone }[] }) {
   return (
-    <Card style={{ padding: 12 }}>
-      <Eyebrow>{p.title}</Eyebrow>
-      <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 mt-2" style={{ fontSize: 11.5 }}>
+    <Card style={{ padding: SP.md - 4 }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.05em", color: COLORS.textFaint, fontWeight: 600, textTransform: "uppercase", marginBottom: SP.sm }}>{p.title}</div>
+      <div className="grid grid-cols-2" style={{ gap: `${SP.xs + 2}px ${SP.md - 4}px`, fontSize: 11.5 }}>
         {p.items.map((it, i) => (
           <span key={i} className="flex items-baseline justify-between gap-2">
             <span style={{ color: COLORS.textFaint }}>{it.label}</span>
@@ -173,11 +198,9 @@ export function FreshnessPanel(p: { title: string; items: { label: string; value
     </Card>
   );
 }
-
-// ── Top200 漏斗（底部一行）──────────────────────────────────────────────────
 export function FunnelBar(p: { title: string; steps: { label: string; value: string }[] }) {
   return (
-    <Card style={{ padding: "8px 14px" }}>
+    <Card style={{ padding: `${SP.sm}px ${SP.md - 2}px` }}>
       <div className="flex items-center flex-wrap gap-x-2 gap-y-1" style={{ fontSize: 11.5 }}>
         <span style={{ color: COLORS.textFaint, fontWeight: 600 }}>{p.title}</span>
         {p.steps.map((s, i) => (

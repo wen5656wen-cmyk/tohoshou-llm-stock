@@ -228,7 +228,10 @@ export type Messages = {
   "dv.rt.new": string; "dv.rt.turnover": string;
   "dv.ov2.holdingsTitle": string; "dv.ov2.recTitle": string; "dv.ov2.watchTitle": string;
   "dv.rate.strongBuy": string; "dv.rate.buy": string; "dv.rate.wait": string; "dv.rate.watch": string; "dv.rate.backup": string;
-  "dv.dm.why": string; "dv.dm.detail": string; "dv.dm.aiAnalysis": string; "dv.dm.buyReasons": string; "dv.dm.risks": string; "dv.dm.position": string; "dv.dm.holdPeriod": string; "dv.dm.chart": string; "dv.dm.news": string; "dv.dm.currentReturn": string; "dv.dm.curPrice": string; "dv.dm.noReport": string; "dv.dm.rank": string;
+  "dv.dm.why": string; "dv.dm.detail": string; "dv.dm.aiAnalysis": string; "dv.dm.buyReasons": string; "dv.dm.risks": string; "dv.dm.position": string; "dv.dm.holdPeriod": string; "dv.dm.chart": string; "dv.dm.news": string; "dv.dm.currentReturn": string; "dv.dm.curPrice": string; "dv.dm.noReport": string; "dv.dm.rank": string; "dv.dm.comingSoon": string; "dv.dm.winRate": string;
+  "dv.col.symbol": string; "dv.col.action": string; "dv.col.current": string; "dv.col.pnl": string; "dv.col.change": string; "dv.col.entry": string; "dv.col.target": string; "dv.col.stop": string; "dv.col.ai": string; "dv.col.detail": string;
+  "dv.tab.summary": string; "dv.tab.price": string; "dv.tab.chart": string; "dv.tab.tech": string; "dv.tab.news": string; "dv.tab.financial": string; "dv.tab.decisionHist": string; "dv.tab.recHist": string;
+  "dv.fin.year": string; "dv.fin.revenue": string; "dv.fin.netProfit": string; "dv.fin.eps": string; "dv.fin.roe": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;
   "dv.footer.data": string; "dv.footer.cron": string; "dv.footer.ai": string; "dv.footer.health": string;

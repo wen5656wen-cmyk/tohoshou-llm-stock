@@ -2,6 +2,30 @@
 
 ---
 
+## [18.16.0] - 2026-07-18 — 🖥️ P15-03 Decision Terminal V2（统一 Terminal Design System）
+
+**纯 UI/Layout/Interaction**：在 P15-02 基础上建立统一终端视觉规范并升级为 Bloomberg/TradingView/IBKR 风格。**未改** Decision Engine / Runtime Ranking / adaptiveScore / runtimeScore / 权重 / API / Schema / Cron / GPT / SSOT / Runtime Pool（只读复用 overview + 现有 `/api/stocks/[symbol]/intelligence`·`/indicators`·`/api/financials`）。
+
+**一、Terminal Design System**（新 `lib/decision/terminal.ts`，唯一 token 源）：8pt 间距 `SP{4/8/16/24/32/48}`、统一行高 `ROW_H=56`、表格色(`zebra/hover/selected/header/gridLine`)、`ACTION_COLOR`(STOP红/SELL·REDUCE橙/WAIT琥珀/BUY·ADD·TP绿/HOLD灰)、`gradeFor()`(AI分→A+/A/B+/B/C+/C)、统一列宽 `COLW`。
+
+**二、12-Grid 宽屏**：容器 `max-w-[1760px]`；今日决策条(全宽) + **左 9 栏**(持仓/机会/等待/观察终端列表) + **右 3 栏辅助**(新鲜度/风险/市场，sticky) + 底部漏斗 —— 充分利用 1280/1440/1920，消除左右大留白。
+
+**三、今日决策条(非 Hero)**：`DecisionBar` 单条 ≤140px(实测约 96–120px)：动作+一句话+仓位/新增/单股+AI信心+风险+阶段+可执行徽章+新鲜度行；去除 Hero/Banner/大高度。
+
+**四、终端列表**：统一 `HoldingsTable`/`OpportunityTable` —— **56px 行**、**列头对齐**、斑马纹、Hover、**Selected 高亮**(点开的股票整行标蓝)、左侧 4px action 色条、统一列(Symbol/Action/Current/PnL·Chg/Entry/Target/Stop/AI/Detail)、8pt 间距。
+
+**五、AI 等级(取消星级)**：★★★★★ → **专业等级 A+/A/B+/B/C + AI 分**(如「A 78」)+ action 徽章，去电商风。
+
+**六、统一 8 页 Tab 详情 Modal**（`StockDetailModal` 扩展，受控 Radix Dialog，不跳页）：**AI摘要 / 价格 / 图表 / 技术 / 新闻 / 财务 / 决策历史 / 推荐历史**。懒加载复用 `intelligence`(摘要/技术/per-symbol新闻/推荐历史) + `indicators`(图表 `buildChartBars`→`LightweightStockChart`) + `financials`(财报表，Tab 打开才拉)。**决策历史无 per-symbol 数据源(P15-01H 未建)→ 诚实置「暂无数据(后续接入)」，不伪造。**
+
+**七、i18n**：三语 +25 键(`dv.col.*` 列头 / `dv.tab.*` 8 页 / `dv.fin.*` 财务 / `dv.dm.comingSoon`·`winRate`)，无硬编码 CJK。
+
+**验收**：tsc0/build✅/eslint 净/CJK 守卫 0/生产 health CRITICAL=0/部署后 `/decision-v2?tab=overview` 200(0.66s，无错误)/Modal 三端点 `intelligence`·`indicators`·`financials` 均 200。**部署**：rsync `.next`+`lib`→重启 web(API/cron/schema 未改)。
+
+**遗留**：①**1920/1440/1280 像素截图无法在本无头环境捕获**——见生产 URL 实看；②决策历史 Tab 待 P15-01H 的 DecisionSnapshot 落地后接入；③推荐历史 Tab 现示最新一条 DailyRec + 回测胜率，完整逐日历史待后续 by-symbol 端点；④部分标的 intelligence 报告字段稀疏 → AI摘要 Tab 诚实降级。
+
+---
+
 ## [18.15.0] - 2026-07-18 — 🎨 P15-02 Decision Center UI/UX 重设计（专业交易终端）
 
 **纯 UI/UX**：把决策总览从「后台管理页」重做为 Bloomberg/TradingView 风格的高密度交易终端。**未改** Decision Engine / Runtime Ranking / adaptiveScore / runtimeScore / 权重 / SSOT / API 契约 / Schema / Cron / GPT（只读复用 P15-01B/D 的 `overview` + 现有 `/api/explain`·`/api/stocks/[symbol]/indicators`·`/api/news`）。
