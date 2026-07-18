@@ -66,6 +66,10 @@ export type Messages = {
   "dc.tab.closing": string;
   "dc.tab.cockpit": string;
   "dc.tab.history": string;
+  // P13-DECISION-01 一级导航收敛（today/live/review）；旧键保留供深链兼容
+  "dc.tab.today": string;
+  "dc.tab.live": string;
+  "dc.tab.review": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;

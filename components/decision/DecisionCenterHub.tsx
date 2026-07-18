@@ -5,6 +5,7 @@
 // 各 Tab 懒加载（next/dynamic）+ 仅激活 Tab 挂载 → 首屏不同时请求全部 API。
 // URL ?tab= 同步，刷新保持当前 Tab；不整页刷新切换。复用现有视图/组件/API，不复制逻辑。
 
+import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/lib/i18n";
@@ -18,25 +19,49 @@ const ClosingDecisionView = dynamic(() => import("./ClosingDecisionView"), { ssr
 const DecisionCockpitView = dynamic(() => import("./DecisionCockpitView"), { ssr: false, loading: spin });
 const DecisionHistory = dynamic(() => import("./DecisionHistory"), { ssr: false, loading: spin });
 
-// P9-DECISION-01 顺序：①今日决策 ②AI Top Picks ③每日关注池 ④收盘决策 ⑤历史验证 ⑥AI市场驾驶舱
-// （仅重排 Tab，不新增/删除导航、Hub、Workspace；旧 ?tab= 深链全部保持可用）
-const TABS = [
-  { key: "overview", labelKey: "dc.tab.overview" },
-  { key: "top-picks", labelKey: "dc.tab.topPicks" },
-  { key: "watchlist", labelKey: "dc.tab.watchlist" },
-  { key: "closing", labelKey: "dc.tab.closing" },
-  { key: "history", labelKey: "dc.tab.history" },
-  { key: "cockpit", labelKey: "dc.tab.cockpit" },
+// P13-DECISION-01 导航收敛：一级 Tab 收敛为 3 个（today / live / review）。
+// closing / top-picks / cockpit 从一级导航隐藏，但仍可经 ?tab= 深链访问（不删除、不 404）。
+// 旧 ?tab= 深链别名：overview→today · watchlist→live · history→review。
+// 本轮仅导航/映射/URL 兼容，页面内容与数据来源零改动（today 暂渲染原 overview 内容）。
+const NAV_TABS = [
+  { key: "today", labelKey: "dc.tab.today" },
+  { key: "live", labelKey: "dc.tab.live" },
+  { key: "review", labelKey: "dc.tab.review" },
 ] as const;
 
-const VALID = new Set<string>(TABS.map((t) => t.key));
+// 旧深链别名 → 新 canonical key
+const TAB_ALIAS: Record<string, string> = {
+  overview: "today",
+  watchlist: "live",
+  history: "review",
+};
+// 一级导航隐藏但仍可访问的 key（本轮暂留，后续阶段迁出）
+const HIDDEN_TABS = new Set<string>(["closing", "top-picks", "cockpit"]);
+const CANONICAL_TABS = new Set<string>(["today", "live", "review"]);
+
+// raw ?tab= → 实际渲染 key：canonical 原样 / 别名映射 / 隐藏原样 / 其余回退 today
+function resolveTab(raw: string | null): string {
+  if (!raw) return "today";
+  if (CANONICAL_TABS.has(raw)) return raw;
+  if (TAB_ALIAS[raw]) return TAB_ALIAS[raw];
+  if (HIDDEN_TABS.has(raw)) return raw;
+  return "today";
+}
 
 export default function DecisionCenterHub() {
   const { t } = useI18n();
   const router = useRouter();
   const sp = useSearchParams();
   const raw = sp.get("tab");
-  const active = raw && VALID.has(raw) ? raw : "overview";
+  const active = resolveTab(raw);
+
+  // URL 规范化：仅当 raw 与解析后的 key 不一致时 replace 一次（缺省/别名/非法 → active）。
+  // replace 后 raw===active 不再触发 → 无重复 replace/redirect 循环。
+  useEffect(() => {
+    if (raw !== active) {
+      router.replace(`/decision-center?tab=${active}`, { scroll: false });
+    }
+  }, [raw, active, router]);
 
   const go = (key: string) => {
     if (key === active) return;
@@ -51,7 +76,7 @@ export default function DecisionCenterHub() {
         {/* Tab bar — 移动端横向滚动 */}
         <div className="mt-4 mb-5 overflow-x-auto">
           <div className="flex gap-1.5 min-w-max">
-            {TABS.map((tab) => {
+            {NAV_TABS.map((tab) => {
               const on = tab.key === active;
               return (
                 <button
@@ -72,13 +97,14 @@ export default function DecisionCenterHub() {
           </div>
         </div>
 
-        {/* 仅激活 Tab 挂载 → 懒加载对应 API */}
-        {active === "overview" && <DecisionOverview onNavigate={go} />}
-        {active === "top-picks" && <AiTopPicksView />}
-        {active === "watchlist" && <DailyWatchlistView />}
+        {/* 仅激活 Tab 挂载 → 懒加载对应 API。today/live/review 为一级导航；
+            closing/top-picks/cockpit 隐藏但经 ?tab= 深链仍可渲染（本轮暂留）。 */}
+        {active === "today" && <DecisionOverview onNavigate={go} />}
+        {active === "live" && <DailyWatchlistView />}
+        {active === "review" && <DecisionHistory />}
         {active === "closing" && <ClosingDecisionView />}
+        {active === "top-picks" && <AiTopPicksView />}
         {active === "cockpit" && <DecisionCockpitView />}
-        {active === "history" && <DecisionHistory />}
       </div>
     </div>
   );
