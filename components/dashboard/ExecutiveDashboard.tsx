@@ -128,7 +128,7 @@ export default function ExecutiveDashboard() {
           <AppCard header={
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>⭐ {t("ed.rec")}</span>
-              <Link href="/decision-center?tab=today" className="text-[11px]" style={{ color: COLORS.primary }}>{t("ed.viewFull")} →</Link>
+              <Link href="/decision-v2?tab=picks" className="text-[11px]" style={{ color: COLORS.primary }}>{t("ed.viewFull")} →</Link>
             </div>
           }>
             {top1 ? (
@@ -232,9 +232,9 @@ export default function ExecutiveDashboard() {
         <div>
           <div className="text-[11px] font-medium mb-1.5 px-1" style={{ color: COLORS.textFaint }}>{t("ed.quick")}</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <QuickBtn href="/decision-center?tab=today" label={t("dc.tab.today")} icon="◎" />
+            <QuickBtn href="/decision-v2?tab=strategy" label={t("dc.tab.today")} icon="◎" />
             <QuickBtn href="/decision-center?tab=live" label={t("dc.tab.live")} icon="🟢" />
-            <QuickBtn href="/decision-center?tab=review" label={t("dc.tab.review")} icon="↺" />
+            <QuickBtn href="/decision-v2?tab=history" label={t("dc.tab.review")} icon="↺" />
             <QuickBtn href="/admin/research" label={t("ed.goResearch")} icon="🔬" />
           </div>
         </div>

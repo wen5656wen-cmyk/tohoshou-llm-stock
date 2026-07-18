@@ -32,7 +32,7 @@ export type NavNode = {
 
 // ── 三工作区默认落地页 ──────────────────────────────────────────────────────
 export const WORKSPACE_HOME: Record<Workspace, string> = {
-  boss: "/decision-center",
+  boss: "/decision-v2",
   admin: "/admin/mission-control",
   research: "/admin/research",
 };
@@ -41,15 +41,16 @@ export const WORKSPACE_HOME: Record<Workspace, string> = {
 export const NAV_NODES: NavNode[] = [
   // ═══ 老板工作区（4 入口）═══
   {
-    key: "decision", workspace: "boss", labelKey: "nav.decisionHub", href: "/decision-center",
+    // P14 cut-over：正式「决策中心」入口切到 Decision V2（并行预览转正）。
+    // 旧 /decision-center 及其 Tab 作为回退保留（legacyRoutes 映射，仍归老板工作区）。
+    key: "decision", workspace: "boss", labelKey: "nav.decisionHub", href: "/decision-v2",
     Icon: Target, glyph: "◎",
     tabs: [
-      { key: "overview", labelKey: "dc.tab.overview" },
-      { key: "top-picks", labelKey: "dc.tab.topPicks", legacyRoutes: ["/admin/ai-top-picks"] },
-      { key: "watchlist", labelKey: "dc.tab.watchlist", legacyRoutes: ["/watchlist/daily"] },
-      { key: "closing", labelKey: "dc.tab.closing", legacyRoutes: ["/admin/closing-decision"] },
-      { key: "cockpit", labelKey: "dc.tab.cockpit", legacyRoutes: ["/admin/decision-center"] },
-      { key: "history", labelKey: "dc.tab.history" },
+      { key: "overview", labelKey: "dv.nav.overview" },
+      { key: "strategy", labelKey: "dv.nav.strategy" },
+      { key: "picks", labelKey: "dv.nav.picks" },
+      { key: "portfolio", labelKey: "dv.nav.portfolio" },
+      { key: "history", labelKey: "dv.nav.history", legacyRoutes: ["/decision-center", "/admin/closing-decision", "/admin/decision-center", "/admin/ai-top-picks", "/watchlist/daily"] },
     ],
   },
   {
