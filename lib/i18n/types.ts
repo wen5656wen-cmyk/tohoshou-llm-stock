@@ -1,4 +1,4 @@
-export type Lang = "zh-CN" | "ja-JP" | "en-US";
+export type Lang = "zh-CN" | "ja-JP";
 
 export type Messages = {
   // ─── Site ──────────────────────────────────────────────────────────────────

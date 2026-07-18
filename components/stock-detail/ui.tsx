@@ -168,7 +168,7 @@ export function AiUniverseControl({
 
   const isWatchlistInclude = aiEnabled && aiExcludeSource === "MANUAL" && aiExcludeRule === "MANUAL_INCLUDE_WATCHLIST";
   const overrideWarning = aiEnabled && aiExcludeSource === "MANUAL" && !!aiExcludeRule && !isWatchlistInclude;
-  const updatedStr = aiExcludeUpdatedAt ? new Date(aiExcludeUpdatedAt).toLocaleString(lang === "en-US" ? "en-US" : lang === "ja-JP" ? "ja-JP" : "zh-CN") : null;
+  const updatedStr = aiExcludeUpdatedAt ? new Date(aiExcludeUpdatedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : "zh-CN") : null;
 
   return (
     <div className="dash-card p-3.5" style={overrideWarning || !aiEnabled ? { borderColor: "#FFE8B3", background: "#FFFBF0" } : undefined}>

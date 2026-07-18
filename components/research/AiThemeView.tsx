@@ -487,7 +487,7 @@ export default function AiThemePage({ initialSubTab }: { initialSubTab?: string 
   const summary = data?.summary;
   const subtitleDate = summary?.updatedAt
     ? new Date(summary.updatedAt).toLocaleString(
-        lang === "zh-CN" ? "zh-CN" : lang === "ja-JP" ? "ja-JP" : "en-US",
+        lang === "zh-CN" ? "zh-CN" : "ja-JP",
         { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }
       )
     : null;

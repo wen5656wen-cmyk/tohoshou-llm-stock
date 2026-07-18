@@ -59,7 +59,6 @@ export function getRec(key: string | null | undefined) {
 const REC_LABELS: Record<Lang, Record<RecKey, string>> = {
   "zh-CN": { STRONG_BUY: "强烈买入", BUY: "买入", HOLD: "持有", WATCH: "观察", AVOID: "回避" },
   "ja-JP": { STRONG_BUY: "強い買い", BUY: "買い", HOLD: "保持", WATCH: "注目", AVOID: "回避" },
-  "en-US": { STRONG_BUY: "STRONG BUY", BUY: "BUY", HOLD: "HOLD", WATCH: "WATCH", AVOID: "AVOID" },
 };
 
 export function getRecommendationLabel(value: string | null | undefined, lang: Lang = "zh-CN"): string {

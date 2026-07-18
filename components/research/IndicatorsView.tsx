@@ -31,7 +31,7 @@ function ReturnCell({ val }: { val: number | null }) {
   );
 }
 
-import type { MessageKey } from "@/lib/i18n/types";
+import type { MessageKey, Lang } from "@/lib/i18n/types";
 type TFn = (key: MessageKey) => string;
 
 function MaTrend({ trend, t }: { trend: string; t: TFn }) {
@@ -103,12 +103,12 @@ const ACTION_COLOR: Record<string, string> = {
   AVOID:         "bg-slate-100 text-slate-400 border-slate-200",
 };
 
-function AiActionBadge({ action, pct, lang }: { action: string | null; pct: number | null; lang: string }) {
+function AiActionBadge({ action, pct, lang }: { action: string | null; pct: number | null; lang: Lang }) {
   if (!action) return <span className="text-slate-300 text-xs">—</span>;
   const cls = ACTION_COLOR[action] ?? ACTION_COLOR.HOLD;
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border font-semibold ${cls}`}>
-      {getTradingActionLabel(action, lang as "zh-CN" | "ja-JP" | "en-US")}
+      {getTradingActionLabel(action, lang)}
       {pct != null && pct > 0 && (
         <span className="font-normal opacity-60">{pct}%</span>
       )}

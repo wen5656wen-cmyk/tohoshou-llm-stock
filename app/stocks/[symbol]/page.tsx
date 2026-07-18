@@ -112,7 +112,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const stratKey = (stratC?.strategyType ?? "SWING");
 
   const aiConclusion = (lang === "ja-JP" && gpt?.summaryJa) ? gpt.summaryJa
-    : (lang === "en-US" && gpt?.summaryEn) ? gpt.summaryEn
     : gpt?.summaryZh ?? score?.recommendationReason ?? score?.summaryReason ?? null;
   const topReasons = [...(score?.actionReasons ?? []), ...(gpt?.strengths ?? []).filter((s) => !(score?.actionReasons ?? []).includes(s))].slice(0, 5);
   const topRisks = [...(score?.actionWarnings ?? []), ...(gpt?.risks ?? []).filter((r) => !(score?.actionWarnings ?? []).includes(r))].slice(0, 5);

@@ -2,6 +2,21 @@
 
 ---
 
+## [18.20.0] - 2026-07-19 — 🌐 P17-00 Internationalization Cleanup（彻底移除英文界面 · 只支持 日本語/中文）
+
+**TOHOSHOU 从本版本起只支持：日本語（默认）/ 中文（辅助）。English 已正式移除。** 本轮仅做国际化清理，未改 UI 结构/视觉/Decision Center/Portfolio/AI 逻辑/引擎/Ranking/评分/持仓/交易/DB/Schema/API/Cron/导航/业务字段。
+
+- **删除英文资源**：删 `lib/i18n/messages/en-US.ts`（无空壳、无转发）；`lib/i18n/index.tsx` 移除 enUS import / MESSAGES / SUPPORTED 中的 en-US。
+- **Locale 类型收缩**：`Lang = "zh-CN" | "ja-JP" | "en-US"` → `"zh-CN" | "ja-JP"`（真实收窄，无 `as any`/`@ts-ignore`）。连带清理 `Record<Lang,…>` 的 en-US 键：`theme-labels.ts`(移 27 处)/`market-labels.ts`(移 35 处)/`trading-action.ts`/`rec-config.ts`；`company-name.ts`/`stock-name.ts` 移除 `lang==="en-US"` 分支与不可达 else；15+ 处 UI 三元收窄（`lang==="en-US"?…` / `lang!=="en-US"` 全删）。`IndicatorsView` 用 `Lang` 真实类型替换旧 cast。
+- **默认语言 = 日本語**：SSR 与首帧初始 state 均为 `ja-JP`（消除 Hydration 闪烁）；Provider/Context/detect 默认全统一 ja-JP。
+- **历史英文值安全迁移**：读取 `en`/`en-US`/`en_US`/`English` → 一次性回退 `ja-JP` 并改写 localStorage（不再保留失效英文状态，无报错/白屏/循环）。
+- **浏览器语言**：日语→日本語、中文→中文、英文/其它→日本語。
+- **保留（业务专有名词，非界面语言）**：`toLocaleString("en-US")`/`Intl.DateTimeFormat("en-US")` 等数字·日期格式化 locale、公司英文名 `nameEn`、AI/TOPIX/JPX/TDnet/BUY/HOLD 等——均未动。
+- **无 Locale 路由/中间件**：项目本无 `/en`、`?lang=en`、i18n middleware，未新增。
+- **验收（生产 Playwright 实测）**：新英文浏览器→日本語；历史 en/en-US/English→日本語（存储改写）；zh-CN 保持；切 zh/ja 刷新持久化；切换器仅「中文/日本語」；1440/834/390 无横向溢出；0 页面错误。tsc 0 / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.19.3] - 2026-07-19 — 🧹 P16 收尾 Final UI Cleanup（修复页面级横向滚动 · P16 UI Freeze）
 
 **唯一目标**：消除决策总览手机端页面级横向滚动。**未改任何业务/数据/API/排序/列内容/颜色**。

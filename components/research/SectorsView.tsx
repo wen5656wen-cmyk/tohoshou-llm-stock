@@ -98,7 +98,7 @@ export default function SectorsPage() {
         <h1 className="text-2xl font-bold text-slate-900">{t("sectors.title")}</h1>
         <p className="text-sm text-slate-500 mt-0.5">
           {sectors.length}{t("sectors.unit_sector")}　{data.totalScored.toLocaleString()}{t("sectors.unit_stock_suffix")}
-          　{new Date(data.computedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : lang === "en-US" ? "en-US" : "zh-CN")}
+          　{new Date(data.computedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : "zh-CN")}
         </p>
       </div>
 

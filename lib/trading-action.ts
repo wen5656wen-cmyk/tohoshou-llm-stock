@@ -275,13 +275,11 @@ type RiskKey = TradingAction["riskLevel"];
 const ACTION_LABELS: Record<Lang, Record<ActionKey, string>> = {
   "zh-CN": { BUY_NOW: "立即买入", WAIT_PULLBACK: "等待回调", HOLD: "持有", TAKE_PROFIT: "止盈", SELL: "卖出", AVOID: "回避" },
   "ja-JP": { BUY_NOW: "今すぐ買い", WAIT_PULLBACK: "押し目待ち", HOLD: "保持", TAKE_PROFIT: "利益確定", SELL: "売り", AVOID: "回避" },
-  "en-US": { BUY_NOW: "BUY NOW", WAIT_PULLBACK: "WAIT PULLBACK", HOLD: "HOLD", TAKE_PROFIT: "TAKE PROFIT", SELL: "SELL", AVOID: "AVOID" },
 };
 
 const RISK_LABELS: Record<Lang, Record<RiskKey, string>> = {
   "zh-CN": { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险", EXTREME: "极高风险" },
   "ja-JP": { LOW: "低リスク", MEDIUM: "中リスク", HIGH: "高リスク", EXTREME: "超高リスク" },
-  "en-US": { LOW: "Low Risk", MEDIUM: "Medium Risk", HIGH: "High Risk", EXTREME: "Extreme Risk" },
 };
 
 export function getTradingActionLabel(action: string | null | undefined, lang: Lang = "zh-CN"): string {

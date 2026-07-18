@@ -329,7 +329,7 @@ export function FinancialsPanel({ financials, loading }: { financials: Financial
             <tbody>
               {[...financials].sort((a, b) => b.fiscalYear - a.fiscalYear || (b.quarter ?? 99) - (a.quarter ?? 99)).slice(0, 6).map((f) => (
                 <tr key={f.id} style={{ borderBottom: `1px solid ${C.line}` }}>
-                  <td className="px-2 py-2 font-medium" style={{ color: C.ink }}>{lang === "en-US" ? `FY${f.fiscalYear}${f.quarter ? ` Q${f.quarter}` : ""}` : `${f.fiscalYear}${f.quarter ? ` Q${f.quarter}` : t("fin.full_year")}`}</td>
+                  <td className="px-2 py-2 font-medium" style={{ color: C.ink }}>{`${f.fiscalYear}${f.quarter ? ` Q${f.quarter}` : t("fin.full_year")}`}</td>
                   <td className="px-2 py-2 text-right tabular-nums" style={{ color: C.sub }}>{oku(f.revenue)}</td>
                   <td className="px-2 py-2 text-right tabular-nums" style={{ color: C.sub }}>{oku(f.operatingProfit)}</td>
                   <td className="px-2 py-2 text-right tabular-nums" style={{ color: C.sub }}>{oku(f.netProfit)}</td>

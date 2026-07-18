@@ -307,10 +307,10 @@ export default function SyncPage() {
     try {
       await Promise.all([fetchStatus(), fetchHealth()]);
       setRefreshedAt(new Date());
-      const msg = lang === "ja-JP" ? "状態を更新しました" : lang === "en-US" ? "Status refreshed" : "状态已刷新";
+      const msg = lang === "ja-JP" ? "状態を更新しました" : "状态已刷新";
       showToast(msg, true);
     } catch {
-      const msg = lang === "ja-JP" ? "更新に失敗しました" : lang === "en-US" ? "Refresh failed" : "刷新失败，请稍后重试";
+      const msg = lang === "ja-JP" ? "更新に失敗しました" : "刷新失败，请稍后重试";
       showToast(msg, false);
     } finally {
       setRefreshing(false);
@@ -410,8 +410,8 @@ export default function SyncPage() {
             TOHOSHOU AI v10
             {refreshedAt && (
               <span className="ml-2 text-slate-400">
-                · {lang === "ja-JP" ? "最終更新" : lang === "en-US" ? "Last refreshed" : "最后刷新"}：
-                {refreshedAt.toLocaleTimeString(lang === "ja-JP" ? "ja-JP" : lang === "en-US" ? "en-US" : "zh-CN")}
+                · {lang === "ja-JP" ? "最終更新" : "最后刷新"}：
+                {refreshedAt.toLocaleTimeString(lang === "ja-JP" ? "ja-JP" : "zh-CN")}
               </span>
             )}
           </p>
@@ -424,7 +424,7 @@ export default function SyncPage() {
           >
             <span className={refreshing ? "animate-spin inline-block" : ""}>↺</span>
             {refreshing
-              ? (lang === "ja-JP" ? "更新中..." : lang === "en-US" ? "Refreshing..." : "刷新中...")
+              ? (lang === "ja-JP" ? "更新中..." : "刷新中...")
               : t("sync.refresh")}
           </button>
           <button

@@ -6,7 +6,7 @@
  *        (`aiExcludeSource` / `aiExcludeRule`) and the pure rule-matching logic below.
  *
  * `excludeReason` is stored on Stock as a stable CODE (not a localized string), so
- * display labels stay in i18n (`universe.reason.<CODE>` keys) across zh-CN/ja-JP/en-US.
+ * display labels stay in i18n (`universe.reason.<CODE>` keys) across zh-CN/ja-JP.
  */
 export const EXCLUDE_REASON_CODES = [
   "LOW_LIQUIDITY", // 流动性不足

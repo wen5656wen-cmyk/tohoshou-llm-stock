@@ -194,7 +194,7 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
               {t(`gpt.action.${gpt.action}` as Parameters<typeof t>[0])}
             </span>
             <span className="text-slate-400 truncate flex-1 text-[9px]">
-              {lang === "ja-JP" ? gpt.summaryJa : lang === "en-US" ? gpt.summaryEn : gpt.summaryZh}
+              {lang === "ja-JP" ? gpt.summaryJa : gpt.summaryZh}
             </span>
             <span className="text-slate-300 shrink-0">{expanded ? "▲" : "▼"}</span>
           </button>
@@ -220,7 +220,7 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
                 </div>
               )}
               <p className="leading-relaxed text-slate-500">
-                {lang === "ja-JP" ? gpt.thesisJa : lang === "en-US" ? gpt.thesisEn : gpt.thesisZh}
+                {lang === "ja-JP" ? gpt.thesisJa : gpt.thesisZh}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -233,10 +233,10 @@ function StockRow({ s, gptMap }: { s: Stock; gptMap: Map<string, GptSummary> }) 
                 </div>
               </div>
               {/* reason + riskNote only in expanded */}
-              {s.reason && lang !== "en-US" && (
+              {s.reason && (
                 <div className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-200 pt-1.5">{s.reason}</div>
               )}
-              {s.riskNote && lang !== "en-US" && (
+              {s.riskNote && (
                 <div className="text-[10px] text-red-500">⚠ {s.riskNote}</div>
               )}
             </div>
@@ -324,7 +324,7 @@ export default function AiThemeDetailPage() {
             {t("theme.detail_subtitle")}
           </span>
         </div>
-        {lang !== "en-US" && <p className="text-sm text-slate-500">{meta.desc}</p>}
+        <p className="text-sm text-slate-500">{meta.desc}</p>
       </div>
 
       {/* Stats */}
