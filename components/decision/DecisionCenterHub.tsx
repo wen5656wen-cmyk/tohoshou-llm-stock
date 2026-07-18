@@ -10,7 +10,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/lib/i18n";
 import { AppHeader, AppLoading, COLORS } from "@/components/ui";
-import DecisionOverview from "./DecisionOverview";
+// P13-DECISION-02：today 页由 TodayDecisionView 承载（V3 布局）。
+// 旧 DecisionOverview 保留在库内作回滚点，本轮不再挂载。
+import TodayDecisionView from "./TodayDecisionView";
 
 const spin = () => <AppLoading />;
 const AiTopPicksView = dynamic(() => import("./AiTopPicksView"), { ssr: false, loading: spin });
@@ -99,7 +101,7 @@ export default function DecisionCenterHub() {
 
         {/* 仅激活 Tab 挂载 → 懒加载对应 API。today/live/review 为一级导航；
             closing/top-picks/cockpit 隐藏但经 ?tab= 深链仍可渲染（本轮暂留）。 */}
-        {active === "today" && <DecisionOverview onNavigate={go} />}
+        {active === "today" && <TodayDecisionView onNavigate={go} />}
         {active === "live" && <DailyWatchlistView />}
         {active === "review" && <DecisionHistory />}
         {active === "closing" && <ClosingDecisionView />}

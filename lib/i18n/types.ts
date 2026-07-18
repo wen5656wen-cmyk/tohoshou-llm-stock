@@ -70,6 +70,28 @@ export type Messages = {
   "dc.tab.today": string;
   "dc.tab.live": string;
   "dc.tab.review": string;
+  // P13-DECISION-02 Today 重构（布局层，复用现有 API）
+  "dc.td.whyBuy": string;
+  "dc.td.whyRisk": string;
+  "dc.td.noWhyBuy": string;
+  "dc.td.alts": string;
+  "dc.td.altsHint": string;
+  "dc.td.altsNone": string;
+  "dc.td.market": string;
+  "dc.td.more": string;
+  "dc.td.moreHint": string;
+  "dc.td.position": string;
+  "dc.td.positionSeeAlts": string;
+  "dc.td.aiSummary": string;
+  "dc.td.top10": string;
+  "dc.td.whyNot": string;
+  "dc.td.gptNote": string;
+  "dc.td.catalyst": string;
+  "dc.td.colStock": string;
+  "dc.td.rsn.news": string;
+  "dc.td.rsn.risk": string;
+  "dc.td.rsn.dump": string;
+  "dc.td.rsn.zone": string;
   "dc.ov.verdict": string;
   "dc.ov.firstPick": string;
   "dc.ov.portfolio": string;
