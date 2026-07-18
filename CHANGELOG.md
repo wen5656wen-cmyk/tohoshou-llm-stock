@@ -2,6 +2,13 @@
 
 ---
 
+## [18.18.2] - 2026-07-18 — 🩹 当前持有：加入按钮聚焦搜索 + 标出取得价格（纯 UI）
+
+- **「+加入」按钮修复**：原仅 `window.scrollTo` 不聚焦(感觉无效) → 改为向 `StockSearch` 递增 `focusSignal`，点击后**真正聚焦顶部搜索框**并居中滚入(实测 activeElement=搜索输入)。
+- **标出取得价格**：当前持有表新增 **成本价(avgCost) + 数量(shares)** 两列(§8 字段)——`HoldRow` 加 cost/shares，列序 动作/现价/成本价/数量/盈亏/目标/止损；窄屏 `overflow-x:auto` 不挤压。复用 `dv.pf.avgCost/shares` 标签，无新键。未改数据/API/逻辑。tsc0/build✅/health CRITICAL=0/部署后实测 6 持仓成本价列正确。
+
+---
+
 ## [18.18.1] - 2026-07-18 — 🎯 市场概况区层级化（纯 UI）
 
 右栏「市场快照」5 个等大方块 → **层级化「市场概况」`MarketPanel`**（§10.3）：主要 **TOPIX / Nikkei 225** 大字(16px)+涨跌%，**市场趋势** 徽章(regime)，次要 **USD/JPY · VIX · NASDAQ** 小字辅助行。新增 `dv.mk.title/trend` 三语。仅决策总览右栏改用 `MarketPanel`（`panels.tsx` 的 `MarketSnapshot` 保留供其它页）。未改任何数据/API/逻辑。验收：tsc0/build✅/eslint净/health CRITICAL=0/部署后实测 TOPIX 407.9 -2.8% 大字+市场趋势徽章。

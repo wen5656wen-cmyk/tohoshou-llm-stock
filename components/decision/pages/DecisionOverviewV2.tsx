@@ -32,6 +32,7 @@ export default function DecisionOverviewV2() {
   const o = overview as any;
   const [detail, setDetail] = useState<ReportTarget | null>(null);
   const [dlg, setDlg] = useState<HoldingDialog>(null);
+  const [searchFocus, setSearchFocus] = useState(0);
   const sel = detail?.symbol ?? null;
 
   if (loading) return <div className="max-w-[1760px] mx-auto px-4 sm:px-6 py-8"><AppLoading label={t("dv.ov2.title")} /></div>;
@@ -65,7 +66,7 @@ export default function DecisionOverviewV2() {
   const holdRows: HoldRow[] = userHoldings.map((h) => ({
     symbol: h.symbol, name: h.name, action: h.action, actionLabel: actLabel(h.action),
     pnl: fmtPct(h.returnPct), pnlTone: (h.returnPct ?? 0) < 0 ? "red" : "green",
-    current: fmtJpy(h.currentPrice), target: fmtJpy(h.target), stop: fmtJpy(h.stop), ai: h.ai ?? null,
+    current: fmtJpy(h.currentPrice), cost: fmtJpy(h.avgCost), shares: String(h.shares), target: fmtJpy(h.target), stop: fmtJpy(h.stop), ai: h.ai ?? null,
   }));
 
   // ③④⑤ 候选
@@ -154,7 +155,7 @@ export default function DecisionOverviewV2() {
   ];
 
   const marketClosed = !o.tradingDay || o.marketPhase === "NON_TRADING";
-  const focusSearch = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  const focusSearch = () => setSearchFocus((n) => n + 1);
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 space-y-2.5">
@@ -164,7 +165,7 @@ export default function DecisionOverviewV2() {
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>AI Decision Center</div>
           <div style={{ fontSize: 11, color: "#6B7280" }}>AI Portfolio Manager</div>
         </div>
-        <div className="flex-1 flex justify-center min-w-0"><StockSearch onPick={(s, n) => openDetail(s, n)} /></div>
+        <div className="flex-1 flex justify-center min-w-0"><StockSearch onPick={(s, n) => openDetail(s, n)} focusSignal={searchFocus} /></div>
         <div style={{ flex: "0 0 auto", textAlign: "right" }}>
           <div style={{ fontSize: 12.5, color: marketClosed ? "#6B7280" : "#34C759", fontWeight: 600 }}>{t(marketClosed ? "dv.ov2.marketClosed" : "dv.ov2.marketOk")}</div>
           <div className="tabular-nums" style={{ fontSize: 11, color: "#9CA3AF" }}>{fmtJstClock(fr.quoteUpdatedAt)} JST</div>
@@ -176,7 +177,7 @@ export default function DecisionOverviewV2() {
       <ActionSummary title={t("dv.pf.actionSummary")} items={actionItems} onClick={onActionClick} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-9 space-y-3 min-w-0">
-          <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={cols} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} addLabel={t("dv.pf.btnAdd")} onAddClick={focusSearch} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
+          <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={{ action: cols.action, current: cols.current, cost: t("dv.pf.avgCost"), shares: t("dv.pf.shares"), pnl: cols.pnl, target: cols.target, stop: cols.stop }} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} addLabel={t("dv.pf.btnAdd")} onAddClick={focusSearch} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
           <div id="sec-exec"><OpportunityTable title={t("dv.ov2.recTitle")} tone="#34C759" count={exec.length} rows={exec.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} emptyLabel={t("dv.rr.emptyExec")} onDetail={openDetail} onAdd={onAdd} /></div>
           <div id="sec-wait"><OpportunityTable title={t("dv.grp.waitList")} tone="#F5A623" count={wait.length} rows={wait.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
           <div id="sec-watch"><OpportunityTable title={t("dv.ov2.watchTitle")} tone="#9AA0A6" count={watch.length} rows={watch.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>

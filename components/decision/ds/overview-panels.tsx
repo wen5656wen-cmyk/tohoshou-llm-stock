@@ -108,25 +108,29 @@ export function ActionSummary(p: { title: string; items: { action: string; label
 // ── ② 当前持有（真实用户持仓 · symbol 第一视觉 · 编辑/卖出/删除）──────────────
 export interface HoldRow {
   symbol: string; name: string; action: string; actionLabel: string;
-  pnl: string; pnlTone: Tone; current: string; target: string; stop: string; ai: number | null;
+  pnl: string; pnlTone: Tone; current: string; cost: string; shares: string; target: string; stop: string; ai: number | null;
 }
 export function HoldingsTable(p: {
   title: string; emptyLabel: string; rows: HoldRow[]; selected: string | null;
-  cols: { action: string; current: string; pnl: string; target: string; stop: string };
+  cols: { action: string; current: string; cost: string; shares: string; pnl: string; target: string; stop: string };
   labels: { edit: string; sell: string; del: string };
   addLabel?: string; onAddClick?: () => void;
   onDetail: (s: string) => void; onEdit: (s: string) => void; onSell: (s: string) => void; onDelete: (s: string) => void;
 }) {
+  const W = { cost: 92, shares: 56 };
   return (
     <Card>
       <SectionHead title={p.title} count={p.rows.length} right={p.addLabel && p.onAddClick ? <button onClick={p.onAddClick} style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.primary, background: `${COLORS.primary}12`, padding: "3px 10px", borderRadius: 7 }}>+ {p.addLabel}</button> : undefined} />
       {p.rows.length === 0 ? <div style={{ padding: `${SP.md - 2}px ${SP.md - 4}px`, fontSize: 12.5, color: COLORS.textFaint }}>{p.emptyLabel}</div> : (
-        <>
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 720 }}>
           <div className="flex items-center" style={{ padding: `6px ${SP.md - 4}px`, gap: SP.sm, background: TERM.header, borderBottom: `1px solid ${TERM.gridLine}` }}>
-            <div style={{ flex: 1 }} />
+            <div style={{ flex: 1, minWidth: 120 }} />
             <HCell w={COLW.action}>{p.cols.action}</HCell>
-            <HCell w={COLW.pnl} align="right">{p.cols.pnl}</HCell>
             <HCell w={COLW.current} align="right">{p.cols.current}</HCell>
+            <HCell w={W.cost} align="right">{p.cols.cost}</HCell>
+            <HCell w={W.shares} align="right">{p.cols.shares}</HCell>
+            <HCell w={COLW.pnl} align="right">{p.cols.pnl}</HCell>
             <HCell w={COLW.target} align="right">{p.cols.target}</HCell>
             <HCell w={COLW.stop} align="right">{p.cols.stop}</HCell>
             <div style={{ width: 168, flex: "0 0 168px" }} />
@@ -137,13 +141,15 @@ export function HoldingsTable(p: {
               onMouseEnter={(e) => { if (p.selected !== r.symbol) e.currentTarget.style.background = TERM.hover; }}
               onMouseLeave={(e) => { if (p.selected !== r.symbol) e.currentTarget.style.background = i % 2 ? TERM.zebra : COLORS.card; }}>
               {/* symbol 第一视觉（最大字），名称第二 */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 120 }}>
                 <div className="tabular-nums truncate" style={{ fontSize: 15, fontWeight: 800, color: COLORS.text, lineHeight: 1.2 }}>{r.symbol}</div>
                 <div className="truncate" style={{ fontSize: 11, color: COLORS.textFaint }}>{r.name}</div>
               </div>
               <Cell w={COLW.action}><span style={{ fontSize: 11, fontWeight: 700, color: actionColor(r.action), background: `${actionColor(r.action)}18`, padding: "2px 7px", borderRadius: 6 }}>{r.actionLabel}</span></Cell>
+              <Cell w={COLW.current} align="right" mono><b>{r.current}</b></Cell>
+              <Cell w={W.cost} align="right" mono color={COLORS.textSecondary}>{r.cost}</Cell>
+              <Cell w={W.shares} align="right" mono color={COLORS.textFaint}>{r.shares}</Cell>
               <Cell w={COLW.pnl} align="right" mono color={r.pnlTone === "red" ? COLORS.danger : COLORS.success}><b>{r.pnl}</b></Cell>
-              <Cell w={COLW.current} align="right" mono>{r.current}</Cell>
               <Cell w={COLW.target} align="right" mono color={COLORS.textSecondary}>{r.target}</Cell>
               <Cell w={COLW.stop} align="right" mono color={COLORS.danger}>{r.stop}</Cell>
               <div className="flex items-center justify-end gap-1.5" style={{ width: 168, flex: "0 0 168px" }}>
@@ -153,7 +159,8 @@ export function HoldingsTable(p: {
               </div>
             </div>
           ))}
-        </>
+          </div>
+        </div>
       )}
     </Card>
   );

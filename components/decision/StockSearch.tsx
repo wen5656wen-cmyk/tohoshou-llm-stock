@@ -9,7 +9,7 @@ import { COLORS } from "@/components/ui";
 import { fmtJpy, fmtPct } from "@/lib/decision/ds";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export default function StockSearch({ onPick }: { onPick: (symbol: string, name: string) => void }) {
+export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symbol: string, name: string) => void; focusSignal?: number }) {
   const { t } = useI18n();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<any[]>([]);
@@ -17,6 +17,12 @@ export default function StockSearch({ onPick }: { onPick: (symbol: string, name:
   const [sel, setSel] = useState(0);
   const [loading, setLoading] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 外部「加入持仓」触发聚焦搜索框
+  useEffect(() => {
+    if (focusSignal > 0 && inputRef.current) { inputRef.current.focus(); inputRef.current.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  }, [focusSignal]);
 
   useEffect(() => {
     const term = q.trim();
@@ -50,6 +56,7 @@ export default function StockSearch({ onPick }: { onPick: (symbol: string, name:
   return (
     <div ref={boxRef} style={{ position: "relative", width: "100%", maxWidth: 460 }}>
       <input
+        ref={inputRef}
         value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} onFocus={() => { if (rows.length) setOpen(true); }}
         placeholder={t("dv.search.placeholder")}
         style={{ width: "100%", height: 38, padding: "0 14px", fontSize: 13, border: `1px solid ${COLORS.border}`, borderRadius: 9, background: "#fff", color: COLORS.text }}
