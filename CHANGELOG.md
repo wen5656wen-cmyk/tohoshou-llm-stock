@@ -2,6 +2,20 @@
 
 ---
 
+## [18.23.2] - 2026-07-19 — 💠 股票详情弹窗高质量重构（去重 + 双栏 + 双语纯净）
+
+`StockDetailModal`（AI Research Report）一次性优化。**纯 UI 重排**，未改数据源/API/引擎/Schema/评分。
+
+- **消除三块重复**：原「AI 最终决策 / AI观点 / 核心决策」三段并列，重复展示动作(×3)、优势·风险(×2，whyBuy/whyNot 与 优势✓/风险△ 同源)、买点·目标·止损(×2)、信心(×2~3)、结论一句话(×2)。合并为**单一权威「AI 决策」Hero**。
+- **双栏 Hero（利用 1120px 宽）**：左=★星级+动作+等级+风险 → 自然语言结论 → 买入理由/谨慎理由 → 信心来源 → 主要风险；右=价格走势图 + 行动计划（买区+买点 / 建议持有 / 目标+涨幅 / 止损+跌幅）。动作/理由/价格/信心各只出现一次。
+- **下方并排**：技术状态 · AI 判断依据（5维）并排；最近新闻 · 基本面并排（宽屏两栏，手机单栏堆叠）。
+- **删薄弱模块**：移除仅一行的「AI 决策记录」(dailyRec)。
+- **双语纯净修复**：结论散文日文优先用 `gpt.summaryJa`（无则用派生日文一句话），不再对日文用户显示中文 `summaryReason`（原中日混排瑕疵）。
+- **死代码清理**：移除未用 `fmtScore` 导入 + `adv/rk/dim/reasons/validReason/conclusion/advList/CONCL` 派生。
+- **验收**：持仓/非持仓 × zh/ja × 桌面/手机(390) 截图确认；无横向溢出；tsc 0 / eslint 0 / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.23.1] - 2026-07-19 — 🧹 P17-03A Decision Center 信息架构去重（删「今日 AI 决策」）
 
 删除 P17-03 顶部与下方已有「当前持有 / AI 推荐 / 等待 / 观察 / Decision Timeline」**重复展示同一批股票**的模块。**仅删首页展示，不删任何数据**；Trading Engine/Decision Timeline/Review/History 全部保留；未改 DB/API/Trading Loop/Decision Engine/Portfolio/Review。

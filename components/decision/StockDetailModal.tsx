@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useI18n } from "@/lib/i18n";
 import { COLORS } from "@/components/ui";
-import { fmtJpy, fmtPct, fmtScore } from "@/lib/decision/ds";
+import { fmtJpy, fmtPct } from "@/lib/decision/ds";
 import { SP, gradeFor, actionColor } from "@/lib/decision/terminal";
 import { buildChartBars, type ChartBar } from "@/components/charts/LightweightStockChart";
 import { deriveAiVerdict } from "@/lib/decision/ai-verdict";
@@ -28,7 +28,7 @@ function fallbackAction(rec: string | null, ta: string | null): string {
 }
 
 export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdit }: { report: ReportTarget | null; onClose: () => void; onBuy?: (s: string) => void; onSell?: (s: string) => void; onEdit?: (s: string) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const open = !!report;
   const symbol = report?.symbol ?? "";
   const [intel, setIntel] = useState<any>(null);
@@ -76,24 +76,19 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
     .replace(/(技术|基本|资金|情绪|趋势|技術|基本面|資金)面?\s*\d+\s*\/\s*\d+[，,、\s]*/g, "") // 技术面23/30，维度数字
     .replace(/\[[a-z0-9_]+\]/gi, "")
     .replace(/[：:，,、]+\s*(?=[。：:，,、])/g, "").replace(/。{2,}/g, "。").replace(/\s{2,}/g, " ").replace(/^[·:：,，、。\s]+/, "").trim();
-  // 理由须含中日文或字母（过滤只剩符号/数字的调试残片）
-  const validReason = (r: string) => r.length > 3 && /[一-鿿゠-ヿ぀-ゟA-Za-z]/.test(r);
-  const summaryClean = clean(sc?.summaryReason);
-  const reasons: string[] = Array.from(new Set([sc?.recommendationReason, intel?.dailyRec?.summaryZh].map(clean).filter((r) => validReason(r) && r !== summaryClean)));
+  // 结论散文按语言取用，避免中日混排：日文优先 gpt.summaryJa（无则用下方派生的日文一句话），中文用 summaryReason。
+  const summaryClean = lang === "ja-JP" ? clean(intel?.gpt?.summaryJa) : clean(sc?.summaryReason);
 
-  // 第一页「AI观点」：由 5 维评分 + 风控派生自然语言优势/风险（禁数字）
+  // AI 决策（单一权威结论）：结论/理由/买点/止盈/止损/周期/信心/风险 全部来自 deriveAiVerdict，
+  // 合并原「AI观点 + 核心决策 + 最终决策」三块重复展示。
   const risk = intel?.riskAnalysis;
-  const adv: string[] = [], rk: string[] = [];
-  const dim = (v: number | null | undefined, hi: number, lo: number, ak: string, rkk: string) => { if (v == null) return; if (v >= hi) adv.push(t(ak as Parameters<typeof t>[0])); else if (v <= lo) rk.push(t(rkk as Parameters<typeof t>[0])); };
-  dim(sc?.technicalScore, 20, 15, "dv.rr.adv.tech", "dv.rr.rk.tech");
-  dim(sc?.fundamentalScore, 17, 13, "dv.rr.adv.fund", "dv.rr.rk.fund");
-  dim(sc?.moneyFlowScore, 14, 10, "dv.rr.adv.money", "dv.rr.rk.money");
-  dim(sc?.newsSentimentScore, 10, 7, "dv.rr.adv.senti", "dv.rr.rk.senti");
-  dim(sc?.globalTrendScore, 7, 4, "dv.rr.adv.trend", "dv.rr.rk.trend");
-  if (risk?.volatility === "HIGH") rk.push(t("dv.rr.rk.vol"));
-  const advList = adv.length ? adv : reasons.slice(0, 3);
-  const CONCL = new Set(["BUY", "ADD", "WAIT", "HOLD", "REDUCE", "TAKE_PROFIT", "STOP_LOSS"]);
-  const conclusion = t((`dv.rr.concl.${CONCL.has(action) ? action : "default"}`) as Parameters<typeof t>[0]);
+  const v = sc ? deriveAiVerdict({ action, score: sc, indicators: ind ?? null, risk: risk ?? null, gpt: intel?.gpt ?? null }) : null;
+  const lead = v && v.finalDecision.strongDims.length >= 2 ? v.finalDecision.strongDims.map((k) => t(k as Parameters<typeof t>[0])).join("、") + t("dv.aiv.resonate") : "";
+  const prose = summaryClean || (v ? t(v.finalDecision.conclKey as Parameters<typeof t>[0]) : "");
+  const tpText = v ? (v.takeProfit.pct != null ? `+${v.takeProfit.pct}%` : t("dv.aiv.long")) : "—";
+  const slText = v ? (v.stopLoss.pct != null ? `${v.stopLoss.pct}%` : t("dv.aiv.longCfg")) : "—";
+  const drivers = v ? v.confidence.driverKeys.map((k) => t(k as Parameters<typeof t>[0])).join("、") : "";
+  const buyRange = entryLow != null && entryHigh != null ? `${fmtJpy(entryLow)}~${fmtJpy(entryHigh)}` : "—";
 
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -124,87 +119,56 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
 
           {/* Body 滚动 */}
           <div style={{ flex: 1, overflow: "auto", padding: `${SP.md}px ${SP.lg}px` }}>
-            {/* AI 最终决策（P17-01 · 30 秒决策：结论/买点/止盈/止损/周期/信心/风险，全部由已有数据推导）*/}
-            {sc && (() => {
-              const v = deriveAiVerdict({ action, score: sc, indicators: ind ?? null, risk: intel?.riskAnalysis ?? null, gpt: intel?.gpt ?? null });
-              const lead = v.finalDecision.strongDims.length >= 2 ? v.finalDecision.strongDims.map((k) => t(k as Parameters<typeof t>[0])).join("、") + t("dv.aiv.resonate") : "";
-              const tp = v.takeProfit.pct != null ? `+${v.takeProfit.pct}%` : t("dv.aiv.long");
-              const sl = v.stopLoss.pct != null ? `${v.stopLoss.pct}%` : t("dv.aiv.longCfg");
-              const drivers = v.confidence.driverKeys.map((k) => t(k as Parameters<typeof t>[0])).join("、");
-              return (
-                <Section title={t("dv.aiv.final")}>
-                  <div className="flex items-center gap-3" style={{ marginBottom: SP.xs }}>
-                    <Stars n={v.finalDecision.stars} color={accent} />
-                    <b style={{ fontSize: 16, fontWeight: 800, color: accent }}>{t(`dv.act.${action}` as Parameters<typeof t>[0])}</b>
-                  </div>
-                  <p style={{ fontSize: 13.5, color: COLORS.text, lineHeight: 1.6, marginBottom: SP.md }}>{lead && <b style={{ color: accent }}>{lead}　</b>}{t(v.finalDecision.conclKey as Parameters<typeof t>[0])}</p>
-                  {(v.whyBuy.length > 0 || v.whyNotBuy.length > 0) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: `${SP.xs}px ${SP.xl}px`, marginBottom: SP.md }}>
-                      {v.whyBuy.length > 0 && <RList title={t("dv.aiv.whyBuy")} items={v.whyBuy.map((k) => t(k as Parameters<typeof t>[0]))} mark="✓" markColor={COLORS.success} />}
-                      {v.whyNotBuy.length > 0 && <RList title={t("dv.aiv.whyNot")} items={v.whyNotBuy.map((k) => t(k as Parameters<typeof t>[0]))} mark="⚠" markColor="#F5A623" />}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: `${SP.sm + 2}px ${SP.lg}px`, marginBottom: SP.md }}>
-                    <DecCell label={t("dv.aiv.entry")} value={t(v.bestEntry.modeKey as Parameters<typeof t>[0])} note={t(v.bestEntry.reasonKey as Parameters<typeof t>[0])} tone={accent} />
-                    <DecCell label={t("dv.aiv.tp")} value={tp} note={t(v.takeProfit.reasonKey as Parameters<typeof t>[0])} tone={COLORS.success} />
-                    <DecCell label={t("dv.aiv.sl")} value={sl} note={t(v.stopLoss.reasonKey as Parameters<typeof t>[0])} tone={COLORS.danger} />
-                    <DecCell label={t("dv.aiv.hold")} value={t(v.holdingPeriod.labelKey as Parameters<typeof t>[0])} note={t(v.holdingPeriod.reasonKey as Parameters<typeof t>[0])} />
-                  </div>
-                  <div className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 12, marginBottom: v.keyRisks.length ? SP.md : 0 }}>
-                    <span style={{ color: COLORS.textFaint }}>{t("dv.aiv.conf")}</span>
-                    <Stars n={v.confidence.stars} color="#F5A623" small />
-                    <span style={{ color: COLORS.textSecondary }}>{drivers ? `${t("dv.aiv.because")}：${drivers}` : ""}{v.confidence.weak ? (drivers ? "，" : "") + t("dv.aiv.confWeak") : ""}</span>
-                  </div>
-                  {v.keyRisks.length > 0 && (
-                    <div className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 12.5 }}>
-                      <span style={{ color: COLORS.textFaint }}>{t("dv.aiv.risks")}</span>
-                      {v.keyRisks.map((k, i) => <span key={i} style={{ color: COLORS.textSecondary }}><span style={{ color: "#F5A623" }}>⚠</span> {t(k as Parameters<typeof t>[0])}</span>)}
-                    </div>
-                  )}
-                </Section>
-              );
-            })()}
-
-            {/* 第一页：AI观点（结论→理由，自然语言，禁数字/开发者字段）*/}
-            <Section title={t("dv.rr.opinion")}>
-              {loading && !intel ? <Muted>…</Muted> : (
-                <div>
-                  <div className="flex items-baseline gap-2" style={{ marginBottom: SP.sm }}>
-                    <span style={{ fontSize: 12, color: COLORS.textFaint }}>{t("dv.rr.recommend")}</span>
-                    <b style={{ fontSize: 19, fontWeight: 800, color: accent }}>{t(`dv.act.${action}` as Parameters<typeof t>[0])}</b>
-                  </div>
-                  {summaryClean ? <p style={{ fontSize: 14, color: COLORS.text, lineHeight: 1.7 }}>{summaryClean}</p> : (!advList.length && <Muted>{t("dv.dm.noReport")}</Muted>)}
-                  <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: `${SP.xs}px ${SP.xl}px`, marginTop: SP.md }}>
-                    {advList.length > 0 && <div>
-                      <div style={{ fontSize: 11, color: COLORS.textFaint, marginBottom: 4 }}>{t("dv.rr.advantage")}</div>
-                      <ul className="space-y-1">{advList.slice(0, 4).map((r, i) => <li key={i} className="flex gap-1.5" style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: COLORS.success }}>✓</span><span>{r}</span></li>)}</ul>
-                    </div>}
-                    {rk.length > 0 && <div>
-                      <div style={{ fontSize: 11, color: COLORS.textFaint, marginBottom: 4 }}>{t("dv.rr.riskFactors")}</div>
-                      <ul className="space-y-1">{rk.slice(0, 4).map((r, i) => <li key={i} className="flex gap-1.5" style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: "#F5A623" }}>△</span><span>{r}</span></li>)}</ul>
-                    </div>}
-                  </div>
-                  <div style={{ marginTop: SP.md, padding: `${SP.sm}px ${SP.md - 4}px`, background: `${accent}0E`, borderRadius: 8, borderLeft: `3px solid ${accent}` }}>
-                    <span style={{ fontSize: 11, color: COLORS.textFaint }}>{t("dv.rr.aiConclusion")}</span>
-                    <div style={{ fontSize: 13.5, color: COLORS.text, fontWeight: 500, marginTop: 2 }}>{conclusion}</div>
-                  </div>
+            {/* ── AI 决策 Hero（合并原「AI观点/核心决策/最终决策」去重）：左结论理由 · 右走势与行动 ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-12" style={{ gap: `${SP.md}px ${SP.xl}px`, marginBottom: SP.lg }}>
+              {/* 左：结论 → 理由 → 信心 → 风险 */}
+              <div className="lg:col-span-7 min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap" style={{ marginBottom: SP.sm }}>
+                  {v && <Stars n={v.finalDecision.stars} color={accent} />}
+                  <b style={{ fontSize: 22, fontWeight: 800, color: accent, letterSpacing: "-0.01em", lineHeight: 1 }}>{t(`dv.act.${action}` as Parameters<typeof t>[0])}</b>
+                  <span className="tabular-nums" style={{ fontSize: 13, fontWeight: 700, color: grade.color }}>{grade.grade}</span>
+                  {risk?.overall && <span style={{ fontSize: 11, color: COLORS.textFaint }}>{t("db.riskLevel")} {risk.overall}</span>}
                 </div>
-              )}
-            </Section>
+                {loading && !intel ? <Muted>…</Muted> : prose ? (
+                  <p style={{ fontSize: 14, color: COLORS.text, lineHeight: 1.7 }}>{lead && <b style={{ color: accent }}>{lead}　</b>}{prose}</p>
+                ) : <Muted>{t("dv.dm.noReport")}</Muted>}
+                {v && (v.whyBuy.length > 0 || v.whyNotBuy.length > 0) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: `${SP.xs}px ${SP.xl}px`, marginTop: SP.md }}>
+                    {v.whyBuy.length > 0 && <RList title={t("dv.aiv.whyBuy")} items={v.whyBuy.map((k) => t(k as Parameters<typeof t>[0]))} mark="✓" markColor={COLORS.success} />}
+                    {v.whyNotBuy.length > 0 && <RList title={t("dv.aiv.whyNot")} items={v.whyNotBuy.map((k) => t(k as Parameters<typeof t>[0]))} mark="⚠" markColor="#F5A623" />}
+                  </div>
+                )}
+                {v && (
+                  <div style={{ marginTop: SP.md }}>
+                    <div className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 12 }}>
+                      <span style={{ color: COLORS.textFaint }}>{t("dv.aiv.conf")}</span>
+                      <Stars n={v.confidence.stars} color="#F5A623" small />
+                      <span style={{ color: COLORS.textSecondary }}>{drivers ? `${t("dv.aiv.because")}：${drivers}` : ""}{v.confidence.weak ? (drivers ? "，" : "") + t("dv.aiv.confWeak") : ""}</span>
+                    </div>
+                    {v.keyRisks.length > 0 && (
+                      <div className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 12.5, marginTop: 6 }}>
+                        <span style={{ color: COLORS.textFaint }}>{t("dv.aiv.risks")}</span>
+                        {v.keyRisks.map((k, i) => <span key={i} style={{ color: COLORS.textSecondary }}><span style={{ color: "#F5A623" }}>⚠</span> {t(k as Parameters<typeof t>[0])}</span>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* 右：价格走势 + 行动计划（买区/持有/目标/止损，含买点·周期·涨跌空间） */}
+              <div className="lg:col-span-5 min-w-0 space-y-3">
+                {bars.length ? <LightweightStockChart data={bars} height={168} theme="light" /> : <div className="flex items-center justify-center" style={{ height: 168, background: "#F6F7F9", borderRadius: 8 }}><Muted>{loading ? "…" : "—"}</Muted></div>}
+                <div className="grid grid-cols-2" style={{ gap: `${SP.sm + 2}px ${SP.lg}px` }}>
+                  <DecCell label={t("dv.stk.buy")} value={buyRange} note={v ? t(v.bestEntry.modeKey as Parameters<typeof t>[0]) : ""} tone={accent} />
+                  <DecCell label={t("dv.aiv.hold")} value={v ? t(v.holdingPeriod.labelKey as Parameters<typeof t>[0]) : "—"} note={v ? t(v.holdingPeriod.reasonKey as Parameters<typeof t>[0]) : ""} />
+                  <DecCell label={t("dv.stk.target")} value={fmtJpy(target)} note={upside != null ? `${t("dv.rr.upside")} ${fmtPct(upside)}` : (v ? `${t("dv.aiv.tp")} ${tpText}` : "")} tone={COLORS.success} />
+                  <DecCell label={t("dv.stk.stop")} value={fmtJpy(stop)} note={downside != null ? `${t("dv.rr.downside")} ${fmtPct(downside)}` : (v ? `${t("dv.aiv.sl")} ${slText}` : "")} tone={COLORS.danger} />
+                </div>
+              </div>
+            </div>
 
-            {/* 核心决策 */}
-            <Section title={t("dv.rr.core")}>
-              <Facts items={[
-                [t("dv.dm.curPrice"), fmtJpy(price)], [t("dv.stk.buy"), entryLow != null && entryHigh != null ? `${fmtJpy(entryLow)}~${fmtJpy(entryHigh)}` : "—"],
-                [t("dv.stk.target"), fmtJpy(target)], [t("dv.stk.stop"), fmtJpy(stop)],
-                [t("dv.rr.upside"), upside != null ? fmtPct(upside) : "—", COLORS.success], [t("dv.rr.downside"), downside != null ? fmtPct(downside) : "—", COLORS.danger],
-                [t("db.riskLevel"), intel?.riskAnalysis?.overall ?? "—"], [t("dv.ctx.confidence"), fmtScore(ai)],
-              ]} />
-            </Section>
-
-            {/* 持仓状态 + 决策记录（P17-02 持仓上下文：最初依据 / 最新判断 / 下次复盘 / Decision Timeline）*/}
-            <Section title={t("dv.rr.holding")}>
-              {held ? (
+            {/* 持仓状态 + 决策记录（P17-02 · 仅持仓时；最初依据/最新判断/下次复盘/Decision Timeline）*/}
+            {held && (
+              <Section title={t("dv.rr.holding")}>
                 <div>
                   <Facts items={[
                     [t("dv.pf.shares"), String(held.shares)], [t("dv.pf.avgCost"), fmtJpy(held.avgCost)], [t("dv.col.current"), fmtJpy(held.currentPrice)],
@@ -221,75 +185,63 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
                   {tl && Array.isArray(tl.events) && tl.events.length > 0 && (
                     <div style={{ marginTop: SP.md }}>
                       <div style={{ fontSize: 11, color: COLORS.textFaint, marginBottom: SP.xs }}>{t("dv.tl.title")}</div>
-                      <div className="space-y-1.5">
-                        {tl.events.slice(0, 8).map((e: any) => <TlRow key={e.id} e={e} t={t} />)}
-                      </div>
+                      <div className="space-y-1.5">{tl.events.slice(0, 8).map((e: any) => <TlRow key={e.id} e={e} t={t} />)}</div>
                     </div>
                   )}
                 </div>
-              ) : <Muted>{t("dv.rr.notHeld")}</Muted>}
-            </Section>
+              </Section>
+            )}
 
-            {/* 价格走势（压缩） */}
-            <Section title={t("dv.rr.chart")}>
-              {bars.length ? <LightweightStockChart data={bars} height={200} theme="light" /> : <Muted>{loading ? "…" : "—"}</Muted>}
-            </Section>
-
-            {/* 技术状态（每项一句话解释） */}
-            <Section title={t("dv.rr.tech")}>
-              {ind ? <div className="space-y-2">
-                <TechRow label={t("dv.rr.d.trend")} value={ind.maTrend ?? "—"} note={t(((["GOLDEN", "BULLISH"].includes(ind.maTrend) ? "dv.rr.tx.trendUp" : ["BEARISH", "DEAD"].includes(ind.maTrend) ? "dv.rr.tx.trendDown" : "dv.rr.tx.trendMid")) as any)} />
-                <TechRow label="MA" value={ind.ma5 != null && ind.ma20 != null ? (ind.ma5 > ind.ma20 ? "MA5 > MA20" : "MA5 < MA20") : "—"} note={t((ind.ma5 != null && ind.ma20 != null && ind.ma5 > ind.ma20 ? "dv.rr.tx.maUp" : "dv.rr.tx.maDown") as any)} />
-                <TechRow label="RSI" value={ind.rsi14 != null ? ind.rsi14.toFixed(1) : "—"} note={t((ind.rsi14 >= 70 ? "dv.rr.tx.rsiHigh" : ind.rsi14 <= 30 ? "dv.rr.tx.rsiLow" : "dv.rr.tx.rsiMid") as any)} valTone={ind.rsi14 >= 70 ? COLORS.danger : ind.rsi14 <= 30 ? COLORS.success : undefined} />
-                <TechRow label="MACD" value={ind.macdSignalLabel ?? "—"} note={t((ind.macdSignalLabel === "BUY" ? "dv.rr.tx.macdUp" : ind.macdSignalLabel === "SELL" ? "dv.rr.tx.macdDown" : "dv.rr.tx.macdMid") as any)} />
-                <TechRow label={t("dv.rr.d.money")} value={ind.latestVolume != null && ind.avgVolume20d ? `${(ind.latestVolume / ind.avgVolume20d).toFixed(2)}x` : "—"} note={t((ind.latestVolume != null && ind.avgVolume20d && ind.latestVolume / ind.avgVolume20d >= 1.5 ? "dv.rr.tx.volHigh" : ind.latestVolume != null && ind.avgVolume20d && ind.latestVolume / ind.avgVolume20d < 0.7 ? "dv.rr.tx.volLow" : "dv.rr.tx.volMid") as any)} />
-              </div> : <Muted>—</Muted>}
-            </Section>
-
-            {/* AI 判断依据（5 维水平条） */}
-            {sc && <Section title={t("dv.rr.scores")}>
-              <div className="space-y-1.5">
-                <Bar label={t("dv.rr.d.tech")} v={sc.technicalScore} max={30} />
-                <Bar label={t("dv.rr.d.fund")} v={sc.fundamentalScore} max={25} />
-                <Bar label={t("dv.rr.d.money")} v={sc.moneyFlowScore} max={20} />
-                <Bar label={t("dv.rr.d.senti")} v={sc.newsSentimentScore} max={15} />
-                <Bar label={t("dv.rr.d.trend")} v={sc.globalTrendScore} max={10} />
-              </div>
-            </Section>}
-
-            {/* 新闻（AI 判断优先 + fallback）*/}
-            <Section title={t("dv.rr.news")}>
-              <div style={{ marginBottom: SP.sm, padding: `${SP.sm}px ${SP.md - 4}px`, background: "#F6F7F9", borderRadius: 8 }}>
-                <span style={{ fontSize: 11, color: COLORS.textFaint }}>{t("dv.rr.newsVerdict")}</span>
-                <div style={{ fontSize: 12.5, color: COLORS.textSecondary, marginTop: 2 }}>{clean(sc?.newsSummary) || t("dv.rr.newsNone")}</div>
-              </div>
-              {Array.isArray(intel?.news) && intel.news.length > 0 && <div className="space-y-1.5">{intel.news.slice(0, 5).map((n: any, i: number) => (
-                <div key={i} style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: n.sentiment === "NEGATIVE" ? COLORS.danger : n.sentiment === "POSITIVE" ? COLORS.success : COLORS.textFaint }}>●</span> {n.title}</div>
-              ))}</div>}
-            </Section>
-
-            {/* 基本面（概览 + 查看更多）*/}
-            <Section title={t("dv.rr.fin")}>
-              {fin.length ? (
-                <div>
-                  <Facts items={[
-                    [t("dv.fin.revenue"), fin[0].revenue != null ? Math.round(Number(fin[0].revenue)).toLocaleString() : "—"],
-                    [t("dv.fin.netProfit"), fin[0].netProfit != null ? Math.round(Number(fin[0].netProfit)).toLocaleString() : "—"],
-                    [t("dv.fin.eps"), fin[0].eps ?? "—"],
-                    [t("dv.fin.roe"), fin[0].roe != null ? `${Math.round(fin[0].roe * 10) / 10}%` : "—"],
-                  ]} />
-                  {fin.length > 1 && <details style={{ marginTop: SP.sm }}>
-                    <summary style={{ fontSize: 11.5, color: COLORS.primary, cursor: "pointer" }}>{t("dv.rr.finMore")}</summary>
-                    <div style={{ marginTop: SP.sm }}><FinTable rows={fin} t={t} /></div>
-                  </details>}
+            {/* 技术状态 · AI 判断依据（宽屏并排） */}
+            <div className="grid grid-cols-1 lg:grid-cols-2" style={{ columnGap: SP.xl }}>
+              <Section title={t("dv.rr.tech")}>
+                {ind ? <div className="space-y-2">
+                  <TechRow label={t("dv.rr.d.trend")} value={ind.maTrend ?? "—"} note={t(((["GOLDEN", "BULLISH"].includes(ind.maTrend) ? "dv.rr.tx.trendUp" : ["BEARISH", "DEAD"].includes(ind.maTrend) ? "dv.rr.tx.trendDown" : "dv.rr.tx.trendMid")) as any)} />
+                  <TechRow label="MA" value={ind.ma5 != null && ind.ma20 != null ? (ind.ma5 > ind.ma20 ? "MA5 > MA20" : "MA5 < MA20") : "—"} note={t((ind.ma5 != null && ind.ma20 != null && ind.ma5 > ind.ma20 ? "dv.rr.tx.maUp" : "dv.rr.tx.maDown") as any)} />
+                  <TechRow label="RSI" value={ind.rsi14 != null ? ind.rsi14.toFixed(1) : "—"} note={t((ind.rsi14 >= 70 ? "dv.rr.tx.rsiHigh" : ind.rsi14 <= 30 ? "dv.rr.tx.rsiLow" : "dv.rr.tx.rsiMid") as any)} valTone={ind.rsi14 >= 70 ? COLORS.danger : ind.rsi14 <= 30 ? COLORS.success : undefined} />
+                  <TechRow label="MACD" value={ind.macdSignalLabel ?? "—"} note={t((ind.macdSignalLabel === "BUY" ? "dv.rr.tx.macdUp" : ind.macdSignalLabel === "SELL" ? "dv.rr.tx.macdDown" : "dv.rr.tx.macdMid") as any)} />
+                  <TechRow label={t("dv.rr.d.money")} value={ind.latestVolume != null && ind.avgVolume20d ? `${(ind.latestVolume / ind.avgVolume20d).toFixed(2)}x` : "—"} note={t((ind.latestVolume != null && ind.avgVolume20d && ind.latestVolume / ind.avgVolume20d >= 1.5 ? "dv.rr.tx.volHigh" : ind.latestVolume != null && ind.avgVolume20d && ind.latestVolume / ind.avgVolume20d < 0.7 ? "dv.rr.tx.volLow" : "dv.rr.tx.volMid") as any)} />
+                </div> : <Muted>—</Muted>}
+              </Section>
+              {sc && <Section title={t("dv.rr.scores")}>
+                <div className="space-y-1.5">
+                  <Bar label={t("dv.rr.d.tech")} v={sc.technicalScore} max={30} />
+                  <Bar label={t("dv.rr.d.fund")} v={sc.fundamentalScore} max={25} />
+                  <Bar label={t("dv.rr.d.money")} v={sc.moneyFlowScore} max={20} />
+                  <Bar label={t("dv.rr.d.senti")} v={sc.newsSentimentScore} max={15} />
+                  <Bar label={t("dv.rr.d.trend")} v={sc.globalTrendScore} max={10} />
                 </div>
-              ) : <Muted>{t("dv.dm.comingSoon")}</Muted>}
-            </Section>
+              </Section>}
+            </div>
 
-            {/* AI 决策记录 */}
-            <Section title={t("dv.rr.hist")}>
-              {intel?.dailyRec ? <div style={{ fontSize: 12.5, color: COLORS.textSecondary }}>{intel.dailyRec.date?.slice?.(0, 10)} · {intel.dailyRec.recommendation ?? "—"} · Rank #{intel.dailyRec.gptRank ?? "—"}</div> : <Muted>{t("dv.rr.noHist")}</Muted>}
-            </Section>
+            {/* 新闻 · 基本面（宽屏并排） */}
+            <div className="grid grid-cols-1 lg:grid-cols-2" style={{ columnGap: SP.xl }}>
+              <Section title={t("dv.rr.news")}>
+                <div style={{ marginBottom: SP.sm, padding: `${SP.sm}px ${SP.md - 4}px`, background: "#F6F7F9", borderRadius: 8 }}>
+                  <span style={{ fontSize: 11, color: COLORS.textFaint }}>{t("dv.rr.newsVerdict")}</span>
+                  <div style={{ fontSize: 12.5, color: COLORS.textSecondary, marginTop: 2 }}>{clean(sc?.newsSummary) || t("dv.rr.newsNone")}</div>
+                </div>
+                {Array.isArray(intel?.news) && intel.news.length > 0 && <div className="space-y-1.5">{intel.news.slice(0, 5).map((n: any, i: number) => (
+                  <div key={i} style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: n.sentiment === "NEGATIVE" ? COLORS.danger : n.sentiment === "POSITIVE" ? COLORS.success : COLORS.textFaint }}>●</span> {n.title}</div>
+                ))}</div>}
+              </Section>
+              <Section title={t("dv.rr.fin")}>
+                {fin.length ? (
+                  <div>
+                    <Facts items={[
+                      [t("dv.fin.revenue"), fin[0].revenue != null ? Math.round(Number(fin[0].revenue)).toLocaleString() : "—"],
+                      [t("dv.fin.netProfit"), fin[0].netProfit != null ? Math.round(Number(fin[0].netProfit)).toLocaleString() : "—"],
+                      [t("dv.fin.eps"), fin[0].eps ?? "—"],
+                      [t("dv.fin.roe"), fin[0].roe != null ? `${Math.round(fin[0].roe * 10) / 10}%` : "—"],
+                    ]} />
+                    {fin.length > 1 && <details style={{ marginTop: SP.sm }}>
+                      <summary style={{ fontSize: 11.5, color: COLORS.primary, cursor: "pointer" }}>{t("dv.rr.finMore")}</summary>
+                      <div style={{ marginTop: SP.sm }}><FinTable rows={fin} t={t} /></div>
+                    </details>}
+                  </div>
+                ) : <Muted>{t("dv.dm.comingSoon")}</Muted>}
+              </Section>
+            </div>
           </div>
 
           {/* 底部操作栏 固定 */}
