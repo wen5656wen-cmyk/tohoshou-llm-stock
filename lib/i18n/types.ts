@@ -834,6 +834,7 @@ export type Messages = {
   "sectors.buy_rate": string;
   "sectors.stock_count": string;
   "sectors.top_stocks": string;
+  "sectors.subtitle": string; "sectors.todayRank": string; "sectors.heat": string; "sectors.risk": string; "sectors.avg_5d": string; "sectors.goStock": string; "sectors.jInflow": string; "sectors.jNeutral": string; "sectors.jWeak": string;
 
   // ─── Dashboard / home ──────────────────────────────────────────────────────
   "home.title": string;

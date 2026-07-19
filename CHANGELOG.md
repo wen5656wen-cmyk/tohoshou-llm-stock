@@ -2,6 +2,24 @@
 
 ---
 
+## [18.31.0] - 2026-07-19 — 🧭 P17-05 Sector Analysis V1.1（行业决策中心 · 统一设计 + 行业→股票中心闭环）
+
+把行业分析从「行业排行榜」重定位为 **Sector Decision Center**——只回答两问：①今天哪些行业值得关注 ②这个行业买哪些股票。**未新增 AI/数据库/评分**；未改 `/api/sectors`/Prisma/Cron/AI Engine/Decision Engine/评分模型/任何计算。仅 UI + 闭环。
+
+- **【一】统一设计系统（P0）**：`SectorsView` 整页重写为设计 token（`AppCard`/`AppBadge`/`COLORS`/统一排版/圆角/阴影），**移除全部原生 Tailwind 语义色**（slate/red/blue/emerald/violet/yellow/orange）→ 与 Decision Center / Stock Center 同一视觉语言。
+- **【二】行业 → 股票中心（P0）**：点任意行业卡/行 → `router.push('/decision-v2?tab=picks&view=all&sector=xxx')`；`MarketBrowseView`（全市场）读取 `?sector=` 传入 `/api/screener?sector=`（现有 contains 参数）→ 仅显示该行业股 + 可清除的「行业：X ✕」chip。**无旧路由/旧页面**。生产验证：情報通信 → screener 命中 5 只同行业。
+- **【三】修数据错误（P0）**：表头「资金面(money flow)」但数据是 `avgRiskScore` → 统一改标签为 **风险评分 / リスクスコア**（`sectors.risk`），标题与数据一致。
+- **【四】修 React Warning（P0）**：删除 keyless `<>` Fragment（原展开行），所有 `map()` 唯一 key（`key={s.sector}`）。
+- **【五】去重复（P1）**：删除 Accordion 展开（原展开显示的 Top3 与最后一列重复）；保留最后一列 Top3（展示用），点行 → 股票中心。
+- **【六】首屏重排（P1）**：「今日行业排行 TOP5」卡片 = 行业名 + AI评分(分档配色) + ★热度 + 5日/20日表现 + 买入率 + 一句 AI 判断 + 动作 Badge（BUY/WATCH/AVOID）+「进入股票中心 →」。（注：`/api/sectors` 无盘中数据，用 5日/20日；不伪造「今日」）
+- **【七】行业热度 Heat（P1）**：纯前端派生 `heat = 0.5·AI评分 + 0.3·买入率 + 0.2·近20日`（0-100）+ ★星级；不改数据库。
+- **【八】职责单一（P1）**：行业分析只做「资金在哪些行业 → 点进去选股」，股票详情/研究交给股票中心；Top3 为展示 chip 不再各自跳旧股票页。
+- **i18n**：新增 9 个 `sectors.*`（subtitle/todayRank/heat/risk/avg_5d/goStock/jInflow/jNeutral/jWeak，zh+ja+types）。
+- 验收：tsc 0 / build ✅ / 生产 health CRITICAL=0 / 页面 200 / 无原生语义色 / 无 CJK 硬编码 / 行业→股票中心闭环生产验证。仅重启 web。
+- **遗留**：首屏无「今日」表现（sector 聚合无盘中数据，诚实用 5日/20日）；产业研究(themes)仍旧样式（本轮不动，属下一模块）；行业分析按用户要求**不塞** PE/PB/股息/新闻/ETF/财报（归研究工作台）。
+
+---
+
 ## [18.30.2] - 2026-07-19 — 🧭 行业分析上移至第三位
 
 - 决策工作区导航顺序：决策总览 → 股票中心 → **行业分析** → 今日策略 → 模拟持仓 → 历史决策 → 产业研究。

@@ -20,6 +20,7 @@ import { buildChartBars, type ChartBar } from "@/components/charts/LightweightSt
 import StockSearch from "@/components/decision/StockSearch";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
 import { getPrimaryName } from "@/lib/company-name";
+import { localeSector } from "@/lib/i18n/market-labels";
 
 const LightweightStockChart = dynamic(() => import("@/components/charts/LightweightStockChart"), { ssr: false });
 
@@ -146,21 +147,25 @@ function FavStar({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) 
 // ═══════════════════════ ② 全市场浏览（screener）═══════════════════════
 function MarketBrowseView({ onDetail, favSet, toggleFav }: { onDetail: (s: string, n?: string) => void; favSet: Set<string>; toggleFav: (s: string, m?: { name?: string | null; sector?: string | null; market?: string | null }) => void }) {
   const { t, lang } = useI18n();
+  const sp = useSearchParams();
+  const router = useRouter();
+  const sector = sp.get("sector") || ""; // 从行业分析跳入时按行业筛选
   const [rows, setRows] = useState<ScreenerRow[] | null>(null);
   const [level, setLevel] = useState("");
 
   useEffect(() => {
     let alive = true; setRows(null);
-    const url = `/api/screener?limit=50&sort=adaptiveScore${level ? `&recommendationV2=${level}` : ""}`;
+    const url = `/api/screener?limit=50&sort=adaptiveScore${level ? `&recommendationV2=${level}` : ""}${sector ? `&sector=${encodeURIComponent(sector)}` : ""}`;
     fetch(url, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setRows(Array.isArray(j?.scores) ? j.scores : []); }).catch(() => { if (alive) setRows([]); });
     return () => { alive = false; };
-  }, [level]);
+  }, [level, sector]);
 
   const disp = (r: { name: string; nameZh: string | null }) => getPrimaryName({ name: r.name, nameZh: r.nameZh }, lang);
 
   return (
     <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.sc.all.title")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{t("dv.sc.all.hint")}</span></div>}>
       <div className="flex items-center gap-1.5 flex-wrap text-[11px] mb-2">
+        {sector && <button onClick={() => router.replace("/decision-v2?tab=picks&view=all", { scroll: false })} className="h-6 px-2.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap" style={{ background: COLORS.primary, color: "#fff" }}>{t("dv.sc.col.sector")}: {localeSector(sector, lang)} ✕</button>}
         {["", "STRONG_BUY", "BUY", "HOLD", "WATCH"].map((l) => (
           <button key={l || "all"} onClick={() => setLevel(l)} className="h-6 px-2.5 rounded-full" style={{ background: level === l ? COLORS.text : COLORS.tile, color: level === l ? "#fff" : COLORS.textSecondary }}>{l ? t(`dv.sc.lv.${l}` as Parameters<typeof t>[0]) : t("dv.sc.all.filterAll")}</button>
         ))}

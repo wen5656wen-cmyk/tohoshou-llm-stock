@@ -262,6 +262,7 @@ const jaJP: Messages = {
   "sectors.buy_rate": "買い推奨率",
   "sectors.stock_count": "銘柄数",
   "sectors.top_stocks": "代表銘柄",
+  "sectors.subtitle": "本日どの業種に資金が向かっているか · クリックで銘柄センターへ", "sectors.todayRank": "本日の業種ランキング", "sectors.heat": "熱度", "sectors.risk": "リスクスコア", "sectors.avg_5d": "5日", "sectors.goStock": "銘柄センターへ", "sectors.jInflow": "資金流入が継続", "sectors.jNeutral": "中立的な推移", "sectors.jWeak": "資金流出",
 
   // Dashboard / home
   "home.title": "TOHOSHOU AI",

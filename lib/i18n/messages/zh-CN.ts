@@ -262,6 +262,7 @@ const zhCN: Messages = {
   "sectors.buy_rate": "买入比例",
   "sectors.stock_count": "股票数量",
   "sectors.top_stocks": "代表股票",
+  "sectors.subtitle": "今天资金在哪些行业 · 点击进入股票中心选股", "sectors.todayRank": "今日行业排行", "sectors.heat": "热度", "sectors.risk": "风险评分", "sectors.avg_5d": "5日", "sectors.goStock": "进入股票中心", "sectors.jInflow": "资金持续流入", "sectors.jNeutral": "表现中性", "sectors.jWeak": "资金流出",
 
   // Dashboard / home
   "home.title": "TOHOSHOU AI",
