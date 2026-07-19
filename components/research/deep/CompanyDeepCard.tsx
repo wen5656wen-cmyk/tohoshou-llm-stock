@@ -2,6 +2,7 @@
 
 // 公司深度卡（P17 Phase 4b）· 抽屉 · Research Snapshot + 固定 15 段 + 日股实时 + 闭环
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
 import { COLORS, fmtJpy, fmtPct, upDownColor } from "@/lib/decision/ds";
 
@@ -24,6 +25,8 @@ export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: s
   const { t } = useI18n();
   const [d, setD] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (!companyKey) { setD(null); return; }
     setLoading(true);
@@ -44,8 +47,9 @@ export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: s
     </div>
   );
 
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 65, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity .2s" }}>
+  if (!mounted) return null;
+  return createPortal(
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity .2s" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px,94vw)", maxHeight: "88vh", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 18, overflowY: "auto", boxShadow: "0 24px 68px rgba(0,0,0,.32)", color: COLORS.text, transform: open ? "scale(1)" : "scale(0.96)", transition: "transform .22s cubic-bezier(.32,.72,0,1)" }}>
         {loading || !c ? (
           <div style={{ padding: 40, textAlign: "center", color: COLORS.textFaint, fontSize: 13 }}>{loading ? "…" : ""}</div>
@@ -147,6 +151,7 @@ export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: s
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
