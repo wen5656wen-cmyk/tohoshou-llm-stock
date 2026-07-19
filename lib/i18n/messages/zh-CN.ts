@@ -1904,6 +1904,7 @@ const zhCN: Messages = {
   "dv.nav.history": "历史决策",
   "dv.nav.sectors": "行业分析",
   "dv.nav.industry": "深度研究",
+  "dv.nav.badge.core": "核心",
   "dv.sc.view.ai": "AI 推荐", "dv.sc.view.all": "全市场", "dv.sc.view.fav": "自选",
   "dv.sc.vd.BUY_TODAY": "今日建仓", "dv.sc.vd.WATCH_ONLY": "仅观察", "dv.sc.vd.STAY_CASH": "空仓等待",
   "dv.sc.band.closing": "收盘决策", "dv.sc.band.build": "今日建仓组合", "dv.sc.band.units": "只", "dv.sc.band.toOverview": "组合与仓位在决策总览", "dv.sc.band.live": "报价实时 · AI 决策每日一次", "dv.sc.band.noVerdict": "暂无收盘决策",

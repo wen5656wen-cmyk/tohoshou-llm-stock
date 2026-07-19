@@ -213,7 +213,7 @@ export type Messages = {
   // P14-DEV-01 Decision v2（Foundation：工作流子导航 + Context Bar + 壳）
   "dv.title": string; "dv.placeholder": string;
   "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
-  "dv.nav.sectors": string; "dv.nav.industry": string;
+  "dv.nav.sectors": string; "dv.nav.industry": string; "dv.nav.badge.core": string;
   // P2 股票中心（Stock Center 三视图枢纽：AI 推荐 / 全市场 / 自选 + 收盘决策状态带）
   "dv.sc.view.ai": string; "dv.sc.view.all": string; "dv.sc.view.fav": string;
   "dv.sc.vd.BUY_TODAY": string; "dv.sc.vd.WATCH_ONLY": string; "dv.sc.vd.STAY_CASH": string;

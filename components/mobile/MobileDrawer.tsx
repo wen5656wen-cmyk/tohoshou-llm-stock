@@ -28,7 +28,12 @@ function DrawerItems({ onClose }: { onClose: () => void }) {
             }`}
           >
             <span className="text-base w-5 text-center shrink-0">{node.glyph}</span>
-            {t(node.labelKey as Parameters<typeof t>[0])}
+            <span className="flex-1 truncate">{t(node.labelKey as Parameters<typeof t>[0])}</span>
+            {node.badge && (
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", color: "#fff", background: "linear-gradient(135deg,#5E5CE6,#007AFF)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                {t(node.badge as Parameters<typeof t>[0])}
+              </span>
+            )}
           </Link>
         );
       })}

@@ -47,6 +47,11 @@ function NavItems() {
             <span className="flex-1 text-[14px] truncate" style={{ color: active ? "#1d1d1f" : "#4b5563", fontWeight: active ? 600 : 500 }}>
               {t(node.labelKey as Parameters<typeof t>[0])}
             </span>
+            {node.badge && (
+              <span aria-hidden style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", color: "#fff", background: "linear-gradient(135deg,#5E5CE6,#007AFF)", borderRadius: 6, padding: "2px 7px", boxShadow: "0 1px 4px rgba(94,92,230,0.35)", whiteSpace: "nowrap" }}>
+                {t(node.badge as Parameters<typeof t>[0])}
+              </span>
+            )}
           </Link>
         );
       })}

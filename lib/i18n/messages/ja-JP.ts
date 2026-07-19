@@ -1904,6 +1904,7 @@ const jaJP: Messages = {
   "dv.nav.history": "意思決定履歴",
   "dv.nav.sectors": "業種分析",
   "dv.nav.industry": "深掘りリサーチ",
+  "dv.nav.badge.core": "コア",
   "dv.sc.view.ai": "AI 推奨", "dv.sc.view.all": "全市場", "dv.sc.view.fav": "ウォッチ",
   "dv.sc.vd.BUY_TODAY": "本日建玉", "dv.sc.vd.WATCH_ONLY": "様子見", "dv.sc.vd.STAY_CASH": "現金待機",
   "dv.sc.band.closing": "引け決定", "dv.sc.band.build": "本日の組成", "dv.sc.band.units": "銘柄", "dv.sc.band.toOverview": "組成とポジションは決定サマリーへ", "dv.sc.band.live": "株価リアルタイム · AI 決定は日次", "dv.sc.band.noVerdict": "引け決定なし",

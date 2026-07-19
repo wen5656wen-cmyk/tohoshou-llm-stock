@@ -52,7 +52,7 @@ export const NAV_NODES: NavNode[] = [
   { key: "dv-sectors", workspace: "boss", labelKey: "dv.nav.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },
   // 深度研究（原「产业研究」themes）：改名 + 上移至第四位（行业分析之后）。
   // 即 AI 产业链深研模块入口；复用 screener 的 themes 页，URL 特判为 boss（见下）。
-  { key: "dv-industry", workspace: "boss", labelKey: "dv.nav.industry", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈" },
+  { key: "dv-industry", workspace: "boss", labelKey: "dv.nav.industry", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈", badge: "dv.nav.badge.core" },
   { key: "dv-strategy", workspace: "boss", labelKey: "dv.nav.strategy", href: "/decision-v2?tab=strategy", Icon: Target, glyph: "◆" },
   { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑" },
   { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },
