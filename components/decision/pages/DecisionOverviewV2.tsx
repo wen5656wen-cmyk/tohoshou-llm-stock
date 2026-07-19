@@ -238,20 +238,23 @@ export default function DecisionOverviewV2() {
         <div className="lg:col-span-9 space-y-3 min-w-0">
           <div id="sec-holdings"><HoldingsTable title={t("dv.ov2.holdingsTitle")} emptyLabel={t("dv.pf.empty")} rows={holdRows} selected={sel} cols={{ action: cols.action, current: cols.current, cost: t("dv.pf.avgCost"), shares: t("dv.pf.shares"), pnl: cols.pnl, target: cols.target, stop: cols.stop }} labels={{ edit: t("dv.pf.btnEdit"), sell: t("dv.pf.btnSell"), del: t("dv.pf.delete") }} addLabel={t("dv.pf.btnAdd")} onAddClick={focusSearch} onDetail={openDetail} onEdit={onEdit} onSell={onSell} onDelete={onDelete} /></div>
           <div id="sec-exec"><OpportunityTable title={t("dv.ov2.recTitle")} tone="#34C759" count={exec.length} rows={exec.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} emptyLabel={t("dv.rr.emptyExec")} onDetail={openDetail} onAdd={onAdd} /></div>
-          <div id="sec-wait"><OpportunityTable title={t("dv.grp.waitList")} tone="#F5A623" count={wait.length} rows={wait.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
-          <div id="sec-watch"><OpportunityTable title={t("dv.ov2.watchTitle")} tone="#9AA0A6" count={watch.length} rows={watch.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
+          <div id="sec-wait"><OpportunityTable title={t("dv.grp.waitList")} tone="#F5A623" count={wait.length} rows={wait.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} collapsible defaultOpen /></div>
+          <div id="sec-watch"><OpportunityTable title={t("dv.ov2.watchTitle")} tone="#9AA0A6" count={watch.length} rows={watch.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} collapsible defaultOpen={false} /></div>
           {histRows.length > 0 && <HistoryPanel title={t("dv.pf.histTitle")} emptyLabel={t("dv.pf.histEmpty")} rows={histRows} cols={{ date: "", pnl: "", days: "", vs: "" }} />}
         </div>
-        {/* 右栏 = 情境 + 战绩（风险/系统/市场 + 组合健康/AI表现/AI超额/学习），与左侧决策流等高，消除右下留白 */}
+        {/* 右栏 = 情境侧栏（风险/市场/系统，紧凑常驻） */}
         <div className="lg:col-span-3 space-y-3 min-w-0">
           <RiskPanel items={riskItems} overall={gd.riskLevel ?? "—"} overallTone={riskTone(gd.riskLevel)} />
           <MarketPanel title={t("dv.mk.title")} asOf={mc.asOf ?? "—"} primary={mkPrimary} trendLabel={t("dv.mk.trend")} trend={regimeLabel} trendTone={REGIME_TONE(regime)} secondary={mkSecondary} />
-          <PortfolioHealth title={t("dv.ci.health")} health={health} metrics={healthMetrics} t={t} />
-          <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} />
-          <AiPerformance title={t("dv.ci.perf")} rows={perfRows} emptyLabel={t("dv.perf.empty")} />
-          <LearningStatus title={t("dv.ci.learning")} learning={learning} labels={{ closed: t("dv.ls.closed"), decisions: t("dv.ls.decisions"), reviews: t("dv.ls.reviews"), hit: t("dv.ls.hit"), miss: t("dv.ls.miss"), dataset: t("dv.ls.dataset") }} readyLabel={t(learning.readyKey as Parameters<typeof t>[0])} readyTone={readyTone} />
           <SystemStatus title={t("dv.pf.ss.title")} items={ssItems} />
         </div>
+      </div>
+      {/* 战绩条（全宽页脚，不依赖两栏高度）：组合健康度 / AI超额 / AI表现 / 学习状态 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <PortfolioHealth title={t("dv.ci.health")} health={health} metrics={healthMetrics} t={t} />
+        <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} />
+        <AiPerformance title={t("dv.ci.perf")} rows={perfRows} emptyLabel={t("dv.perf.empty")} />
+        <LearningStatus title={t("dv.ci.learning")} learning={learning} labels={{ closed: t("dv.ls.closed"), decisions: t("dv.ls.decisions"), reviews: t("dv.ls.reviews"), hit: t("dv.ls.hit"), miss: t("dv.ls.miss"), dataset: t("dv.ls.dataset") }} readyLabel={t(learning.readyKey as Parameters<typeof t>[0])} readyTone={readyTone} />
       </div>
 
       {/* Top200 Runtime 默认折叠（系统运行详情） */}

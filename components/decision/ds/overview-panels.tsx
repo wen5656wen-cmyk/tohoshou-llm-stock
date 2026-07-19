@@ -3,7 +3,7 @@
 // ── Decision Terminal V2 组件（P15-03 + P16-01 Portfolio）─────────────────────
 // 统一 Terminal Design System（lib/decision/terminal）。纯展示（哑组件）。
 // P16-01：当前持有=真实用户持仓(编辑/卖出/删除)；机会行加「加入持有」；组合摘要/行动摘要/系统状态/历史。
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AppBadge } from "@/components/ui";
 import { COLORS } from "@/lib/decision/ds";
 import { SP, ROW_H, TERM, COLW, actionColor, gradeFor } from "@/lib/decision/terminal";
@@ -12,13 +12,16 @@ import type { Tone } from "@/lib/design-tokens";
 function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
   return <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 12, overflow: "hidden", ...style }}>{children}</div>;
 }
-function SectionHead({ title, count, tone, right }: { title: string; count?: number; tone?: string; right?: ReactNode }) {
+// open 传入布尔时，标题栏本身即折叠开关（无多余头部）；点击整行 toggle，右侧显示 ▾/▸。
+function SectionHead({ title, count, tone, right, open, onToggle }: { title: string; count?: number; tone?: string; right?: ReactNode; open?: boolean; onToggle?: () => void }) {
+  const collapsible = open != null && !!onToggle;
   return (
-    <div className="flex items-center gap-2" style={{ padding: `${SP.sm}px ${SP.md - 4}px`, borderBottom: `1px solid ${TERM.gridLine}` }}>
+    <div className="flex items-center gap-2" onClick={collapsible ? onToggle : undefined} style={{ padding: `${SP.sm}px ${SP.md - 4}px`, borderBottom: `1px solid ${TERM.gridLine}`, cursor: collapsible ? "pointer" : undefined, userSelect: "none" }}>
       {tone && <span style={{ width: 7, height: 7, borderRadius: 7, background: tone }} />}
       <b style={{ fontSize: 12.5, color: COLORS.text }}>{title}</b>
       {count != null && <span style={{ fontSize: 11, color: COLORS.textFaint }}>{count}</span>}
-      {right && <span className="ml-auto">{right}</span>}
+      {right && <span className={collapsible ? "" : "ml-auto"}>{right}</span>}
+      {collapsible && <span className="ml-auto" style={{ fontSize: 10, color: COLORS.textFaint }}>{open ? "▾" : "▸"}</span>}
     </div>
   );
 }
@@ -232,11 +235,15 @@ export interface ColLabels { symbol: string; action: string; current: string; pn
 export function OpportunityTable(p: {
   title: string; tone: string; count: number; rows: PickRow[]; selected: string | null; cols: ColLabels;
   addLabel: string; emptyLabel?: string; onDetail: (s: string) => void; onAdd: (s: string) => void;
+  collapsible?: boolean; defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(p.defaultOpen ?? true);
+  const collapsed = !!p.collapsible && !open;
   return (
     <Card>
-      <SectionHead title={p.title} count={p.count} tone={p.tone} />
-      {p.rows.length === 0 ? <div style={{ padding: `${SP.md - 4}px ${SP.md - 4}px`, fontSize: 12.5, color: COLORS.textFaint }}>{p.emptyLabel ?? "—"}</div> : (
+      <SectionHead title={p.title} count={p.count} tone={p.tone}
+        open={p.collapsible ? open : undefined} onToggle={p.collapsible ? () => setOpen((v) => !v) : undefined} />
+      {collapsed ? null : p.rows.length === 0 ? <div style={{ padding: `${SP.md - 4}px ${SP.md - 4}px`, fontSize: 12.5, color: COLORS.textFaint }}>{p.emptyLabel ?? "—"}</div> : (
         <div style={{ overflowX: "auto" }}>
           <div style={{ minWidth: 720 }}>
           <div className="flex items-center" style={{ padding: `6px ${SP.md - 4}px`, gap: SP.sm, background: TERM.header, borderBottom: `1px solid ${TERM.gridLine}` }}>
