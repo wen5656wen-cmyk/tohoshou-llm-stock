@@ -242,20 +242,16 @@ export default function DecisionOverviewV2() {
           <div id="sec-watch"><OpportunityTable title={t("dv.ov2.watchTitle")} tone="#9AA0A6" count={watch.length} rows={watch.map(toPickRow)} selected={sel} cols={cols} addLabel={t("dv.pf.btnAdd")} onDetail={openDetail} onAdd={onAdd} /></div>
           {histRows.length > 0 && <HistoryPanel title={t("dv.pf.histTitle")} emptyLabel={t("dv.pf.histEmpty")} rows={histRows} cols={{ date: "", pnl: "", days: "", vs: "" }} />}
         </div>
+        {/* 右栏 = 情境 + 战绩（风险/系统/市场 + 组合健康/AI表现/AI超额/学习），与左侧决策流等高，消除右下留白 */}
         <div className="lg:col-span-3 space-y-3 min-w-0">
-          <div className="lg:sticky lg:top-16 space-y-3">
-            <RiskPanel items={riskItems} overall={gd.riskLevel ?? "—"} overallTone={riskTone(gd.riskLevel)} />
-            <SystemStatus title={t("dv.pf.ss.title")} items={ssItems} />
-            <MarketPanel title={t("dv.mk.title")} asOf={mc.asOf ?? "—"} primary={mkPrimary} trendLabel={t("dv.mk.trend")} trend={regimeLabel} trendTone={REGIME_TONE(regime)} secondary={mkSecondary} />
-          </div>
+          <RiskPanel items={riskItems} overall={gd.riskLevel ?? "—"} overallTone={riskTone(gd.riskLevel)} />
+          <MarketPanel title={t("dv.mk.title")} asOf={mc.asOf ?? "—"} primary={mkPrimary} trendLabel={t("dv.mk.trend")} trend={regimeLabel} trendTone={REGIME_TONE(regime)} secondary={mkSecondary} />
+          <PortfolioHealth title={t("dv.ci.health")} health={health} metrics={healthMetrics} t={t} />
+          <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} />
+          <AiPerformance title={t("dv.ci.perf")} rows={perfRows} emptyLabel={t("dv.perf.empty")} />
+          <LearningStatus title={t("dv.ci.learning")} learning={learning} labels={{ closed: t("dv.ls.closed"), decisions: t("dv.ls.decisions"), reviews: t("dv.ls.reviews"), hit: t("dv.ls.hit"), miss: t("dv.ls.miss"), dataset: t("dv.ls.dataset") }} readyLabel={t(learning.readyKey as Parameters<typeof t>[0])} readyTone={readyTone} />
+          <SystemStatus title={t("dv.pf.ss.title")} items={ssItems} />
         </div>
-      </div>
-      {/* P17-03 ②：组合健康度 / AI 表现 / AI 超额 / 学习状态（Apple 风四栏） */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <PortfolioHealth title={t("dv.ci.health")} health={health} metrics={healthMetrics} t={t} />
-        <AiPerformance title={t("dv.ci.perf")} rows={perfRows} emptyLabel={t("dv.perf.empty")} />
-        <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} />
-        <LearningStatus title={t("dv.ci.learning")} learning={learning} labels={{ closed: t("dv.ls.closed"), decisions: t("dv.ls.decisions"), reviews: t("dv.ls.reviews"), hit: t("dv.ls.hit"), miss: t("dv.ls.miss"), dataset: t("dv.ls.dataset") }} readyLabel={t(learning.readyKey as Parameters<typeof t>[0])} readyTone={readyTone} />
       </div>
 
       {/* Top200 Runtime 默认折叠（系统运行详情） */}

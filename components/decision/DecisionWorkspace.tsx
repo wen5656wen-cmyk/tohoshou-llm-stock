@@ -72,7 +72,8 @@ function Shell() {
   return (
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
       <DecisionProvider>
-        <DecisionContextBar />
+        {/* 决策总览已由页内 DecisionBar 承载「今日决策/风险/信心/建议仓位」，避免与 ContextBar 顶部重复 → overview 不渲染共享上下文条 */}
+        {active !== "overview" && <DecisionContextBar />}
         {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar。P16-02：决策总览由页内顶部工具栏(含搜索)承载，故此处不渲染。 */}
         {active !== "overview" && <CompactHeader active={active} />}
         <div className="pb-8">
