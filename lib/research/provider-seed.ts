@@ -4,7 +4,7 @@
 import type { IndustryResearch, ResearchProvider, ResearchResult } from "./types";
 import { AI_SEMICONDUCTOR } from "./seed/ai-semiconductor";
 
-const SEEDS: Record<string, IndustryResearch> = {
+export const SEEDS: Record<string, IndustryResearch> = {
   AI_SEMICONDUCTOR,
 };
 

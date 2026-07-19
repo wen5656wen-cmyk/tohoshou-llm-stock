@@ -2,6 +2,26 @@
 
 ---
 
+## [18.35.0] - 2026-07-19 — 🧬 Phase 6 知识图谱专业可视化 + 强模型 Provider Adapter + 两产业 Benchmark 基础设施（双轨推进）
+
+Phase 4 正式通过。按用户「双轨并行·不停工等 key」推进：轨道一继续不依赖强模型的 Phase 6+；轨道二建强模型接入与质量基准（禁用弱模型批量生成八产业）。
+
+### 轨道一 · Phase 6 Knowledge Graph（React Flow v12）
+- 新增 `components/research/deep/KnowledgeGraph.tsx`：`@xyflow/react` 专业交互图，消费现有 `/api/research/graph/[key]`（**不新增第二套节点/边模型**）。分层布局(环节顶/公司中/技术底·按供应链层左→右)、掐脖子公司红环、隐冠💎、有向边箭头+强度线宽+类型配色、MiniMap/缩放/拖拽。
+- 产业详情 KG 卡由数据占位升级为真实图谱(dynamic ssr:false 客户端加载+图例)；点公司节点→打开公司深度卡。Graph API 节点补 `companyKey`(供开卡)。
+- 生产验证: Lasertec(lasertec/MONOPOLY)·东京电子(tel/NEAR_MONOPOLY) 红环可点。
+
+### 轨道二 · Provider Adapter（不改 lib/openai.ts）
+- 新增 `lib/research/providers.ts`：`OpenAIProvider`/`AnthropicProvider`/`SeedProvider` 统一契约——可用性检查·超时·重试·结构化输出校验·用量·成本·时长·原始响应审计·优雅降级·任务失败隔离。env 驱动(`RESEARCH_PROVIDER`/`RESEARCH_MODEL`/`RESEARCH_DAILY_MODEL`/`RESEARCH_STRONG_MODEL`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`)，**禁写死模型名/密钥·密钥不入日志·不提交 Git**。AnthropicProvider=web_search取真证据+adaptive thinking。共享 `validateIndustryResearch`(symbol NNNN.T校验/无证据确定性Claim/边重复) 跨 provider 公平。
+- 新增 `scripts/research/benchmark.ts`：AI HBM / AI 医疗 两产业，同一 source pack·schema·审核口径，12 项指标(自动算 Evidence覆盖/无证据Claim比例/重复率/Token/成本/耗时；人审项标 PENDING→Review Center)+ 合格门槛判定。生产验证: 无 key→优雅跳过并指明配置位置，任务隔离，报告落盘。
+
+### 门槛(达标前禁 Phase 5 批量)
+重大Claim证据覆盖≥95% · 无证据确定Claim=0 · 股票代码错误=0 · 事实幻觉=0 · Schema=100% · 边重复<2% · 人审可发布≥85%。达标后选质价比最佳者作 RESEARCH_STRONG_MODEL。
+
+- deps: +@xyflow/react@12.11.2 +@anthropic-ai/sdk(本地+服务器)。未改评分/交易/资金链路/Cron；无 DB 变更。build✅/tsc0/health0。
+
+---
+
 ## [18.34.0] - 2026-07-19 — 🔬 Deep Research Phase 4b：产业详情多区域 + 公司深度卡15段 + Graph API + Golden Path 全链路可见
 
 深度研究 Phase 4 完成。AI 半导体 Golden Path 前端全链路可见 + 闭环。只读 StockScore/Stock/Yahoo，零复制评分；未碰冻结模块。

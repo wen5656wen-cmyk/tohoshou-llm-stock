@@ -8,6 +8,9 @@ import { useI18n } from "@/lib/i18n";
 import { AppLoading } from "@/components/ui";
 import { COLORS, fmtJpy, fmtPct, upDownColor } from "@/lib/decision/ds";
 import CompanyDeepCard from "./CompanyDeepCard";
+import dynamic from "next/dynamic";
+
+const KnowledgeGraph = dynamic(() => import("./KnowledgeGraph"), { ssr: false, loading: () => <div style={{ height: 480, borderRadius: 12, background: COLORS.tile }} /> });
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const LV: Record<string, string> = { CRITICAL: COLORS.danger, HIGH: COLORS.warning, MEDIUM: COLORS.primary, LOW: COLORS.textMuted };
@@ -98,14 +101,17 @@ export default function IndustryDetail() {
               </div>
             </Card>
 
-            {/* Knowledge Graph（数据就绪，Phase 6 接专业图库，不做 DOM 图） */}
-            <Card title={`🧬 ${t("dr.d.kg")}`} hint={t("dr.d.kgNote")}>
-              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: 12 }}>
-                {graph?.stats && [["Nodes", graph.stats.nodes], ["Edges", graph.stats.edges], [t("dr.kpi.companies"), graph.stats.companies], [t("dr.kpi.tech"), graph.stats.technologies]].map(([k, v]: any, i) => (
-                  <div key={i}><span className="tabular-nums" style={{ fontSize: 20, fontWeight: 800, color: COLORS.primary }}>{v}</span> <span style={{ color: COLORS.textMuted, fontSize: 11 }}>{k}</span></div>
+            {/* Knowledge Graph — 专业可视化（Phase 6 · React Flow） */}
+            <Card title={`🧬 ${t("dr.d.kg")}`} hint={graph?.stats ? `${graph.stats.nodes} nodes · ${graph.stats.edges} edges` : undefined}>
+              {/* 图例 */}
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 10.5, marginBottom: 8, color: COLORS.textMuted }}>
+                {[[t("dr.kpi.companies"), COLORS.primary], [t("dr.kg.segment"), COLORS.purple], [t("dr.kpi.tech"), COLORS.success]].map(([l, c]: any, i) => (
+                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: c }} />{l}</span>
                 ))}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 3, border: `1.5px solid ${COLORS.danger}` }} />{t("dr.kg.choke")}</span>
+                <span>💎 {t("dr.kg.hc")}</span>
               </div>
-              <div style={{ fontSize: 10.5, color: COLORS.textFaint, marginTop: 8 }}>GET /api/research/graph/{key} · React Flow / Cytoscape.js（Phase 6）</div>
+              {graph && <KnowledgeGraph graph={graph} onNodeClick={(_, meta) => { if (meta?.companyKey) setCoKey(meta.companyKey); }} />}
             </Card>
 
             {/* Bottlenecks */}

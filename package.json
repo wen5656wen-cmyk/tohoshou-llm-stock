@@ -124,12 +124,14 @@
     "fix-split-adjustment:apply": "npx tsx scripts/fix-split-adjustment.ts --apply --rescore"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@radix-ui/react-dialog": "^1.1.19",
     "@tanstack/react-virtual": "^3.14.3",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.20.0",
+    "@xyflow/react": "^12.11.2",
     "axios": "^1.18.0",
     "dayjs": "^1.11.21",
     "lightweight-charts": "^5.2.0",

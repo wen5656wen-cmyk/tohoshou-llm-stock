@@ -11,20 +11,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
   if (!ind) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const [links, segments, techs, edges] = await Promise.all([
-    prisma.researchCompanyIndustry.findMany({ where: { industryId: ind.id }, include: { company: { select: { id: true, name: true, nameZh: true, symbol: true, listed: true, altDifficulty: true, isHiddenChampion: true } }, segment: { select: { segmentKey: true, layer: true } } } }),
+    prisma.researchCompanyIndustry.findMany({ where: { industryId: ind.id }, include: { company: { select: { id: true, companyKey: true, name: true, nameZh: true, symbol: true, listed: true, altDifficulty: true, isHiddenChampion: true } }, segment: { select: { segmentKey: true, layer: true } } } }),
     prisma.researchSegment.findMany({ where: { industryId: ind.id }, select: { id: true, nameZh: true, layer: true, segmentKey: true } }),
     prisma.researchTechnology.findMany({ where: { industryId: ind.id }, select: { id: true, name: true, techKey: true } }),
     prisma.researchGraphEdge.findMany({ where: { industryId: ind.id } }),
   ]);
 
   // 去重公司节点
-  const coSeen = new Map<string, { id: string; label: string; symbol: string | null; listed: boolean; choke: string | null; hc: boolean; layer: string | null }>();
+  const coSeen = new Map<string, { id: string; companyKey: string; label: string; symbol: string | null; listed: boolean; choke: string | null; hc: boolean; layer: string | null }>();
   for (const l of links) {
-    if (!coSeen.has(l.company.id)) coSeen.set(l.company.id, { id: l.company.id, label: l.company.nameZh ?? l.company.name, symbol: l.company.symbol, listed: l.company.listed, choke: l.company.altDifficulty, hc: l.company.isHiddenChampion, layer: l.segment?.layer ?? null });
+    if (!coSeen.has(l.company.id)) coSeen.set(l.company.id, { id: l.company.id, companyKey: l.company.companyKey, label: l.company.nameZh ?? l.company.name, symbol: l.company.symbol, listed: l.company.listed, choke: l.company.altDifficulty, hc: l.company.isHiddenChampion, layer: l.segment?.layer ?? null });
   }
 
   const nodes = [
-    ...[...coSeen.values()].map((c) => ({ id: c.id, type: "COMPANY", label: c.label, group: c.layer, meta: { symbol: c.symbol, listed: c.listed, chokehold: c.choke, hiddenChampion: c.hc } })),
+    ...[...coSeen.values()].map((c) => ({ id: c.id, type: "COMPANY", label: c.label, group: c.layer, meta: { companyKey: c.companyKey, symbol: c.symbol, listed: c.listed, chokehold: c.choke, hiddenChampion: c.hc } })),
     ...segments.map((s) => ({ id: s.id, type: "SEGMENT", label: s.nameZh, group: s.layer, meta: { segmentKey: s.segmentKey } })),
     ...techs.map((t) => ({ id: t.id, type: "TECHNOLOGY", label: t.name, group: "TECH", meta: { techKey: t.techKey } })),
   ];
