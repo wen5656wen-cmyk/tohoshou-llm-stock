@@ -2,6 +2,24 @@
 
 ---
 
+## [18.41.0] - 2026-07-19 — 🔧 V2 Benchmark 真实性采集 + 运营看板中文化 + 审核弹窗修复
+
+### V2 Benchmark 真实执行工具（gpt-5.6-sol）
+- OpenAIProvider 兼容 gpt-5.x/o 系列推理模型：`max_completion_tokens`(64000)、不传 temperature；采集真实用量 actualModel(response.model)/cachedInputTokens/reasoningTokens/requestCount（新增 `ProviderRunResult.audit`）。Claude/Seed provider 同补 audit。
+- 新增 `lib/research/checksum.ts`：产业 live 实体确定性 sha256（证明 run 前后 V1 未改写）。
+- 新增 `scripts/research/v2-preflight.ts`：只读预检（模型可用性 models.list + V1 状态 + checksum；不生成/禁 mock/禁 fallback）。生产确证 gpt-5.6-sol 真实可调用（探针 actualModel=gpt-5.6-sol）。
+- `benchmark-v2.ts` 重写：完整真实性字段(requested/actual provider+model·mock·fallbackUsed·candidateVersionId·V1 versionId·V1 前后 checksum·请求数·input/cached/output/reasoning token·成本·时长·时间戳) + actualModel≠请求则判无效；候选归一化绑定 AI_SEMICONDUCTOR + 入库容错（不丢生成结果）；retries=0 单次请求。
+
+### 运营看板中文化 + 字体优化
+- Dashboard 全标签改 t()（+38 dr.db.* 双语键），zh 中文/ja 日文；字体加大（标签 9.5→10.5、标题→13.5、列表→11）提升可读性。Dashboard fetch 带 admin token。
+
+### 审核中心弹窗修复（看不到全部）
+- VersionDetail 改 flex 纵向：头部固定 + 中部完整滚动 + **动作栏固定底部始终可见**（原因=动作栏被长内容顶到视口外）；去除 Claim 列表内层限高改随弹窗整体滚动；候选加「候选」徽标。
+
+- 未改评分/交易/资金链路/Decision/Stock Center；无 DB 结构变更。build✅/tsc0。
+
+---
+
 ## [18.40.0] - 2026-07-19 — 🧪 V2 Benchmark 工具就绪（候选流程 + 13 项报告 · Feature Freeze 期质量工具）
 
 Deep Research V2 · Research Quality Initiative。V1 Feature Freeze（仅质量工具，不新增平台页面/架构）。等用户配 Strong Model 后跑真 Benchmark。

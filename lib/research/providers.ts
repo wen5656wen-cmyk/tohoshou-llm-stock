@@ -93,7 +93,8 @@ export function validateIndustryResearch(data: unknown): ValidationReport {
 
 // ── 统一 provider 契约（Engine 只依赖此接口 + capabilities）──
 export interface AvailabilityReport { available: boolean; kind: ProviderKind; model: string | null; reason?: string; models?: string[]; }
-export interface ProviderRunResult extends ResearchResult { raw: string; validation: ValidationReport; attempts: number; fallbackUsed?: string; enabled: { thinking: boolean; webSearch: boolean; structuredOutput: boolean }; }
+export interface ProviderAudit { actualModel: string; requestCount: number; cachedInputTokens: number; reasoningTokens: number }
+export interface ProviderRunResult extends ResearchResult { raw: string; validation: ValidationReport; attempts: number; fallbackUsed?: string; enabled: { thinking: boolean; webSearch: boolean; structuredOutput: boolean }; audit: ProviderAudit; }
 // §6 Thinking 与 §4 WebSearch 均为能力驱动的可选开关（非某厂商专属）
 export interface GenerateOptions { sourcePack?: string; timeoutMs?: number; retries?: number; useWebSearch?: boolean; useThinking?: boolean; }
 export interface StrongProvider extends ResearchProvider {
@@ -137,15 +138,19 @@ export class OpenAIProvider implements StrongProvider {
     catch (e) { return { available: false, kind: this.kind, model: this.model, reason: `模型列表检查失败: ${(e as Error).message}` }; }
   }
   async run(industryKey: string, opts?: GenerateOptions): Promise<ProviderRunResult> {
-    if (!this.model) throw new Error("OpenAIProvider: 无模型（配置 RESEARCH_MODEL）");
+    if (!this.model) throw new Error("OpenAIProvider: 无模型（配置 RESEARCH_MODEL / RESEARCH_STRONG_MODEL）");
     const model = this.model, t0 = Date.now(), enabled = enabledOf(this.capabilities, opts);
     const { value, attempts } = await withRetry(async () =>
-      openaiClient().chat.completions.create({ model, messages: [{ role: "system", content: RESEARCH_SYSTEM }, { role: "user", content: buildUserPrompt(industryKey, opts?.sourcePack) }], response_format: { type: "json_object" }, temperature: 0.2 }),
+      // gpt-5.x / o 系列推理模型：用 max_completion_tokens；不传 temperature（仅支持默认值）。
+      openaiClient().chat.completions.create({ model, messages: [{ role: "system", content: RESEARCH_SYSTEM }, { role: "user", content: buildUserPrompt(industryKey, opts?.sourcePack) }], response_format: { type: "json_object" }, max_completion_tokens: 64000 }),
       opts?.retries ?? 2, opts?.timeoutMs ?? 120000);
     const raw = value.choices[0]?.message?.content ?? "{}";
     const data = parseJsonLoose(raw);
-    const pt = value.usage?.prompt_tokens ?? 0, ct = value.usage?.completion_tokens ?? 0;
-    return { data, raw, validation: validateIndustryResearch(data), attempts, enabled, sourceKind: "LLM", usage: { provider: this.name, model, promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, estimatedCost: estimateCost(model, pt, ct), durationMs: Date.now() - t0 } };
+    const u = value.usage;
+    const pt = u?.prompt_tokens ?? 0, ct = u?.completion_tokens ?? 0;
+    const cached = (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens ?? 0;
+    const reasoning = (u?.completion_tokens_details as { reasoning_tokens?: number } | undefined)?.reasoning_tokens ?? 0;
+    return { data, raw, validation: validateIndustryResearch(data), attempts, enabled, sourceKind: "LLM", audit: { actualModel: value.model ?? model, requestCount: attempts, cachedInputTokens: cached, reasoningTokens: reasoning }, usage: { provider: this.name, model, promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, estimatedCost: estimateCost(model, pt, ct), durationMs: Date.now() - t0 } };
   }
   async research(industryKey: string): Promise<ResearchResult> { const r = await this.run(industryKey); return { data: r.data, usage: r.usage, sourceKind: r.sourceKind }; }
 }
@@ -187,7 +192,8 @@ export class ClaudeResearchProvider implements StrongProvider {
     const raw = (value.content as Array<{ type: string; text?: string }>).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
     const data = parseJsonLoose(raw);
     const pt = value.usage?.input_tokens ?? 0, ct = value.usage?.output_tokens ?? 0;
-    return { data, raw, validation: validateIndustryResearch(data), attempts, enabled, sourceKind: "LLM", usage: { provider: this.name, model, promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, estimatedCost: estimateCost(model, pt, ct), durationMs: Date.now() - t0 } };
+    const cached = value.usage?.cache_read_input_tokens ?? 0;
+    return { data, raw, validation: validateIndustryResearch(data), attempts, enabled, sourceKind: "LLM", audit: { actualModel: value.model ?? model, requestCount: attempts, cachedInputTokens: cached, reasoningTokens: 0 }, usage: { provider: this.name, model, promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, estimatedCost: estimateCost(model, pt, ct), durationMs: Date.now() - t0 } };
   }
   async research(industryKey: string): Promise<ResearchResult> { const r = await this.run(industryKey); return { data: r.data, usage: r.usage, sourceKind: r.sourceKind }; }
 }
@@ -203,7 +209,7 @@ export class SeedProvider implements StrongProvider {
   async run(industryKey: string): Promise<ProviderRunResult> {
     const t0 = Date.now(); const data = SEEDS[industryKey];
     if (!data) throw new Error(`SeedProvider: 无 ${industryKey} 种子`);
-    return { data, raw: JSON.stringify(data), validation: validateIndustryResearch(data), attempts: 1, enabled: { thinking: false, webSearch: false, structuredOutput: true }, sourceKind: "SEED", usage: { provider: this.name, model: "seed", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0, durationMs: Date.now() - t0 } };
+    return { data, raw: JSON.stringify(data), validation: validateIndustryResearch(data), attempts: 1, enabled: { thinking: false, webSearch: false, structuredOutput: true }, audit: { actualModel: "seed", requestCount: 1, cachedInputTokens: 0, reasoningTokens: 0 }, sourceKind: "SEED", usage: { provider: this.name, model: "seed", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0, durationMs: Date.now() - t0 } };
   }
   async research(industryKey: string): Promise<ResearchResult> { const r = await this.run(industryKey); return { data: r.data, usage: r.usage, sourceKind: r.sourceKind }; }
 }
