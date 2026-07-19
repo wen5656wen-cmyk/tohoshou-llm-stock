@@ -44,7 +44,7 @@ export const WORKSPACE_HOME: Record<Workspace, string> = {
 // P14-UI-03 IA v1.0：左侧 = 当前工作区的一级页面清单（内容区不再放同名一级 Tab）。
 export const NAV_NODES: NavNode[] = [
   // ═══ 决策工作区（Decision · 5 页 → /decision-v2?tab=*）═══
-  { key: "dv-overview", workspace: "boss", labelKey: "dv.nav.overview", href: "/decision-v2?tab=overview", Icon: LayoutGrid, glyph: "◎" },
+  { key: "dv-overview", workspace: "boss", labelKey: "dv.nav.overview", href: "/decision-v2?tab=overview", Icon: LayoutGrid, glyph: "◎", badge: "dv.nav.badge.core" },
   // 股票中心（原「AI 推荐」）：改名 + 上移至决策总览正下方（#2）。P2 再扩为三视图枢纽。
   { key: "dv-picks", workspace: "boss", labelKey: "dv.nav.picks", href: "/decision-v2?tab=recommendations", Icon: Star, glyph: "★" },
   // 行业分析：上移至第三位（选股→看行业轮动→再挑股，与股票中心衔接）。
@@ -54,7 +54,7 @@ export const NAV_NODES: NavNode[] = [
   // 即 AI 产业链深研模块入口；复用 screener 的 themes 页，URL 特判为 boss（见下）。
   { key: "dv-industry", workspace: "boss", labelKey: "dv.nav.industry", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈", badge: "dv.nav.badge.core" },
   { key: "dv-strategy", workspace: "boss", labelKey: "dv.nav.strategy", href: "/decision-v2?tab=strategy", Icon: Target, glyph: "◆" },
-  { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑" },
+  { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑", badge: "dv.nav.badge.core" },
   { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },
 
   // ═══ 研究工作区（Research · 股票研究 Hub + 股票研究五页 /screener?tab=*）═══
