@@ -12,6 +12,7 @@ import { join } from "path";
 import { getResearchProvider, makeProvider, validateIndustryResearch } from "../../lib/research/providers";
 import { generateCandidateVersion } from "../../lib/research/engine";
 import { industryChecksum } from "../../lib/research/checksum";
+import { alignPayload } from "../../lib/research/post-process";
 import { prisma } from "../../lib/prisma";
 import { SEEDS } from "../../lib/research/provider-seed";
 import type { IndustryResearch } from "../../lib/research/types";
@@ -50,7 +51,7 @@ function quality(cand: IndustryResearch, seed: IndustryResearch, usage: { totalT
   return {
     metrics: {
       "01_Claim数": v.stats.claims, "02_Evidence数": v.stats.evidence, "03_EvidenceCoverage_重大Claim_%": matCov,
-      "04_Hallucination_种子外上市代码_待人审": { count: extra.length, symbols: extra.slice(0, 30) },
+      "04_NewCandidate_种子外公司_待确认": { count: extra.length, symbols: extra.slice(0, 30), note: "经Company Resolver标NEW_CANDIDATE,非幻觉;真幻觉=股票代码错误(见门槛)" },
       "05_EntityAccuracy_公司召回_%": coRecall,
       "06_CompanyAccuracy_%": coRecall, "07_TechnologyAccuracy_%": techRecall, "07b_SegmentAccuracy_%": segRecall,
       "08_KG完整度": { nodes: candNodes, edges: v.stats.edges, vsSeedNodes: seedNodes, nodeRatioPct: seedNodes ? +(candNodes / seedNodes * 100).toFixed(1) : null },
@@ -59,7 +60,7 @@ function quality(cand: IndustryResearch, seed: IndustryResearch, usage: { totalT
       "13_Seed一致率_%": cons.length ? +(cons.reduce((a, b) => a + b, 0) / cons.length).toFixed(1) : null,
       "13b_PublishReady": autoFail.length ? `NOT_READY(自动门槛未过: ${autoFail.map((g) => g.k).join(", ")})` : "AUTO_PASS(待人审: 幻觉/关系准确率/可发布率)",
     },
-    gates, autoPass: autoFail.length === 0, stats: v.stats,
+    gates, autoPass: autoFail.length === 0, stats: v.stats, validation: v,
   };
 }
 
@@ -94,6 +95,12 @@ async function main() {
   r.data.industry.nameZh = r.data.industry.nameZh ?? seedInd.nameZh;
   r.data.industry.nameEn = r.data.industry.nameEn ?? seedInd.nameEn;
   r.data.industry.nameJa = r.data.industry.nameJa ?? seedInd.nameJa;
+
+  // Post-Processor 对齐：canonical 键映射 + 边去重 + claim 校验 + Company Resolver。之后再验证/入库/评分。
+  const seedSymbols = new Set((SEEDS[KEY].companies as { symbol?: string | null; listed?: boolean }[]).filter((c) => c.listed && c.symbol).map((c) => c.symbol!));
+  const aligned = alignPayload(KEY, r.data, seedSymbols);
+  r.data = aligned.payload;
+  console.log(`\n── Post-Processor 对齐 ──\n  ${JSON.stringify(aligned.report)}`);
 
   const q = quality(r.data, SEEDS[KEY], { totalTokens: r.usage.totalTokens, estimatedCost: r.usage.estimatedCost, durationMs: r.usage.durationMs });
 
@@ -147,7 +154,7 @@ async function main() {
 
   const dir = join(process.cwd(), "reports"); mkdirSync(dir, { recursive: true });
   const path = join(dir, `research-benchmark-v2-${KEY}.json`);
-  writeFileSync(path, JSON.stringify({ industry: KEY, truthfulness, quality: q.metrics, gates: q.gates, autoPass: q.autoPass, v1Unchanged, validation: r.validation.stats, validationErrors: r.validation.errors, validationWarnings: r.validation.warnings, usage: r.usage, audit: r.audit, rawSample: r.raw.slice(0, 6000) }, null, 2));
+  writeFileSync(path, JSON.stringify({ industry: KEY, truthfulness, quality: q.metrics, gates: q.gates, autoPass: q.autoPass, v1Unchanged, align: aligned.report, validation: q.validation.stats, validationErrors: q.validation.errors, validationWarnings: q.validation.warnings, usage: r.usage, audit: r.audit, rawSample: r.raw.slice(0, 6000) }, null, 2));
   console.log(`\n📄 报告: ${path}${persistError ? `\n⚠️ 入库失败: ${persistError}` : ""}`);
 }
 main().catch((e) => { console.error("benchmark-v2 失败:", e); process.exit(1); });

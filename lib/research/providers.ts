@@ -7,6 +7,7 @@
 // 统一能力：可用性检查·超时·重试·结构化校验·用量·成本·时长·原始审计·优雅降级·任务失败隔离。
 // ⚠️ 不修改 lib/openai.ts / Research Engine / Stock Center / Decision Center。密钥仅从环境读取，绝不入日志/Git。
 import { openaiClient } from "../openai";
+import { canonicalDictText } from "./canonical";
 import type { EvidenceInput, IndustryResearch, ResearchProvider, ResearchResult } from "./types";
 
 export type ProviderKind = "openai" | "anthropic" | "seed";
@@ -49,7 +50,22 @@ Output STRICT JSON only, matching the requested schema. Rules:
 - Use Japanese company legal names; include stock symbol in NNNN.T form (e.g. 6920.T) ONLY for listed JP companies; foreign/unlisted → symbol null, listed false.`;
 
 export function buildUserPrompt(industryKey: string, sourcePack?: string): string {
-  const base = `Produce a deep research payload for the AI industry line "${industryKey}" as JSON with keys: industry, segments[], technologies[], companies[], bottlenecks[], edges[]. Follow the IndustryResearch schema. Emphasize Japanese listed beneficiaries, technology chokepoints, hidden champions, and evidence-bound claims.`;
+  const base = `Produce a deep research payload for the AI industry line "${industryKey}" as JSON with keys: industry, segments[], technologies[], companies[], bottlenecks[], edges[]. Follow the IndustryResearch schema.
+- industry.industryKey MUST equal "${industryKey}" exactly, and industry.nameZh/nameEn/nameJa MUST be present.
+- Emphasize Japanese listed beneficiaries, technology chokepoints, hidden champions, and evidence-bound claims.
+
+${canonicalDictText(industryKey)}
+
+=== OUTPUT SHAPE EXAMPLE (use EXACTLY these field names — MANDATORY) ===
+{
+  "industry": {"industryKey":"${industryKey}","nameZh":"...","nameEn":"...","nameJa":"...","oneLiner":"...","summary":"..."},
+  "segments": [{"segmentKey":"litho","layer":"MIDSTREAM","nameZh":"光刻机"}],
+  "technologies": [{"techKey":"euv_litho","name":"EUV 光刻","claims":[{"claimType":"CHOKEPOINT","importance":9,"confidence":"HIGH","statement":"...","evidence":[{"sourceTitle":"...","sourceType":"FILING","publisher":"...","url":"..."}]}]}],
+  "companies": [{"companyKey":"lasertec","symbol":"6920.T","name":"レーザーテック","nameZh":"镭射科技","country":"JP","listed":true,"segmentKeys":["inspection"],"techKeys":["mask_inspection"],"claims":[{"claimType":"SHARE","importance":9,"confidence":"HIGH","statement":"...","evidence":[{"sourceTitle":"...","sourceType":"INDUSTRY_REPORT"}]}]}],
+  "bottlenecks": [{"name":"...","level":"CRITICAL","dims":{},"controlledBy":"...","claims":[{"claimType":"CHOKEPOINT","importance":10,"confidence":"HIGH","statement":"...","evidence":[{"sourceTitle":"...","sourceType":"GOV"}]}]}],
+  "edges": [{"fromType":"COMPANY","fromKey":"lasertec","toType":"SEGMENT","toKey":"inspection","edgeType":"SUPPLY","directed":true,"strength":90}]
+}
+The field names segmentKey, techKey, claimType, importance, confidence, evidence, sourceTitle, sourceType, companyKey, symbol, listed, segmentKeys, techKeys, fromType, fromKey, toType, toKey, edgeType are MANDATORY and must not be renamed. segmentKeys/techKeys reference the canonical keys above. Foreign/unlisted companies set listed=false, symbol=null.`;
   return sourcePack ? `${base}\n\n=== SOURCE PACK (ground your claims in these; cite as evidence) ===\n${sourcePack}` : base;
 }
 
