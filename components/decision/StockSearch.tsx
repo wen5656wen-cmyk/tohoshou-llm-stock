@@ -10,7 +10,7 @@ import { fmtJpy, fmtPct } from "@/lib/decision/ds";
 import { getPrimaryName } from "@/lib/company-name";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symbol: string, name: string) => void; focusSignal?: number }) {
+export default function StockSearch({ onPick, focusSignal = 0, endpoint = "/api/stocks", pickRows = (j: any) => (Array.isArray(j?.stocks) ? j.stocks : []), mapRow }: { onPick: (symbol: string, name: string) => void; focusSignal?: number; endpoint?: string; pickRows?: (j: any) => any[]; mapRow?: (r: any) => any }) {
   const { t, lang } = useI18n();
   const disp = (r: any) => getPrimaryName({ name: r?.name ?? r?.symbol, nameZh: r?.nameZh ?? null }, lang);
   const [q, setQ] = useState("");
@@ -33,9 +33,10 @@ export default function StockSearch({ onPick, focusSignal = 0 }: { onPick: (symb
       if (!alive) return;
       if (term.length < 1) { setRows([]); setOpen(false); setLoading(false); return; }
       setLoading(true);
-      const r = await fetch(`/api/stocks?q=${encodeURIComponent(term)}&limit=8`, { cache: "no-store" }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+      const j = await fetch(`${endpoint}?q=${encodeURIComponent(term)}&limit=8`, { cache: "no-store" }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
       if (!alive) return;
-      setRows(Array.isArray(r?.stocks) ? r.stocks : []); setOpen(true); setSel(0); setLoading(false);
+      let list = pickRows(j); if (mapRow) list = list.map(mapRow);
+      setRows(Array.isArray(list) ? list : []); setOpen(true); setSel(0); setLoading(false);
     }, term.length < 1 ? 0 : 220);
     return () => { alive = false; clearTimeout(id); };
   }, [q]);

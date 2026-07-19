@@ -2,6 +2,24 @@
 
 ---
 
+## [18.30.0] - 2026-07-19 — 🏆 P17-04 Stock Center V1.1（精品化精修 · 专业股票工作台）
+
+把 Stock Center 从「AI 推荐列表」提升为「专业股票工作台」。**纯展示与交互优化**：未改数据库/Prisma/Cron/AI Engine/Decision Engine/Stock Score/评分算法/任何计算逻辑/任何 API（仅给共享 `StockSearch` 增可选参数，默认行为不变）。
+
+- **【一】上涨空间 Upside**（★最高优先）：AI 执行榜新增「上涨空间」列（`(目标价-现价)/现价`，取 API 已有 `upside` 字段，不新算），**分档配色**（>20 深绿 / 10-20 绿 / 5-10 浅绿 / 0-5 灰 / 负 红）；表头**可点击排序**（默认 AI，点「上涨空间」切排序）；右栏详情同步显示现价/目标价/上涨空间。
+- **【二】AI 评分升级**：列表 AI 分按分档配色（90+深绿/80-89绿/70-79橙/60-69黄/<60灰）+ 等级；右栏「AI Score」区块 = 大号分数(配色) + 等级 + ★星级。
+- **【三】右栏重排（AI 决策优先于 K 线）**：① AI Score+动作+星级 → 上涨空间/预计持有/风险等级 → ② AI 一句总结 → ③ 买入区/目标价/止损价/收益风险比 → ④ K线图 → ⑤ 研究报告/加入自选。**K 线移到决策之后**。
+- **【六】收益风险比 RR**：右栏新增 `(目标价-现价)/(现价-止损价)`，实时计算，格式 `2.8 : 1`。
+- **【七】列表交互**：Hover→右栏实时预览切换（本地 hover 态，不刷 URL）/ 单击→选中(pin URL) / 双击→打开完整 AI 研究报告 / ↑↓ 方向键浏览（避开输入框）。
+- **【八】视觉精修**：统一 Badge/圆角/高度、增留白、数字右对齐、百分比统一 1 位小数（`fmtPct`）、价格千分位（`fmtJpy`）。
+- **【四】顶部筛选升级**：AI推荐/全市场/自选 之外新增 **我的持仓 / 等待买点 / 观察名单 / 全部股票** 4 个 tab，**复用现有端点无新接口**——持仓=`/api/holdings`、等待/观察=`/api/admin/decision-overview`(waitList/backups+names)、全部股票=`/api/screener`；统一 `GroupListView` 渲染（股票/AI/上涨空间/现价/今日/加入）。切换仅影响列表。
+- **【五】搜索升级**：股票中心搜索改走 `/api/screener?q=`（现有接口，检索 symbol/name/nameZh/**sector/industry**）→ 支持**行业关键词**（半导体/银行/机器人/汽车）+ 代码/中日名 模糊。`StockSearch` 加可选 `endpoint/pickRows/mapRow`（默认 `/api/stocks` 不变，Overview 不受影响）。
+- **i18n**：新增 ~20 个 `dv.sc.*` key（upside/rr/risk/action/aiScore/rk.*/hint.nav/view.holdings·wait·watch·allstk/groupEmpty，zh+ja+types）。
+- 验收：tsc 0 / build ✅ / 生产 health CRITICAL=0 / 页面 200 / bundle 含新文案（上涨空间/收益风险比/等待买点）。分两次安全增量部署，仅重启 web。
+- **遗留**：全部股票≈全市场（screener 是唯一 browse 源，未造第二套）；等待/观察行情为 decision-overview 快照（周末可能滞后）；「加入模拟持仓」全买入流程仍未接线（当前=加入自选）；手机右栏仍响应式堆叠。
+
+---
+
 ## [18.29.0] - 2026-07-19 — 🔖 股票中心：加入自选状态修复 + 今日涨跌统计
 
 三处小迭代（用户反馈）。纯 UI，未改 API/评分/引擎/Schema。
