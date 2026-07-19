@@ -221,3 +221,17 @@ const prisma  = new PrismaClient({ adapter });
 三个 locale：`zh-CN`（主要）· `ja-JP` · `en-US`  
 所有字符串通过 `t()` from `useI18n()`。例外：股票代码、技术缩写、品牌名。  
 Admin 页面（`/admin/verify`）使用双语内联格式。
+
+
+---
+
+## Deep Research（P17）· Provider + Capability
+
+单一 Research Engine 服务九产业。Engine 只认统一接口 `ResearchProvider` + 能力位 `ProviderCapabilities`，不知任何厂商；模型只由 env 决定（`RESEARCH_PROVIDER`/`RESEARCH_STRONG_MODEL`/…），禁写死。
+- 数据链：Source→Entity→Claim→Evidence→KnowledgeGraph→Version→Review→Report→StockLink（复用现有 research_* 表，无新结构）。
+- Provider：`lib/research/providers.ts`（OpenAIProvider/ClaudeResearchProvider/SeedProvider，能力驱动 thinking/web search，统一 validator）。
+- 调度：`lib/research/scheduler.ts`（pg advisory 锁/retry/timeout/幂等/dry-run/Job History=ResearchJob/失败隔离），Benchmark/Daily/Weekly/Trigger 共用。
+- 只读联通 Stock Center/AI Report/Decision Center/Watchlist（按 symbol/上下文跳转，Research≠Trading，禁复制评分）。
+- 冻结：评分/交易/Decision/Stock Center/AI Report/Mission 未经确认禁改。
+
+详见 `Deep-Research-Provider-Architecture.md` / `Deep-Research-Scheduler.md` / `Deep-Research-Runbook.md`。

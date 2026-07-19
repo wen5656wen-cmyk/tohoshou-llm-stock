@@ -27,7 +27,7 @@ export default function ResearchDashboard() {
   const { t } = useI18n();
   const [d, setD] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { fetch("/api/research/dashboard", { cache: "no-store" }).then((r) => r.json()).then((j) => { setD(j); setLoading(false); }).catch(() => setLoading(false)); }, []);
+  useEffect(() => { fetch("/api/research/dashboard", { cache: "no-store", headers: { "x-admin-token": localStorage.getItem("llmstock_admin_token") ?? "" } }).then((r) => r.json()).then((j) => { setD(j); setLoading(false); }).catch(() => setLoading(false)); }, []);
 
   if (loading) return <div className="max-w-[1300px] mx-auto px-6 py-10"><ResearchSubNav /><AppLoading label="dashboard" /></div>;
   if (!d) return <div className="max-w-[1300px] mx-auto px-6 py-10"><ResearchSubNav /></div>;

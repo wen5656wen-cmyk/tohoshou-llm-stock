@@ -217,3 +217,24 @@ All routes are Next.js 16 App Router, under `app/api/`. Dynamic routes use `expo
 - 大多数路由开放（无 auth）— 仅内部工具
 - `/api/admin/*` 路由检查 `ADMIN_TOKEN` 环境变量；若未设置，所有人可访问
 - Auth via `x-admin-token` header 或 `?token=` query param
+
+
+---
+
+## Deep Research（P17）
+
+只读 API（不复制评分，读现有 StockScore/Stock/Yahoo）：
+- `GET /api/research/industries` — 九产业卡聚合
+- `GET /api/research/industry/[key]` — 产业详情（多区域：KPI/Today Changed/Timeline三态/日股实时/瓶颈/隐冠/技术/证据/版本）
+- `GET /api/research/graph/[key]` — 知识图谱 typed nodes+edges（供 React Flow）
+- `GET /api/research/company/[key]` — 公司 15 段 + 实时（读 StockScore）
+- `GET /api/research/library` — 报告+版本+facet 筛选
+- `GET /api/research/version/[id]` — 版本详情（Claim/Evidence 对照 + Diff + 审阅）
+- `GET /api/research/calendar` — 研究日历（与 Timeline 同源 + Trigger/Review/Publish/Daily/Weekly/FutureReview）
+- `GET /api/research/review` — 待审列表
+
+写/敏感（🔒 ADMIN_TOKEN opt-in，`lib/admin-auth.ts`）：
+- `POST /api/research/review` — Approve/Reject/RequestChanges（唯 APPROVE→PUBLISHED）
+- `GET /api/research/dashboard` — 运营看板（仅返回 provider/model 名 + 已配置布尔，**无密钥**）
+
+详见 `Deep-Research-Runbook.md`。

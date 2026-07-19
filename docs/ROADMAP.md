@@ -104,3 +104,16 @@
 | UI 信息架构 v14.0.0-IA | ✅ Done | 3分组导航 + 驾驶舱 + 9-Horizon 矩阵 |
 | Phase B: Cron 首次完整验证 | 🔄 进行中 | 预计 2026-06-27 13:00 JST |
 | User Auth System | ❌ Not planned | Internal tool only |
+
+
+---
+
+## Deep Research（P17）路线
+
+- ✅ Phase 1-4：架构/数据模型/Research Engine/AI 半导体 Golden Path/首页+产业详情+公司卡。
+- ✅ Phase 6：知识图谱专业可视化（React Flow）。
+- ✅ Track 1：Research Library / Review Center / Calendar / Dashboard / 统一调度基础设施。
+- ✅ 收尾：只读联调 / 测试(32) / 性能 / Health 纳入 / 安全守卫 / 文档。
+- ⏳ Track 2：强模型接入代码完成，待服务器 .env 配 ANTHROPIC_API_KEY + RESEARCH_STRONG_MODEL → Benchmark（AI HBM/医疗 + AI 半导体对种子）→ 达标。
+- 🧊 **Phase 5 冻结**：达标前不生成其余八产业（AI HBM→数据中心→电力→光模块→机器人→自动驾驶→AI Agent→AI 医疗，逐条），首页续显「研究中」。
+- 后续：AI 半导体 V2 强模型重跑（不覆盖 V1）→ Benchmark → 发布。

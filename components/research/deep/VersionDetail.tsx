@@ -27,7 +27,7 @@ export default function VersionDetail({ versionId, review, onClose, onActed }: {
   const act = async (action: string) => {
     if (!versionId || !reviewer.trim()) { alert(t("dr.rev.reviewer")); return; }
     setBusy(action);
-    const r = await fetch("/api/research/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ versionId, reviewer: reviewer.trim(), action, comment }) });
+    const r = await fetch("/api/research/review", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": localStorage.getItem("llmstock_admin_token") ?? "" }, body: JSON.stringify({ versionId, reviewer: reviewer.trim(), action, comment }) });
     setBusy(null);
     if (r.ok) { onActed?.(); onClose(); } else alert((await r.json().catch(() => ({})))?.error ?? "failed");
   };

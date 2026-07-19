@@ -2,6 +2,26 @@
 
 ---
 
+## [18.39.0] - 2026-07-19 — 🔒📚 安全守卫 + 文档收尾（收尾 2/2 · Deep Research 最终收尾完成）
+
+Deep Research 最终收尾第二批。Phase 5 保持冻结。
+
+### 权限与安全
+- 新增 `lib/admin-auth.ts` `checkAdminAuth`（沿用 app/api/admin/* 约定：未设 ADMIN_TOKEN→放行；设了→校验 x-admin-token 头/?token）。
+- **写操作** `POST /api/research/review` 与**敏感读** `GET /api/research/dashboard` 加 opt-in 守卫；前端从 `localStorage.llmstock_admin_token` 带 token（不破坏现用）。
+- 审计核验：Dashboard **仅返回 provider/model 名 + 已配置布尔，零密钥**（生产验证响应不含 sk-/API_KEY）；raw response audit = LLM 补全文本，不含密钥/敏感 Header；读 API 只读 StockScore/Yahoo 不复制评分。
+
+### 文档收尾
+- 新增 `docs/Deep-Research-Runbook.md`：API 地图 · **Provider 配置手册** · **Benchmark 操作手册** · 测试/Health · 调度 · **回滚手册** · Known Issues/边界 · AI 半导体 V2 重跑流程。
+- 追加 Deep Research 段到 `API_MAP.md` / `ARCHITECTURE.md` / `ROADMAP.md` / `KNOWN_ISSUES.md`；配套已有 `Deep-Research-Provider-Architecture.md` / `Deep-Research-Scheduler.md`。
+
+### 收尾整体（1/2 + 2/2）
+只读联调(Research≠Trading) · 测试 32/32(抓修 symbol 正则 bug) · 性能(8面 cold79-354ms 无 N+1) · Health 纳入(10项全 WARNING/INFO, Anthropic 未配置 NOT_CONFIGURED 非 CRITICAL) · 安全守卫 · 文档。
+
+- 未改评分/交易/资金链路/Cron/Decision/Stock Center；无 DB 变更。build✅/tsc0/health0。Track 2 待服务器 .env 配置后跑 Benchmark，达标才进 Phase 5。
+
+---
+
 ## [18.38.0] - 2026-07-19 — 🔗🧪 只读联调 + 测试套件 + 性能 + Health 纳入（收尾 1/2）
 
 Deep Research 最终收尾（第一批）。Phase 5 保持冻结。

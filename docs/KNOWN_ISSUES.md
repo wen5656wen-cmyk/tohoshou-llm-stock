@@ -78,3 +78,14 @@
 | GlobalMarket | 每日 05:30 JST cron 自动同步 |
 | VersionSnapshot | 当前仅 1 个（20260626-v7.7），regressionDetection=INSUFFICIENT_DATA（需 ≥2） |
 | `tohoshou-ai-daily-pipeline` | stopped（已停用，保留待清除） |
+
+
+---
+
+## Deep Research（P17）
+
+- 强模型 Benchmark 未运行：待服务器 `.env` 配 `ANTHROPIC_API_KEY` + `RESEARCH_STRONG_MODEL`。Phase 5 冻结中，禁用弱模型批量生成八产业。
+- 规模测试受数据限制（仅 14 家 AI 半导体）；50/100 家待 Phase 5 补产业后验证（设计已批量化，无 N+1）。
+- Benchmark source pack 为空占位；接强模型/填证据源前基准仅验证管线不作数。
+- Mission 集成冻结（不映射 user_holdings），公司卡显 Coming Soon。
+- Anthropic Key 未配置在 Health 中显示 NOT_CONFIGURED/WARNING（非 CRITICAL，符合设计）。
