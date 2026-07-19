@@ -2036,6 +2036,7 @@ const jaJP: Messages = {
   "dr.co.linkDecision": "Decision Center",
   "dr.co.linkWatch": "ウォッチ追加",
   "dr.co.linkMission": "Mission 追加",
+  "dr.co.notTrading": "リサーチ結論 ≠ リアルタイム評価/売買提案（別々に表示）",
   "dv.sc.view.ai": "AI 推奨", "dv.sc.view.all": "全市場", "dv.sc.view.fav": "ウォッチ",
   "dv.sc.vd.BUY_TODAY": "本日建玉", "dv.sc.vd.WATCH_ONLY": "様子見", "dv.sc.vd.STAY_CASH": "現金待機",
   "dv.sc.band.closing": "引け決定", "dv.sc.band.build": "本日の組成", "dv.sc.band.units": "銘柄", "dv.sc.band.toOverview": "組成とポジションは決定サマリーへ", "dv.sc.band.live": "株価リアルタイム · AI 決定は日次", "dv.sc.band.noVerdict": "引け決定なし",

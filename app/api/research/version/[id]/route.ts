@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { payloadCounts, countsDiff } from "@/lib/research/diff";
 
 export const dynamic = "force-dynamic";
 
@@ -26,13 +27,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
   const claims = await prisma.researchClaim.findMany({ where: { entityId: { in: entityIds } }, include: { evidence: true }, orderBy: [{ importance: "desc" }, { createdAt: "desc" }] });
 
-  // 轻量 Diff：payload 顶层数组数量对比（公司/技术/证据等），供 Version Diff 视图
-  const counts = (p: unknown) => {
-    const d = (p ?? {}) as Record<string, unknown[]>;
-    return { segments: (d.segments ?? []).length, technologies: (d.technologies ?? []).length, companies: (d.companies ?? []).length, bottlenecks: (d.bottlenecks ?? []).length, edges: (d.edges ?? []).length };
-  };
-  const curC = counts(v.payload), prevC = prev ? counts(prev.payload) : null;
-  const diff = prevC ? Object.fromEntries(Object.keys(curC).map((k) => [k, { prev: (prevC as any)[k], cur: (curC as any)[k], delta: (curC as any)[k] - (prevC as any)[k] }])) : null; // eslint-disable-line @typescript-eslint/no-explicit-any
+  // 轻量 Diff：payload 顶层数组数量对比，供 Version Diff 视图（共享纯函数 lib/research/diff）
+  const curC = payloadCounts(v.payload), prevC = prev ? payloadCounts(prev.payload) : null;
+  const diff = countsDiff(curC, prevC);
 
   return NextResponse.json({
     version: { id: v.id, entityType: v.entityType, entityId: v.entityId, entityKey: ind?.industryKey ?? null, entityName: ind?.nameZh ?? null, entityNameJa: ind?.nameJa ?? null, version: v.version, status: v.status, reviewStatus: v.reviewStatus, changeReason: v.changeReason, changeSummary: v.changeSummary, provider: v.provider, model: v.model, promptVersion: v.promptVersion, tokenUsage: v.tokenUsage, estimatedCost: v.estimatedCost, durationMs: v.durationMs, evidenceCount: v.evidenceCount, reviewer: v.reviewer, reviewedAt: v.reviewedAt, generatedAt: v.generatedAt, publishedAt: v.publishedAt, counts: curC },

@@ -58,7 +58,7 @@ export interface ValidationReport {
   schemaValid: boolean; errors: string[]; warnings: string[];
   stats: { segments: number; technologies: number; companies: number; jpListed: number; bottlenecks: number; edges: number; claims: number; evidence: number; symbolErrors: number; noEvidenceCertainClaims: number; duplicateEdges: number };
 }
-const SYM_RE = /^\d{4}\.T$/;
+const SYM_RE = /^[0-9A-Z]{4}\.T$/; // 日本股票代码：4 位字母数字 + .T（2024 起支持字母，如 Kioxia 285A.T）
 function isObj(x: unknown): x is Record<string, unknown> { return !!x && typeof x === "object" && !Array.isArray(x); }
 export function validateIndustryResearch(data: unknown): ValidationReport {
   const errors: string[] = [], warnings: string[] = [];

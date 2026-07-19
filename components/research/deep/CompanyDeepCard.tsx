@@ -17,6 +17,8 @@ type Resp = {
 const CONF: Record<string, string> = { HIGH: COLORS.success, MID: COLORS.warning, LOW: COLORS.danger };
 const stars = (n: number) => "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n);
 const capYi = (v: number | null) => (v == null ? "—" : v >= 10000 ? `${(v / 10000).toFixed(2)}万亿` : `${Math.round(v).toLocaleString()}亿`); // 億円→兆/亿
+// 闭环只读链接样式（Research≠Trading：仅跳转到实时评分/决策所在页，不复制评分）
+const LINKST = { textAlign: "center" as const, fontSize: 11.5, fontWeight: 600, padding: "8px 0", borderRadius: 9, background: COLORS.tile, color: COLORS.text, border: `1px solid ${COLORS.border}`, textDecoration: "none" };
 
 export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: string | null; onClose: () => void }) {
   const { t } = useI18n();
@@ -122,15 +124,24 @@ export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: s
             <div style={{ padding: "12px 18px" }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: COLORS.textMuted, marginBottom: 8 }}>{`14 · ${t("dr.co.jpLink")}`}</div>
               {c.listed && c.symbol ? (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
-                  <a href={`/decision-v2?tab=picks`} style={{ gridColumn: "1/3", textAlign: "center", fontSize: 12.5, fontWeight: 600, padding: "9px 0", borderRadius: 9, background: COLORS.primary, color: "#fff", textDecoration: "none" }}>{t("dr.co.linkStock")} →</a>
-                  {[t("dr.co.linkReport"), t("dr.co.linkDecision"), t("dr.co.linkWatch"), t("dr.co.linkMission")].map((l, i) => (
-                    <span key={i} style={{ textAlign: "center", fontSize: 11.5, fontWeight: 600, padding: "8px 0", borderRadius: 9, background: COLORS.tile, color: COLORS.text, border: `1px solid ${COLORS.border}`, cursor: "pointer" }}>{l}</span>
-                  ))}
-                </div>
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
+                    {/* Stock Center：按 symbol 精确跳转（实时评分在目标页，不复制） */}
+                    <a href={`/stocks/${encodeURIComponent(c.symbol)}`} target="_blank" rel="noreferrer" style={{ gridColumn: "1/3", textAlign: "center", fontSize: 12.5, fontWeight: 600, padding: "9px 0", borderRadius: 9, background: COLORS.primary, color: "#fff", textDecoration: "none" }}>{t("dr.co.linkStock")} →</a>
+                    {/* AI Report：带 symbol 上下文 */}
+                    <a href={`/stocks/${encodeURIComponent(c.symbol)}?view=ai`} target="_blank" rel="noreferrer" style={LINKST}>{t("dr.co.linkReport")}</a>
+                    {/* Decision Center：只读引用当前决策 */}
+                    <a href={`/decision-v2?tab=overview`} target="_blank" rel="noreferrer" style={LINKST}>{t("dr.co.linkDecision")}</a>
+                    {/* Watchlist：现有关注池页面 */}
+                    <a href={`/watchlist`} target="_blank" rel="noreferrer" style={LINKST}>{t("dr.co.linkWatch")}</a>
+                    {/* Mission：冻结，不映射 user_holdings */}
+                    <span title={t("dr.soon")} style={{ ...LINKST, opacity: 0.5, cursor: "not-allowed" }}>{t("dr.co.linkMission")}·{t("dr.soon")}</span>
+                  </div>
+                  <div style={{ fontSize: 9.5, color: COLORS.textFaint, marginTop: 6 }}>{t("dr.co.notTrading")}</div>
+                </>
               ) : <div style={{ fontSize: 12, color: COLORS.textFaint }}>{t("dr.co.notListed")}</div>}
               <div style={{ fontSize: 10, fontWeight: 800, color: COLORS.textMuted, margin: "14px 0 4px" }}>{`15 · ${t("dr.co.verHist")}`}</div>
-              <div style={{ fontSize: 11, color: COLORS.textMuted }}>{d?.version ? `${d.version.version} ${d.version.status}` : "—"}（永久保留·不静默覆盖）</div>
+              <div style={{ fontSize: 11, color: COLORS.textMuted }}>{d?.version ? `${d.version.version} ${d.version.status}` : "—"}</div>
             </div>
             <div style={{ height: 20 }} />
           </>

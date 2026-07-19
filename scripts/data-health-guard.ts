@@ -1115,6 +1115,42 @@ async function main() {
     });
   }
 
+  // ── Deep Research 运营健康（P17 收尾）───────────────────────────────────────
+  // 全部 WARNING/INFO：Deep Research 属附属研究模块，绝不判 CRITICAL 阻断推荐。
+  // Anthropic Key 未配置 → NOT_CONFIGURED/WARNING（非 CRITICAL）。
+  try {
+    const [rjFailed, rjRunning, pendingReview, indAll, claimsTotal, noEvidence, lastDaily, lastWeekly, lastTrigger] = await Promise.all([
+      prisma.researchJob.count({ where: { status: "FAILED", createdAt: { gte: new Date(now.getTime() - 7 * 864e5) } } }),
+      prisma.researchJob.count({ where: { status: { in: ["RUNNING", "RETRYING"] } } }),
+      prisma.researchVersion.count({ where: { OR: [{ reviewStatus: "PENDING" }, { status: "AI_RESEARCHED" }] } }),
+      prisma.researchIndustry.findMany({ select: { nextReviewAt: true, staleAfter: true } }),
+      prisma.researchClaim.count(),
+      prisma.researchClaim.count({ where: { evidence: { none: {} } } }),
+      prisma.researchJob.findFirst({ where: { jobType: "DAILY", status: "SUCCESS" }, orderBy: { finishedAt: "desc" }, select: { finishedAt: true } }),
+      prisma.researchJob.findFirst({ where: { jobType: "WEEKLY", status: "SUCCESS" }, orderBy: { finishedAt: "desc" }, select: { finishedAt: true } }),
+      prisma.researchJob.findFirst({ where: { jobType: "TRIGGER", status: "SUCCESS" }, orderBy: { finishedAt: "desc" }, select: { finishedAt: true } }),
+    ]);
+    const staleCount = indAll.filter(i => (i.nextReviewAt && i.nextReviewAt < now) || (i.staleAfter && i.staleAfter < now)).length;
+    const coverage = claimsTotal ? (claimsTotal - noEvidence) / claimsTotal * 100 : 100;
+    const provider = process.env.RESEARCH_PROVIDER ?? "openai";
+    const anthKey = !!process.env.ANTHROPIC_API_KEY;
+    const strongModel = process.env.RESEARCH_STRONG_MODEL ?? null;
+    const provConfigured = provider !== "anthropic" || (anthKey && !!strongModel);
+
+    add({ id: "dr_scheduler", level: "INFO", name: "DR Scheduler available", value: process.env.DATABASE_URL ? "pg_advisory" : "no-db", pass: !!process.env.DATABASE_URL });
+    add({ id: "dr_failed_jobs", level: "WARNING", name: "DR Failed jobs (7d)", value: rjFailed, pass: rjFailed === 0, details: rjFailed ? ["Check ResearchJob.error; re-run via scheduler"] : [] });
+    add({ id: "dr_running_jobs", level: "INFO", name: "DR Running/Retrying jobs", value: rjRunning, pass: true });
+    add({ id: "dr_pending_review", level: "INFO", name: "DR Pending review", value: pendingReview, pass: true, details: pendingReview ? ["Review at /deep-research/review"] : [] });
+    add({ id: "dr_evidence_coverage", level: "WARNING", name: "DR Evidence coverage %", value: fmt(coverage), pass: claimsTotal === 0 || coverage >= 80, details: coverage < 80 ? ["Low evidence coverage; strengthen sourcing"] : [] });
+    add({ id: "dr_stale_research", level: "WARNING", name: "DR Stale research (industries)", value: staleCount, pass: staleCount === 0, details: staleCount ? ["Overdue nextReviewAt/staleAfter; schedule re-research"] : [] });
+    add({ id: "dr_provider_config", level: "WARNING", name: "DR Provider configuration", value: provConfigured ? `${provider}${strongModel ? "·" + strongModel : ""}` : "NOT_CONFIGURED", pass: provConfigured, details: provConfigured ? [] : [`Set RESEARCH_STRONG_MODEL + ANTHROPIC_API_KEY in server .env (provider=${provider})`] });
+    add({ id: "dr_last_daily", level: "INFO", name: "DR Last successful DAILY", value: lastDaily?.finishedAt ? lastDaily.finishedAt.toISOString().slice(0, 10) : "never", pass: true });
+    add({ id: "dr_last_weekly", level: "INFO", name: "DR Last successful WEEKLY", value: lastWeekly?.finishedAt ? lastWeekly.finishedAt.toISOString().slice(0, 10) : "never", pass: true });
+    add({ id: "dr_last_trigger", level: "INFO", name: "DR Last successful TRIGGER", value: lastTrigger?.finishedAt ? lastTrigger.finishedAt.toISOString().slice(0, 10) : "never", pass: true });
+  } catch (e) {
+    add({ id: "dr_health", level: "WARNING", name: "DR health check", value: "error", pass: false, details: [String((e as Error).message)] });
+  }
+
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const criticals = checks.filter(c => !c.pass && c.level === "CRITICAL");
   const warnings  = checks.filter(c => !c.pass && c.level === "WARNING");

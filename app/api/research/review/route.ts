@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isReviewAction, reviewPatch } from "@/lib/research/review-flow";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +26,14 @@ export async function POST(req: Request) {
   const reviewer = (body?.reviewer as string | undefined)?.trim();
   const action = body?.action as string | undefined;
   const comment = (body?.comment as string | undefined) ?? null;
-  if (!versionId || !reviewer || !["APPROVE", "REJECT", "REQUEST_CHANGES"].includes(String(action))) {
+  if (!versionId || !reviewer || !isReviewAction(action)) {
     return NextResponse.json({ error: "versionId / reviewer / action(APPROVE|REJECT|REQUEST_CHANGES) 必填" }, { status: 400 });
   }
   const v = await prisma.researchVersion.findUnique({ where: { id: versionId } });
   if (!v) return NextResponse.json({ error: "version not found" }, { status: 404 });
 
   const now = new Date();
-  const patch = action === "APPROVE"
-    ? { reviewStatus: "APPROVED", status: "PUBLISHED", reviewer, reviewedAt: now, publishedAt: v.publishedAt ?? now }
-    : action === "REJECT"
-      ? { reviewStatus: "REJECTED", status: "REJECTED", reviewer, reviewedAt: now }
-      : { reviewStatus: "PENDING", changeReason: comment ?? v.changeReason, reviewer, reviewedAt: now };
+  const patch = reviewPatch(action, reviewer, comment, now, v);
 
   const [, updated] = await prisma.$transaction([
     prisma.researchReview.create({ data: { versionId, reviewer, action: String(action), comment } }),

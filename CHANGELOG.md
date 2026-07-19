@@ -2,6 +2,29 @@
 
 ---
 
+## [18.38.0] - 2026-07-19 — 🔗🧪 只读联调 + 测试套件 + 性能 + Health 纳入（收尾 1/2）
+
+Deep Research 最终收尾（第一批）。Phase 5 保持冻结。
+
+### 只读联调（Research ≠ Trading）
+- CompanyDeepCard 闭环链接由占位改为真实只读跳转：**Stock Center → /stocks/{symbol}(按 symbol 精确)**、**AI Report → /stocks/{symbol}?view=ai(带上下文)**、**Decision Center → /decision-v2?tab=overview(只读引用当前决策)**、**Watchlist → /watchlist(现有关注池,不新增第二套)**；**Mission 冻结显 Coming Soon(不映射 user_holdings)**。加「研究结论 ≠ 实时评分/交易建议」提示；实时评分只在目标页,禁复制。
+
+### 测试套件（scripts/research/test.ts · npm run test:research · 32/32 通过）
+- 纯函数：Schema 校验 / **Claim 无 Evidence 阻断** / symbol 校验 / 边去重 / Provider Adapter+Capability / Version Diff / **Review 状态流转** / Seed 完整性(Engine 输入契约)。
+- DB：**Scheduler 幂等** / **Advisory lock 并发**(一成功一被锁) / **Retry**(第3次成功) / **Timeout** / **Failure isolation**(批量互不影响) / **StockLink 只读**(company live.aiScore == StockScore 读穿非复制)。throwaway 数据自动清理。
+- 测试抓到并修复真实 bug：symbol 正则过严(`^\d{4}\.T$`)误判合法日本字母数字码(如 Kioxia 285A.T)→ 修为 `^[0-9A-Z]{4}\.T$`。
+- 抽 `lib/research/diff.ts`(payloadCounts/countsDiff) 与 `lib/research/review-flow.ts`(reviewPatch) 为共享纯函数,version/review API 复用,可测。
+
+### 性能（生产验证,无 N+1/无前端重复请求）
+- API cold 79-354ms / warm 67-159ms（最重=产业详情 27KB 含 11 家实时 Yahoo 批量报价,单批非 N+1）；页面 130-226ms。规模现 14 家(AI半导体);50/100 待 Phase 5,设计已批量化(Promise.all/groupBy/fetchQuotesBatch)可扩展。
+
+### Health 纳入（scripts/data-health-guard.ts）
+- 新增 10 项 DR 检查：Scheduler/Failed Jobs/Running/Pending Review/Evidence Coverage/Stale Research/**Provider Configuration**/Last Successful Daily·Weekly·Trigger。**全部 WARNING/INFO,绝不 CRITICAL**；**Anthropic 未配置→NOT_CONFIGURED/WARNING**,不阻断推荐。生产验证 Health guard passed/EXIT 0。
+
+- 未改评分/交易/资金链路/Cron/Decision/Stock Center；无 DB 变更。build✅/tsc0/health0。安全审计+文档收尾续下批,之后交最终验收报告。
+
+---
+
 ## [18.37.0] - 2026-07-19 — 🗓️📊⚙️ Research Calendar + Dashboard + 统一调度基础设施（Track 1）
 
 继续 Track 1，均复用现有实体、不新增数据结构；Phase 5 保持冻结（Anthropic Benchmark 达标前不生成八产业，首页续显「研究中」）。
