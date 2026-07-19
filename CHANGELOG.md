@@ -2,6 +2,26 @@
 
 ---
 
+## [18.37.0] - 2026-07-19 — 🗓️📊⚙️ Research Calendar + Dashboard + 统一调度基础设施（Track 1）
+
+继续 Track 1，均复用现有实体、不新增数据结构；Phase 5 保持冻结（Anthropic Benchmark 达标前不生成八产业，首页续显「研究中」）。
+
+### 调度基础设施（唯一 Scheduler，统一供 Benchmark/Daily/Weekly/Trigger）
+- 新增 `lib/research/scheduler.ts`：`runResearchJob(spec, work)` 统一入口——**pg advisory 分布式锁**(专用单连接持有全程,跨进程/主机)·Retry(退避)·Timeout·**幂等**(窗口内已 SUCCESS 跳过)·**dry-run**(仅计划不落库)·**Job History**(复用 ResearchJob,无新表)·**失败隔离**(错误记录在 Job 不抛出; 批量 `runResearchJobsIsolated`)。
+- 生产自测: DRY_RUN 返计划无副作用 · RUN SUCCESS(取锁+写史) · FAIL 重试2次后隔离记录 · 自测行已清理。
+- 文档 `docs/Deep-Research-Scheduler.md`: Scheduler 架构图 + Job 生命周期流程图(mermaid)。
+
+### Research Dashboard（运营中心，7 板块）
+- 新增 `/api/research/dashboard` 聚合 + `/deep-research/dashboard` 页：①Jobs(Running/Waiting/Failed/Retry/Duration+近期)②Provider(当前/模型/使用统计/成功率/已配置布尔)③Token&Cost(今日/周/月/单产业)④Freshness(Industry/Company/Technology 超期+即将Review)⑤Review(Pending/Approved/Rejected/RequestChanges)⑥Evidence(Claims/Evidence/无证据/Coverage)⑦System Health(Benchmark/Daily/Weekly/Trigger/Scheduler/Queue)。**仅暴露 provider/model 名与"已配置"布尔,绝不暴露密钥**。生产验证: evidence 100% coverage/scheduler pg_advisory/queue 0。
+
+### Research Calendar（月/列表视图）
+- 新增 `/api/research/calendar` + `/deep-research/calendar` 页：月网格+列表切换+kind筛选+**Today Changed**+**Future Review**。**与产业详情 Timeline 同源**(ResearchTimelineEvent+ResearchCalendarEvent,不维护第二套时间线),再并 Trigger/Review时间/Version发布时间/Daily·Weekly。生产验证: 9 事件(PLANNED/REVIEW/FUTURE_REVIEW/DAILY/PUBLISH)+todayChanged 5。
+- 子导航解锁 Dashboard/Calendar。i18n +dr.cal.*。
+
+- 未改评分/交易/资金链路/Cron/Decision/Stock Center；无 DB 变更。build✅/tsc0/health0。Anthropic Benchmark 待服务器配置 .env 后运行。
+
+---
+
 ## [18.36.0] - 2026-07-19 — 🧩 Provider+Capability 架构 + Research Library + Review Center（双轨）
 
 按用户「Provider + Capability 而非 Provider + 固定 Model」重构，并继续 Track 1。

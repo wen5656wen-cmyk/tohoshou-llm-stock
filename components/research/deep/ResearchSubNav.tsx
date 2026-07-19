@@ -13,8 +13,8 @@ export default function ResearchSubNav() {
     { href: "/deep-research", label: t("dr.nav.home") },
     { href: "/deep-research/library", label: t("dr.nav.library") },
     { href: "/deep-research/review", label: t("dr.nav.review") },
-    { href: "/deep-research/dashboard", label: t("dr.nav.dashboard"), soon: true },
-    { href: "/deep-research/calendar", label: t("dr.nav.calendar"), soon: true },
+    { href: "/deep-research/dashboard", label: t("dr.nav.dashboard") },
+    { href: "/deep-research/calendar", label: t("dr.nav.calendar") },
   ];
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
