@@ -2,6 +2,18 @@
 
 ---
 
+## [18.32.0] - 2026-07-19 — 🔬 Deep Research Phase 1-3：架构审计 + 数据模型 + Research Engine + AI 半导体 Golden Path
+
+深度研究（Deep Research）P17 自主开发前三阶段。**全 additive，只读 StockScore，零改评分/交易/资金链路/冻结模块。**
+
+- **Phase 1 架构审计**：只读 StockScore/AITheme/News；物理隔离(research_* 新表/新脚本)；风险登记(Mission 不存在R1/LLM 幻觉R2/模型偏弱R3)；无架构级阻断。
+- **Phase 2 数据模型(20 additive 表)** + P0 修正：ResearchClaim(Evidence 绑 Claim 非直接绑 Company) · Company↔Technology M2M · Relationship→GraphEdge(真 KG typed node 边) · Version+provider/model/promptVersion/tokenUsage/estimatedCost/durationMs · Review reviewer/action/comment · TimelineEvent/CalendarEvent/Report · ResearchJob · Industry/Tech/Company +freshness。可扩展 30+产业·5000+企业(M2M+String枚举+Json扩展位)。
+- **Phase 3 Research Engine**：`lib/research/`(types/llm 多provider抽象/freshness/engine/seed/provider-seed) + `scripts/research/run-industry.ts`。全链路 Source→Entity→Claim→Evidence→KnowledgeGraph→Version→Review→Report→StockLink 落库；无证据 claim 强制 LOW；SEED 自动 PUBLISHED / LLM 走 AI_RESEARCHED 待人审。
+- **AI 半导体 Golden Path(生产验证)**：seed=真实可核验日本半导体链(信越/JSR/TOK/TEL/Disco/Lasertec/爱德万/Sony/SUMCO/铠侠/特里化学 + ASML/TSMC/Rapidus)。落库 7段/4技术/14企业/9claims/10evidence/12边/4瓶颈/11 StockLink/2隐冠；Version V1 PUBLISHED·APPROVED；StockLink 只读命中真实 StockScore；Job SUCCESS 632ms；claimsWithoutEvidence=0。
+- 生产已 `db push`(additive 建 research_* 表) + generate；跑 run-industry.ts 落数据；health CRITICAL=0。tsc0/build✅。前端(Phase 6)/cron(Phase 8)/其余八产业(Phase 5)待续。
+
+---
+
 ## [18.31.3] - 2026-07-19 — ✨ 决策总览 · 模拟持仓 也加「核心」徽章
 
 - 核心功能标识扩展到 决策总览 + 模拟持仓（+ 已有的 深度研究）→ 三项带渐变「核心/コア」徽章。

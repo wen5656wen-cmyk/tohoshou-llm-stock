@@ -1926,6 +1926,9 @@ model ResearchIndustry {
   lastDailyAt  DateTime?
   lastWeeklyAt DateTime?
   nextReviewAt DateTime?
+  freshnessScore Int?
+  lastVerifiedAt DateTime?
+  staleAfter     DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -1980,6 +1983,10 @@ model ResearchTechnology {
   altTech         String?  @db.Text
   roadmap         Json?
   uncertainty     String?  @db.Text
+  freshnessScore  Int?
+  lastVerifiedAt  DateTime?
+  nextReviewAt    DateTime?
+  staleAfter      DateTime?
   status          String   @default("DRAFT")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2019,6 +2026,10 @@ model ResearchCompany {
   investmentValue  Json?
   isHiddenChampion Boolean  @default(false)
   profileExt       Json?
+  freshnessScore   Int?
+  lastVerifiedAt   DateTime?
+  nextReviewAt     DateTime?
+  staleAfter       DateTime?
   status           String   @default("DRAFT")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -2340,4 +2351,30 @@ model ResearchReport {
   @@index([scope, refKey])
   @@index([status])
   @@map("research_reports")
+}
+
+// P17 补充1 · ResearchJob：研究任务管理（Running/Retry/Token/Cost/Duration/Error/Version）
+model ResearchJob {
+  id            String    @id @default(cuid())
+  jobType       String // INDUSTRY_DEEP|COMPANY_DEEP|DAILY|WEEKLY|TRIGGER
+  industryKey   String?
+  targetKey     String?
+  status        String    @default("PENDING") // PENDING|RUNNING|SUCCESS|FAILED|RETRYING
+  attempt       Int       @default(0)
+  maxAttempts   Int       @default(3)
+  provider      String?
+  model         String?
+  tokenUsage    Json?
+  estimatedCost Float?
+  durationMs    Int?
+  error         String?   @db.Text
+  versionId     String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([jobType])
+  @@map("research_jobs")
 }
