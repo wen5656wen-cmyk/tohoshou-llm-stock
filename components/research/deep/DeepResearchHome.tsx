@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { AppLoading } from "@/components/ui";
 import { COLORS } from "@/lib/decision/ds";
+import ResearchSubNav from "./ResearchSubNav";
 
 type IndustryCard = {
   industryKey: string; nameZh: string; nameEn: string; nameJa: string; oneLiner: string | null;
@@ -41,6 +42,7 @@ export default function DeepResearchHome() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5" style={{ color: COLORS.text }}>
+      <ResearchSubNav />
       {/* 标题 */}
       <div className="flex items-start justify-between flex-wrap gap-3 mb-2">
         <div>

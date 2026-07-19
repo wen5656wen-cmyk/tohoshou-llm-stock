@@ -1,0 +1,50 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+// GET /api/research/review — 待审版本（reviewStatus=PENDING 或 status=AI_RESEARCHED）。
+export async function GET() {
+  const [pending, industries, agg] = await Promise.all([
+    prisma.researchVersion.findMany({ where: { OR: [{ reviewStatus: "PENDING" }, { status: "AI_RESEARCHED" }] }, orderBy: { generatedAt: "desc" }, take: 100, include: { _count: { select: { reviews: true } } } }),
+    prisma.researchIndustry.findMany({ select: { id: true, industryKey: true, nameZh: true, nameJa: true } }),
+    prisma.researchVersion.groupBy({ by: ["reviewStatus"], _count: true }),
+  ]);
+  const indMap = new Map(industries.map((i) => [i.id, i]));
+  return NextResponse.json({
+    pending: pending.map((v) => { const ind = v.entityType === "INDUSTRY" ? indMap.get(v.entityId) : undefined; return { id: v.id, entityType: v.entityType, entityKey: ind?.industryKey ?? null, entityName: ind?.nameZh ?? null, entityNameJa: ind?.nameJa ?? null, version: v.version, status: v.status, reviewStatus: v.reviewStatus, provider: v.provider, model: v.model, evidenceCount: v.evidenceCount, estimatedCost: v.estimatedCost, reviews: v._count.reviews, generatedAt: v.generatedAt }; }),
+    facets: { reviewStatus: agg.map((a) => ({ reviewStatus: a.reviewStatus, count: a._count })) },
+  });
+}
+
+// POST /api/research/review — 审阅动作 { versionId, reviewer, action: APPROVE|REJECT|REQUEST_CHANGES, comment }
+// APPROVE → PUBLISHED（唯有人审通过才发布，防幻觉）；REJECT → REJECTED；REQUEST_CHANGES → 退回 PENDING。
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => null);
+  const versionId = body?.versionId as string | undefined;
+  const reviewer = (body?.reviewer as string | undefined)?.trim();
+  const action = body?.action as string | undefined;
+  const comment = (body?.comment as string | undefined) ?? null;
+  if (!versionId || !reviewer || !["APPROVE", "REJECT", "REQUEST_CHANGES"].includes(String(action))) {
+    return NextResponse.json({ error: "versionId / reviewer / action(APPROVE|REJECT|REQUEST_CHANGES) 必填" }, { status: 400 });
+  }
+  const v = await prisma.researchVersion.findUnique({ where: { id: versionId } });
+  if (!v) return NextResponse.json({ error: "version not found" }, { status: 404 });
+
+  const now = new Date();
+  const patch = action === "APPROVE"
+    ? { reviewStatus: "APPROVED", status: "PUBLISHED", reviewer, reviewedAt: now, publishedAt: v.publishedAt ?? now }
+    : action === "REJECT"
+      ? { reviewStatus: "REJECTED", status: "REJECTED", reviewer, reviewedAt: now }
+      : { reviewStatus: "PENDING", changeReason: comment ?? v.changeReason, reviewer, reviewedAt: now };
+
+  const [, updated] = await prisma.$transaction([
+    prisma.researchReview.create({ data: { versionId, reviewer, action: String(action), comment } }),
+    prisma.researchVersion.update({ where: { id: versionId }, data: patch }),
+  ]);
+  // 产业版本通过 → 产业转 PUBLISHED（仅研究状态；不触碰评分/交易/Decision）
+  if (action === "APPROVE" && v.entityType === "INDUSTRY") {
+    await prisma.researchIndustry.update({ where: { id: v.entityId }, data: { status: "PUBLISHED" } }).catch(() => {});
+  }
+  return NextResponse.json({ ok: true, version: { id: updated.id, status: updated.status, reviewStatus: updated.reviewStatus } });
+}

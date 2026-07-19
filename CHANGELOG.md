@@ -2,6 +2,26 @@
 
 ---
 
+## [18.36.0] - 2026-07-19 — 🧩 Provider+Capability 架构 + Research Library + Review Center（双轨）
+
+按用户「Provider + Capability 而非 Provider + 固定 Model」重构，并继续 Track 1。
+
+### 轨道二 · Provider + Capability（不绑定任何模型）
+- `lib/research/providers.ts` 重构：新增 `ClaudeResearchProvider`(与 OpenAIProvider 并存) + **Capability Layer**(`ProviderCapabilities`: supportsThinking/WebSearch/StructuredOutput/Vision/ToolUse/LongContext)。thinking 与 web_search 均为**能力驱动可选开关**(非厂商专属)，`GenerateOptions.useThinking/useWebSearch` 显式关闭，默认跟随能力；`ProviderRunResult.enabled` 记录实际启用。
+- **Engine 只认统一接口 + 能力位**，不知任何厂商；模型只由 env(`RESEARCH_PROVIDER`/`RESEARCH_MODEL`/`RESEARCH_DAILY_MODEL`/`RESEARCH_STRONG_MODEL`)决定，**禁写死**；升级模型只改 env。
+- Web Search 解耦：新增 `EvidenceSource` seam(Provider 自带 search / 未来第三方)，统一归 Evidence/Source(url=citation)；Engine 不与 Anthropic Search 耦合。Structured Output 由统一 `IndustryResearch` schema + `validateIndustryResearch` 控制，所有 Provider 输出同一 payload。
+- `scripts/research/benchmark.ts` 扩三产业(AI 半导体**对人工核验种子真值比对** · AI HBM · AI 医疗)：实体召回/多出实体(幻觉代理)/证据覆盖/无证据Claim/重复率/Token/成本/耗时；人审项 PENDING→Review Center。门槛不变。生产验证：无 key 优雅跳过并指明配置位置。
+- `docs/Deep-Research-Provider-Architecture.md`：Provider 架构图(mermaid) + Capability 矩阵 + env 说明。密钥仅服务器 .env，禁打印/日志/Git。
+
+### 轨道一 · Research Library + Review Center（复用现有 Report/Version/Evidence/Review，不新增模型）
+- 新增 3 API：`/api/research/library`(报告+版本+facet 筛选 scope/status/provider/q)、`/api/research/version/[id]`(版本详情：**Claim/Evidence 对照**[INDUSTRY 聚合全子实体]+**版本 Diff**[payload 计数增量]+审阅记录)、`/api/research/review`(GET 待审 + POST **Approve/Reject/Request Changes**；APPROVE→PUBLISHED 唯有人审通过才发布)。
+- 新增页面 `/deep-research/library`、`/deep-research/review` + 组件(LibraryView/ReviewCenter/VersionDetail 弹窗/ResearchSubNav 子导航[Dashboard·Calendar 标 Coming Soon])；首页加子导航。
+- 生产验证：两页 200；Library 列 AI 半导体 V1(PUBLISHED/APPROVED/seed)；Version 详情聚合 9 claims/10 evidence/0 无证据；待审=0(种子已审,正确)。
+
+- deps 已装(@xyflow/react/@anthropic-ai/sdk)；未改评分/交易/资金链路/Cron/Decision/Stock Center；无 DB 变更。build✅/tsc0/health0。Calendar/Dashboard/调度基础设施续下轮。
+
+---
+
 ## [18.35.0] - 2026-07-19 — 🧬 Phase 6 知识图谱专业可视化 + 强模型 Provider Adapter + 两产业 Benchmark 基础设施（双轨推进）
 
 Phase 4 正式通过。按用户「双轨并行·不停工等 key」推进：轨道一继续不依赖强模型的 Phase 6+；轨道二建强模型接入与质量基准（禁用弱模型批量生成八产业）。
