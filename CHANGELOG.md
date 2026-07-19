@@ -2,6 +2,16 @@
 
 ---
 
+## [18.41.3] - 2026-07-19 — 🐛 P0 Review Modal 改固定高度(彻底消除留白)
+
+- 反馈：弹窗未撑满、下方大面积空白、看不到全部内容。
+- 根因补充：`max-height:90vh + flex:1 1 auto` 为 shrink-to-content——内容中等时弹窗缩小、居中后四周留白，视觉上"未撑满+下方空白"。
+- 修：弹窗改**固定 `height:86vh`**（恒定撑满视口，居中上下对称）+ Body `flex:1 min-height:0 overflow-y:auto`（填满并滚动，唯一滚动区）+ Header/Footer `flex-shrink:0` 固定。
+- 合成实测(1900×1000)：modal 860px(86vh)/居中(上下各70)/body 686px填满滚动1908px内容/footer固定 → 零空白。
+- 纯 UI；用户端需硬刷新(Cmd+Shift+R)清旧 JS 缓存。build✅。
+
+---
+
 ## [18.41.2] - 2026-07-19 — 🐛 P0 Review Modal 布局修复（flex-basis 空白）
 
 - 现象：短内容时弹窗中下部大量空白、可视区利用率低、滚动后下方空白。

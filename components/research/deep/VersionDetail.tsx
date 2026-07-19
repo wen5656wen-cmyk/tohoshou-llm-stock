@@ -40,7 +40,7 @@ export default function VersionDetail({ versionId, review, onClose, onActed }: {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 65, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity .2s" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(740px,96vw)", maxHeight: "90vh", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 16, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 68px rgba(0,0,0,.32)", color: COLORS.text, transform: open ? "scale(1)" : "scale(.96)", transition: "transform .22s cubic-bezier(.32,.72,0,1)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(760px,96vw)", height: "86vh", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 16, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 68px rgba(0,0,0,.32)", color: COLORS.text, transform: open ? "scale(1)" : "scale(.96)", transition: "transform .22s cubic-bezier(.32,.72,0,1)" }}>
         {loading || !v ? (
           <div style={{ padding: 48, textAlign: "center", color: COLORS.textFaint, fontSize: 13 }}>{loading ? "…" : ""}</div>
         ) : (
@@ -59,8 +59,8 @@ export default function VersionDetail({ versionId, review, onClose, onActed }: {
               </div>
             </div>
 
-            {/* 中部（唯一滚动区域：flex-basis auto + min-height:0 + overflow-y:auto，随内容伸缩，不留空白） */}
-            <div style={{ padding: "13px 18px", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+            {/* 中部（唯一滚动区域：固定高父容器 + flex:1 + min-height:0 + overflow-y:auto，填满并滚动，不留空白） */}
+            <div style={{ padding: "13px 18px", flex: 1, minHeight: 0, overflowY: "auto" }}>
               {/* 版本 Diff */}
               <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 7 }}>🔀 {t("dr.ver.diff")}</div>
               <div style={{ overflowX: "auto", marginBottom: 16 }}>
