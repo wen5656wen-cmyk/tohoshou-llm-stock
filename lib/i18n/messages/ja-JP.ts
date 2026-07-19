@@ -1993,7 +1993,7 @@ const jaJP: Messages = {
   "dv.ph.r.concHigh": "単一銘柄の集中が過大", "dv.ph.r.concMid": "集中度がやや高い", "dv.ph.r.concLow": "分散良好", "dv.ph.r.sectorNarrow": "業種が偏っている", "dv.ph.r.sectorWide": "業種分散", "dv.ph.r.cashNeg": "現金がマイナス（フル/レバレッジ）", "dv.ph.r.cashHigh": "現金比率が高い", "dv.ph.r.cashOk": "現金比率は適正", "dv.ph.r.riskHigh": "リスクレベルが高い", "dv.ph.r.riskLow": "リスク低め", "dv.ph.r.volHigh": "高ボラ銘柄が複数",
   "dv.ph.m.conc": "最大単一", "dv.ph.m.sector": "業種数", "dv.ph.m.cash": "現金", "dv.ph.m.risk": "リスク",
   "dv.perf.winRate": "勝率", "dv.perf.avgReturn": "平均リターン", "dv.perf.avgDays": "平均保有", "dv.perf.riskReward": "損益比", "dv.perf.empty": "決済取引なし",
-  "dv.alpha.port": "組合", "dv.alpha.alpha": "α", "dv.alpha.sinceStart": "建玉以来",
+  "dv.alpha.port": "組合", "dv.alpha.alpha": "α", "dv.alpha.sinceStart": "建玉以来", "dv.alpha.estNote": "現ポジションの遡及概算、日次NAV蓄積で実測化",
   "dv.ls.closed": "決済済", "dv.ls.decisions": "決定記録", "dv.ls.reviews": "レビュー記録", "dv.ls.hit": "的中", "dv.ls.miss": "外し", "dv.ls.dataset": "データセット", "dv.ls.ready": "準備完了", "dv.ls.partial": "蓄積中", "dv.ls.collecting": "収集中",
   "dv.stk.rank": "ランク", "dv.stk.buy": "買い", "dv.stk.target": "目標", "dv.stk.stop": "損切り", "dv.stk.pos": "比率", "dv.stk.trigger": "条件", "dv.stk.validUntil": "有効期限", "dv.stk.changeToday": "本日",
   "dv.ctx.position": "推奨ポジション",

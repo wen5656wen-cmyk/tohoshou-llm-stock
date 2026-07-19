@@ -308,7 +308,7 @@ export type Messages = {
   "dv.ph.r.concHigh": string; "dv.ph.r.concMid": string; "dv.ph.r.concLow": string; "dv.ph.r.sectorNarrow": string; "dv.ph.r.sectorWide": string; "dv.ph.r.cashNeg": string; "dv.ph.r.cashHigh": string; "dv.ph.r.cashOk": string; "dv.ph.r.riskHigh": string; "dv.ph.r.riskLow": string; "dv.ph.r.volHigh": string;
   "dv.ph.m.conc": string; "dv.ph.m.sector": string; "dv.ph.m.cash": string; "dv.ph.m.risk": string;
   "dv.perf.winRate": string; "dv.perf.avgReturn": string; "dv.perf.avgDays": string; "dv.perf.riskReward": string; "dv.perf.empty": string;
-  "dv.alpha.port": string; "dv.alpha.alpha": string; "dv.alpha.sinceStart": string;
+  "dv.alpha.port": string; "dv.alpha.alpha": string; "dv.alpha.sinceStart": string; "dv.alpha.estNote": string;
   "dv.ls.closed": string; "dv.ls.decisions": string; "dv.ls.reviews": string; "dv.ls.hit": string; "dv.ls.miss": string; "dv.ls.dataset": string; "dv.ls.ready": string; "dv.ls.partial": string; "dv.ls.collecting": string;
   "dv.stk.rank": string; "dv.stk.buy": string; "dv.stk.target": string; "dv.stk.stop": string; "dv.stk.pos": string; "dv.stk.trigger": string; "dv.stk.validUntil": string; "dv.stk.changeToday": string;
   "dv.ctx.position": string; "dv.ctx.confidence": string;

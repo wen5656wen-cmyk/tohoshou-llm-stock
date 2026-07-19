@@ -1993,7 +1993,7 @@ const zhCN: Messages = {
   "dv.ph.r.concHigh": "单股集中度过高", "dv.ph.r.concMid": "集中度偏高", "dv.ph.r.concLow": "分散良好", "dv.ph.r.sectorNarrow": "行业过于集中", "dv.ph.r.sectorWide": "行业分散", "dv.ph.r.cashNeg": "现金为负（满仓/杠杆）", "dv.ph.r.cashHigh": "现金比例过高", "dv.ph.r.cashOk": "现金比例合理", "dv.ph.r.riskHigh": "风险等级偏高", "dv.ph.r.riskLow": "风险可控", "dv.ph.r.volHigh": "多只高波动标的",
   "dv.ph.m.conc": "最大单股", "dv.ph.m.sector": "行业数", "dv.ph.m.cash": "现金", "dv.ph.m.risk": "风险",
   "dv.perf.winRate": "胜率", "dv.perf.avgReturn": "平均收益", "dv.perf.avgDays": "平均持有", "dv.perf.riskReward": "盈亏比", "dv.perf.empty": "暂无平仓交易",
-  "dv.alpha.port": "组合", "dv.alpha.alpha": "超额", "dv.alpha.sinceStart": "建仓以来",
+  "dv.alpha.port": "组合", "dv.alpha.alpha": "超额", "dv.alpha.sinceStart": "建仓以来", "dv.alpha.estNote": "当前持仓回看近似，随每日净值积累转实测",
   "dv.ls.closed": "已平仓", "dv.ls.decisions": "决策记录", "dv.ls.reviews": "复盘记录", "dv.ls.hit": "命中", "dv.ls.miss": "失误", "dv.ls.dataset": "数据集", "dv.ls.ready": "就绪", "dv.ls.partial": "积累中", "dv.ls.collecting": "采集中",
   "dv.stk.rank": "排名", "dv.stk.buy": "买入", "dv.stk.target": "目标", "dv.stk.stop": "止损", "dv.stk.pos": "仓位", "dv.stk.trigger": "触发条件", "dv.stk.validUntil": "有效至", "dv.stk.changeToday": "今日",
   "dv.ctx.position": "建议仓位",

@@ -61,9 +61,10 @@ export function AiPerformance({ title, rows, emptyLabel }: { title: string; rows
 }
 
 // ── ⑧ AI Alpha ────────────────────────────────────────────────────────────────
-export function AiAlpha({ title, windows, sinceStart, labels }: { title: string; windows: any[]; sinceStart: any; labels: { port: string; topix: string; nikkei: string; alpha: string; sinceStart: string } }) {
+export function AiAlpha({ title, windows, sinceStart, navDays = 0, estNote, labels }: { title: string; windows: any[]; sinceStart: any; navDays?: number; estNote?: string; labels: { port: string; topix: string; nikkei: string; alpha: string; sinceStart: string } }) {
   const rows = [...windows, { key: labels.sinceStart, ...sinceStart, isStart: true }];
   const hasData = rows.some((r) => r.port != null || r.topix != null);
+  const hasEst = windows.some((w) => w.mode === "estimate");
   return (
     <Card title={title}>
       {!hasData ? <Muted>—</Muted> : (
@@ -73,12 +74,13 @@ export function AiAlpha({ title, windows, sinceStart, labels }: { title: string;
           </div>
           {rows.map((r, i) => (
             <div key={i} className="flex items-center tabular-nums" style={{ padding: "3px 0", borderBottom: i < rows.length - 1 ? `1px solid ${COLORS.borderSoft ?? "#F0F0F3"}` : undefined }}>
-              <span style={{ flex: 1, color: r.isStart ? COLORS.text : COLORS.textSecondary, fontWeight: r.isStart ? 700 : 400 }}>{r.isStart ? r.key : r.key}</span>
+              <span style={{ flex: 1, color: r.isStart ? COLORS.text : COLORS.textSecondary, fontWeight: r.isStart ? 700 : 400 }}>{r.key}{!r.isStart && r.mode === "estimate" && <span style={{ color: COLORS.textFaint }}>≈</span>}</span>
               <span style={{ width: 54, textAlign: "right", color: tone(r.port) }}>{r.port != null ? fmtPct(r.port) : "—"}</span>
               <span style={{ width: 54, textAlign: "right", color: COLORS.textSecondary }}>{r.topix != null ? fmtPct(r.topix) : "—"}</span>
               <span style={{ width: 54, textAlign: "right", fontWeight: 700, color: tone(r.alpha) }}>{r.alpha != null ? fmtPct(r.alpha) : "—"}</span>
             </div>
           ))}
+          {hasEst && estNote && <div style={{ fontSize: 9.5, color: COLORS.textFaint, marginTop: 4, lineHeight: 1.4 }}>≈ {estNote}{navDays > 0 ? ` · ${navDays}日` : ""}</div>}
         </div>
       )}
     </Card>

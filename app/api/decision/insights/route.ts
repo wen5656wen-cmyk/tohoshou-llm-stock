@@ -30,9 +30,10 @@ export async function GET() {
     const maxDays = 95;
     const priceFrom = new Date(today0.getTime() - maxDays * 86_400_000);
     const gmFrom = new Date(today0.getTime() - (maxDays + 5) * 86_400_000);
-    const [prices, gmRows, changeRows, decCount, reviewCount, hitCount, missCount, closedCount] = await Promise.all([
+    const [prices, gmRows, navRows, changeRows, decCount, reviewCount, hitCount, missCount, closedCount] = await Promise.all([
       symbols.length ? p.dailyPrice.findMany({ where: { symbol: { in: symbols }, date: { gte: priceFrom } }, select: { symbol: true, date: true, close: true }, orderBy: { date: "asc" } }) : Promise.resolve([]),
       p.globalMarket.findMany({ where: { date: { gte: gmFrom } }, select: { date: true, topix: true, nikkei: true }, orderBy: { date: "asc" } }),
+      p.portfolioNavSnapshot.findMany({ where: { date: { gte: priceFrom } }, orderBy: { date: "asc" }, select: { date: true, equity: true, topix: true, nikkei: true } }),
       symbols.length ? p.tradeDecisionHistory.findMany({ where: { symbol: { in: symbols }, decidedAt: { gte: today0 } }, orderBy: { decidedAt: "desc" } }) : Promise.resolve([]),
       p.tradeDecisionHistory.count(),
       p.tradeDecisionHistory.count({ where: { source: "DAILY_REVIEW" } }),
@@ -72,8 +73,22 @@ export async function GET() {
     const totalW = weights.reduce((a: number, x: any) => a + x.w, 0);
     const pctChg = (now: number | null, then: number | null) => (now != null && then != null && then > 0 ? (now / then - 1) * 100 : null);
 
+    // 真账户 NAV 序列（有足够历史时优先用真实净值算 alpha）
+    const navSorted = [...navRows].sort((a: any, b: any) => a.date.getTime() - b.date.getTime());
+    const navLatest = navSorted.length ? navSorted[navSorted.length - 1] : null;
+    const navAt = (cutoff: Date) => nearestOnOrBefore(navSorted, cutoff);
+
     const windows = win.map((d) => {
       const cutoff = new Date(today0.getTime() - d * 86_400_000);
+      // ① 优先：真实 NAV 快照跨越该窗口 → 实测（NAV 收益 vs 同日指数收益）
+      const navThen = navAt(cutoff);
+      if (navLatest && navThen && navThen.date.getTime() < navLatest.date.getTime() && navThen.equity > 0) {
+        const port = (navLatest.equity / navThen.equity - 1) * 100;
+        const topix = pctChg(navLatest.topix ?? gmLatest("topix"), navThen.topix ?? gmAt("topix", cutoff));
+        const nikkei = pctChg(navLatest.nikkei ?? gmLatest("nikkei"), navThen.nikkei ?? gmAt("nikkei", cutoff));
+        return { key: `${d}D`, port: round(port), topix: round(topix), nikkei: round(nikkei), alpha: port != null && topix != null ? round(port - topix) : null, mode: "nav" };
+      }
+      // ② 回退：当前持仓回看近似（市值加权个股区间收益 vs 指数区间收益）
       let port: number | null = null;
       if (totalW > 0) {
         let acc = 0, wsum = 0;
@@ -86,7 +101,7 @@ export async function GET() {
       }
       const topix = pctChg(gmLatest("topix"), gmAt("topix", cutoff));
       const nikkei = pctChg(gmLatest("nikkei"), gmAt("nikkei", cutoff));
-      return { key: `${d}D`, port: round(port), topix: round(topix), nikkei: round(nikkei), alpha: port != null && topix != null ? round(port - topix) : null };
+      return { key: `${d}D`, port: round(port), topix: round(topix), nikkei: round(nikkei), alpha: port != null && topix != null ? round(port - topix) : null, mode: "estimate" };
     });
 
     // Since Start：加权未实现收益 vs 各自建仓日以来 TOPIX
@@ -109,7 +124,7 @@ export async function GET() {
     const readyKey = closedCount >= 30 ? "dv.ls.ready" : closedCount >= 10 ? "dv.ls.partial" : "dv.ls.collecting";
     const learning = { closedTrades: closedCount, decisionRecords: decCount, reviewRecords: reviewCount, hit: hitCount, miss: missCount, datasetSize: closedCount, readyKey };
 
-    return NextResponse.json({ ok: true, changes, alpha: { windows, sinceStart }, learning });
+    return NextResponse.json({ ok: true, changes, alpha: { windows, sinceStart, navDays: navSorted.length }, learning });
   } catch (e: any) {
     console.error("[decision/insights]", e);
     return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });

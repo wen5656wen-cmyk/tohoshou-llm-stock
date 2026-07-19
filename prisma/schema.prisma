@@ -1885,3 +1885,21 @@ model TradeDecisionHistory {
   @@index([symbol, decidedAt(sort: Desc)])
   @@map("trade_decision_history")
 }
+
+// 组合每日净值快照（真账户 NAV 序列 · 轻量附属表；不改任何核心表）。
+// 每交易日收盘写一条：equity = 持仓市值 + 现金；同日 TOPIX/Nikkei 收盘。
+// 用途：AI Alpha 用真实 NAV 序列对比指数（7D/30D/90D 随历史积累变为实测，非当前持仓回看近似）。
+model PortfolioNavSnapshot {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @unique @db.Date // JST 交易日，一天一条（upsert 幂等）
+  equity      Float    // 总资产 = 持仓市值 + 现金
+  marketValue Float    // 持仓市值
+  cash        Float
+  positions   Int      // 持仓数
+  topix       Float?   // 当日 TOPIX 收盘
+  nikkei      Float?   // 当日 Nikkei 收盘
+  createdAt   DateTime @default(now())
+
+  @@index([date(sort: Desc)])
+  @@map("portfolio_nav_snapshots")
+}

@@ -323,6 +323,8 @@ cron.schedule("15 15 * * *", async () => {
   await runAsync("generate-closing-decision.ts", "Closing Decision (P6-T12)", 5 * 60 * 1000);
   // P17-02A：收盘决策后紧接持仓每日复盘（已有收盘链路内的一步，不新增 cron.schedule）。
   await runAsync("daily-holding-review.ts", "Daily Holding Review (P17-02A)", 5 * 60 * 1000);
+  // P17-02B：收盘后写组合净值快照（真账户 NAV 序列，供 AI Alpha 实测）。
+  await runAsync("portfolio-nav-snapshot.ts", "Portfolio NAV Snapshot (P17-02B)", 3 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
 // ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────

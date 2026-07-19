@@ -2,6 +2,19 @@
 
 ---
 
+## [18.25.0] - 2026-07-19 — 💹 组合每日净值快照 · AI Alpha 实测化（真账户 NAV）
+
+用户确认这是**长期真实账户**、只想看这一个页面 → 从今天起每天落一条真实组合净值，让 AI 超额收益（7D/30D/90D）随历史积累变为**实测**（不再是当前持仓回看近似）。同时先做**诚实标注**。
+
+- **新增 1 张轻量附属表** `PortfolioNavSnapshot`（`portfolio_nav_snapshots`，不改核心表）：每交易日一条 `equity`(=持仓市值+现金)/`marketValue`/`cash`/`positions`/`topix`/`nikkei`，按 JST 日 upsert 幂等。
+- **写入器 `lib/trading/nav-snapshot.ts`**：equity 与页面「总资产」同口径 = `marketValue + max(0, cash)`（未注资 cash≤0 视为满仓，避免负现金污染 NAV/alpha）。
+- **接入收盘链路（不新增 cron.schedule）**：`scripts/portfolio-nav-snapshot.ts` 作为已有 15:15 JST 收盘任务（复盘之后）一步执行；今日已手动种下首条（equity=¥1,580,000）。
+- **AI Alpha 实测优先**：`/api/decision/insights` 窗口计算——有快照跨越窗口 → **实测**（真实 NAV 收益 vs 同日指数收益，`mode:"nav"`）；否则回退**当前持仓回看近似**（`mode:"estimate"`）。返回 `navDays`（已积累天数）。「建仓以来」保留为相对成本的加权未实现浮盈超额（可信）。
+- **诚实标注**：AI 超额卡对近似窗口标 `≈` + 页脚「≈ 当前持仓回看近似，随每日净值积累转实测 · N日」；i18n 新增 `dv.alpha.estNote` 双语。
+- 验收：首条快照 equity 与总资产一致；tsc 0 / eslint 0 / build ✅ / health CRITICAL=0；zh 截图确认 ≈ 标注 + navDays。
+
+---
+
 ## [18.24.2] - 2026-07-19 — 📈 股票详情弹窗研究深度升级（图表/新闻/基本面）
 
 补齐弹窗「研究深度」短板（决策层已强，研究层偏薄）。纯 UI + 复用已有数据，未改引擎/评分/Schema/API。
