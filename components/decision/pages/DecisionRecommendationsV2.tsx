@@ -9,17 +9,19 @@
 // 状态带 = 收盘决策择时/组合面（verdict + 建仓只数），点入口跳决策总览看明细（不搬内容）。
 // 任意股票行/搜索命中 → StockDetailModal 研究报告。缺失字段诚实显 —，不伪造。
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppBadge, AppLoading } from "@/components/ui";
 import type { Tone } from "@/lib/design-tokens";
-import { COLORS, fmtJpy, fmtPct, fmtScore, fmtJstClock, upDownColor, riskTone } from "@/lib/decision/ds";
+import { COLORS, fmtJpy, fmtPct, fmtScore, upDownColor } from "@/lib/decision/ds";
 import { deriveLiveStatus } from "@/lib/decision/live-status";
-import { NewsCatalystPanel, RiskPanel, type NewsItem, type CatItem, type RiskItem } from "@/components/decision/ds/panels";
+import { buildChartBars, type ChartBar } from "@/components/charts/LightweightStockChart";
 import StockSearch from "@/components/decision/StockSearch";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
 import { getPrimaryName } from "@/lib/company-name";
+
+const LightweightStockChart = dynamic(() => import("@/components/charts/LightweightStockChart"), { ssr: false });
 
 type Verdict = { action: string | null; reason: string | null; portfolioCount: number; top1: { symbol: string; name: string } | null };
 type Reco = {
@@ -36,8 +38,20 @@ type FavScore = { latestClose: number | null; adaptiveScore: number | null; reco
 type FavRow = { symbol: string; name: string; nameZh: string | null; sector: string | null; market?: string | null; score: FavScore };
 
 const LV_TONE: Record<string, Tone> = { STRONG_BUY: "red", BUY: "amber", WATCH: "blue", SKIP: "neutral" };
+const LV_COLOR: Record<string, string> = { STRONG_BUY: COLORS.danger, BUY: COLORS.warning, WATCH: COLORS.primary, SKIP: COLORS.textMuted };
 const MKT_TONE: Record<string, Tone> = { STRONG_BUY: "red", BUY: "amber", HOLD: "blue", WATCH: "blue", AVOID: "neutral" };
-const DISC_LABEL: Record<string, string> = { EARNINGS: "财报", FORECAST_REVISION: "业绩修正", EQUITY: "增发", BUYBACK: "回购", MATERIAL: "重大", DIVIDEND: "分红", OTHER: "披露" };
+const starsFor = (a: number | null) => { const n = a == null ? 0 : a >= 80 ? 5 : a >= 70 ? 4 : a >= 60 ? 3 : a >= 45 ? 2 : 1; return "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n); };
+const gradeFor = (a: number | null) => (a == null ? "—" : a >= 85 ? "A+" : a >= 78 ? "A" : a >= 70 ? "B+" : a >= 60 ? "B" : "C");
+function aiBar(a: number | null) {
+  const v = a ?? 0;
+  const c = v >= 80 ? COLORS.danger : v >= 70 ? COLORS.warning : v >= 45 ? COLORS.primary : COLORS.textMuted;
+  return (
+    <span className="inline-flex items-center gap-1.5 justify-end">
+      <span className="tabular-nums font-semibold" style={{ color: c }}>{a == null ? "—" : Math.round(v)}</span>
+      <span className="inline-block rounded-full" style={{ width: 30, height: 4, background: COLORS.track }}><span className="block h-full rounded-full" style={{ width: `${Math.min(100, v)}%`, background: c }} /></span>
+    </span>
+  );
+}
 
 // 执行状态：live-status → 5 态
 function execState(r: Reco): { key: string; tone: Tone } {
@@ -93,7 +107,7 @@ export default function DecisionRecommendationsV2() {
       {/* 视图内容 */}
       {view === "all" ? <MarketBrowseView onDetail={openDetail} />
         : view === "fav" ? <WatchlistView onDetail={openDetail} />
-          : <AiRecoView data={data} loading={loading} />}
+          : <AiRecoView data={data} loading={loading} onDetail={openDetail} />}
 
       <StockDetailModal report={detail} onClose={() => setDetail(null)} />
     </div>
@@ -236,203 +250,128 @@ function WatchlistView({ onDetail }: { onDetail: (s: string, n?: string) => void
   );
 }
 
-// ═══════════════════════ ① AI 推荐（保留原 Master–Detail）═══════════════════════
-function AiRecoView({ data, loading }: { data: Resp | null; loading: boolean }) {
+// ═══════════════════════ ① AI 推荐（按设计稿重建：左执行榜 + 右决策卡）═══════════════════════
+function AiRecoView({ data, loading, onDetail }: { data: Resp | null; loading: boolean; onDetail: (s: string, n?: string) => void }) {
   const { t } = useI18n();
   const router = useRouter();
   const sp = useSearchParams();
-  const [detail, setDetail] = useState<Record<string, { news: NewsItem[]; cats: CatItem[] }>>({});
+  const [chart, setChart] = useState<Record<string, ChartBar[]>>({});
+  const [added, setAdded] = useState<Set<string>>(new Set());
 
   const recos = useMemo(() => data?.recommendations ?? [], [data]);
-  const fLevel = sp.get("level") || "";
-  const fRisk = sp.get("risk") || "";
-  const fZone = sp.get("zone") || "";
-  const sort = sp.get("sort") || "rank";
   const sym = sp.get("sym") || "";
-
   const setQ = useCallback((patch: Record<string, string>) => {
     const q = new URLSearchParams(sp.toString());
     for (const [k, v] of Object.entries(patch)) { if (v) q.set(k, v); else q.delete(k); }
     router.replace(`/decision-v2?${q.toString()}`, { scroll: false });
   }, [sp, router]);
 
-  const filtered = useMemo(() => {
-    let list = recos.filter((r) =>
-      (!fLevel || r.level === fLevel) && (!fRisk || r.riskLevel === fRisk) && (!fZone || (fZone === "1" ? r.inBuyZone === true : true)));
-    if (sort === "rank") list = [...list].sort((a, b) => a.rank - b.rank);
-    else if (sort === "ai") list = [...list].sort((a, b) => (b.aiScore ?? -1e9) - (a.aiScore ?? -1e9));
-    else if (sort === "upside") list = [...list].sort((a, b) => (b.upside ?? -1e9) - (a.upside ?? -1e9));
-    else if (sort === "today") list = [...list].sort((a, b) => (b.todayChangePct ?? -1e9) - (a.todayChangePct ?? -1e9));
-    else if (sort === "price") list = [...list].sort((a, b) => (b.currentPrice ?? -1e9) - (a.currentPrice ?? -1e9));
-    return list;
-  }, [recos, fLevel, fRisk, fZone, sort]);
-
+  const sorted = useMemo(() => [...recos].sort((a, b) => a.rank - b.rank), [recos]);
   const selected = recos.find((r) => r.symbol === sym) ?? recos[0] ?? null;
 
+  const addFav = async (r: Reco) => {
+    setAdded((s) => new Set(s).add(r.symbol));
+    await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: r.symbol, name: r.name, sector: r.sector }) }).catch(() => {});
+  };
+
+  // 选中股走势图懒加载（近 60 日日线，复用 /indicators，先全序列算 MA 再切窗）
   useEffect(() => {
-    if (!selected || detail[selected.symbol]) return;
+    if (!selected || chart[selected.symbol]) return;
     let alive = true;
-    const g = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     (async () => {
-      const [nw, dc] = await Promise.all([g(`/api/news?symbol=${encodeURIComponent(selected.symbol)}&limit=6`), g(`/api/disclosures?symbol=${encodeURIComponent(selected.symbol)}&limit=8`)]);
+      const ind = await fetch(`/api/stocks/${encodeURIComponent(selected.symbol)}/indicators`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (!alive) return;
-      const seen = new Set<string>();
-      const news: NewsItem[] = (Array.isArray(nw) ? nw : []).filter((n: { title: string }) => { const k = n.title?.trim(); if (!k || seen.has(k)) return false; seen.add(k); return true; })
-        .slice(0, 5).map((n: { id: number; title: string; publishedAt: string; sentiment: string | null; source: string | null }) => ({ id: String(n.id), title: n.title, time: fmtJstClock(n.publishedAt), symbol: selected.symbol, sentiment: n.sentiment, source: n.source }));
-      const cats: CatItem[] = (Array.isArray(dc) ? dc : []).slice(0, 6).map((d: { id: number; category: string | null; publishedAt: string; sentiment: string | null; stock?: { name?: string | null }; symbol: string }) => ({ id: String(d.id), category: d.category ?? "OTHER", catLabel: DISC_LABEL[d.category ?? "OTHER"] ?? DISC_LABEL.OTHER, time: fmtJstClock(d.publishedAt), target: d.stock?.name ?? d.symbol, sentiment: d.sentiment }));
-      setDetail((s) => ({ ...s, [selected.symbol]: { news, cats } }));
+      const series = Array.isArray(ind?.series?.all) && ind.series.all.length ? ind.series.all : (ind?.series?.last250 ?? []);
+      setChart((s) => ({ ...s, [selected.symbol]: series.length ? buildChartBars(series, 60) : [] }));
     })();
     return () => { alive = false; };
-  }, [selected, detail]);
+  }, [selected, chart]);
 
   if (loading) return <div className="py-10"><AppLoading label={t("dv.sc.view.ai")} /></div>;
   if (!data || data.empty) return <div className="py-16 text-center text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>;
 
-  const sm = data.summary!;
-  const meta = data.metadata!;
-  const d = selected ? detail[selected.symbol] : undefined;
-  const K = ({ k, v, tone }: { k: string; v: ReactNode; tone?: string }) => (
-    <div className="flex items-center justify-between py-0.5" style={{ borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-      <span className="text-[11px]" style={{ color: COLORS.textFaint }}>{k}</span><span className="text-[12px] font-semibold tabular-nums" style={{ color: tone ?? COLORS.text }}>{v}</span>
-    </div>
-  );
-  const Stat = ({ k, v, tone }: { k: string; v: string; tone?: string }) => (
-    <div className="rounded-lg px-2.5 py-2" style={{ background: COLORS.tile }}><div className="text-[10px]" style={{ color: COLORS.textFaint }}>{k}</div><div className="text-[15px] font-bold tabular-nums" style={{ color: tone ?? COLORS.text }}>{v}</div></div>
+  const s = selected;
+  const bars = s ? (chart[s.symbol] ?? []) : [];
+  const P = ({ k, v, tone }: { k: string; v: ReactNode; tone?: string }) => (
+    <div><div className="text-[10px]" style={{ color: COLORS.textMuted }}>{k}</div><div className="text-[13px] font-bold tabular-nums mt-0.5" style={{ color: tone ?? COLORS.text }}>{v}</div></div>
   );
 
   return (
-    <div className="space-y-3">
-      {/* ① Summary */}
-      <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.rc.summaryTitle")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{data.asOf} · {t("dv.rc.model")} {meta.gptModel ?? "—"}（{t("dv.rc.notSnapshot")}）</span></div>}>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-          <Stat k={t("dv.rc.total")} v={String(sm.total)} />
-          <Stat k={t("dv.rc.lv.STRONG_BUY")} v={String(sm.strongBuy)} tone={COLORS.danger} />
-          <Stat k={t("dv.rc.lv.BUY")} v={String(sm.buy)} tone={COLORS.warning} />
-          <Stat k={t("dv.rc.lv.WATCH")} v={String(sm.watch)} tone={COLORS.primary} />
-          <Stat k={t("dv.rc.lv.SKIP")} v={String(sm.skip)} />
-          <Stat k="AI" v={fmtScore(sm.avgAiScore)} />
-          <Stat k={t("dv.rc.avgUpside")} v={fmtPct(sm.avgUpside)} tone={(sm.avgUpside ?? 0) >= 0 ? COLORS.success : COLORS.danger} />
-          <Stat k={t("dv.rc.totalPos")} v="—" />
-        </div>
-      </AppCard>
-
-      {/* filter / sort */}
-      <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-        <span style={{ color: COLORS.textFaint }}>{t("dv.rc.filter")}:</span>
-        {["STRONG_BUY", "BUY", "WATCH", "SKIP"].map((l) => (
-          <button key={l} onClick={() => setQ({ level: fLevel === l ? "" : l })} className="h-6 px-2 rounded-full" style={{ background: fLevel === l ? COLORS.text : COLORS.tile, color: fLevel === l ? "#fff" : COLORS.textSecondary }}>{t(`dv.rc.lv.${l}` as Parameters<typeof t>[0])}</button>
-        ))}
-        {["LOW", "MEDIUM", "HIGH"].map((r) => (
-          <button key={r} onClick={() => setQ({ risk: fRisk === r ? "" : r })} className="h-6 px-2 rounded-full" style={{ background: fRisk === r ? COLORS.text : COLORS.tile, color: fRisk === r ? "#fff" : COLORS.textSecondary }}>{r}</button>
-        ))}
-        <button onClick={() => setQ({ zone: fZone === "1" ? "" : "1" })} className="h-6 px-2 rounded-full" style={{ background: fZone === "1" ? COLORS.text : COLORS.tile, color: fZone === "1" ? "#fff" : COLORS.textSecondary }}>{t("dv.rc.st.INZONE")}</button>
-        <span className="ml-2" style={{ color: COLORS.textFaint }}>{t("dv.rc.sortBy")}:</span>
-        <select value={sort} onChange={(e) => setQ({ sort: e.target.value })} className="h-6 px-1.5 rounded-full bg-white" style={{ border: `1px solid ${COLORS.border}`, color: COLORS.text }}>
-          <option value="rank">{t("dv.rc.rank")}</option><option value="ai">AI</option><option value="upside">{t("dv.rc.col.upside")}</option><option value="today">{t("dv.rc.col.today")}</option><option value="price">{t("dc.ov.currentPrice")}</option>
-        </select>
-        <button onClick={() => setQ({ level: "", risk: "", zone: "", sort: "", sym: "" })} className="h-6 px-2 rounded-full" style={{ background: COLORS.tile, color: COLORS.primary }}>{t("dv.rc.reset")}</button>
+    <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-3">
+      {/* 左：AI 买入执行榜 */}
+      <div className="min-w-0">
+        <AppCard header={<div className="flex items-center gap-2"><AppBadge tone="red">AI</AppBadge><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.sc.buyList")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{t("dv.sc.buyListSub")}</span></div>}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
+              <thead><tr className="text-[10px]" style={{ color: COLORS.textFaint }}>
+                {["#", t("wl.col.stock"), t("dv.rc.col.level"), "AI", t("dc.ov.currentPrice"), t("dv.rc.col.today"), t("dv.sc.col.zone"), t("wl.col.status"), ""].map((h, i) => (
+                  <th key={i} className={`py-1.5 font-medium ${i <= 1 ? "text-left pr-2" : i === 6 ? "text-left px-2" : "text-right px-2"}`}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {sorted.map((r) => {
+                  const es = execState(r); const on = s?.symbol === r.symbol;
+                  return (
+                    <tr key={r.symbol} onClick={() => setQ({ sym: r.symbol })} className="cursor-pointer" style={{ borderTop: `1px solid ${COLORS.borderSoft}`, background: on ? `${COLORS.primary}0c` : undefined }}>
+                      <td className="py-2 pr-2 tabular-nums" style={{ color: COLORS.textFaint }}>{r.rank}</td>
+                      <td className="py-2 pr-2"><button onClick={(e) => { e.stopPropagation(); onDetail(r.symbol, r.name); }} className="hover:underline text-left" style={{ color: COLORS.text, background: "none", border: "none", padding: 0, cursor: "pointer" }}>{r.name}</button><span className="ml-1 text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{r.symbol}</span></td>
+                      <td className="py-2 px-2 text-right">{r.level ? <AppBadge tone={LV_TONE[r.level]}>{t(`dv.rc.lv.${r.level}` as Parameters<typeof t>[0])}</AppBadge> : <span style={{ color: COLORS.textFaint }}>—</span>}</td>
+                      <td className="py-2 px-2 text-right">{aiBar(r.aiScore)}</td>
+                      <td className="py-2 px-2 text-right tabular-nums" style={{ color: COLORS.text }}>{fmtJpy(r.currentPrice)}</td>
+                      <td className="py-2 px-2 text-right tabular-nums" style={{ color: upDownColor(r.todayChangePct) }}>{fmtPct(r.todayChangePct)}</td>
+                      <td className="py-2 px-2 text-left tabular-nums text-[11px]" style={{ color: COLORS.textSecondary }}>{r.entryLow != null ? `${fmtJpy(r.entryLow)}~${fmtJpy(r.entryHigh)}` : "—"}</td>
+                      <td className="py-2 px-2 text-right"><AppBadge tone={es.tone}>{t(es.key as Parameters<typeof t>[0])}</AppBadge></td>
+                      <td className="py-2 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); addFav(r); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${added.has(r.symbol) ? COLORS.success : COLORS.border}`, color: added.has(r.symbol) ? COLORS.success : COLORS.primary, background: COLORS.card }}>{added.has(r.symbol) ? "✓" : t("dv.pf.btnAdd")}</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="text-[10px] mt-1.5" style={{ color: COLORS.textFaint }}>SSOT: {t("dc.tab.closing")} · {t("dv.rc.snapshotTag")} ({data.asOf})</div>
+          </div>
+        </AppCard>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-3">
-        {/* ② Top10 Table（Master） */}
-        <div className="min-w-0">
+      {/* 右：AI 决策卡（按设计稿：价格/星级/结论/走势/计划/操作） */}
+      <div className="min-w-0">
+        {s ? (
           <AppCard>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
-                <thead><tr className="text-[10px]" style={{ color: COLORS.textFaint }}>
-                  {["#", t("wl.col.stock"), t("dc.ov.currentPrice"), t("dc.ov.target"), t("dc.ov.stopLossP"), t("dv.rc.col.upside"), t("dv.rc.col.today"), "AI", t("dv.rc.col.level"), t("wl.col.status")].map((h, i) => (
-                    <th key={i} className={`py-1.5 font-medium ${i <= 1 ? "text-left pr-2 sticky bg-white" : "text-right px-2"}`} style={i <= 1 ? { left: i === 0 ? 0 : 24, background: COLORS.card } : undefined}>{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {filtered.map((r) => {
-                    const es = execState(r); const on = selected?.symbol === r.symbol;
-                    return (
-                      <tr key={r.symbol} onClick={() => setQ({ sym: r.symbol })} className="cursor-pointer" style={{ borderTop: `1px solid ${COLORS.borderSoft}`, background: on ? `${COLORS.primary}0c` : undefined }}>
-                        <td className="py-1.5 pr-2 tabular-nums sticky left-0" style={{ color: COLORS.textFaint, background: on ? "#F5F8FF" : COLORS.card }}>{r.rank}</td>
-                        <td className="py-1.5 pr-2 sticky" style={{ left: 24, background: on ? "#F5F8FF" : COLORS.card }}>
-                          <Link href={`/stocks/${encodeURIComponent(r.symbol)}`} onClick={(e) => e.stopPropagation()} className="hover:underline" style={{ color: COLORS.text }}>{r.name}</Link>
-                          <span className="ml-1 text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{r.symbol}</span>
-                        </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: COLORS.text }}>{fmtJpy(r.currentPrice)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: COLORS.textSecondary }}>{fmtJpy(r.target1)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: COLORS.danger }}>{fmtJpy(r.stopLoss)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: upDownColor(r.upside) }}>{fmtPct(r.upside)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: upDownColor(r.todayChangePct) }}>{fmtPct(r.todayChangePct)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums font-semibold" style={{ color: COLORS.text }}>{fmtScore(r.aiScore)}</td>
-                        <td className="py-1.5 px-2 text-right">{r.level ? <AppBadge tone={LV_TONE[r.level]}>{t(`dv.rc.lv.${r.level}` as Parameters<typeof t>[0])}</AppBadge> : <span style={{ color: COLORS.textFaint }}>—</span>}</td>
-                        <td className="py-1.5 px-2 text-right"><AppBadge tone={es.tone}>{t(es.key as Parameters<typeof t>[0])}</AppBadge></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div className="text-[10px] mt-1.5" style={{ color: COLORS.textFaint }}>SSOT: {t("dc.tab.closing")} · {t("dv.rc.snapshotTag")} ({data.asOf}) · {t("dv.rc.probNote")}</div>
+            <div className="flex items-start justify-between gap-2">
+              <div><div className="text-[17px] font-extrabold tabular-nums" style={{ color: COLORS.text }}>{s.symbol}</div><div className="text-[12px]" style={{ color: COLORS.textSecondary }}>{s.name}</div></div>
+              <div className="text-right"><div className="text-[19px] font-extrabold tabular-nums" style={{ color: COLORS.text }}>{fmtJpy(s.currentPrice)}</div><div className="text-[12px] font-semibold tabular-nums" style={{ color: upDownColor(s.todayChangePct) }}>{fmtPct(s.todayChangePct)}</div></div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-3">
+              <span className="text-[15px]" style={{ color: COLORS.warning, letterSpacing: "1px" }}>{starsFor(s.aiScore)}</span>
+              {s.level && <span className="text-[12px] font-bold" style={{ color: LV_COLOR[s.level] ?? COLORS.textSecondary }}>{t(`dv.rc.lv.${s.level}` as Parameters<typeof t>[0])}</span>}
+              <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ color: COLORS.textSecondary, background: COLORS.tile }}>AI {fmtScore(s.aiScore)} · {gradeFor(s.aiScore)}</span>
+            </div>
+
+            {(s.gptNote || s.reason) && (
+              <div className="mt-3">
+                <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded" style={{ color: COLORS.success, background: `${COLORS.success}1f` }}>{t("dv.sc.band.closing")} 15:15 · GPT</span>
+                <p className="text-[12px] leading-relaxed mt-1.5" style={{ color: COLORS.textSecondary }}><b style={{ color: COLORS.text }}>{t("dv.sc.concl")}</b>{s.gptNote || s.reason}</p>
+              </div>
+            )}
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[10px] mb-1" style={{ color: COLORS.textFaint }}><span>{t("dv.sc.chart60")}</span><span>MA5 · MA20 · MA60</span></div>
+              {bars.length ? <LightweightStockChart data={bars} height={150} theme="light" /> : <div className="flex items-center justify-center rounded-lg" style={{ height: 150, background: COLORS.tile, color: COLORS.textFaint, fontSize: 12 }}>—</div>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-3 pt-3" style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
+              <P k={t("dv.rc.ex.entry")} v={s.entryLow != null ? `${fmtJpy(s.entryLow)}~${fmtJpy(s.entryHigh)}` : "—"} tone={COLORS.primary} />
+              <P k={t("dv.rc.ex.tp")} v={s.target1 != null ? <>{fmtJpy(s.target1)} <span className="text-[11px] font-semibold">{fmtPct(s.upside)}</span></> : "—"} tone={COLORS.success} />
+              <P k={t("dv.rc.ex.sl")} v={s.stopLoss != null ? <>{fmtJpy(s.stopLoss)} <span className="text-[11px] font-semibold">{fmtPct(s.downside)}</span></> : "—"} tone={COLORS.danger} />
+              <P k={t("dv.rc.ex.period")} v={s.holdPeriod ?? "—"} />
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => onDetail(s.symbol, s.name)} className="flex-1 text-[13px] font-semibold py-2.5 rounded-lg" style={{ border: `1px solid ${COLORS.border}`, color: COLORS.text, background: COLORS.card }}>{t("dv.sc.report")}</button>
+              <button onClick={() => addFav(s)} className="flex-1 text-[13px] font-semibold py-2.5 rounded-lg" style={{ background: COLORS.primary, color: "#fff", border: `1px solid ${COLORS.primary}` }}>{added.has(s.symbol) ? "✓ " + t("dv.sc.addFav") : t("dv.sc.addFav")}</button>
             </div>
           </AppCard>
-        </div>
-
-        {/* Right: 选中股详情 */}
-        <div className="space-y-3 min-w-0">
-          {selected ? (
-            <>
-              {/* ③ Detail + ④ Execution */}
-              <AppCard header={<div className="flex items-center gap-2"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{selected.name}</span><span className="text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{selected.symbol}</span>{selected.level && <AppBadge tone={LV_TONE[selected.level]}>{t(`dv.rc.lv.${selected.level}` as Parameters<typeof t>[0])}</AppBadge>}</div>}>
-                {(selected.reason || selected.gptNote) && <p className="text-[12px] mb-2 leading-relaxed" style={{ color: COLORS.textSecondary }}><b style={{ color: COLORS.textFaint }}>{t("dv.rc.combined")}：</b>{selected.gptNote || selected.reason}</p>}
-                <div className="grid grid-cols-2 gap-x-4">
-                  <K k={t("dc.ov.currentPrice")} v={fmtJpy(selected.currentPrice)} />
-                  <K k={t("dv.rc.ex.entry")} v={selected.entryLow != null ? `${fmtJpy(selected.entryLow)}~${fmtJpy(selected.entryHigh)}` : "—"} />
-                  <K k={t("dv.rc.ex.tp")} v={fmtJpy(selected.target1)} tone={COLORS.success} />
-                  <K k={t("dv.rc.ex.sl")} v={fmtJpy(selected.stopLoss)} tone={COLORS.danger} />
-                  <K k={t("dv.rc.col.upside")} v={fmtPct(selected.upside)} tone={upDownColor(selected.upside)} />
-                  <K k={t("dv.rc.col.downside")} v={fmtPct(selected.downside)} tone={COLORS.danger} />
-                  <K k={t("dv.rc.col.prob")} v="—" />
-                  <K k={t("dv.rc.ex.period")} v={selected.holdPeriod ?? "—"} />
-                  <K k={t("dv.rc.ex.firstPos")} v="—" />
-                  <K k={t("dv.rc.ex.state")} v={<AppBadge tone={execState(selected).tone}>{t(execState(selected).key as Parameters<typeof t>[0])}</AppBadge>} />
-                </div>
-              </AppCard>
-
-              {/* News + Catalyst */}
-              <NewsCatalystPanel news={d?.news ?? []} catalysts={d?.cats ?? []} />
-
-              {/* Risk（个股） */}
-              <RiskPanel titleKey="dv.ov.risk" overall={selected.riskLevel ?? "—"} overallTone={riskTone(selected.riskLevel)}
-                items={([
-                  { labelKey: "dv.ov.rk.index", level: selected.riskLevel ?? "—", tone: riskTone(selected.riskLevel) },
-                  { labelKey: "dv.ov.rk.news", level: (selected.newsSentiment ?? 0) < 0 ? "MED" : "LOW", tone: riskTone((selected.newsSentiment ?? 0) < 0 ? "MED" : "LOW") },
-                  { labelKey: "dv.ov.rk.vol", level: selected.riskLevel ?? "—", tone: riskTone(selected.riskLevel) },
-                ] as RiskItem[])} />
-
-              {/* Similar Ideas */}
-              <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.rc.similar")}</span>}>
-                {(() => {
-                  const sim = recos.filter((r) => r.symbol !== selected.symbol && r.sector && r.sector === selected.sector).slice(0, 4);
-                  return sim.length ? (
-                    <div className="space-y-1">{sim.map((r) => (
-                      <button key={r.symbol} onClick={() => setQ({ sym: r.symbol })} className="w-full flex items-center justify-between text-[12px] py-0.5">
-                        <span className="truncate" style={{ color: COLORS.text }}>{r.name} <span className="text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{r.symbol}</span></span>
-                        <span className="tabular-nums" style={{ color: COLORS.textSecondary }}>AI {fmtScore(r.aiScore)}</span>
-                      </button>))}
-                    </div>
-                  ) : <div className="text-[12px]" style={{ color: COLORS.textFaint }}>{t("dv.rc.noReliable")}</div>;
-                })()}
-              </AppCard>
-
-              {/* AI Confidence */}
-              <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.rc.confidence")}</span>}>
-                <div className="grid grid-cols-2 gap-x-4">
-                  <K k="AI" v={fmtScore(selected.aiScore)} tone={COLORS.primary} />
-                  <K k="GPT" v={fmtScore(selected.gptScore)} />
-                  <K k={t("dv.rc.consistency")} v="—" />
-                  <K k={t("dv.rc.dataComplete")} v="—" />
-                  <K k={t("dv.rc.histCase")} v="—" />
-                  <K k={t("dv.rc.modelVer")} v={meta.gptModel ?? "—"} />
-                </div>
-              </AppCard>
-            </>
-          ) : <AppCard><div className="text-[12px] py-6 text-center" style={{ color: COLORS.textFaint }}>{t("dv.rc.selectHint")}</div></AppCard>}
-        </div>
+        ) : <AppCard><div className="text-[12px] py-6 text-center" style={{ color: COLORS.textFaint }}>{t("dv.rc.selectHint")}</div></AppCard>}
       </div>
     </div>
   );

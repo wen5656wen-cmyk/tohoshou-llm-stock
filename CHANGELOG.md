@@ -2,6 +2,21 @@
 
 ---
 
+## [18.28.0] - 2026-07-19 — 🎨 P2.1 AI 视图按设计稿重建（右栏决策卡 + 修跳转 + 删冗余）
+
+用户对比设计稿 vs 实际发现 P2 的 AI 视图**偷懒复用了旧面板**（K-V 列表 + 新闻），与批准的 95 分设计稿右栏（星级/走势图/结论/计划/按钮）差距明显。本轮按设计稿重建，纯 UI，未改 API/评分/引擎/Schema。
+
+- **右栏重建为「AI 决策卡」**（对齐设计稿）：代码+名称 / 价格+今日涨跌（大字）→ ★星级(由 aiScore 分档)+等级+AI分·评级(gradeFor)→「收盘决策 15:15·GPT」绿标 + 自然语言结论(gptNote/reason)→ **近60日走势图**(复用 `LightweightStockChart` + `buildChartBars`，数据源 `/api/stocks/[symbol]/indicators` 的 `series.all`，60根切窗)→ 买区/目标+涨幅/止损+跌幅/建议持有 计划格 → **研究报告**(开 StockDetailModal) + **加入自选** 按钮。
+- **左表重排对齐设计稿**：列 = # / 股票 / 等级 / AI分(带色条 `aiBar`) / 现价 / 今日 / 买区 / 执行 / 加入；行点击选中右栏、股票名点击开研究报告、每行「加入」入自选。
+- **删冗余**（用户指「意义不大」）：右栏原「AI 信心 / 相似机会 / 风险监控」三卡删除；顶部「今日正式推荐」8 格统计卡 + 大筛选/排序行删除（设计稿本无，更聚焦）。
+- **修跳转 bug**：AI 视图股票名原为 `<Link href="/stocks/[symbol]">`——点击**跳出决策工作区**到旧独立页；改为 `onDetail` 开 `StockDetailModal`（与全市场/自选一致，留在页内）。
+- **清理**：移除 `NewsCatalystPanel`/`RiskPanel`/`riskTone`/`fmtJstClock`/`Link` 等未用引用；删除 `DISC_LABEL`（催化剂分类中文，原文件既有 i18n 债务，随重建一并清除，本组件 CJK 硬编码归零）。
+- **i18n**：新增 7 个 `dv.sc.*` key（buyList/buyListSub/concl/report/addFav/chart60/col.zone，zh+ja+types）。
+- **说明**：右栏「加入自选」= watchlist（可用）；设计稿的「加入模拟持仓」全买入流程需 HoldingDialogs 接线，留作后续；手机右栏仍为响应式堆叠。
+- 验收：tsc 0 / build ✅ / 生产 health CRITICAL=0 / 页面 200 / indicators 返回 300 根 OHLC（图表真实渲染）/ bundle 含双语新文案。仅重启 web。
+
+---
+
 ## [18.27.0] - 2026-07-19 — 🎯 P2 股票中心三视图枢纽（AI 推荐 / 全市场 / 自选 + 收盘决策状态带）
 
 「股票中心」重构 P2：把 `DecisionRecommendationsV2` 从单一 AI Buy List 扩为**全站股票枢纽**。**未改**评分/引擎/Runtime/五维/交易/资金链路/Cron/Schema/核心表；仅**扩展 1 个只读路由字段** + 复用现有 API（screener/stocks/watchlist）+ UI 重构。

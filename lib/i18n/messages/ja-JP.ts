@@ -1911,6 +1911,7 @@ const jaJP: Messages = {
   "dv.sc.col.sector": "業種", "dv.sc.col.ret5d": "5日",
   "dv.sc.fav.title": "マイウォッチ", "dv.sc.fav.empty": "ウォッチはまだ空です", "dv.sc.fav.emptyHint": "上の検索で気になる銘柄を登録するか、リストから追加してください。", "dv.sc.fav.remove": "削除",
   "dv.sc.detail": "詳細", "dv.sc.loading": "読み込み中…",
+  "dv.sc.buyList": "AI 買い執行リスト", "dv.sc.buyListSub": "Top 10 · 引け決定 · GPT 再ランク", "dv.sc.concl": "結論：", "dv.sc.report": "リサーチレポート", "dv.sc.addFav": "ウォッチ追加", "dv.sc.chart60": "直近 60 日", "dv.sc.col.zone": "買いゾーン",
   "dv.act.BUY": "建玉", "dv.act.ADD": "増し玉", "dv.act.HOLD": "保有", "dv.act.WAIT": "待機", "dv.act.REDUCE": "一部売却", "dv.act.TAKE_PROFIT": "利確", "dv.act.STOP_LOSS": "損切り", "dv.act.CASH": "現金維持", "dv.act.NO_TRADE": "取引なし",
   "dv.instr.BUY": "分割で建玉、高値追いは避ける", "dv.instr.ADD": "買い増し可、1銘柄上限に注意", "dv.instr.HOLD": "保有継続、シグナル待ち", "dv.instr.WAIT": "押し目待ち、高値追い禁止", "dv.instr.REDUCE": "ポジション縮小、リスク管理", "dv.instr.TAKE_PROFIT": "分割利確、利益確定", "dv.instr.STOP_LOSS": "損切り実行、ドローダウン抑制", "dv.instr.CASH": "現金維持、好機を待つ", "dv.instr.NO_TRADE": "休場、執行停止",
   "dv.trig.inZone": "買いゾーン内、執行可", "dv.trig.belowZone": "押し目待ちで買い", "dv.trig.aboveZone": "上げ過ぎ、押し目待ち", "dv.trig.reachedTarget": "目標到達、追わない", "dv.trig.belowStop": "損切り水準割れ、回避", "dv.trig.waitQuote": "相場待ち", "dv.trig.noZone": "買いゾーンデータなし", "dv.trig.bearHold": "弱気相場、様子見",

@@ -223,6 +223,7 @@ export type Messages = {
   "dv.sc.col.sector": string; "dv.sc.col.ret5d": string;
   "dv.sc.fav.title": string; "dv.sc.fav.empty": string; "dv.sc.fav.emptyHint": string; "dv.sc.fav.remove": string;
   "dv.sc.detail": string; "dv.sc.loading": string;
+  "dv.sc.buyList": string; "dv.sc.buyListSub": string; "dv.sc.concl": string; "dv.sc.report": string; "dv.sc.addFav": string; "dv.sc.chart60": string; "dv.sc.col.zone": string;
   // P15-01B Decision Overview V1 — 9 态动作 / 指令 / 触发 / 持仓 / 阶段 / 新鲜度 / 分组 / 个股
   "dv.act.BUY": string; "dv.act.ADD": string; "dv.act.HOLD": string; "dv.act.WAIT": string; "dv.act.REDUCE": string; "dv.act.TAKE_PROFIT": string; "dv.act.STOP_LOSS": string; "dv.act.CASH": string; "dv.act.NO_TRADE": string;
   "dv.instr.BUY": string; "dv.instr.ADD": string; "dv.instr.HOLD": string; "dv.instr.WAIT": string; "dv.instr.REDUCE": string; "dv.instr.TAKE_PROFIT": string; "dv.instr.STOP_LOSS": string; "dv.instr.CASH": string; "dv.instr.NO_TRADE": string;
