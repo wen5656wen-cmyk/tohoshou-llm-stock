@@ -50,9 +50,8 @@ export const NAV_NODES: NavNode[] = [
   // 行业分析：上移至第三位（选股→看行业轮动→再挑股，与股票中心衔接）。
   // 复用 screener 的 sectors 页，URL 由 workspaceForPath 特判为 boss（见下），以免落入已禁用的研究区。
   { key: "dv-sectors", workspace: "boss", labelKey: "dv.nav.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },
-  // 深度研究（原「产业研究」themes）：改名 + 上移至第四位（行业分析之后）。
-  // 即 AI 产业链深研模块入口；复用 screener 的 themes 页，URL 特判为 boss（见下）。
-  { key: "dv-industry", workspace: "boss", labelKey: "dv.nav.industry", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈", badge: "dv.nav.badge.core" },
+  // 深度研究（原「产业研究」）：改名 + 上移至第四位。P17 起指向新 Deep Research 模块 /research。
+  { key: "dv-industry", workspace: "boss", labelKey: "dv.nav.industry", href: "/deep-research", Icon: Boxes, glyph: "◈", badge: "dv.nav.badge.core" },
   { key: "dv-strategy", workspace: "boss", labelKey: "dv.nav.strategy", href: "/decision-v2?tab=strategy", Icon: Target, glyph: "◆" },
   { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑", badge: "dv.nav.badge.core" },
   { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },

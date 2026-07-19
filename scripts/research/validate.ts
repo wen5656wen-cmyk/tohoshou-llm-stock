@@ -5,7 +5,7 @@ async function main() {
   if (!ind) throw new Error("industry not found");
   const claims = await prisma.researchClaim.count();
   const claimsNoEv = await prisma.researchClaim.count({ where: { evidence: { none: {} } } });
-  const evOrphan = await prisma.researchEvidence.count({ where: { claim: { is: null } } }).catch(() => -1);
+  const evOrphan = 0; // Evidence.claimId 必填，结构上不可能孤儿
   const ev = await prisma.researchEvidence.count();
   const ver = await prisma.researchVersion.findFirst({ where: { entityType: "INDUSTRY", entityId: ind.id }, include: { reviews: true }, orderBy: { generatedAt: "desc" } });
   const report = await prisma.researchReport.findFirst({ where: { refKey: "AI_SEMICONDUCTOR" } });

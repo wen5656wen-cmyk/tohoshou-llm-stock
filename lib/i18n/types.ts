@@ -214,6 +214,7 @@ export type Messages = {
   "dv.title": string; "dv.placeholder": string;
   "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
   "dv.nav.sectors": string; "dv.nav.industry": string; "dv.nav.badge.core": string;
+  "dr.title": string; "dr.sub": string; "dr.home.rank": string; "dr.home.rankHint": string; "dr.st.PUBLISHED": string; "dr.st.DRAFT": string; "dr.st.AI_RESEARCHED": string; "dr.st.STALE": string; "dr.c.jp": string; "dr.c.global": string; "dr.c.bottleneck": string; "dr.c.hc": string; "dr.c.today": string; "dr.c.ver": string; "dr.lastDeep": string; "dr.notReady": string; "dr.fs.pub": string; "dr.fs.jp": string; "dr.fs.bottleneck": string; "dr.fs.hc": string; "dr.evidence": string; "dr.enter": string;
   // P2 股票中心（Stock Center 三视图枢纽：AI 推荐 / 全市场 / 自选 + 收盘决策状态带）
   "dv.sc.view.ai": string; "dv.sc.view.all": string; "dv.sc.view.fav": string;
   "dv.sc.vd.BUY_TODAY": string; "dv.sc.vd.WATCH_ONLY": string; "dv.sc.vd.STAY_CASH": string;

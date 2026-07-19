@@ -2,6 +2,19 @@
 
 ---
 
+## [18.33.0] - 2026-07-19 — 🔬 Deep Research Phase 4a：只读 API + 首页九卡（真实数据·专业投研风格）
+
+深度研究 Phase 4 前半：后端只读 API + 首页上线。只读 StockScore/Stock/Yahoo，零复制评分；未碰冻结模块。
+
+- **9 产业壳 seed**（`scripts/research/seed-industries.ts`）：首页九卡数据源，AI 半导体 PUBLISHED 保留，其余 8 条 DRAFT（研究中）。
+- **3 个只读 API**：`/api/research/industries`（九卡聚合，无 N+1）· `/api/research/industry/[key]`（产业详情多区域：概览/KG边/技术/瓶颈/日股实时/证据/版本/时间线/报告/今日变化）· `/api/research/company/[key]`（公司 15 段 + 日股实时 Price/Change/MarketCap/AI Score/Recommendation，读 StockScore/Stock/Yahoo 不复制）。
+- **首页 `/deep-research`**（`DeepResearchHome`，专业投研风格非后台）：标题+核心徽章 + 第一屏速览（已深研/日股覆盖/瓶颈/隐冠）+ 九大产业主题卡（每卡 11 字段：说明/日本上市/全球核心/瓶颈/隐冠/今日变化/版本/状态/最后深研）。点卡进产业详情。
+- **导航接入**：深度研究 `dv-industry` → `/deep-research`（原 /screener?tab=themes；避开遗留 308 用新路由）。
+- i18n 新增 22 个 `dr.*`（zh+ja+types）。生产验证 /deep-research 200 · industries API 9 产业(AI半导体 V1/11日股/4瓶颈/2隐冠)。health CRITICAL=0/tsc0/build✅。
+- **Phase 4b 待续**：产业详情多区域页 + 公司深度卡 15 段（KG 区 Phase 6 升级专业图库）。
+
+---
+
 ## [18.32.0] - 2026-07-19 — 🔬 Deep Research Phase 1-3：架构审计 + 数据模型 + Research Engine + AI 半导体 Golden Path
 
 深度研究（Deep Research）P17 自主开发前三阶段。**全 additive，只读 StockScore，零改评分/交易/资金链路/冻结模块。**
