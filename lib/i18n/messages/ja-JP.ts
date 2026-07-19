@@ -1919,7 +1919,7 @@ const jaJP: Messages = {
   "dv.dm.why": "なぜ買う", "dv.dm.detail": "詳細", "dv.dm.aiAnalysis": "AI 分析", "dv.dm.buyReasons": "買い理由", "dv.dm.risks": "リスク", "dv.dm.position": "推奨比率", "dv.dm.holdPeriod": "保有期間", "dv.dm.chart": "チャート", "dv.dm.news": "関連ニュース", "dv.dm.currentReturn": "現在損益", "dv.dm.curPrice": "現在値", "dv.dm.noReport": "AIレポートなし", "dv.dm.rank": "ランク", "dv.dm.comingSoon": "データ準備中", "dv.dm.winRate": "勝率",
   "dv.col.symbol": "銘柄", "dv.col.action": "アクション", "dv.col.current": "現在値", "dv.col.pnl": "損益", "dv.col.change": "騰落", "dv.col.entry": "買いゾーン", "dv.col.target": "目標", "dv.col.stop": "損切り", "dv.col.ai": "AI", "dv.col.detail": "詳細",
   "dv.tab.summary": "AI 要約", "dv.tab.price": "価格", "dv.tab.chart": "チャート", "dv.tab.tech": "テクニカル", "dv.tab.news": "ニュース", "dv.tab.financial": "財務", "dv.tab.decisionHist": "決定履歴", "dv.tab.recHist": "推奨履歴",
-  "dv.fin.year": "年度", "dv.fin.revenue": "売上", "dv.fin.netProfit": "純利益", "dv.fin.eps": "EPS", "dv.fin.roe": "ROE",
+  "dv.fin.year": "年度", "dv.fin.revenue": "売上", "dv.fin.netProfit": "純利益", "dv.fin.eps": "EPS", "dv.fin.roe": "ROE", "dv.fin.opMargin": "営業利益率", "dv.fin.equityRatio": "自己資本比率",
   "dv.pf.addTitle": "保有に追加", "dv.pf.sellTitle": "売却", "dv.pf.editTitle": "保有編集", "dv.pf.price": "価格", "dv.pf.shares": "数量", "dv.pf.avgCost": "平均取得単価", "dv.pf.date": "日付", "dv.pf.fee": "手数料", "dv.pf.note": "メモ", "dv.pf.reason": "理由",
   "dv.pf.r.TAKE_PROFIT": "AI利確", "dv.pf.r.STOP_LOSS": "AI損切り", "dv.pf.r.MANUAL": "手動", "dv.pf.r.REBALANCE": "リバランス", "dv.pf.r.OTHER": "その他",
   "dv.pf.confirm": "確認", "dv.pf.cancel": "キャンセル", "dv.pf.failed": "操作失敗", "dv.pf.btnBuy": "買い", "dv.pf.btnSell": "売り", "dv.pf.btnEdit": "編集", "dv.pf.btnAdd": "追加", "dv.pf.delete": "削除", "dv.pf.deleteConfirm": "この保有を削除しますか？", "dv.pf.empty": "保有なし。AI推奨から追加",

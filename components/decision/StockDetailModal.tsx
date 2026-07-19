@@ -5,7 +5,7 @@
 // → 价格走势 → 技术状态 → AI判断依据 → 新闻 → 基本面 → 决策记录 → 底部操作栏(固定)。
 // 完整数据源 = /api/stocks/[symbol]/intelligence（含 entry/target/stop/action/5维评分/reasons/
 // 技术/新闻/dailyRec）+ /indicators(图表) + /financials。纯 UI，缺数据诚实降级。
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useI18n } from "@/lib/i18n";
@@ -33,23 +33,26 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
   const open = !!report;
   const symbol = report?.symbol ?? "";
   const [intel, setIntel] = useState<any>(null);
-  const [bars, setBars] = useState<ChartBar[]>([]);
+  const [series, setSeries] = useState<any[]>([]);
+  const [tf, setTf] = useState<string>("6M");
   const [fin, setFin] = useState<any[]>([]);
   const [tl, setTl] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const isHeld = !!report?.held;
+  // 时间框 → 取末尾 N 根 K 线（buildChartBars 先在全序列算 MA 再切窗；ALL=全部）
+  const TF_N: Record<string, number> = { "1M": 21, "3M": 63, "6M": 126, "1Y": 250, ALL: 0 };
+  const bars = useMemo<ChartBar[]>(() => (series.length ? buildChartBars(series, TF_N[tf] || undefined) : []), [series, tf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open || !symbol) return;
     let alive = true;
     const g = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     (async () => {
-      setIntel(null); setBars([]); setFin([]); setTl(null); setLoading(true);
+      setIntel(null); setSeries([]); setFin([]); setTl(null); setTf("6M"); setLoading(true);
       const [it, ind, f] = await Promise.all([g(`/api/stocks/${encodeURIComponent(symbol)}/intelligence`), g(`/api/stocks/${encodeURIComponent(symbol)}/indicators`), g(`/api/financials/${encodeURIComponent(symbol)}`)]);
       if (!alive) return;
       setIntel(it && !it.error ? it : null);
-      const series = ind?.series?.last250 ?? ind?.series?.all ?? [];
-      setBars(series.length ? buildChartBars(series, 132) : []);
+      setSeries(Array.isArray(ind?.series?.all) && ind.series.all.length ? ind.series.all : (ind?.series?.last250 ?? []));
       setFin(Array.isArray(f?.financials) ? f.financials : Array.isArray(f) ? f : []);
       setLoading(false);
       // P17-02：持仓时拉取 AI 决策/复盘时间线（懒触发当日复盘）。
@@ -159,7 +162,20 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
               </div>
               {/* 右：价格走势 + 行动计划（买区/持有/目标/止损，含买点·周期·涨跌空间） */}
               <div className="lg:col-span-5 min-w-0 space-y-3">
-                {bars.length ? <LightweightStockChart data={bars} height={168} theme="light" /> : <div className="flex items-center justify-center" style={{ height: 168, background: "#F6F7F9", borderRadius: 8 }}><Muted>{loading ? "…" : "—"}</Muted></div>}
+                <div>
+                  {/* 时间框 + MA 图例（图表自带 hover 十字光标） */}
+                  <div className="flex items-center" style={{ marginBottom: 5 }}>
+                    <div className="flex items-center gap-0.5">
+                      {["1M", "3M", "6M", "1Y", "ALL"].map((k) => (
+                        <button key={k} onClick={() => setTf(k)} className="tabular-nums" style={{ fontSize: 10.5, fontWeight: tf === k ? 700 : 500, padding: "2px 7px", borderRadius: 6, lineHeight: 1.2, color: tf === k ? "#fff" : COLORS.textFaint, background: tf === k ? COLORS.primary : "transparent" }}>{k}</button>
+                      ))}
+                    </div>
+                    <span className="ml-auto flex items-center gap-2" style={{ fontSize: 10, color: COLORS.textFaint }}>
+                      <MaTag c="#FF9F0A" l="MA5" /><MaTag c="#007AFF" l="MA20" /><MaTag c="#5856D6" l="MA60" />
+                    </span>
+                  </div>
+                  {bars.length ? <LightweightStockChart data={bars} height={196} theme="light" /> : <div className="flex items-center justify-center" style={{ height: 196, background: "#F6F7F9", borderRadius: 8 }}><Muted>{loading ? "…" : "—"}</Muted></div>}
+                </div>
                 <div className="grid grid-cols-2" style={{ gap: `${SP.sm + 2}px ${SP.lg}px` }}>
                   <DecCell label={t("dv.stk.buy")} value={buyRange} note={v ? t(v.bestEntry.modeKey as Parameters<typeof t>[0]) : ""} tone={accent} />
                   <DecCell label={t("dv.aiv.hold")} value={v ? t(v.holdingPeriod.labelKey as Parameters<typeof t>[0]) : "—"} note={v ? t(v.holdingPeriod.reasonKey as Parameters<typeof t>[0]) : ""} />
@@ -225,7 +241,11 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
                   <div style={{ fontSize: 12.5, color: COLORS.textSecondary, marginTop: 2 }}>{clean(sc?.newsSummary) || t("dv.rr.newsNone")}</div>
                 </div>
                 {Array.isArray(intel?.news) && intel.news.length > 0 && <div className="space-y-1.5">{intel.news.slice(0, 5).map((n: any, i: number) => (
-                  <div key={i} style={{ fontSize: 12.5, color: COLORS.textSecondary }}><span style={{ color: n.sentiment === "NEGATIVE" ? COLORS.danger : n.sentiment === "POSITIVE" ? COLORS.success : COLORS.textFaint }}>●</span> {n.title}</div>
+                  <a key={i} href={n.url || undefined} target="_blank" rel="noopener noreferrer" className="flex items-baseline gap-1.5" style={{ fontSize: 12.5, color: COLORS.textSecondary, textDecoration: "none" }}>
+                    <span className="shrink-0" style={{ color: n.sentiment === "NEGATIVE" ? COLORS.danger : n.sentiment === "POSITIVE" ? COLORS.success : COLORS.textFaint }}>●</span>
+                    <span className="truncate" style={{ flex: 1, minWidth: 0 }}>{n.title}</span>
+                    {n.publishedAt && <span className="tabular-nums shrink-0" style={{ fontSize: 10.5, color: COLORS.textFaint }}>{String(n.publishedAt).slice(5, 10)}</span>}
+                  </a>
                 ))}</div>}
               </Section>
               <Section title={t("dv.rr.fin")}>
@@ -234,8 +254,10 @@ export default function StockDetailModal({ report, onClose, onBuy, onSell, onEdi
                     <Facts items={[
                       [t("dv.fin.revenue"), fmtBigYen(fin[0].revenue, lang)],
                       [t("dv.fin.netProfit"), fmtBigYen(fin[0].netProfit, lang)],
+                      [t("dv.fin.opMargin"), fin[0].operatingProfit != null && fin[0].revenue ? `${Math.round((fin[0].operatingProfit / fin[0].revenue) * 1000) / 10}%` : "—", (fin[0].operatingProfit ?? 0) < 0 ? COLORS.danger : undefined],
                       [t("dv.fin.eps"), fin[0].eps != null ? `${fin[0].eps}` : "—"],
                       [t("dv.fin.roe"), fin[0].roe != null ? `${Math.round(fin[0].roe * 10) / 10}%` : "—"],
+                      [t("dv.fin.equityRatio"), fin[0].equityRatio != null ? `${Math.round(fin[0].equityRatio * 1000) / 10}%` : "—"],
                     ]} />
                     {fin.length > 1 && <details style={{ marginTop: SP.sm }}>
                       <summary style={{ fontSize: 11.5, color: COLORS.primary, cursor: "pointer" }}>{t("dv.rr.finMore")}</summary>
@@ -277,6 +299,7 @@ function fmtBigYen(v: number | null | undefined, lang: string): string {
   return Math.round(n).toLocaleString();
 }
 const Muted = ({ children }: { children: React.ReactNode }) => <div style={{ fontSize: 12.5, color: COLORS.textFaint }}>{children}</div>;
+const MaTag = ({ c, l }: { c: string; l: string }) => <span className="flex items-center gap-1"><span style={{ width: 10, height: 2, borderRadius: 2, background: c }} />{l}</span>;
 function Stars({ n, color, small }: { n: number; color: string; small?: boolean }) {
   return <span style={{ fontSize: small ? 12 : 15, letterSpacing: 1, lineHeight: 1 }}><span style={{ color }}>{"★".repeat(n)}</span><span style={{ color: "#D7D9DE" }}>{"★".repeat(5 - n)}</span></span>;
 }

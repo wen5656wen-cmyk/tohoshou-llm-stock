@@ -2,6 +2,17 @@
 
 ---
 
+## [18.24.2] - 2026-07-19 — 📈 股票详情弹窗研究深度升级（图表/新闻/基本面）
+
+补齐弹窗「研究深度」短板（决策层已强，研究层偏薄）。纯 UI + 复用已有数据，未改引擎/评分/Schema/API。
+
+- **图表升级（最大）**：`LightweightStockChart` 本就支持 K线+量+MA5/20/60+hover 十字光标，弹窗只用 168px 缩略图。现改为：**时间框切换 1M/3M/6M/1Y/ALL**（存全序列 `series.all`≤300 根，`buildChartBars` 先全序列算 MA 再切窗，短窗 MA60 仍正确）+ **放大到 196px** + **MA 图例**（MA5 橙/MA20 蓝/MA60 紫）；hover 数值沿用组件自带。
+- **新闻加深**：每条标题加**发布日期**(MM-DD) + **可点击打开原文**（`target=_blank`）+ 保留情绪色点，替代原「仅标题」。
+- **基本面加估值/质量比率**：4→6 项，新增**营业利润率**(operatingProfit/revenue，可算) + **自己资本比率**(equityRatio，有值)；P/E·P/B·股息率因数据(bps/dividend)稀疏未加（避免大片「—」）；ROE 空值仍诚实显「—」。i18n 新增 `dv.fin.opMargin`/`dv.fin.equityRatio` 双语。
+- 验收：zh/ja 桌面无横向溢出；tsc 0 / eslint 0 / build ✅ / health CRITICAL=0。
+
+---
+
 ## [18.24.1] - 2026-07-19 — 🎯 Decision Center 焦点化（候选折叠 + 战绩页脚）
 
 在 18.24.0 基础上再提焦点感。纯 UI，未改数据/引擎/API。

@@ -1919,7 +1919,7 @@ const zhCN: Messages = {
   "dv.dm.why": "为什么买", "dv.dm.detail": "详情", "dv.dm.aiAnalysis": "AI 分析", "dv.dm.buyReasons": "买入理由", "dv.dm.risks": "风险", "dv.dm.position": "建议仓位", "dv.dm.holdPeriod": "持有期", "dv.dm.chart": "技术走势", "dv.dm.news": "相关新闻", "dv.dm.currentReturn": "当前收益", "dv.dm.curPrice": "当前价", "dv.dm.noReport": "暂无 AI 报告", "dv.dm.rank": "排名", "dv.dm.comingSoon": "暂无数据（后续接入）", "dv.dm.winRate": "胜率",
   "dv.col.symbol": "股票", "dv.col.action": "动作", "dv.col.current": "现价", "dv.col.pnl": "盈亏", "dv.col.change": "涨跌", "dv.col.entry": "买区", "dv.col.target": "目标", "dv.col.stop": "止损", "dv.col.ai": "AI", "dv.col.detail": "详情",
   "dv.tab.summary": "AI 摘要", "dv.tab.price": "价格", "dv.tab.chart": "图表", "dv.tab.tech": "技术", "dv.tab.news": "新闻", "dv.tab.financial": "财务", "dv.tab.decisionHist": "决策历史", "dv.tab.recHist": "推荐历史",
-  "dv.fin.year": "财年", "dv.fin.revenue": "营收", "dv.fin.netProfit": "净利", "dv.fin.eps": "EPS", "dv.fin.roe": "ROE",
+  "dv.fin.year": "财年", "dv.fin.revenue": "营收", "dv.fin.netProfit": "净利", "dv.fin.eps": "EPS", "dv.fin.roe": "ROE", "dv.fin.opMargin": "营业利润率", "dv.fin.equityRatio": "自有资本率",
   "dv.pf.addTitle": "加入持有", "dv.pf.sellTitle": "卖出", "dv.pf.editTitle": "编辑持仓", "dv.pf.price": "价格", "dv.pf.shares": "数量", "dv.pf.avgCost": "成本价", "dv.pf.date": "日期", "dv.pf.fee": "手续费", "dv.pf.note": "备注", "dv.pf.reason": "原因",
   "dv.pf.r.TAKE_PROFIT": "AI止盈", "dv.pf.r.STOP_LOSS": "AI止损", "dv.pf.r.MANUAL": "手动", "dv.pf.r.REBALANCE": "调仓", "dv.pf.r.OTHER": "其它",
   "dv.pf.confirm": "确认", "dv.pf.cancel": "取消", "dv.pf.failed": "操作失败", "dv.pf.btnBuy": "买入", "dv.pf.btnSell": "卖出", "dv.pf.btnEdit": "编辑", "dv.pf.btnAdd": "加入", "dv.pf.delete": "删除", "dv.pf.deleteConfirm": "确认删除该持仓？", "dv.pf.empty": "暂无持仓，从 AI 推荐加入",
