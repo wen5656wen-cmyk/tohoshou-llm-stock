@@ -2,6 +2,16 @@
 
 ---
 
+## [18.41.4] - 2026-07-19 — 🐛 P0 Review Modal 真正根因修复（React Portal 逃离 transform 祖先）
+
+- 真正根因：Review/Library 弹窗的 `position:fixed` 背景层被某带 `transform` 的**祖先容器捕获**（fixed 变成相对该祖先而非视口定位）→ 弹窗被顶到视口上方(top=-202)、下方留 342px 空白、看不到全部。改 height/flex 均无效。
+- 定位手段：无缓存 playwright 打开生产页 dump 弹窗 getBoundingClientRect → top=-202/bottom=658 坐实错位（且确认 height:86vh 已部署，非缓存）。
+- 修：VersionDetail 用 **React `createPortal` 渲染到 `document.body`**，逃离受污染祖先 → fixed 相对真实视口 → 完美居中。z-index 提到 1000。
+- 复验(无缓存 1900×1000)：modal 860px(86vh)/**top=70 bottom=930 居中**/body 填满滚动 4187px/零空白。
+- 纯 UI。
+
+---
+
 ## [18.41.3] - 2026-07-19 — 🐛 P0 Review Modal 改固定高度(彻底消除留白)
 
 - 反馈：弹窗未撑满、下方大面积空白、看不到全部内容。
