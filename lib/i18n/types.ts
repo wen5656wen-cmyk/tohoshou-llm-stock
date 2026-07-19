@@ -2068,6 +2068,10 @@ export type Messages = {
   "ml.h.name": string; "ml.h.qty": string; "ml.h.cost": string; "ml.h.last": string; "ml.h.pnl": string; "ml.h.mv": string;
   "ml.curve.title": string; "ml.curve.empty": string; "ml.curve.nav": string;
   "ml.log.title": string; "ml.log.empty": string; "ml.log.trade": string; "ml.log.decision": string;
+  "ml.hero.remain": string; "ml.unit.day": string;
+  "ml.tile.mv": string; "ml.tile.realized": string;
+  "ml.how.title": string; "ml.how.s1": string; "ml.how.s2": string; "ml.how.s3": string;
+  "ml.today.start": string; "ml.target.line": string;
 };
 
 export type MessageKey = keyof Messages;
