@@ -2,6 +2,17 @@
 
 ---
 
+## [18.42.1] - 2026-07-19 — ✅ 会话收尾：AI 半导体 V2 Golden Path 正式发布 + 记忆/文档同步
+
+- **里程碑**：AI 半导体 V2（gpt-5.6-sol 生成 → Post-Processor 对齐 → 13 项自动门槛全过 → 9 家 NEW_CANDIDATE 人工核查全 KEEP）经 **WEN 审核 APPROVE → PUBLISHED 上线**，成为 Deep Research Golden Path；V1 版本记录完整保留（currentVer=V2）。
+- 人工核查产出：9 家 NEW_CANDIDATE 核查表(全 KEEP,均真实且属产业链:HOYA 掩膜坯料/Ajinomoto ABF/Ibiden 基板/SCREEN·KOKUSAI·TOWA 设备/Fujimi·Resonac 材料/Socionext 设计) + 10 条 HIGH Claim 抽查(全支持·证据权威·无过度推断,3 处技术层/瓶颈层语义近重复待清)。
+- 记忆同步：`project_llm_stock.md` 版本块更新至 v18.42.0（Deep Research Phase4-10+V2 全景）；`MEMORY.md` 索引行同步；`feedback_deep_research_standard.md` 记 V2 达成里程碑。
+- 依赖：`playwright-core`（弹窗截图工具）入 devDependencies。
+- 本会话未触碰 AI 评分/Trading Action/StockScore/Schema/compute-scores/同步脚本 → **无需 compute-scores**。
+- 待续：Phase 5 其余八产业（冻结中，gpt-5.6-sol 可作 RESEARCH_STRONG_MODEL，逐产业 Benchmark→人审→发布，不批量）；小优化 HOYA segmentKey + 3 处语义近重复。
+
+---
+
 ## [18.42.0] - 2026-07-19 — 🗓️ 研究日历全页汉化 + 研究库/审核/看板优化
 
 - **研究日历全汉化**：kind 标签(历史/AI预测/计划/触发/审核/发布/每日/每周/待复核)、星期(日一二三四五六 / ja 日月火水木金土)、月份(2026年7月)全部本地化；视觉优化(月网格卡片化、周末色区分、视图切换分段控件、chip 高亮态、今日变化对齐)。+11 dr.k.*/dr.cal.* 双语键。
