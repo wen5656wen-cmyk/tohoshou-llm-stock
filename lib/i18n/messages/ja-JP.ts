@@ -1900,7 +1900,7 @@ const jaJP: Messages = {
   "dv.nav.overview": "意思決定サマリー",
   "dv.nav.strategy": "本日の戦略",
   "dv.nav.picks": "銘柄センター",
-  "dv.nav.portfolio": "模擬ポートフォリオ",
+  "dv.nav.portfolio": "AI Mission Lab",
   "dv.nav.history": "意思決定履歴",
   "dv.nav.sectors": "業種分析",
   "dv.nav.industry": "深掘りリサーチ",

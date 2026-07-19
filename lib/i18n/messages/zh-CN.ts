@@ -1900,7 +1900,7 @@ const zhCN: Messages = {
   "dv.nav.overview": "决策总览",
   "dv.nav.strategy": "今日策略",
   "dv.nav.picks": "股票中心",
-  "dv.nav.portfolio": "模拟持仓",
+  "dv.nav.portfolio": "AI Mission Lab",
   "dv.nav.history": "历史决策",
   "dv.nav.sectors": "行业分析",
   "dv.nav.industry": "深度研究",

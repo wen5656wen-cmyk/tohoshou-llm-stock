@@ -45,14 +45,11 @@ export default function MissionLab() {
   const progress = Math.max(0, Math.min(100, (ret / target) * 100));
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* ── Header + 分段切换 ── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[19px] font-semibold flex items-center gap-2" style={{ color: COLORS.text }}>🎯 {t("ml.title")}</h1>
-          <p className="text-xs mt-1" style={{ color: COLORS.textMuted }}>{t("ml.subtitle")}</p>
-        </div>
-        <div className="flex p-0.5 gap-0.5" style={{ background: COLORS.track, borderRadius: RADIUS.lg }}>
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+      {/* ── 描述 + 分段切换（标题由工作区顶部承载=AI Mission Lab，避免重复）── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs" style={{ color: COLORS.textMuted }}>{t("ml.subtitle")}</p>
+        <div className="flex p-0.5 gap-0.5 shrink-0" style={{ background: COLORS.track, borderRadius: RADIUS.lg }}>
           {(["WEEKLY", "MONTHLY"] as const).map((k) => (
             <button key={k} onClick={() => setSel(k)} className="px-4 py-1.5 text-sm font-medium transition-all" style={sel === k ? { background: COLORS.card, color: COLORS.text, borderRadius: RADIUS.md, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" } : { background: "transparent", color: COLORS.textMuted, borderRadius: RADIUS.md }}>{t(`ml.type.${k}`)}</button>
           ))}
@@ -104,6 +101,8 @@ export default function MissionLab() {
             <p className="text-[11px] mt-3" style={{ color: COLORS.textFaint }}>{t("ml.disclaimer")}</p>
           </AppCard>
 
+          {/* ── 宽屏两列（今日待跟单/持仓 · 曲线/日志），窄屏单列 ── */}
+          <div className="grid xl:grid-cols-2 gap-4 items-start">
           {/* ── ② 今日待跟单 ── */}
           <AppCard padding={0} header={<CardTitle icon="📌" title={t("ml.today.title")} right={m.latestDay ?? undefined} />}>
             <div className="p-5">
@@ -204,6 +203,7 @@ export default function MissionLab() {
               )}
             </div>
           </AppCard>
+          </div>
         </>
       )}
     </div>
