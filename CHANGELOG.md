@@ -2,6 +2,16 @@
 
 ---
 
+## [18.41.1] - 2026-07-19 — 🐛 运营看板计费修复（Benchmark 未记 ResearchJob）
+
+- 根因：`benchmark-v2` 只写 ResearchVersion（含 token/cost），未写 ResearchJob；而 Dashboard「Token 与成本」从 **ResearchJob** 聚合 → 显示 0。
+- 修：`benchmark-v2` 每次运行创建 ResearchJob（jobType=BENCHMARK，记 provider/model/tokenUsage/estimatedCost/durationMs/versionId），mock 不记。
+- 回填：为已完成的 gpt-5.6-sol V2 运行补建 Job（用 Version 数据，不重跑）→ Dashboard 今日/周/月即显 $0.1435 / 18,116 tok。
+- 说明：gpt-5.6-sol 未在 COST 费率表，estimatedCost 用默认费率估算（$0.002/$0.008 每 1K）；如提供真实单价可精确化。
+- 无 DB 结构变更；不改评分/交易。tsc0。
+
+---
+
 ## [18.41.0] - 2026-07-19 — 🔧 V2 Benchmark 真实性采集 + 运营看板中文化 + 审核弹窗修复
 
 ### V2 Benchmark 真实执行工具（gpt-5.6-sol）

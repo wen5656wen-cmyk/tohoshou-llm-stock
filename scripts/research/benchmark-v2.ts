@@ -12,6 +12,7 @@ import { join } from "path";
 import { getResearchProvider, makeProvider, validateIndustryResearch } from "../../lib/research/providers";
 import { generateCandidateVersion } from "../../lib/research/engine";
 import { industryChecksum } from "../../lib/research/checksum";
+import { prisma } from "../../lib/prisma";
 import { SEEDS } from "../../lib/research/provider-seed";
 import type { IndustryResearch } from "../../lib/research/types";
 
@@ -124,6 +125,18 @@ async function main() {
     totalTokens: r.usage.totalTokens, estimatedCostUSD: r.usage.estimatedCost, durationMs: r.usage.durationMs,
     generationTimestamp: startedAt, rawLength: r.raw.length, persistError,
   };
+
+  // 记 ResearchJob（运营计费：Dashboard Token&Cost 从 ResearchJob 聚合；Version 上也各存一份）
+  if (!mock) {
+    await prisma.researchJob.create({ data: {
+      jobType: "BENCHMARK", industryKey: KEY, targetKey: KEY, status: modelValid ? "SUCCESS" : "FAILED",
+      attempt: r.audit.requestCount, maxAttempts: 1, provider: provider.kind, model: actualModel,
+      tokenUsage: { prompt: r.usage.promptTokens, completion: r.usage.completionTokens, total: r.usage.totalTokens },
+      estimatedCost: r.usage.estimatedCost, durationMs: r.usage.durationMs, versionId: candidateVersionId,
+      error: modelValid ? null : `actualModel ${actualModel} ≠ requested ${requestedModel}`,
+      startedAt: new Date(startedAt), finishedAt: new Date(),
+    } });
+  }
 
   console.log("\n── 真实性 ──"); for (const [k, v] of Object.entries(truthfulness)) console.log(`  ${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`);
   console.log("\n── 13 项质量 ──"); for (const [k, v] of Object.entries(q.metrics)) console.log(`  ${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`);
