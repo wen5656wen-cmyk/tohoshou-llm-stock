@@ -74,6 +74,7 @@ export default function DecisionRecommendationsV2() {
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ReportTarget | null>(null);
+  const [favSet, setFavSet] = useState<Set<string>>(new Set());
   const openDetail = (symbol: string, name?: string) => setDetail({ symbol, name: name ?? symbol });
 
   useEffect(() => {
@@ -81,6 +82,18 @@ export default function DecisionRecommendationsV2() {
     fetch("/api/decision/recommendations", { cache: "no-store" }).then((r) => r.json()).then((j) => { if (alive) { setData(j); setLoading(false); } }).catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
+
+  // 自选成员（真实 watchlist）——加入按钮据此显示 加入/已加入，避免已加入仍显「加入」
+  const loadFav = useCallback(() => {
+    fetch("/api/watchlist", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])).then((j: unknown) => setFavSet(new Set((Array.isArray(j) ? j : []).map((x: { symbol: string }) => x.symbol)))).catch(() => {});
+  }, []);
+  useEffect(() => { loadFav(); }, [loadFav]);
+  const toggleFav = useCallback(async (symbol: string, meta?: { name?: string | null; sector?: string | null; market?: string | null }) => {
+    const has = favSet.has(symbol);
+    setFavSet((s) => { const n = new Set(s); if (has) n.delete(symbol); else n.add(symbol); return n; });
+    if (has) await fetch(`/api/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: "DELETE" }).catch(() => {});
+    else await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol, ...meta }) }).catch(() => {});
+  }, [favSet]);
 
   const setView = (v: string) => {
     const q = new URLSearchParams(sp.toString());
@@ -105,9 +118,9 @@ export default function DecisionRecommendationsV2() {
       <VerdictBand verdict={data?.verdict ?? null} slim={view !== "ai"} onOverview={() => router.replace("/decision-v2?tab=overview", { scroll: false })} />
 
       {/* 视图内容 */}
-      {view === "all" ? <MarketBrowseView onDetail={openDetail} />
-        : view === "fav" ? <WatchlistView onDetail={openDetail} />
-          : <AiRecoView data={data} loading={loading} onDetail={openDetail} />}
+      {view === "all" ? <MarketBrowseView onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
+        : view === "fav" ? <WatchlistView onDetail={openDetail} onChanged={loadFav} />
+          : <AiRecoView data={data} loading={loading} onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />}
 
       <StockDetailModal report={detail} onClose={() => setDetail(null)} />
     </div>
@@ -141,11 +154,10 @@ function VerdictBand({ verdict, slim, onOverview }: { verdict: Verdict | null; s
 }
 
 // ═══════════════════════ ② 全市场浏览（screener）═══════════════════════
-function MarketBrowseView({ onDetail }: { onDetail: (s: string, n?: string) => void }) {
+function MarketBrowseView({ onDetail, favSet, toggleFav }: { onDetail: (s: string, n?: string) => void; favSet: Set<string>; toggleFav: (s: string, m?: { name?: string | null; sector?: string | null; market?: string | null }) => void }) {
   const { t, lang } = useI18n();
   const [rows, setRows] = useState<ScreenerRow[] | null>(null);
   const [level, setLevel] = useState("");
-  const [added, setAdded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let alive = true; setRows(null);
@@ -154,10 +166,6 @@ function MarketBrowseView({ onDetail }: { onDetail: (s: string, n?: string) => v
     return () => { alive = false; };
   }, [level]);
 
-  const addFav = async (r: ScreenerRow) => {
-    setAdded((s) => new Set(s).add(r.symbol));
-    await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: r.symbol, name: r.name, sector: r.sector, market: r.market }) }).catch(() => {});
-  };
   const disp = (r: { name: string; nameZh: string | null }) => getPrimaryName({ name: r.name, nameZh: r.nameZh }, lang);
 
   return (
@@ -186,7 +194,7 @@ function MarketBrowseView({ onDetail }: { onDetail: (s: string, n?: string) => v
                       <td className="py-1.5 px-2 text-right tabular-nums font-semibold" style={{ color: COLORS.text }}>{fmtScore(r.adaptiveScore)}</td>
                       <td className="py-1.5 px-2 text-right">{r.recommendationV2 ? <AppBadge tone={MKT_TONE[r.recommendationV2] ?? "neutral"}>{t(`dv.sc.lv.${r.recommendationV2}` as Parameters<typeof t>[0])}</AppBadge> : <span style={{ color: COLORS.textFaint }}>—</span>}</td>
                       <td className="py-1.5 px-2 text-left"><span className="text-[11px]" style={{ color: COLORS.textSecondary }}>{r.sector ?? "—"}</span></td>
-                      <td className="py-1.5 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); addFav(r); }} className="h-6 px-2 rounded-full text-[11px]" style={{ border: `1px solid ${added.has(r.symbol) ? COLORS.success : COLORS.border}`, color: added.has(r.symbol) ? COLORS.success : COLORS.primary, background: COLORS.card }}>{added.has(r.symbol) ? "✓" : t("dv.pf.btnAdd")}</button></td>
+                      <td className="py-1.5 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name, sector: r.sector, market: r.market }); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${favSet.has(r.symbol) ? COLORS.success : COLORS.border}`, color: favSet.has(r.symbol) ? COLORS.success : COLORS.primary, background: favSet.has(r.symbol) ? `${COLORS.success}14` : COLORS.card }}>{favSet.has(r.symbol) ? "✓ " + t("dv.sc.added") : t("dv.pf.btnAdd")}</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -198,7 +206,7 @@ function MarketBrowseView({ onDetail }: { onDetail: (s: string, n?: string) => v
 }
 
 // ═══════════════════════ ③ 自选（watchlist）═══════════════════════
-function WatchlistView({ onDetail }: { onDetail: (s: string, n?: string) => void }) {
+function WatchlistView({ onDetail, onChanged }: { onDetail: (s: string, n?: string) => void; onChanged: () => void }) {
   const { t, lang } = useI18n();
   const [rows, setRows] = useState<FavRow[] | null>(null);
   const load = useCallback(() => {
@@ -208,6 +216,7 @@ function WatchlistView({ onDetail }: { onDetail: (s: string, n?: string) => void
   const remove = async (sym: string) => {
     setRows((rs) => (rs ? rs.filter((x) => x.symbol !== sym) : rs));
     await fetch(`/api/watchlist?symbol=${encodeURIComponent(sym)}`, { method: "DELETE" }).catch(() => {});
+    onChanged(); // 同步 Shell favSet，使全市场/AI 视图的加入按钮状态一致
   };
   const disp = (r: { name: string; nameZh: string | null }) => getPrimaryName({ name: r.name, nameZh: r.nameZh }, lang);
 
@@ -251,12 +260,11 @@ function WatchlistView({ onDetail }: { onDetail: (s: string, n?: string) => void
 }
 
 // ═══════════════════════ ① AI 推荐（按设计稿重建：左执行榜 + 右决策卡）═══════════════════════
-function AiRecoView({ data, loading, onDetail }: { data: Resp | null; loading: boolean; onDetail: (s: string, n?: string) => void }) {
+function AiRecoView({ data, loading, onDetail, favSet, toggleFav }: { data: Resp | null; loading: boolean; onDetail: (s: string, n?: string) => void; favSet: Set<string>; toggleFav: (s: string, m?: { name?: string | null; sector?: string | null; market?: string | null }) => void }) {
   const { t } = useI18n();
   const router = useRouter();
   const sp = useSearchParams();
   const [chart, setChart] = useState<Record<string, ChartBar[]>>({});
-  const [added, setAdded] = useState<Set<string>>(new Set());
 
   const recos = useMemo(() => data?.recommendations ?? [], [data]);
   const sym = sp.get("sym") || "";
@@ -269,10 +277,13 @@ function AiRecoView({ data, loading, onDetail }: { data: Resp | null; loading: b
   const sorted = useMemo(() => [...recos].sort((a, b) => a.rank - b.rank), [recos]);
   const selected = recos.find((r) => r.symbol === sym) ?? recos[0] ?? null;
 
-  const addFav = async (r: Reco) => {
-    setAdded((s) => new Set(s).add(r.symbol));
-    await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: r.symbol, name: r.name, sector: r.sector }) }).catch(() => {});
-  };
+  // 今日涨跌统计（Top10 实时今日涨跌的家数 + 均值）
+  const breadth = useMemo(() => {
+    const vals = sorted.map((r) => r.todayChangePct).filter((x): x is number => x != null);
+    const up = vals.filter((v) => v > 0).length, down = vals.filter((v) => v < 0).length, flat = vals.length - up - down;
+    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    return { up, down, flat, avg };
+  }, [sorted]);
 
   // 选中股走势图懒加载（近 60 日日线，复用 /indicators，先全序列算 MA 再切窗）
   useEffect(() => {
@@ -301,6 +312,13 @@ function AiRecoView({ data, loading, onDetail }: { data: Resp | null; loading: b
       {/* 左：AI 买入执行榜 */}
       <div className="min-w-0">
         <AppCard header={<div className="flex items-center gap-2"><AppBadge tone="red">AI</AppBadge><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.sc.buyList")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{t("dv.sc.buyListSub")}</span></div>}>
+          <div className="flex items-center gap-3 mb-2 text-[11px] flex-wrap" style={{ color: COLORS.textMuted }}>
+            <span>{t("dv.sc.br.title")}</span>
+            <span className="tabular-nums" style={{ color: COLORS.success }}>▲ {breadth.up}</span>
+            <span className="tabular-nums" style={{ color: COLORS.danger }}>▼ {breadth.down}</span>
+            <span className="tabular-nums" style={{ color: COLORS.textFaint }}>– {breadth.flat}</span>
+            <span>{t("dv.sc.br.avg")} <b className="tabular-nums" style={{ color: upDownColor(breadth.avg) }}>{fmtPct(breadth.avg)}</b></span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
               <thead><tr className="text-[10px]" style={{ color: COLORS.textFaint }}>
@@ -321,7 +339,7 @@ function AiRecoView({ data, loading, onDetail }: { data: Resp | null; loading: b
                       <td className="py-2 px-2 text-right tabular-nums" style={{ color: upDownColor(r.todayChangePct) }}>{fmtPct(r.todayChangePct)}</td>
                       <td className="py-2 px-2 text-left tabular-nums text-[11px]" style={{ color: COLORS.textSecondary }}>{r.entryLow != null ? `${fmtJpy(r.entryLow)}~${fmtJpy(r.entryHigh)}` : "—"}</td>
                       <td className="py-2 px-2 text-right"><AppBadge tone={es.tone}>{t(es.key as Parameters<typeof t>[0])}</AppBadge></td>
-                      <td className="py-2 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); addFav(r); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${added.has(r.symbol) ? COLORS.success : COLORS.border}`, color: added.has(r.symbol) ? COLORS.success : COLORS.primary, background: COLORS.card }}>{added.has(r.symbol) ? "✓" : t("dv.pf.btnAdd")}</button></td>
+                      <td className="py-2 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name, sector: r.sector }); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${favSet.has(r.symbol) ? COLORS.success : COLORS.border}`, color: favSet.has(r.symbol) ? COLORS.success : COLORS.primary, background: favSet.has(r.symbol) ? `${COLORS.success}14` : COLORS.card }}>{favSet.has(r.symbol) ? "✓ " + t("dv.sc.added") : t("dv.pf.btnAdd")}</button></td>
                     </tr>
                   );
                 })}
@@ -368,7 +386,7 @@ function AiRecoView({ data, loading, onDetail }: { data: Resp | null; loading: b
 
             <div className="flex gap-2 mt-4">
               <button onClick={() => onDetail(s.symbol, s.name)} className="flex-1 text-[13px] font-semibold py-2.5 rounded-lg" style={{ border: `1px solid ${COLORS.border}`, color: COLORS.text, background: COLORS.card }}>{t("dv.sc.report")}</button>
-              <button onClick={() => addFav(s)} className="flex-1 text-[13px] font-semibold py-2.5 rounded-lg" style={{ background: COLORS.primary, color: "#fff", border: `1px solid ${COLORS.primary}` }}>{added.has(s.symbol) ? "✓ " + t("dv.sc.addFav") : t("dv.sc.addFav")}</button>
+              <button onClick={() => toggleFav(s.symbol, { name: s.name, sector: s.sector })} className="flex-1 text-[13px] font-semibold py-2.5 rounded-lg" style={{ background: favSet.has(s.symbol) ? COLORS.success : COLORS.primary, color: "#fff", border: `1px solid ${favSet.has(s.symbol) ? COLORS.success : COLORS.primary}` }}>{favSet.has(s.symbol) ? "✓ " + t("dv.sc.added") : t("dv.sc.addFav")}</button>
             </div>
           </AppCard>
         ) : <AppCard><div className="text-[12px] py-6 text-center" style={{ color: COLORS.textFaint }}>{t("dv.rc.selectHint")}</div></AppCard>}
