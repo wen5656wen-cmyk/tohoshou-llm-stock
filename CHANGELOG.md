@@ -2,6 +2,34 @@
 
 ---
 
+## [18.44.0] - 2026-07-19 — 🎯 P18 AI Mission Lab：真实前向实验上线（M1 引擎 + M3 UI + H1 健康 + H2 审计）
+
+TOHOSHOU AI 的真实验证中心。**独立数据域 `ai_mission_*`（5 表），与 paper_/user_/strategy_/资金链路禁止共表；只读 StockScore/DecisionEngine/News/Risk，绝不改评分；GPT 不参与（规则派生 Explain）。**
+
+### P18-M1 · 引擎（真实前向实验 · Forward Test）
+- **5 表**：`AiMission`(周/月双轨,periodLabel 支持 Week30/31…归档)/`AiMissionPosition`/`AiMissionTrade`/`AiMissionDecision`/`AiMissionNav`。
+- **双 Mission**：Weekly（¥10M·+5%·7d·2026-W29）+ Monthly（¥10M·+20%·30d·2026-M07），独立账户/持仓/收益。
+- **🔒 P0 无未来函数（双阶段）**：Phase1 08:20 开盘前仅生成/校验决策→`READY_FOR_OPEN`（不成交/不改仓/不扣现金，标记仅用上一交易日已知收盘价）；Phase2 **09:30**（避 Yahoo 15–20 分钟延迟）读实时行情（`regularMarketPrice`+`regularMarketTime` 校验开盘后新鲜，不新鲜→`SKIPPED` 不回填/不读收盘OHLC）成交。`signalTime`<`executedAt`。Trade 留档 executionPrice/marketPriceAt/priceSource/executionWindow/**followablePriceLow/High(±0.5% 建议跟单区间)**。
+- **幂等**：Phase1 lastPrepareDate 守卫；Phase2 CAS 认领(READY_FOR_OPEN→EXECUTING)+`Trade.decisionId @unique`+原子现金增减+EXECUTING 崩溃恢复+NAV upsert → 重跑/PM2 重启/异常均不重复。
+- **策略层**：复用 StockScore 信号 + Mission 进取参数（周紧止损/月宽），风控优先（限持仓/单股/现金/止损），100 股整手可跟随，JPX 交易日守卫。
+- **生产 GO**：`prisma db push`（普通迁移，无 --accept-data-loss，纯增量无 destructive）→ `MISSION_LAB_ENABLED=true` → init 注资双 Mission → `pm2 restart tohoshou-cron`（08:20/09:30 JST 激活）。**首个真实交易日 2026-07-21**（07-19 周日/07-20 海の日）。
+- ⚠️ 异常处置：GO 前收到非本会话发起的并发 benchmark（已 persist 前终止，DB 无重复）——记 TECH_DEBT P1-DR-01。
+
+### P18-M3-v1 · UI 接管「模拟持仓」
+- AI Mission Lab 接管 `/decision-v2?tab=portfolio`（旧 DecisionPortfolioV2/Paper Broker **前端下线，paper_* 后台保留**，Decision 总览 SSOT 不动）。
+- 新增只读 `GET /api/mission-lab` + `MissionLab.tsx`：四块 = 今日待跟单(含建议成交价区间/Explain) + 持仓·现金·收益(vs 目标) + NAV 收益曲线 vs TOPIX/Nikkei(纯SVG) + 历史决策/成交日志；Weekly/Monthly 切换；空态引导（09:30 后打开跟单三步）。
+- 打磨：Hero+目标进度条+KPI 网格+「如何跟单」时间线；**超宽修复**（max-w-[1400px]+宽屏两列）；导航标签统一改「AI Mission Lab」去重复标题。i18n 双语 ml.*。
+
+### P18-M1-H1 · Mission Health Guard（只读）
+- `lib/mission-lab/health.ts` 15 项检查（PASS/WARNING/CRITICAL）+ `GET /api/admin/health/mission`：Weekly/Monthly 存在·enabled·今日应否 Prepare/Execute·上一交易日 NAV·重复 Trade/Decision·READY_FOR_OPEN 超1天·EXECUTING 卡死·Cash 负·Position 异常·超期 ACTIVE·NAV 断档·Explain 空。生产=PASS。
+
+### P18-M1-H2 · Mission Audit（只读可回放）
+- `lib/mission-lab/audit.ts` 每笔 Trade 回放 Signal→Decision→Explain→Execution→Position→NAV(→Review M2) + `GET /api/admin/mission-audit` + `/admin/mission-audit` 页（健康横幅+审计时间线，点笔展开）。**全部派生自已有 ai_mission_*，无新表/无重复存储/不改交易**。
+
+- 未改 AI 评分/Trading Action/StockScore/compute-scores/同步脚本/Decision Engine/资金链路（schema 仅**追加** ai_mission_*，与评分无关 → **无需 compute-scores**）。build✅/tsc0/health CRITICAL=0。
+
+---
+
 ## [18.43.0] - 2026-07-19 — 🏭 P18-T2：AI 数据中心 Deep Research V2（gpt-5.6-sol · AUTO_PASS · WEN 已审批发布）
 
 - **📌 订正（收尾核验发现）**：benchmark 生成 V2 候选后（AI_RESEARCHED/PENDING），**用户 WEN 于 2026-07-19T11:15:30Z 通过 Review Center 手动 APPROVE**（ResearchReview action=APPROVE, reviewer=WEN）→ `applyVersion` 落地 → **V2 现 status=PUBLISHED / currentVer=V2 / industry PUBLISHED**；V1 版本记录（`cmrrohyxo…`）永久保留。Claude 全程**未自动 Approve/Publish**；发布为人工决定。「V1 活实体 checksum 变化」为审批落地的预期副作用（非数据损坏）。
