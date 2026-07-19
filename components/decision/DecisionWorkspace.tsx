@@ -16,7 +16,8 @@ import { DECISION_TABS } from "@/components/decision/ds/SubNav";
 import DecisionOverviewV2 from "@/components/decision/pages/DecisionOverviewV2";
 import DecisionStrategyV2 from "@/components/decision/pages/DecisionStrategyV2";
 import DecisionRecommendationsV2 from "@/components/decision/pages/DecisionRecommendationsV2";
-import DecisionPortfolioV2 from "@/components/decision/pages/DecisionPortfolioV2";
+// P18-M3: 「模拟持仓」页由 AI Mission Lab 接管（旧 DecisionPortfolioV2/Paper Broker 前端下线，后台保留）。
+import MissionLab from "@/components/decision/pages/MissionLab";
 import DecisionHistoryV2 from "@/components/decision/pages/DecisionHistoryV2";
 
 const VALID = new Set<string>(DECISION_TABS.map((t) => t.key));
@@ -77,7 +78,7 @@ function Shell() {
         {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar。P16-02：决策总览由页内顶部工具栏(含搜索)承载，故此处不渲染。 */}
         {active !== "overview" && <CompactHeader active={active} />}
         <div className="pb-8">
-          {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : active === "portfolio" ? <DecisionPortfolioV2 /> : active === "history" ? <DecisionHistoryV2 /> : <Placeholder tab={active} />}
+          {active === "overview" ? <DecisionOverviewV2 /> : active === "strategy" ? <DecisionStrategyV2 /> : active === "picks" ? <DecisionRecommendationsV2 /> : active === "portfolio" ? <MissionLab /> : active === "history" ? <DecisionHistoryV2 /> : <Placeholder tab={active} />}
         </div>
         {/* ⑧ Footer 系统状态条（真实状态，老板视角） */}
         <SystemStatusFooter />

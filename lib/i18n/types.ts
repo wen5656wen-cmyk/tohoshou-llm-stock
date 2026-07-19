@@ -2050,6 +2050,24 @@ export type Messages = {
   "explain.panel.empty": string;
   "explain.panel.nodata": string;
   "explain.panel.provider_rule": string;
+  // P18 · AI Mission Lab（M3-v1）
+  "ml.loading": string;
+  "ml.title": string; "ml.subtitle": string;
+  "ml.type.WEEKLY": string; "ml.type.MONTHLY": string;
+  "ml.empty.title": string; "ml.empty.desc": string;
+  "ml.status.ACTIVE": string; "ml.status.COMPLETED": string;
+  "ml.tile.equity": string; "ml.tile.cash": string; "ml.tile.return": string; "ml.tile.target": string; "ml.tile.drawdown": string; "ml.tile.progress": string;
+  "ml.disclaimer": string;
+  "ml.today.title": string; "ml.today.empty": string;
+  "ml.act.BUY": string; "ml.act.SELL": string; "ml.act.ADD": string; "ml.act.REDUCE": string; "ml.act.TP": string; "ml.act.SL": string; "ml.act.HOLD": string; "ml.act.NO_ACTION": string;
+  "ml.follow.filled": string; "ml.follow.range": string; "ml.follow.pending": string; "ml.follow.ref": string; "ml.follow.skipped": string;
+  "ml.dstatus.EXECUTED": string; "ml.dstatus.EXPIRED": string; "ml.dstatus.NOOP": string; "ml.dstatus.EXECUTING": string; "ml.dstatus.SKIPPED": string; "ml.dstatus.READY_FOR_OPEN": string;
+  "ml.f.signal": string; "ml.f.quote": string;
+  "ml.why.show": string; "ml.why.hide": string;
+  "ml.holdings.title": string; "ml.holdings.empty": string;
+  "ml.h.name": string; "ml.h.qty": string; "ml.h.cost": string; "ml.h.last": string; "ml.h.pnl": string; "ml.h.mv": string;
+  "ml.curve.title": string; "ml.curve.empty": string; "ml.curve.nav": string;
+  "ml.log.title": string; "ml.log.empty": string; "ml.log.trade": string; "ml.log.decision": string;
 };
 
 export type MessageKey = keyof Messages;
