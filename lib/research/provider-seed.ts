@@ -3,9 +3,11 @@
 // Golden Path（AI 半导体）用 seed 跑通全链路；其余产业可用 LLM provider。
 import type { IndustryResearch, ResearchProvider, ResearchResult } from "./types";
 import { AI_SEMICONDUCTOR } from "./seed/ai-semiconductor";
+import { AI_DATACENTER } from "./seed/ai-datacenter";
 
 export const SEEDS: Record<string, IndustryResearch> = {
   AI_SEMICONDUCTOR,
+  AI_DATACENTER,
 };
 
 export class SeedResearchProvider implements ResearchProvider {

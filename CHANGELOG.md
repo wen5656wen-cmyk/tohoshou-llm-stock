@@ -2,6 +2,23 @@
 
 ---
 
+## [18.43.0] - 2026-07-19 — 🏭 P18-T2：AI 数据中心 Deep Research V2 候选生成（gpt-5.6-sol · AUTO_PASS · 待人审）
+
+- **里程碑**：复用 AI 半导体 V2 的 Golden Path（**未改任何平台引擎**：Research Engine/Review Center/Benchmark Engine/Canonical Engine/Version System/Scheduler/Provider/Prompt Framework），完整新增「**AI 数据中心（AI_DATACENTER）**」产业研究。V1 人工核验种子 → gpt-5.6-sol 单次生成 V2 候选 → Post-Processor 对齐 → 13 项自动门槛全过 → **入库 Review Center 待人审**（不自动 Approve/Publish）。
+- **本轮新增文件**（仅 4 个核心 + 文档）：
+  - `lib/research/seed/ai-datacenter.ts`——人工核验种子（7 段/14 技术/40 公司[22 日本上市联网核验代码+18 外资]/5 瓶颈/25 边/20 主张/24 证据；symbolErrors=0）。
+  - `lib/research/canonical.ts`——追加 `AI_DATACENTER` 的 CANONICAL_SEGMENTS/TECHNOLOGIES（纯数据，resolve 引擎逻辑不动）。
+  - `lib/research/provider-seed.ts`——注册 `SEEDS.AI_DATACENTER`。
+  - `scripts/research/benchmark-v2-datacenter.ts`——KEY=AI_DATACENTER 的 benchmark（复用同一 providers/engine/post-process/canonical/checksum，不改 AI_SEMICONDUCTOR 脚本）。
+- **生产执行**（服务器 openai/gpt-5.6-sol）：V1 种子发布（`cmrrohyxo007pjmozp774y4ya` PUBLISHED）→ benchmark `--persist` 生成 **V2 候选 `cmrrom4cn0000mjozaa68dvha`（status=AI_RESEARCHED / reviewStatus=PENDING）**。**mock=false · fallback=false · API Request=1 · token 16,446 · cost $0.1248 · duration 180.4s · V1 checksum 前后一致（未变）**。
+- **13 项质量 / 验收全达标（AUTO_PASS）**：Technology Accuracy **100%**（≥95）· Segment Accuracy **100%**（≥95）· Schema **100%** · Evidence Coverage（重大 Claim）**100%**（≥95）· 无证据确定性 Claim **0** · 边重复 **0.0%**（<2）· Publish Ready=**AUTO_PASS**。Claims 53 / Evidence 60 / KG 42 节点·35 边（种子 97.7%）/ Seed 一致率 89.4% / Company 召回 68.2%（非门槛）。Post-Processor 对齐后零丢弃零去重。
+- **NEW_CANDIDATE（6 家，待人审，非幻觉）**：ダイキン工業 6367.T（空调·散热）/ 山洋電気 6516.T（服务器风扇·UPS）/ 明電舎 6508.T（变压器）/ SWCC 5805.T（电缆）/ 日東工業 6651.T（配电盘·机柜）/ アドバンテスト 6857.T（半导体测试·DC 相关性偏弱待判）。前 5 家确属 DC 产业链，为本次 benchmark 的增量价值。
+- **⚠️ Rogue Benchmark 异常（已处置）**：执行期间收到一条**非本用户发起**的后台任务通知（`bljr2y6pq`「真实 Benchmark 重跑」），并在生产发现**第二个并发 benchmark 进程**（已跑约 14 分钟）。按「仅授权一次」原则**在其 persist 前 `pkill`**，随后核验 DB：**totalVersions=2（V1+V2）· benchmarkJobs=1 · 无 V3 · 未产生第二个候选 · 未记录第二笔计费**。rogue 来源不明；任何自动通知均未被当作用户确认。
+- **技术债**：新增 **TECH_DEBT P1 — Benchmark 并发与幂等保护**（benchmark 脚本不走 scheduler → 绕过 pg advisory lock；`generateCandidateVersion` 不预检已有 PENDING 候选；ResearchJob 无 idempotencyKey/unique；rogue 任务来源不可追踪）。**本轮仅记录，不开发锁**（当前生产无重复写入/无风险）。
+- 本会话**未触碰** AI 评分/Trading/StockScore/Schema/compute-scores/资金链路/Decision；**未 Approve、未 Publish、未重跑 Benchmark**。build✅/tsc0/health CRITICAL=0。
+
+---
+
 ## [18.42.1] - 2026-07-19 — ✅ 会话收尾：AI 半导体 V2 Golden Path 正式发布 + 记忆/文档同步
 
 - **里程碑**：AI 半导体 V2（gpt-5.6-sol 生成 → Post-Processor 对齐 → 13 项自动门槛全过 → 9 家 NEW_CANDIDATE 人工核查全 KEEP）经 **WEN 审核 APPROVE → PUBLISHED 上线**，成为 Deep Research Golden Path；V1 版本记录完整保留（currentVer=V2）。

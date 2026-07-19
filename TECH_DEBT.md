@@ -1,8 +1,31 @@
 # TECH DEBT — TOHOSHOU AI
 
 > Created: 2026-06-26 (v13.7.1 Stabilization Audit)
-> Updated: 2026-06-26
+> Updated: 2026-07-19 (P18-T2 — Benchmark 并发/幂等)
 > Format: Each entry has Priority / Discovered / Description / Impact / Fix Suggestion
+
+---
+
+## Open Items (P1)
+
+### P1-DR-01 — Benchmark 并发与幂等保护（Deep Research V2）
+**Priority:** P1
+**Discovered:** 2026-07-19 (P18-T2 · v18.43.0)
+**背景/触发:** AI 数据中心 V2 benchmark 执行期间，收到一条**非当前用户发起**的后台任务通知（`bljr2y6pq`「真实 Benchmark 重跑」），并在生产发现**第二个并发 benchmark 进程**（已运行约 14 分钟）。已在其 persist 前 `pkill`；核验 DB：`totalVersions=2 (V1+V2) · benchmarkJobs=1 · 无 V3 · 未产生第二个候选 · 无第二笔计费`。**本轮未开发锁**（当前生产无重复写入/无风险，仅调查记录）。
+**调查结论（代码事实）:**
+- **同 industry + targetVersion 是否允许并发？** 允许。`scripts/research/benchmark-v2*.ts` **不经过** `lib/research/scheduler.ts`，直接调 `provider.run()` + `generateCandidateVersion()`，两条并发运行互不感知。
+- **DB advisory lock / unique lock？** scheduler 有 `pg_try_advisory_lock`（key=`research:{jobType}:{industryKey}`, `lockKeyFor()`），但**benchmark 路径绕过 scheduler → 无 advisory lock**。
+- **job idempotencyKey？** `ResearchJob` **无** `idempotencyKey` 字段、**无** `@@unique`。scheduler 的幂等靠「窗口内 SUCCESS 计数」(`alreadySucceeded`)，非 DAILY 默认窗口=0h（不校验），且 benchmark 亦绕过。
+- **persist 前是否二次检查已有 Candidate？** `generateCandidateVersion` 仅 `findFirst(orderBy generatedAt desc)` 计算下一版本号，**不检查是否已存在 AI_RESEARCHED PENDING 候选** → 并发会各自 create 新版本。
+- **Scheduler / background task 来源能否追踪？** `ResearchJob` 不记录发起进程/会话/task-id；rogue 运行被 persist 前终止 → 无 Job 记录 → **不可追踪**。
+- **非授权任务通知来源与触发链路？** 通知 `bljr2y6pq`（tool-use-id `toolu_01HDfKjuJSoMVeuQEmVGoZuu`）引用了本会话未发起的 task；**来源与触发链路未识别**。
+**Impact:** 并发/重放的 benchmark 可对同一 industry 生成**重复候选**（污染 Review Center）并产生**重复 API 计费**；rogue 来源不可追踪，审计困难。当前**无生产重复写入**（已核验）。
+**Fix Suggestion（下一轮，勿顺手做）:**
+1. benchmark 走 `scheduler.runResearchJob`（复用 `research:BENCHMARK:{industryKey}` advisory lock）或在 `generateCandidateVersion` 前加「同 industry 存在 PENDING 候选则拒绝/复用」预检。
+2. `ResearchJob` 增 `idempotencyKey`（如 `BENCHMARK:{industryKey}:{v1VersionId}`）+ `@@unique`，persist 前二次校验。
+3. Job 记录发起来源（operator/sessionId/taskId）以便审计。
+4. 追查非授权后台任务通知的触发链路（harness/scheduler/task 队列）。
+**Auto-resolves:** No.
 
 ---
 

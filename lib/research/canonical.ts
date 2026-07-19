@@ -45,8 +45,37 @@ const AI_SEMI_TECHS: CanonTech[] = [
   { techKey: "etch", name: "刻蚀", aliases: ["etch", "刻蚀", "dry etch", "plasma etch"] },
 ];
 
-export const CANONICAL_SEGMENTS: Record<string, CanonSeg[]> = { AI_SEMICONDUCTOR: AI_SEMI_SEGMENTS };
-export const CANONICAL_TECHNOLOGIES: Record<string, CanonTech[]> = { AI_SEMICONDUCTOR: AI_SEMI_TECHS };
+// ── AI 数据中心规范环节（7 段：算力硬件/服务器/网络/散热/供电/设施/云）──
+const AI_DC_SEGMENTS: CanonSeg[] = [
+  { segmentKey: "compute_hardware", layer: "UPSTREAM", nameZh: "算力硬件/芯片载板", aliases: ["算力硬件", "compute hardware", "gpu", "accelerator", "ai chip", "cpu", "ic substrate", "载板", "封装载板", "abf"] },
+  { segmentKey: "server_system", layer: "MIDSTREAM", nameZh: "AI 服务器/机架整机", aliases: ["ai server", "gpu server", "server", "服务器", "rack", "机架", "整机", "rack scale", "机架级"] },
+  { segmentKey: "dc_network", layer: "MIDSTREAM", nameZh: "数据中心网络/光互连", aliases: ["数据中心网络", "data center network", "datacenter network", "network", "ethernet", "以太网", "infiniband", "spine-leaf", "spine leaf", "光互连", "optical interconnect", "光缆", "connector", "switch", "交换机"] },
+  { segmentKey: "cooling", layer: "INFRASTRUCTURE", nameZh: "散热/液冷/风冷", aliases: ["散热", "冷却", "cooling", "thermal", "liquid cooling", "液冷", "air cooling", "风冷", "immersion", "浸没", "hvac", "空调"] },
+  { segmentKey: "power_infra", layer: "INFRASTRUCTURE", nameZh: "供配电/UPS/变压器", aliases: ["供电", "配电", "供配电", "power", "power infrastructure", "power distribution", "ups", "变压器", "transformer", "switchgear", "pdu", "电力"] },
+  { segmentKey: "dc_facility", layer: "INFRASTRUCTURE", nameZh: "数据中心建设/托管/边缘", aliases: ["数据中心建设", "data center facility", "colocation", "托管", "colo", "facility", "edge data center", "边缘数据中心", "construction", "建设"] },
+  { segmentKey: "hyperscale_cloud", layer: "DOWNSTREAM", nameZh: "超大规模/云基础设施", aliases: ["超大规模", "hyperscaler", "hyperscale", "cloud", "云", "cloud infrastructure", "云基础设施", "iaas", "gpu cloud", "gpu 云"] },
+];
+
+// ── AI 数据中心技术词典（14 项，覆盖用户 16 个重点方向）──
+const AI_DC_TECHS: CanonTech[] = [
+  { techKey: "ai_server", name: "AI/GPU 服务器", aliases: ["ai server", "gpu server", "ai 服务器", "gpu 服务器", "accelerated server", "hgx"] },
+  { techKey: "rack_scale", name: "机架级架构", aliases: ["rack scale", "rack-scale", "机架级", "nvl72", "gb200", "superpod", "机架级架构"] },
+  { techKey: "dc_ethernet", name: "数据中心以太网", aliases: ["ethernet", "以太网", "ultra ethernet", "roce", "spine-leaf", "spine leaf", "clos", "数据中心以太网"] },
+  { techKey: "infiniband", name: "InfiniBand/NVLink", aliases: ["infiniband", "ib", "nvlink", "nvl", "低时延互连"] },
+  { techKey: "liquid_cooling", name: "液冷", aliases: ["liquid cooling", "液冷", "direct-to-chip", "d2c", "dlc", "cold plate", "冷板"] },
+  { techKey: "immersion_cooling", name: "浸没式冷却", aliases: ["immersion cooling", "immersion", "浸没", "two-phase", "两相"] },
+  { techKey: "air_cooling", name: "风冷/空调", aliases: ["air cooling", "风冷", "crac", "crah", "hvac", "空调", "机房空调"] },
+  { techKey: "power_distribution", name: "供配电", aliases: ["power distribution", "供配电", "配电", "busway", "pdu", "switchgear", "hvdc", "母线"] },
+  { techKey: "ups_backup", name: "UPS/后备电源", aliases: ["ups", "后备电源", "uninterruptible power", "battery backup", "bess", "储能", "不间断电源"] },
+  { techKey: "transformer", name: "变压器/变电", aliases: ["transformer", "变压器", "substation", "变电", "输配电"] },
+  { techKey: "optical_interconnect", name: "光互连/光缆", aliases: ["optical interconnect", "光互连", "optical fiber", "光纤", "光缆", "dac", "aec", "cpo", "co-packaged optics", "共封装光学", "光模块", "connector", "连接器"] },
+  { techKey: "edge_datacenter", name: "边缘数据中心", aliases: ["edge data center", "edge datacenter", "边缘数据中心", "边缘", "micro data center", "edge dc"] },
+  { techKey: "ic_substrate", name: "IC 封装载板", aliases: ["ic substrate", "abf substrate", "package substrate", "封装载板", "载板", "abf", "玻璃基板", "glass substrate"] },
+  { techKey: "cloud_infra", name: "云基础设施", aliases: ["cloud infrastructure", "云基础设施", "hyperscale", "iaas", "云", "gpu cloud", "主权云", "sovereign cloud"] },
+];
+
+export const CANONICAL_SEGMENTS: Record<string, CanonSeg[]> = { AI_SEMICONDUCTOR: AI_SEMI_SEGMENTS, AI_DATACENTER: AI_DC_SEGMENTS };
+export const CANONICAL_TECHNOLOGIES: Record<string, CanonTech[]> = { AI_SEMICONDUCTOR: AI_SEMI_TECHS, AI_DATACENTER: AI_DC_TECHS };
 
 const norm = (s: string) => (s ?? "").toLowerCase().replace(/[^a-z0-9一-鿿]/g, "");
 function resolve<T extends { aliases: string[]; name?: string }>(list: T[], keyField: (t: T) => string, input?: string): string | null {
