@@ -43,9 +43,8 @@ export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: s
   );
 
   return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 65, opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: ".2s" }} />
-      <aside style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(480px,95vw)", background: COLORS.card, borderLeft: `1px solid ${COLORS.border}`, zIndex: 70, transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform .28s cubic-bezier(.32,.72,0,1)", overflowY: "auto", boxShadow: "-12px 0 44px rgba(0,0,0,.25)", color: COLORS.text }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 65, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity .2s" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px,94vw)", maxHeight: "88vh", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 18, overflowY: "auto", boxShadow: "0 24px 68px rgba(0,0,0,.32)", color: COLORS.text, transform: open ? "scale(1)" : "scale(0.96)", transition: "transform .22s cubic-bezier(.32,.72,0,1)" }}>
         {loading || !c ? (
           <div style={{ padding: 40, textAlign: "center", color: COLORS.textFaint, fontSize: 13 }}>{loading ? "…" : ""}</div>
         ) : (
@@ -136,7 +135,7 @@ export default function CompanyDeepCard({ companyKey, onClose }: { companyKey: s
             <div style={{ height: 20 }} />
           </>
         )}
-      </aside>
-    </>
+      </div>
+    </div>
   );
 }
