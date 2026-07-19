@@ -2305,6 +2305,7 @@ model ResearchTimelineEvent {
   title      String
   summary    String?  @db.Text
   impact     String? // POSITIVE|NEGATIVE|NEUTRAL
+  kind       String   @default("HISTORICAL") // HISTORICAL|FORECAST(AI 推断)
   claimId    String?
   occurredAt DateTime
   createdAt  DateTime @default(now())

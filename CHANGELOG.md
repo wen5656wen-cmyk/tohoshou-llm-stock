@@ -2,6 +2,19 @@
 
 ---
 
+## [18.34.0] - 2026-07-19 — 🔬 Deep Research Phase 4b：产业详情多区域 + 公司深度卡15段 + Graph API + Golden Path 全链路可见
+
+深度研究 Phase 4 完成。AI 半导体 Golden Path 前端全链路可见 + 闭环。只读 StockScore/Stock/Yahoo，零复制评分；未碰冻结模块。
+
+- **Graph API**（`/api/research/graph/[key]`）：typed nodes(公司/环节/技术) + edges，为 Phase 6 专业图库(React Flow/Cytoscape)备数据；**不做临时 DOM 图**(P0-1)。
+- **产业详情多区域**（`/deep-research/[key]` + `IndustryDetail`）：Header+更新条 / AI Summary / Research KPI(含 Claims/Evidence, P0-3) / Knowledge Graph(数据就绪+Phase6说明) / Today Changed(当日新增Claim/Evidence+Review, P0-4) / 技术瓶颈 / 日股实时表(读StockScore/Yahoo不复制) / 隐形冠军 / 关键技术 / Timeline(Historical/Planned/Forecast 视觉区分,Forecast紫斜体虚线, P0-5) / 研究报告 / 证据 / 版本。
+- **公司深度卡 15 段 + Research Snapshot**（`CompanyDeepCard`, P0-2）：顶部 Snapshot(Version/Freshness/Claims/Evidence/Confidence/Reviewed) + Overview…Version History 15 段 + 日股实时(Price/Change/MarketCap/AI Score/Recommendation 只读) + 闭环(Stock Center/AI Report/Decision/Watchlist/Mission)。
+- schema: ResearchTimelineEvent +kind(HISTORICAL/FORECAST)；活动种子(daily3/timeline4[2H+2F]/calendar3)。i18n +75 dr.detail/company key。
+- 生产验证: 详情页200 · KPI 9claims/10evidence · Timeline三态 · 日股实时(Lasertec 41890/AI38/AVOID) · Graph 25nodes/12edges · 公司卡实时+15段。health0/tsc0/build✅。
+- **Phase 5 待续**：其余 8 产业经统一 Research Engine 生成(禁复制页面)。Phase 6 KG 接专业图库。Research Chat 后续基于 Claim/Evidence/Version。
+
+---
+
 ## [18.33.0] - 2026-07-19 — 🔬 Deep Research Phase 4a：只读 API + 首页九卡（真实数据·专业投研风格）
 
 深度研究 Phase 4 前半：后端只读 API + 首页上线。只读 StockScore/Stock/Yahoo，零复制评分；未碰冻结模块。

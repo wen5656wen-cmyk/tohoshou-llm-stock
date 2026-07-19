@@ -48,6 +48,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
   const entityIds = [ind.id, ...technologies.map((t) => t.id), ...companies.map((c) => c.id), ...bottlenecks.map((b) => b.id)];
   const claims = await prisma.researchClaim.findMany({ where: { entityId: { in: entityIds } }, include: { evidence: true }, orderBy: { importance: "desc" } });
 
+  // Today Changed（当日新增 Claim/Evidence + Review 状态，不生成长文）+ Calendar（Planned）
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const [newClaims, newEvidence, calendar] = await Promise.all([
+    prisma.researchClaim.count({ where: { entityId: { in: entityIds }, createdAt: { gte: dayStart } } }),
+    prisma.researchEvidence.count({ where: { claim: { entityId: { in: entityIds } }, createdAt: { gte: dayStart } } }),
+    prisma.researchCalendarEvent.findMany({ where: { industryId: ind.id }, orderBy: { scheduledAt: "asc" }, take: 20 }),
+  ]);
+  // 统一时间线：Historical/Forecast(TimelineEvent) + Planned(Calendar)
+  const unifiedTimeline = [
+    ...timeline.map((t) => ({ kind: t.kind, eventType: t.eventType, title: t.title, summary: t.summary, impact: t.impact, at: t.occurredAt })),
+    ...calendar.map((c) => ({ kind: "PLANNED", eventType: c.eventType, title: c.title, summary: null as string | null, impact: null as string | null, at: c.scheduledAt })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
   const companyOut = companies.map((c) => {
     const q = c.symbol ? qMap.get(c.symbol) : undefined;
     const s = c.symbol ? sMap.get(c.symbol) : undefined;
@@ -72,7 +85,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
     segments, technologies, companies: companyOut, bottlenecks, edges,
     version: version ? { version: version.version, status: version.status, reviewStatus: version.reviewStatus, model: version.model, provider: version.provider, estimatedCost: version.estimatedCost, evidenceCount: version.evidenceCount, generatedAt: version.generatedAt, publishedAt: version.publishedAt, reviews: version.reviews.map((r) => ({ reviewer: r.reviewer, action: r.action, comment: r.comment, reviewedAt: r.reviewedAt })) } : null,
     report: report ? { title: report.title, version: report.version, status: report.status, summary: report.summary } : null,
-    dailyUpdates: dailies, timeline, claimsByEntity,
+    dailyUpdates: dailies, timeline: unifiedTimeline, claimsByEntity,
+    todayChanged: { newClaims, newEvidence, reviewStatus: version?.reviewStatus ?? null, dailyToday: dailies.filter((d) => new Date(d.occurredAt) >= dayStart).length },
+    kpi: { companies: companyOut.length, jpListed: companyOut.filter((c) => c.listed).length, bottlenecks: bottlenecks.length, technologies: technologies.length, claims: claims.length, evidence: claims.reduce((n, c) => n + c.evidence.length, 0), hiddenChampions: companyOut.filter((c) => c.hc).length, edges: edges.length },
     evidenceCount: claims.reduce((n, c) => n + c.evidence.length, 0),
   });
 }
