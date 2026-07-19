@@ -1,7 +1,7 @@
 // ── P18 · AI Mission Lab · 引擎（M1 · 双阶段 Forward Test，无未来函数）──────────
 // Phase1 prepareMissionDay（08:20 开盘前）：仅生成/校验今日决策 → READY_FOR_OPEN。
 //   绝不生成 Trade / 改 Position / 扣现金 / 成交。标记仅用「上一交易日已知收盘价」。
-// Phase2 executeMissionDay（09:10 开盘后）：读实时行情(regularMarketTime 校验新鲜) → 成交。
+// Phase2 executeMissionDay（09:30 开盘后·默认）：读实时行情(regularMarketTime 校验新鲜) → 成交。
 //   幂等：READY_FOR_OPEN→EXECUTING 的 CAS 认领 + Trade.decisionId 唯一 + 原子现金增减 + NAV upsert。
 // 只读 StockScore/Research；只写 ai_mission_*；绝不碰 paper_/user_/strategy_/评分。
 import { prisma } from "../prisma";
@@ -13,6 +13,8 @@ import { buildExplain } from "./explain";
 const openTime = (d: string) => new Date(`${d}T00:00:00.000Z`); // 09:00 JST 开盘 = 00:00 UTC
 const daysBetween = (a: Date, b: Date) => Math.max(0, Math.round((b.getTime() - a.getTime()) / (24 * 3600 * 1000)));
 const PRICE_SOURCE = "yahoo_realtime";
+const FOLLOWABLE_BAND = 0.005; // 建议可跟随成交区间 ±0.5%（非固定成交价）
+const followBand = (p: number) => ({ followablePriceLow: +(p * (1 - FOLLOWABLE_BAND)).toFixed(2), followablePriceHigh: +(p * (1 + FOLLOWABLE_BAND)).toFixed(2) });
 
 // ═══ Phase 1（开盘前）：准备 + 校验 + 生成 READY_FOR_OPEN，绝不成交 ═══
 export async function prepareMissionDay(missionId: string, tradingDay: string) {
@@ -130,7 +132,7 @@ async function fillDecision(missionId: string, cfg: MissionConfig, d: { id: stri
       if (qty * execPrice > cash) { const lot = 100; qty = Math.floor(cash / execPrice / lot) * lot; }
       if (qty <= 0) return { done: false, status: "EXPIRED" };
       const amount = +(qty * execPrice).toFixed(2);
-      const trade = await tx.aiMissionTrade.create({ data: { missionId, symbol, action: d.action, qty, price: execPrice, amount, executionPrice: execPrice, marketPriceAt, priceSource: PRICE_SOURCE, executionWindow: d.executionWindow, slippagePct: cfg.slippagePct, signalTime: d.signalTime, executedAt: new Date(), decisionId: d.id } });
+      const trade = await tx.aiMissionTrade.create({ data: { missionId, symbol, action: d.action, qty, price: execPrice, amount, executionPrice: execPrice, ...followBand(execPrice), marketPriceAt, priceSource: PRICE_SOURCE, executionWindow: d.executionWindow, slippagePct: cfg.slippagePct, signalTime: d.signalTime, executedAt: new Date(), decisionId: d.id } });
       if (pos) {
         const newQty = pos.qty + qty;
         const newAvg = +((pos.qty * pos.avgCost + qty * execPrice) / newQty).toFixed(4);
@@ -147,7 +149,7 @@ async function fillDecision(missionId: string, cfg: MissionConfig, d: { id: stri
     const amount = +(qty * execPrice).toFixed(2);
     const pnl = +((execPrice - pos.avgCost) * qty).toFixed(2);
     const holdingDays = daysBetween(pos.openedAt, new Date());
-    const trade = await tx.aiMissionTrade.create({ data: { missionId, symbol, action: d.action, qty, price: execPrice, amount, executionPrice: execPrice, marketPriceAt, priceSource: PRICE_SOURCE, executionWindow: d.executionWindow, slippagePct: cfg.slippagePct, signalTime: d.signalTime, executedAt: new Date(), decisionId: d.id, realizedPnl: pnl, returnPct: +((execPrice / pos.avgCost - 1) * 100).toFixed(2), holdingDays, isWin: pnl > 0, isTakeProfit: d.action === "TP", isStopLoss: d.action === "SL" } });
+    const trade = await tx.aiMissionTrade.create({ data: { missionId, symbol, action: d.action, qty, price: execPrice, amount, executionPrice: execPrice, ...followBand(execPrice), marketPriceAt, priceSource: PRICE_SOURCE, executionWindow: d.executionWindow, slippagePct: cfg.slippagePct, signalTime: d.signalTime, executedAt: new Date(), decisionId: d.id, realizedPnl: pnl, returnPct: +((execPrice / pos.avgCost - 1) * 100).toFixed(2), holdingDays, isWin: pnl > 0, isTakeProfit: d.action === "TP", isStopLoss: d.action === "SL" } });
     const remain = pos.qty - qty;
     if (remain <= 0) await tx.aiMissionPosition.update({ where: { id: pos.id }, data: { qty: 0, status: "CLOSED", closedAt: new Date(), marketValue: 0, lastPrice: execPrice } });
     else await tx.aiMissionPosition.update({ where: { id: pos.id }, data: { qty: remain, costBasis: +(remain * pos.avgCost).toFixed(2), lastPrice: execPrice } });

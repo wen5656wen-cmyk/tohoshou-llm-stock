@@ -2456,7 +2456,9 @@ model AiMissionTrade {
   amount          Float // = qty * price
   fee             Float     @default(0) // 预留手续费
   slippagePct     Float     @default(0) // 滑点%（已含在 price）
-  executionPrice  Float? // 实际成交价（含滑点，= price，独立留档）
+  executionPrice      Float? // 实际成交价（含滑点，= price，独立留档）
+  followablePriceLow  Float? // 建议可跟随成交区间下限（默认 execPrice×(1-0.5%)）
+  followablePriceHigh Float? // 建议可跟随成交区间上限（默认 execPrice×(1+0.5%)）
   marketPriceAt   DateTime? // 行情报价时间戳（regularMarketTime，证明为开盘后新鲜价）
   priceSource     String? // 行情来源，例 "yahoo_realtime"
   executionWindow String? // 执行窗口，例 "OPEN:2026-07-20"

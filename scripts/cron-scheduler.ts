@@ -336,9 +336,10 @@ cron.schedule("20 8 * * *", async () => {
   log("INFO", "⏰ 08:20 触发：AI Mission Lab Phase1 准备（P18-M1，默认关闭）");
   await runAsync("mission-lab-prepare.ts", "AI Mission Lab Prepare (P18-M1)", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
-// Phase2 09:10 开盘后：读实时行情(regularMarketTime 校验新鲜) → 成交 → Trade/Position/Cash/NAV（幂等）。
-cron.schedule("10 9 * * *", async () => {
-  log("INFO", "⏰ 09:10 触发：AI Mission Lab Phase2 执行（P18-M1，默认关闭）");
+// Phase2 09:30 开盘后：读实时行情(regularMarketTime 校验新鲜) → 成交 → Trade/Position/Cash/NAV（幂等）。
+// 09:30（非 09:10）：Yahoo Japan 实时行情约 15–20 分钟延迟，09:30 才是真实可跟随价（目标=可跟单，非贴近开盘）。
+cron.schedule("30 9 * * *", async () => {
+  log("INFO", "⏰ 09:30 触发：AI Mission Lab Phase2 执行（P18-M1，默认关闭）");
   await runAsync("mission-lab-execute.ts", "AI Mission Lab Execute (P18-M1)", 10 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
