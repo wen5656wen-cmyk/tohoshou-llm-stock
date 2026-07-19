@@ -2379,3 +2379,154 @@ model ResearchJob {
   @@index([jobType])
   @@map("research_jobs")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P18 · AI Mission Lab（真实前向实验 · Forward Test）
+// 完全独立数据域，与 paper_* / user_holdings / strategy_* / 资金链路 禁止共表。
+// Mission 仅为策略执行层：只读 StockScore/DecisionEngine/Research/News/Risk，绝不改评分。
+// 无未来函数：决策(signalTime,收盘后基于已知数据) → 执行窗口(次一交易日开盘) → 成交(次日开盘价+滑点)。
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AiMission {
+  id              String   @id @default(cuid())
+  missionType     String // WEEKLY | MONTHLY
+  periodLabel     String // 例 "2026-W30" | "2026-M07"（支持 Week30/31/32… 持续归档，非唯一 type）
+  seq             Int      @default(1) // 同 type 内序号
+  name            String?
+  initialCapital  Float // JPY（10,000,000）
+  targetPct       Float // 目标收益% (5 | 20)
+  periodDays      Int // 7 | 30（按交易周期）
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("ACTIVE") // ACTIVE | COMPLETED | ARCHIVED
+  cashJpy         Float // 当前现金
+  equityJpy       Float // 当前总资产 = 现金 + 持仓市值
+  realizedPnl     Float    @default(0)
+  peakEquity      Float    @default(0) // 用于回撤计算
+  strategyVersion String   @default("v1")
+  lastPrepareDate String? // 幂等：最近一次 Phase1 准备的交易日 YYYY-MM-DD
+  lastExecuteDate String? // 幂等：最近一次 Phase2 执行的交易日 YYYY-MM-DD
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  positions AiMissionPosition[]
+  trades    AiMissionTrade[]
+  decisions AiMissionDecision[]
+  navs      AiMissionNav[]
+
+  @@unique([missionType, periodLabel])
+  @@index([missionType, status])
+  @@map("ai_mission")
+}
+
+model AiMissionPosition {
+  id                String   @id @default(cuid())
+  missionId         String
+  mission           AiMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  symbol            String
+  qty               Int
+  avgCost           Float // JPY / 股
+  costBasis         Float // = qty * avgCost（累计成本）
+  openedAt          DateTime
+  lastPrice         Float? // 最近标记价（收盘）
+  marketValue       Float    @default(0)
+  unrealizedPnl     Float    @default(0)
+  unrealizedPct     Float    @default(0)
+  maxUnrealizedGain Float    @default(0) // 最大浮盈%
+  maxDrawdownPct    Float    @default(0) // 持仓期最大回撤%
+  stopLossPrice     Float? // 当前止损价（策略设定）
+  takeProfitPrice   Float? // 当前止盈价
+  status            String   @default("OPEN") // OPEN | CLOSED
+  closedAt          DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([missionId, status])
+  @@index([missionId, symbol])
+  @@map("ai_mission_position")
+}
+
+model AiMissionTrade {
+  id           String   @id @default(cuid())
+  missionId    String
+  mission      AiMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  symbol       String
+  action          String // BUY | SELL | ADD | REDUCE | TP | SL
+  qty             Int
+  price           Float // 成交价 = 开盘后真实可取行情 executionPrice（含滑点）
+  amount          Float // = qty * price
+  fee             Float     @default(0) // 预留手续费
+  slippagePct     Float     @default(0) // 滑点%（已含在 price）
+  executionPrice  Float? // 实际成交价（含滑点，= price，独立留档）
+  marketPriceAt   DateTime? // 行情报价时间戳（regularMarketTime，证明为开盘后新鲜价）
+  priceSource     String? // 行情来源，例 "yahoo_realtime"
+  executionWindow String? // 执行窗口，例 "OPEN:2026-07-20"
+  signalTime      DateTime // 信号/决策依据数据的 as-of 时间（严格早于 executedAt）
+  executedAt      DateTime // 实际成交时间（开盘后 Phase2）
+  // 平仓类(SELL/REDUCE/TP/SL)实现结果
+  realizedPnl  Float?
+  returnPct    Float?
+  holdingDays  Int?
+  isWin        Boolean?
+  isTakeProfit Boolean  @default(false)
+  isStopLoss   Boolean  @default(false)
+  decisionId   String?  @unique // 关联 AiMissionDecision（唯一 → 一决策至多一成交，DB 级幂等）
+  createdAt    DateTime @default(now())
+
+  @@index([missionId, executedAt])
+  @@index([missionId, symbol])
+  @@map("ai_mission_trade")
+}
+
+model AiMissionDecision {
+  id                String   @id @default(cuid())
+  missionId         String
+  mission           AiMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  decidedAt         DateTime // 决策生成时间（收盘后）
+  signalTime        DateTime // 决策依据数据的 as-of 时间（证明无未来函数）
+  executionWindow   String // 执行窗口，例 "OPEN:2026-07-20"（当日开盘后 Phase2 执行）
+  status            String   @default("READY_FOR_OPEN") // READY_FOR_OPEN(Phase1待开盘执行) | EXECUTING(已CAS认领) | EXECUTED | SKIPPED(无新鲜行情) | EXPIRED | NOOP(HOLD/NO_ACTION)
+  symbol            String? // null = 组合层 NO_ACTION
+  action            String // BUY | SELL | ADD | REDUCE | TP | SL | HOLD | NO_ACTION
+  qty               Int?
+  refPrice          Float? // 决策时参考价（如收盘价，非成交价）
+  cashJpy           Float // 决策时现金
+  equityJpy         Float // 决策时总资产
+  returnPctAtTime   Float // 决策时 Mission 收益率
+  holdingsSnapshot  Json // 决策时全部持仓快照
+  aiScore           Float? // StockScore.adaptiveScore
+  recommendation    String? // recommendationV2
+  industryHeat      Float? // 行业热度（派生）
+  newsImpact        Float? // 新闻影响（newsSentimentScore/派生）
+  riskLevel         String? // actionRiskLevel / riskOverride
+  explainWhy        String   @db.Text // 规则派生自然语言解释（可回放）
+  explainStructured Json // {aiScore,recommendation,industry,news,risk,position,cash,rulesTriggered[],takeProfit,stopLoss,strategyVersion}
+  rulesTriggered    Json? // string[]
+  strategyVersion   String
+  tradeId           String? // 执行后关联成交
+  createdAt         DateTime @default(now())
+
+  @@index([missionId, decidedAt])
+  @@index([missionId, status])
+  @@map("ai_mission_decision")
+}
+
+model AiMissionNav {
+  id             String   @id @default(cuid())
+  missionId      String
+  mission        AiMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  cashJpy        Float
+  positionsValue Float
+  equityJpy      Float
+  returnPct      Float // 相对初始资金累计收益%
+  dailyReturnPct Float    @default(0)
+  drawdownPct    Float    @default(0)
+  topixReturn    Float? // 同期 TOPIX 累计%
+  nikkeiReturn   Float? // 同期 Nikkei225 累计%
+  alpha          Float? // returnPct - benchmark
+  createdAt      DateTime @default(now())
+
+  @@unique([missionId, date])
+  @@index([missionId, date])
+  @@map("ai_mission_nav")
+}

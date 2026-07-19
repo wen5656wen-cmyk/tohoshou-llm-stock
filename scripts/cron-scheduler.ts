@@ -327,6 +327,21 @@ cron.schedule("15 15 * * *", async () => {
   await runAsync("portfolio-nav-snapshot.ts", "Portfolio NAV Snapshot (P17-02B)", 3 * 60 * 1000);
 }, { timezone: "Asia/Tokyo" });
 
+// ── P18 AI Mission Lab · 双阶段 Forward Test（无未来函数）─────────────────────
+// ⚠️ 默认关闭：两脚本内 MISSION_LAB_ENABLED!=true 直接跳过（M1 不激活）。JPX 非交易日自动跳过。
+// 激活需人工 GO 后：① 生产 .env 置 MISSION_LAB_ENABLED=true ② npx tsx scripts/mission-lab-init.ts 注资
+// ③ `pm2 restart tohoshou-cron`（仅 restart web 不会重新加载本 cron.schedule 注册）。
+// Phase1 08:20 开盘前：生成/校验今日决策 → READY_FOR_OPEN（不成交/不改持仓/不扣现金）。
+cron.schedule("20 8 * * *", async () => {
+  log("INFO", "⏰ 08:20 触发：AI Mission Lab Phase1 准备（P18-M1，默认关闭）");
+  await runAsync("mission-lab-prepare.ts", "AI Mission Lab Prepare (P18-M1)", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+// Phase2 09:10 开盘后：读实时行情(regularMarketTime 校验新鲜) → 成交 → Trade/Position/Cash/NAV（幂等）。
+cron.schedule("10 9 * * *", async () => {
+  log("INFO", "⏰ 09:10 触发：AI Mission Lab Phase2 执行（P18-M1，默认关闭）");
+  await runAsync("mission-lab-execute.ts", "AI Mission Lab Execute (P18-M1)", 10 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
 // ── 10:00 JST — Fusion Paper Trading（P2-T4）────────────────────────────────
 // Production(公式推薦) / AlphaScore / Regime Fusion の3戦略で日次 Top10/20 を生成し、
 // 未来 1/3/5/10/20 日リターンを蓄積（2–4週）。READ-ONLY：公式推薦は変更しない。
