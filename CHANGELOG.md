@@ -2,6 +2,29 @@
 
 ---
 
+## [18.40.0] - 2026-07-19 — 🧪 V2 Benchmark 工具就绪（候选流程 + 13 项报告 · Feature Freeze 期质量工具）
+
+Deep Research V2 · Research Quality Initiative。V1 Feature Freeze（仅质量工具，不新增平台页面/架构）。等用户配 Strong Model 后跑真 Benchmark。
+
+### 候选-审批-落地流程（保证 V1 全程完整、不覆盖）
+- 引擎重构 `lib/research/engine.ts`：抽 `applyPayload()`（落地实体，供首版/审批复用）+ 新增 **`generateCandidateVersion()`**（V2 候选**仅 payload 入库 AI_RESEARCHED，不 apply 实体**，V1 live 不动）+ **`applyVersion()`**（审批通过才把候选 payload 落地实体、版本/产业/报告置 PUBLISHED，V1 版本记录永久保留）。版本新增存 `payload` 快照（利于 Diff/审计）。
+- Review APPROVE：INDUSTRY 候选(有 payload)→ 调 `applyVersion` 落地(此刻起 live=V2)；REJECT/RequestChanges 不 apply。
+- Version 详情：候选(AI_RESEARCHED+payload) 从 **payload** 读 Claim/Evidence（不误显 V1 实时数据）。
+- **不触碰评分/交易/Decision/Stock Center**。
+
+### V2 Benchmark 运行器 `scripts/research/benchmark-v2.ts`（13 项报告）
+- 流程 AI 半导体 V1→Strong Model→V2 候选→13 项报告→(--persist)入库→Review→Approve→PUBLISHED。
+- **13 项**：Claim 数/Evidence 数/Evidence Coverage/Hallucination(种子外上市代码待人审)/Entity Accuracy/Company·Technology·Segment Accuracy/KG 完整度/Reviewer 修改量(PENDING)/Token/Cost/Duration/与 Seed 一致率/**Publish Ready 判定**（自动门槛+人审）。
+- `--mock --dry` 用种子占位强模型验证管线（无 key）：Coverage 100%/一致率 100%/KG 22nodes12edges/自动门槛全过/AUTO_PASS。
+- 发布门槛：重大 Claim 证据覆盖≥95% · 无证据确定 Claim=0 · 幻觉=0 · symbol 错误=0 · Schema=100% · Review Publish Ready。
+
+### 测试
+- `npm run test:research` 扩至 **37/37**：新增【12】V2 端到端（throwaway 产业）——V1 apply→PUBLISHED；**生成候选不改写 V1 实体**；Approve→applyVersion 落地；候选/产业→PUBLISHED；自动清理。
+
+- 无 DB 结构变更（复用 research_* + ResearchVersion.payload）；build✅/tsc0/health0。**待用户配 RESEARCH_STRONG_MODEL/ANTHROPIC_API_KEY 后跑真 AI 半导体 Benchmark**；Phase 5 冻结。
+
+---
+
 ## [18.39.0] - 2026-07-19 — 🔒📚 安全守卫 + 文档收尾（收尾 2/2 · Deep Research 最终收尾完成）
 
 Deep Research 最终收尾第二批。Phase 5 保持冻结。

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isReviewAction, reviewPatch } from "@/lib/research/review-flow";
 import { checkAdminAuth } from "@/lib/admin-auth";
+import { applyVersion } from "@/lib/research/engine";
 
 export const dynamic = "force-dynamic";
 
@@ -35,15 +36,20 @@ export async function POST(req: Request) {
   if (!v) return NextResponse.json({ error: "version not found" }, { status: 404 });
 
   const now = new Date();
-  const patch = reviewPatch(action, reviewer, comment, now, v);
+  await prisma.researchReview.create({ data: { versionId, reviewer, action: String(action), comment } });
 
-  const [, updated] = await prisma.$transaction([
-    prisma.researchReview.create({ data: { versionId, reviewer, action: String(action), comment } }),
-    prisma.researchVersion.update({ where: { id: versionId }, data: patch }),
-  ]);
-  // 产业版本通过 → 产业转 PUBLISHED（仅研究状态；不触碰评分/交易/Decision）
-  if (action === "APPROVE" && v.entityType === "INDUSTRY") {
+  // 候选(有 payload)的 INDUSTRY 版本获批 → 落地 payload 到实体 + 版本/产业/报告置 PUBLISHED
+  // （此刻起 live=V2；V1 版本记录永久保留不覆盖）。不触碰评分/交易/Decision。
+  let applied = false;
+  if (action === "APPROVE" && v.entityType === "INDUSTRY" && v.payload) {
+    await applyVersion(versionId);
+    applied = true;
+  }
+  const patch = reviewPatch(action, reviewer, comment, now, v);
+  const updated = await prisma.researchVersion.update({ where: { id: versionId }, data: patch });
+  // legacy（无 payload）产业 APPROVE：仅置产业 PUBLISHED
+  if (action === "APPROVE" && v.entityType === "INDUSTRY" && !applied) {
     await prisma.researchIndustry.update({ where: { id: v.entityId }, data: { status: "PUBLISHED" } }).catch(() => {});
   }
-  return NextResponse.json({ ok: true, version: { id: updated.id, status: updated.status, reviewStatus: updated.reviewStatus } });
+  return NextResponse.json({ ok: true, applied, version: { id: updated.id, status: updated.status, reviewStatus: updated.reviewStatus } });
 }

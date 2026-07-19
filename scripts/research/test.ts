@@ -2,13 +2,38 @@
 // 纯函数：Schema 校验 / Claim 无 Evidence 阻断 / Provider Adapter / Version Diff / 边去重 / Review 流转 / Seed 完整性。
 // DB：Scheduler 幂等 / Advisory lock 并发 / Retry / Timeout / Failure isolation / StockLink 只读。
 // 用法: npx tsx scripts/research/test.ts   （DB 测试需可达数据库，本地不可达则在生产跑）
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "dotenv/config";
 import { validateIndustryResearch, makeProvider, getResearchProvider } from "../../lib/research/providers";
 import { SEEDS } from "../../lib/research/provider-seed";
 import { payloadCounts, countsDiff } from "../../lib/research/diff";
 import { reviewPatch, isReviewAction } from "../../lib/research/review-flow";
 import { runResearchJob, runResearchJobsIsolated } from "../../lib/research/scheduler";
+import { runIndustryResearch, generateCandidateVersion, applyVersion } from "../../lib/research/engine";
+import { prisma } from "../../lib/prisma";
 import type { IndustryResearch } from "../../lib/research/types";
+
+async function cleanupTestIndustry(key: string, coKeys: string[]) {
+  const ind = await prisma.researchIndustry.findUnique({ where: { industryKey: key } });
+  if (!ind) return;
+  const cos = await prisma.researchCompany.findMany({ where: { companyKey: { in: coKeys } }, select: { id: true } });
+  const coIds = cos.map((c) => c.id);
+  const techs = await prisma.researchTechnology.findMany({ where: { industryId: ind.id }, select: { id: true } });
+  await prisma.researchClaim.deleteMany({ where: { entityId: { in: [ind.id, ...coIds, ...techs.map((t) => t.id)] } } });
+  await prisma.researchGraphEdge.deleteMany({ where: { industryId: ind.id } });
+  await prisma.researchBottleneck.deleteMany({ where: { industryId: ind.id } });
+  await prisma.researchCompanyIndustry.deleteMany({ where: { industryId: ind.id } });
+  await prisma.researchCompanyTechnology.deleteMany({ where: { companyId: { in: coIds } } });
+  await prisma.researchStockLink.deleteMany({ where: { companyId: { in: coIds } } });
+  await prisma.researchHiddenChampionScore.deleteMany({ where: { companyId: { in: coIds } } });
+  await prisma.researchVersion.deleteMany({ where: { entityType: "INDUSTRY", entityId: ind.id } });
+  await prisma.researchReport.deleteMany({ where: { refKey: key } });
+  await prisma.researchJob.deleteMany({ where: { industryKey: key } });
+  await prisma.researchTechnology.deleteMany({ where: { industryId: ind.id } });
+  await prisma.researchSegment.deleteMany({ where: { industryId: ind.id } });
+  await prisma.researchCompany.deleteMany({ where: { companyKey: { in: coKeys } } });
+  await prisma.researchIndustry.delete({ where: { id: ind.id } });
+}
 
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra = "") => { if (cond) { pass++; console.log(`  ✅ ${name}`); } else { fail++; console.log(`  ❌ ${name} ${extra}`); } };
@@ -105,13 +130,37 @@ async function main() {
     ok("批量失败隔离：一成功一失败互不影响", iso[0].status === "SUCCESS" && iso[1].status === "FAILED", iso.map((x) => x.status).join(","));
 
     console.log("【11】StockLink 只读关联（DB/LIVE）");
-    const { prisma } = await import("../../lib/prisma");
     const base = process.env.SELFTEST_BASE ?? "http://localhost:3000";
     const co = await fetch(`${base}/api/research/company/lasertec`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     if (co?.company?.symbol) {
       const score = await prisma.stockScore.findUnique({ where: { symbol: co.company.symbol }, select: { adaptiveScore: true } });
       ok("公司 live.aiScore = StockScore(读穿非复制)", (co.live?.aiScore ?? null) === (score?.adaptiveScore ?? null), `api ${co.live?.aiScore} vs db ${score?.adaptiveScore}`);
     } else ok("StockLink 只读（跳过：company API 未就绪）", true);
+
+    console.log("【12】V2 候选流程（生成不 apply / Approve 才落地 / V1 不被改写；throwaway 产业）");
+    const IK = "TEST_V2_IND";
+    await cleanupTestIndustry(IK, ["testv2_a", "testv2_b"]); // 防上次残留
+    const mk = (companies: any[]) => ({ data: { industry: { industryKey: IK, nameZh: "测试V2", nameEn: "TestV2", nameJa: "テストV2" }, segments: [{ segmentKey: "tv_s1", layer: "UPSTREAM", nameZh: "上游" }], technologies: [], bottlenecks: [], companies, edges: [] } as IndustryResearch, usage: { provider: "seed", model: "seed", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0, durationMs: 1 }, sourceKind: "SEED" as const });
+    const coA = { companyKey: "testv2_a", symbol: "7203.T", name: "A", country: "JP", listed: true, segmentKeys: ["tv_s1"] };
+    const coB = { companyKey: "testv2_b", symbol: "6758.T", name: "B", country: "JP", listed: true, segmentKeys: ["tv_s1"] };
+    const v1Provider = { name: "testv1", research: async () => mk([coA]) } as any;
+    const v1 = await runIndustryResearch(v1Provider, IK);
+    const ind1 = await prisma.researchIndustry.findUnique({ where: { industryKey: IK } });
+    const liveCo1 = ind1 ? await prisma.researchCompanyIndustry.count({ where: { industryId: ind1.id } }) : 0;
+    ok("V1 apply → 产业 PUBLISHED + 1 公司", v1.published && liveCo1 === 1, `pub ${v1.published} co ${liveCo1}`);
+    const cand = await generateCandidateVersion(mk([coA, coB]) as any);
+    const liveCo2 = await prisma.researchCompanyIndustry.count({ where: { industryId: ind1!.id } });
+    const candVer = await prisma.researchVersion.findUnique({ where: { id: cand.versionId } });
+    ok("V2 候选入库 AI_RESEARCHED + payload", candVer?.status === "AI_RESEARCHED" && !!candVer?.payload, candVer?.status ?? "");
+    ok("生成候选未改写 V1 实体（仍 1 公司）", liveCo2 === 1, `co ${liveCo2}`);
+    await applyVersion(cand.versionId);
+    const liveCo3 = await prisma.researchCompanyIndustry.count({ where: { industryId: ind1!.id } });
+    const candVer2 = await prisma.researchVersion.findUnique({ where: { id: cand.versionId } });
+    const ind2 = await prisma.researchIndustry.findUnique({ where: { industryKey: IK } });
+    ok("Approve→applyVersion 落地（2 公司）", liveCo3 === 2, `co ${liveCo3}`);
+    ok("候选→PUBLISHED，产业→PUBLISHED", candVer2?.status === "PUBLISHED" && ind2?.status === "PUBLISHED");
+    await cleanupTestIndustry(IK, ["testv2_a", "testv2_b"]);
+    console.log("  🧹 清理 test 产业");
 
     // 清理 throwaway
     const del = await prisma.researchJob.deleteMany({ where: { targetKey: { startsWith: "test:" } } });
