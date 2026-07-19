@@ -1903,3 +1903,334 @@ model PortfolioNavSnapshot {
   @@index([date(sort: Desc)])
   @@map("portfolio_nav_snapshots")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Deep Research（深度研究）· P17 · 统一 Research Engine 数据模型（全 additive）
+// 原则：单一引擎九产业共用 / 只读 StockScore(禁复制) / 证据·版本·审阅 / 可扩展 30+产业·5000+企业
+// 全部 research_* 新表，零改动任何现有表。String 存枚举(可扩展不改schema)，Json 存结构化扩展位。
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ResearchIndustry {
+  id            String   @id @default(cuid())
+  industryKey   String   @unique // AI_SEMICONDUCTOR | AI_DATACENTER | ...
+  nameZh        String
+  nameEn        String
+  nameJa        String
+  oneLiner      String?  @db.Text // 一句话说明
+  summary       String?  @db.Text // AI Research Summary
+  metrics       Json? // 9 维: maturity/growth/barrier/concentration/jpAdvantage/policy/cyclicality/attractiveness/riskLevel
+  status        String   @default("DRAFT") // DRAFT|AI_RESEARCHED|SOURCE_VERIFIED|EXPERT_REVIEWED|PUBLISHED|STALE|REJECTED
+  currentVer    String? // 指向已发布 ResearchVersion.version
+  sortOrder     Int      @default(0)
+  lastDeepAt    DateTime?
+  lastDailyAt   DateTime?
+  lastWeeklyAt  DateTime?
+  nextReviewAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  segments     ResearchSegment[]
+  technologies ResearchTechnology[]
+  companyLinks ResearchCompanyIndustry[]
+  bottlenecks  ResearchBottleneck[]
+  dailyUpdates ResearchDailyUpdate[]
+  triggers     ResearchTrigger[]
+  relationships ResearchRelationship[]
+
+  @@index([status])
+  @@map("research_industries")
+}
+
+model ResearchSegment {
+  id           String  @id @default(cuid())
+  industryId   String
+  layer        String // UPSTREAM|MIDSTREAM|DOWNSTREAM|INFRASTRUCTURE|APPLICATION
+  segmentKey   String
+  nameZh       String
+  nameEn       String?
+  nameJa       String?
+  chokeSummary String? @db.Text
+  sortOrder    Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  industry     ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  companyLinks ResearchCompanyIndustry[]
+
+  @@unique([industryId, segmentKey])
+  @@index([industryId])
+  @@index([layer])
+  @@map("research_segments")
+}
+
+model ResearchTechnology {
+  id             String  @id @default(cuid())
+  industryId     String
+  techKey        String
+  name           String
+  description    String? @db.Text
+  currentSolution String? @db.Text
+  nextGen        String? @db.Text
+  commercialStage String? // LAB|EARLY|RAMP|MASS
+  maturity       Int? // 0-100
+  difficulty     Int? // 0-100
+  leaderCountry  String?
+  leaderCompany  String?
+  altTech        String? @db.Text
+  roadmap        Json? // [{year,milestone,status}]
+  uncertainty    String? @db.Text
+  status         String  @default("DRAFT")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  industry ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@unique([industryId, techKey])
+  @@index([industryId])
+  @@map("research_technologies")
+}
+
+model ResearchCompany {
+  id              String  @id @default(cuid())
+  companyKey      String  @unique // 稳定业务键(可含 symbol 或内部 slug)
+  symbol          String? // → StockScore.symbol（只读指针；null=非上市/海外/机构/大学）
+  name            String
+  nameZh          String?
+  nameEn          String?
+  country         String
+  market          String?
+  listed          Boolean @default(false)
+  entityType      String  @default("COMPANY") // COMPANY|FOREIGN|UNLISTED|GOV|UNIVERSITY
+  coreProduct     String? @db.Text
+  coreTech        String? @db.Text
+  globalSharePct  Float?
+  moat            String? @db.Text
+  altDifficulty   String? // MONOPOLY|NEAR_MONOPOLY|STRONG|REPLACEABLE|NONE
+  customers       String? @db.Text
+  suppliers       String? @db.Text
+  competitors     String? @db.Text
+  growthDriver    String? @db.Text
+  futureRisk      String? @db.Text
+  whyMatters      String? @db.Text
+  chainImpact     String? @db.Text
+  roadmap         Json?
+  investmentValue Json? // {tech,pos,growth,val,risk,rating,catalysts,upside12m,risk12m,conclusion}
+  isHiddenChampion Boolean @default(false)
+  profileExt      Json? // 扩展位（未来字段不改schema）
+  status          String  @default("DRAFT")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  industryLinks ResearchCompanyIndustry[]
+  stockLink     ResearchStockLink?
+  hcScore       ResearchHiddenChampionScore?
+
+  @@index([symbol])
+  @@index([country])
+  @@index([listed])
+  @@map("research_companies")
+}
+
+// 企业↔产业↔环节 多对多（可扩展：一家公司跨多产业/多环节，如 Sony=CIS+自动驾驶+机器人）
+model ResearchCompanyIndustry {
+  id         String  @id @default(cuid())
+  companyId  String
+  industryId String
+  segmentId  String?
+  role       String? // 该公司在此产业环节的角色
+  benefitScore Int? // 产业受益评分 0-100
+  createdAt  DateTime @default(now())
+
+  company  ResearchCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  industry ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  segment  ResearchSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, industryId, segmentId])
+  @@index([industryId])
+  @@index([companyId])
+  @@map("research_company_industry")
+}
+
+// 关系图边：供应/依赖/竞争/替代/设备/材料/产能/政策依赖
+model ResearchRelationship {
+  id         String  @id @default(cuid())
+  industryId String
+  fromKey    String // company/segment/tech 的 key
+  toKey      String
+  relType    String // SUPPLY|DEPEND|COMPETE|SUBSTITUTE|EQUIPMENT|MATERIAL|CAPACITY|POLICY
+  note       String? @db.Text
+  createdAt  DateTime @default(now())
+
+  industry ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@index([industryId])
+  @@index([relType])
+  @@map("research_relationships")
+}
+
+model ResearchBottleneck {
+  id            String  @id @default(cuid())
+  industryId    String
+  name          String
+  dims          Json // 10 维: concentration/altDifficulty/certCycle/capacityExpand/switchCost/supplyConcentration/geopolitical/patent/talent/capital
+  level         String // CRITICAL|HIGH|MEDIUM|LOW
+  whyBottleneck String? @db.Text
+  controlledBy  String? @db.Text
+  dependents    String? @db.Text
+  hasAlternative String? @db.Text
+  jpBeneficiary String? @db.Text
+  jpSymbols     Json? // 受影响日股 symbol[]
+  triggers      String? @db.Text // 缓解/恶化触发条件
+  status        String  @default("DRAFT")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  industry ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@index([industryId])
+  @@index([level])
+  @@map("research_bottlenecks")
+}
+
+// 隐形冠军结构化评分（12 维，禁 LLM 主观）
+model ResearchHiddenChampionScore {
+  id                String  @id @default(cuid())
+  companyId         String  @unique
+  score             Int // 0-100
+  dimensions        Json // 12 维评分
+  verdict           String // CANDIDATE|CONFIRMED|REJECTED
+  reasons           String? @db.Text
+  evidence          String? @db.Text
+  mainRisk          String? @db.Text
+  watchlistCandidate Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company ResearchCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("research_hidden_champion_scores")
+}
+
+// 研究公司 → 日股 symbol 只读映射（禁第二套主数据）
+model ResearchStockLink {
+  id             String  @id @default(cuid())
+  companyId      String  @unique
+  symbol         String // → StockScore.symbol（应用层只读 join，不建 FK 避免耦合）
+  industryBenefit Int? // 产业受益评分
+  note           String? @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company ResearchCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([symbol])
+  @@map("research_stock_links")
+}
+
+// 证据（多态：绑定任意实体）
+model ResearchEvidence {
+  id               String   @id @default(cuid())
+  entityType       String // INDUSTRY|SEGMENT|TECHNOLOGY|COMPANY|BOTTLENECK|CLAIM
+  entityId         String
+  claimText        String?  @db.Text // 所支撑的具体判断
+  sourceTitle      String
+  publisher        String?
+  sourceType       String // FILING|EARNINGS|MIDTERM_PLAN|EXCHANGE|GOV|PATENT|PAPER|INDUSTRY_REPORT|NEWS|OFFICIAL|INTERVIEW|SUPPLY_CHAIN
+  url              String?  @db.Text
+  publishedAt      DateTime?
+  accessedAt       DateTime @default(now())
+  language         String?
+  country          String?
+  relatedCompany   String?
+  relatedTechnology String?
+  relatedIndustry  String?
+  confidence       String   @default("MID") // HIGH|MID|LOW
+  evidenceSummary  String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([confidence])
+  @@index([sourceType])
+  @@map("research_evidence")
+}
+
+// 版本（多态：任意实体的研究版本，永久保留不覆盖）
+model ResearchVersion {
+  id                String   @id @default(cuid())
+  entityType        String // INDUSTRY|TECHNOLOGY|COMPANY|BOTTLENECK
+  entityId          String
+  version           String // V1, V2, ...
+  status            String   @default("DRAFT") // DRAFT|AI_RESEARCHED|SOURCE_VERIFIED|EXPERT_REVIEWED|PUBLISHED|STALE|REJECTED
+  changeReason      String?  @db.Text
+  changeSummary     Json? // {added,modified,removed,conclusionChange,ratingChanges,bottleneckChanges}
+  previousVersionId String?
+  payload           Json? // 该版本完整研究快照（可回溯/对比）
+  model             String?
+  promptVersion     String?
+  evidenceCount     Int      @default(0)
+  reviewStatus      String   @default("PENDING") // PENDING|APPROVED|REJECTED
+  reviewer          String?
+  reviewedAt        DateTime?
+  generatedAt       DateTime @default(now())
+  publishedAt       DateTime?
+  updatedAt         DateTime @updatedAt
+
+  reviews ResearchReview[]
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@map("research_versions")
+}
+
+model ResearchReview {
+  id         String   @id @default(cuid())
+  versionId  String
+  reviewer   String
+  status     String // APPROVED|REJECTED|CHANGES_REQUESTED
+  comment    String?  @db.Text
+  reviewedAt DateTime @default(now())
+
+  version ResearchVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@map("research_reviews")
+}
+
+// 每日情报 → 今日变化（不覆盖长期结论）
+model ResearchDailyUpdate {
+  id             String   @id @default(cuid())
+  industryId     String
+  companyKey     String?
+  category       String // NEWS|EARNINGS|ANNOUNCEMENT|ORDER|PARTNERSHIP|PRODUCT|TECH|CAPACITY|CUSTOMER|SUPPLIER|POLICY|SUBSIDY|EXPORT_CTRL|INCIDENT|PRICE_MOVE
+  title          String
+  summary        String?  @db.Text
+  impactedSymbols Json? // symbol[]
+  evidenceId     String?
+  confidence     String   @default("MID")
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  industry ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@index([industryId])
+  @@index([occurredAt(sort: Desc)])
+  @@map("research_daily_updates")
+}
+
+// 重大事件触发深研 → 待人审（不自动覆盖已发布）
+model ResearchTrigger {
+  id         String   @id @default(cuid())
+  industryId String
+  companyKey String?
+  eventType  String // EARNINGS|MIDTERM_PLAN|NEW_TECH|BIG_ORDER|CUSTOMER_CHANGE|SHARE_SHIFT|MA|DIVESTITURE|NEW_ENTRANT|POLICY|SUBSIDY|EXPORT_CTRL|NEW_FAB|CAPACITY_INCIDENT|ROADMAP_CHANGE|AI_CONCLUSION_CHANGE
+  status     String   @default("PENDING") // PENDING|RESEARCHING|PENDING_REVIEW|DONE|DISMISSED
+  note       String?  @db.Text
+  firedAt    DateTime @default(now())
+  resolvedAt DateTime?
+
+  industry ResearchIndustry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@index([industryId])
+  @@index([status])
+  @@map("research_triggers")
+}
