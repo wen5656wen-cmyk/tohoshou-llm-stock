@@ -2,6 +2,16 @@
 
 ---
 
+## [18.41.2] - 2026-07-19 — 🐛 P0 Review Modal 布局修复（flex-basis 空白）
+
+- 现象：短内容时弹窗中下部大量空白、可视区利用率低、滚动后下方空白。
+- 根因：Body 用 `flex:1`（= flex-basis **0%**），在 `max-height`(非固定高)的 flex 列容器里，短内容时 body 仍被 grow 撑满导致下部空白（用户所指"错误的 flex-grow"）。
+- 修：Body 改标准 `flex:1 1 auto` + `min-height:0` + `overflow-y:auto`（唯一滚动区，随内容伸缩、不留空白）；Header/Footer `flex-shrink:0` 固定；无 height:calc / 固定 px / 多层 overflow。
+- 生产实测（新 V2 候选）：modal 828px(90vh)=header84+body633(内容4203px滚动)+footer110，body 填满、footer 固定、零空白。
+- 纯 UI；不改评分/交易/Schema。build✅。
+
+---
+
 ## [18.41.1] - 2026-07-19 — 🐛 运营看板计费修复（Benchmark 未记 ResearchJob）
 
 - 根因：`benchmark-v2` 只写 ResearchVersion（含 token/cost），未写 ResearchJob；而 Dashboard「Token 与成本」从 **ResearchJob** 聚合 → 显示 0。

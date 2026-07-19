@@ -59,8 +59,8 @@ export default function VersionDetail({ versionId, review, onClose, onActed }: {
               </div>
             </div>
 
-            {/* 中部（可完整滚动） */}
-            <div style={{ padding: "13px 18px", flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {/* 中部（唯一滚动区域：flex-basis auto + min-height:0 + overflow-y:auto，随内容伸缩，不留空白） */}
+            <div style={{ padding: "13px 18px", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
               {/* 版本 Diff */}
               <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 7 }}>🔀 {t("dr.ver.diff")}</div>
               <div style={{ overflowX: "auto", marginBottom: 16 }}>
