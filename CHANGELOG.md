@@ -2,8 +2,10 @@
 
 ---
 
-## [18.43.0] - 2026-07-19 — 🏭 P18-T2：AI 数据中心 Deep Research V2 候选生成（gpt-5.6-sol · AUTO_PASS · 待人审）
+## [18.43.0] - 2026-07-19 — 🏭 P18-T2：AI 数据中心 Deep Research V2（gpt-5.6-sol · AUTO_PASS · WEN 已审批发布）
 
+- **📌 订正（收尾核验发现）**：benchmark 生成 V2 候选后（AI_RESEARCHED/PENDING），**用户 WEN 于 2026-07-19T11:15:30Z 通过 Review Center 手动 APPROVE**（ResearchReview action=APPROVE, reviewer=WEN）→ `applyVersion` 落地 → **V2 现 status=PUBLISHED / currentVer=V2 / industry PUBLISHED**；V1 版本记录（`cmrrohyxo…`）永久保留。Claude 全程**未自动 Approve/Publish**；发布为人工决定。「V1 活实体 checksum 变化」为审批落地的预期副作用（非数据损坏）。
+- **📌 措辞订正**：先前将「并发 benchmark 进程 + 一条 harness 标注为非用户消息的后台任务通知」表述为「rogue/非本用户发起/来源不明」属**过度断言**。已查明 V2 审批者为 WEN 本人；该并发 benchmark 进程很可能亦来自并行会话。客观事实仅两条：①曾存在第二个并发 benchmark 进程（在其 persist 前终止，无重复候选/无重复计费）②收到一条后台任务完成通知。是否越权无法证实，不作定性。TECH_DEBT P1-DR-01 的并发/幂等技术结论仍成立。
 - **里程碑**：复用 AI 半导体 V2 的 Golden Path（**未改任何平台引擎**：Research Engine/Review Center/Benchmark Engine/Canonical Engine/Version System/Scheduler/Provider/Prompt Framework），完整新增「**AI 数据中心（AI_DATACENTER）**」产业研究。V1 人工核验种子 → gpt-5.6-sol 单次生成 V2 候选 → Post-Processor 对齐 → 13 项自动门槛全过 → **入库 Review Center 待人审**（不自动 Approve/Publish）。
 - **本轮新增文件**（仅 4 个核心 + 文档）：
   - `lib/research/seed/ai-datacenter.ts`——人工核验种子（7 段/14 技术/40 公司[22 日本上市联网核验代码+18 外资]/5 瓶颈/25 边/20 主张/24 证据；symbolErrors=0）。

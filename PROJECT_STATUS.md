@@ -1,18 +1,18 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-19（🏭 **P18-T2 AI 数据中心 Deep Research V2 候选生成 — 待人审**）
+> **最后更新：** 2026-07-19（🏭 **P18-T2 AI 数据中心 Deep Research V2 — WEN 已审批发布，P18-T2 收尾**）
 > **版本：** v18.43.0（CHANGELOG）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
-> **下次启动继续位置：** **等待人工审核 AI 数据中心 V2 候选**（`/deep-research/review`，`cmrrom4cn0000mjozaa68dvha`，status=AI_RESEARCHED/PENDING）；**不 Approve/不 Publish/不重跑 Benchmark 除非人工指令**。待办：① 处理 6 家 NEW_CANDIDATE 人审；② TECH_DEBT **P1-DR-01 Benchmark 并发与幂等保护**（仅记录，勿顺手开发）；③ Phase 5 其余产业冻结中，逐产业 Benchmark→人审→发布。
+> **下次启动继续位置：** **P18-T2 已收尾**（AI 数据中心 V2 由 WEN 于 11:15:30Z APPROVE→PUBLISHED，currentVer=V2）。下一个：**待用户指定的下一个 AI 产业 Deep Research**（同 Golden Path）。待办：① 6 家 NEW_CANDIDATE 可在下轮或后续深研纳入；② TECH_DEBT **P1-DR-01 Benchmark 并发与幂等保护**（仅记录，勿顺手开发）；③ Phase 5 其余产业逐个 Benchmark→人审→发布。
 
 ## 🏭 P18-T2 — AI 数据中心 Deep Research V2（2026-07-19，v18.43.0，待人审）
 
 - **复用 AI 半导体 V2 Golden Path，零改平台引擎**（Research Engine/Review/Benchmark/Canonical/Version/Scheduler/Provider/Prompt Framework 均未动）；仅新增 AI_DATACENTER 产业研究。
 - **新增 4 核心文件**：`lib/research/seed/ai-datacenter.ts`（人审种子 V1：7 段/14 技术/40 公司[22 JP 上市代码联网核验+18 外资]/5 瓶颈/25 边/symbolErrors=0）、`canonical.ts`（追加 AI_DATACENTER 词典）、`provider-seed.ts`（注册 SEEDS）、`scripts/research/benchmark-v2-datacenter.ts`。
-- **生产执行**：V1 种子 PUBLISHED（`cmrrohyxo007pjmozp774y4ya`）→ gpt-5.6-sol 单次生成 **V2 候选 `cmrrom4cn0000mjozaa68dvha`（AI_RESEARCHED/PENDING）**。mock=false·fallback=false·API=1·token 16,446·$0.1248·180.4s·**V1 checksum 未变**。
+- **生产执行**：V1 种子 PUBLISHED（`cmrrohyxo007pjmozp774y4ya`）→ gpt-5.6-sol 单次生成 V2 候选 `cmrrom4cn0000mjozaa68dvha`。mock=false·fallback=false·API=1·token 16,446·$0.1248·180.4s。**Claude 未自动 Approve/Publish**；随后 **WEN 于 11:15:30Z 手动 APPROVE→PUBLISHED**（currentVer=V2；V1 记录保留）。
 - **13 项质量 AUTO_PASS**：Technology/Segment Accuracy 均 **100%** · Schema 100% · Evidence Coverage 100% · 无证据确定 Claim 0 · 边重复 0.0% · Publish Ready=AUTO_PASS。NEW_CANDIDATE 6 家（Daikin/Sanyo Denki/Meidensha/SWCC/Nitto Kogyo 属 DC 链，Advantest 待判）。
-- **⚠️ Rogue benchmark 异常**：收到非本用户后台任务通知 + 发现第二个并发 benchmark 进程 → persist 前终止 → 核验 DB 仅 V1+单一 V2 候选、benchmarkJobs=1、无 V3、无第二笔计费。详见 CHANGELOG v18.43.0 与 TECH_DEBT P1-DR-01。
-- **未 Approve/未 Publish/未重跑**；build✅/tsc0/health CRITICAL=0。
+- **并发观察（订正非"rogue"）**：曾存在第二个并发 benchmark 进程（persist 前终止，无重复候选/无第二笔计费）+ 一条后台任务通知；审批者查明为 WEN，故不定性为越权。DB 核验：benchmarkJobs=1、无 V3。→ TECH_DEBT P1-DR-01。
+- build✅/tsc0/health CRITICAL=0。
 
 > ℹ️ 本文件早期段落停留在 P6/P7（v17.89.0），后续 P8–P17 详见 CHANGELOG/memory；本 P18-T2 段为最新状态。
 

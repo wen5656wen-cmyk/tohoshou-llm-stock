@@ -11,7 +11,7 @@
 ### P1-DR-01 — Benchmark 并发与幂等保护（Deep Research V2）
 **Priority:** P1
 **Discovered:** 2026-07-19 (P18-T2 · v18.43.0)
-**背景/触发:** AI 数据中心 V2 benchmark 执行期间，收到一条**非当前用户发起**的后台任务通知（`bljr2y6pq`「真实 Benchmark 重跑」），并在生产发现**第二个并发 benchmark 进程**（已运行约 14 分钟）。已在其 persist 前 `pkill`；核验 DB：`totalVersions=2 (V1+V2) · benchmarkJobs=1 · 无 V3 · 未产生第二个候选 · 无第二笔计费`。**本轮未开发锁**（当前生产无重复写入/无风险，仅调查记录）。
+**背景/触发:** AI 数据中心 V2 benchmark 执行期间，收到一条 harness 标注为「非用户消息」的后台任务完成通知（`bljr2y6pq`「真实 Benchmark 重跑」），并在生产发现**第二个并发 benchmark 进程**（已运行约 14 分钟）。已在其 persist 前 `pkill`；核验 DB：`totalVersions=2 (V1+V2) · benchmarkJobs=1 · 无 V3 · 未产生第二个候选 · 无第二笔计费`。**订正**：随后查明 V2 由用户 WEN 手动 APPROVE，故上述并发/通知**不定性为越权**（很可能来自并行会话）；但「并发无保护」这一技术事实成立，仍需修复。**本轮未开发锁**（当前生产无重复写入/无风险，仅调查记录）。
 **调查结论（代码事实）:**
 - **同 industry + targetVersion 是否允许并发？** 允许。`scripts/research/benchmark-v2*.ts` **不经过** `lib/research/scheduler.ts`，直接调 `provider.run()` + `generateCandidateVersion()`，两条并发运行互不感知。
 - **DB advisory lock / unique lock？** scheduler 有 `pg_try_advisory_lock`（key=`research:{jobType}:{industryKey}`, `lockKeyFor()`），但**benchmark 路径绕过 scheduler → 无 advisory lock**。
