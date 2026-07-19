@@ -1,10 +1,13 @@
 "use client";
 
-// ── AI Recommendations V2（P14-DEV-04 · /decision-v2?tab=picks|recommendations）────
-// 正式 AI Buy List / Execution List。SSOT = /api/decision/recommendations（只读聚合：
-// closing.top10 执行 + StockScore.recommendationV2 真实等级 + Yahoo 实时报价）。
-// Master–Detail：左 Top10 表选中 → 右详情/执行/新闻/风险/相似/信心。筛选排序写 URL。
-// 缺失字段（上涨概率/建议仓位/模型一致性/历史案例）诚实显 —，不伪造。
+// ── 股票中心 V2（P2 · /decision-v2?tab=picks&view=ai|all|fav）────────────────────
+// 全站股票枢纽：顶部搜索任意股票 + 收盘决策状态带 + 三视图切换。
+//   ① AI 推荐（view=ai，默认）：正式 AI Buy List（SSOT=/api/decision/recommendations，
+//      Master–Detail 保留：左 Top10 表选中 → 右详情/执行/新闻/风险/相似/信心）。
+//   ② 全市场（view=all）：/api/screener 全市场浏览 + 等级筛选 + 加入自选。
+//   ③ 自选（view=fav）：/api/watchlist 收藏 CRUD。
+// 状态带 = 收盘决策择时/组合面（verdict + 建仓只数），点入口跳决策总览看明细（不搬内容）。
+// 任意股票行/搜索命中 → StockDetailModal 研究报告。缺失字段诚实显 —，不伪造。
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,7 +17,11 @@ import type { Tone } from "@/lib/design-tokens";
 import { COLORS, fmtJpy, fmtPct, fmtScore, fmtJstClock, upDownColor, riskTone } from "@/lib/decision/ds";
 import { deriveLiveStatus } from "@/lib/decision/live-status";
 import { NewsCatalystPanel, RiskPanel, type NewsItem, type CatItem, type RiskItem } from "@/components/decision/ds/panels";
+import StockSearch from "@/components/decision/StockSearch";
+import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
+import { getPrimaryName } from "@/lib/company-name";
 
+type Verdict = { action: string | null; reason: string | null; portfolioCount: number; top1: { symbol: string; name: string } | null };
 type Reco = {
   rank: number; symbol: string; name: string; sector: string | null;
   currentPrice: number | null; todayChangePct: number | null;
@@ -23,8 +30,13 @@ type Reco = {
   riskLevel: string | null; level: string | null; inBuyZone: boolean | null; newsSentiment: number | null;
   holdPeriod: string | null; reason: string | null; gptNote: string | null;
 };
-type Resp = { empty?: boolean; summary?: { total: number; strongBuy: number; buy: number; watch: number; skip: number; avgAiScore: number | null; avgUpside: number | null; avgRisk: string | null; totalPosition: number | null }; recommendations?: Reco[]; metadata?: { date: string; decidedAtJst: string | null; gptModel: string | null; versionNote: string }; asOf?: string | null; sourceStatus?: { quote?: string } };
+type Resp = { empty?: boolean; verdict?: Verdict; summary?: { total: number; strongBuy: number; buy: number; watch: number; skip: number; avgAiScore: number | null; avgUpside: number | null; avgRisk: string | null; totalPosition: number | null }; recommendations?: Reco[]; metadata?: { date: string; decidedAtJst: string | null; gptModel: string | null; versionNote: string }; asOf?: string | null; sourceStatus?: { quote?: string } };
+type ScreenerRow = { symbol: string; name: string; nameZh: string | null; sector: string | null; market?: string | null; adaptiveScore: number | null; recommendationV2: string | null; latestClose: number | null; return5d: number | null };
+type FavScore = { latestClose: number | null; adaptiveScore: number | null; recommendationV2: string | null; realtimePrice: number | null; changePct: number | null } | null;
+type FavRow = { symbol: string; name: string; nameZh: string | null; sector: string | null; market?: string | null; score: FavScore };
+
 const LV_TONE: Record<string, Tone> = { STRONG_BUY: "red", BUY: "amber", WATCH: "blue", SKIP: "neutral" };
+const MKT_TONE: Record<string, Tone> = { STRONG_BUY: "red", BUY: "amber", HOLD: "blue", WATCH: "blue", AVOID: "neutral" };
 const DISC_LABEL: Record<string, string> = { EARNINGS: "财报", FORECAST_REVISION: "业绩修正", EQUITY: "增发", BUYBACK: "回购", MATERIAL: "重大", DIVIDEND: "分红", OTHER: "披露" };
 
 // 执行状态：live-status → 5 态
@@ -39,19 +51,197 @@ function execState(r: Reco): { key: string; tone: Tone } {
   }
 }
 
+// ═══════════════════════ Shell（搜索 + 状态带 + 三视图）═══════════════════════
 export default function DecisionRecommendationsV2() {
   const { t } = useI18n();
   const router = useRouter();
   const sp = useSearchParams();
+  const view = sp.get("view") || "ai";
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
-  const [detail, setDetail] = useState<Record<string, { news: NewsItem[]; cats: CatItem[] }>>({});
+  const [detail, setDetail] = useState<ReportTarget | null>(null);
+  const openDetail = (symbol: string, name?: string) => setDetail({ symbol, name: name ?? symbol });
 
   useEffect(() => {
     let alive = true;
     fetch("/api/decision/recommendations", { cache: "no-store" }).then((r) => r.json()).then((j) => { if (alive) { setData(j); setLoading(false); } }).catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
+
+  const setView = (v: string) => {
+    const q = new URLSearchParams(sp.toString());
+    q.set("tab", "picks"); q.set("view", v);
+    ["level", "risk", "zone", "sort", "sym"].forEach((k) => q.delete(k)); // 切视图清 AI 筛选态，避免串味
+    router.replace(`/decision-v2?${q.toString()}`, { scroll: false });
+  };
+
+  return (
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 space-y-3">
+      {/* 搜索任意股票 + 三视图切换 */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-[220px] max-w-[460px]"><StockSearch onPick={openDetail} /></div>
+        <div className="inline-flex p-1 rounded-xl gap-0.5" style={{ background: COLORS.track }}>
+          {(["ai", "all", "fav"] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)} className="px-3.5 py-1.5 rounded-lg text-[13px] font-semibold" style={{ background: view === v ? COLORS.card : "transparent", color: view === v ? COLORS.text : COLORS.textSecondary, boxShadow: view === v ? "0 1px 2px rgba(0,0,0,0.08)" : undefined }}>{t(`dv.sc.view.${v}` as Parameters<typeof t>[0])}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 收盘决策状态带（择时/组合面 → 入口跳决策总览） */}
+      <VerdictBand verdict={data?.verdict ?? null} slim={view !== "ai"} onOverview={() => router.replace("/decision-v2?tab=overview", { scroll: false })} />
+
+      {/* 视图内容 */}
+      {view === "all" ? <MarketBrowseView onDetail={openDetail} />
+        : view === "fav" ? <WatchlistView onDetail={openDetail} />
+          : <AiRecoView data={data} loading={loading} />}
+
+      <StockDetailModal report={detail} onClose={() => setDetail(null)} />
+    </div>
+  );
+}
+
+// ═══════════════════════ 收盘决策状态带 ═══════════════════════
+function VerdictBand({ verdict, slim, onOverview }: { verdict: Verdict | null; slim: boolean; onOverview: () => void }) {
+  const { t } = useI18n();
+  const action = verdict?.action ?? null;
+  const conf = action === "BUY_TODAY" ? { tone: COLORS.success, wash: `${COLORS.success}14` }
+    : action === "WATCH_ONLY" ? { tone: COLORS.warning, wash: `${COLORS.warning}1f` }
+      : action === "STAY_CASH" ? { tone: COLORS.textMuted, wash: COLORS.tile }
+        : { tone: COLORS.textFaint, wash: COLORS.tile };
+  const pad = slim ? 7 : 10;
+  return (
+    <div className="flex items-center gap-2.5 flex-wrap rounded-xl px-3.5" style={{ background: conf.wash, borderLeft: `3px solid ${conf.tone}`, border: `1px solid ${COLORS.border}`, paddingTop: pad, paddingBottom: pad }}>
+      <span className="text-[11px] font-bold px-2.5 py-1 rounded-md" style={{ background: conf.tone, color: "#fff" }}>
+        {action ? t(`dv.sc.vd.${action}` as Parameters<typeof t>[0]) : t("dv.sc.band.noVerdict")}
+      </span>
+      {action && (
+        <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>
+          <b style={{ color: COLORS.text }}>{t("dv.sc.band.closing")}</b>
+          {action === "BUY_TODAY" && verdict ? ` · ${t("dv.sc.band.build")} ${verdict.portfolioCount} ${t("dv.sc.band.units")}` : ""}
+          {!slim ? <span style={{ color: COLORS.textFaint }}> · {t("dv.sc.band.live")}</span> : null}
+        </span>
+      )}
+      <button onClick={onOverview} className="ml-auto text-[12px] font-semibold px-2.5 py-1.5 rounded-lg" style={{ color: COLORS.primary, border: `1px solid ${COLORS.border}`, background: COLORS.card }}>{t("dv.sc.band.toOverview")} →</button>
+    </div>
+  );
+}
+
+// ═══════════════════════ ② 全市场浏览（screener）═══════════════════════
+function MarketBrowseView({ onDetail }: { onDetail: (s: string, n?: string) => void }) {
+  const { t, lang } = useI18n();
+  const [rows, setRows] = useState<ScreenerRow[] | null>(null);
+  const [level, setLevel] = useState("");
+  const [added, setAdded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let alive = true; setRows(null);
+    const url = `/api/screener?limit=50&sort=adaptiveScore${level ? `&recommendationV2=${level}` : ""}`;
+    fetch(url, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setRows(Array.isArray(j?.scores) ? j.scores : []); }).catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [level]);
+
+  const addFav = async (r: ScreenerRow) => {
+    setAdded((s) => new Set(s).add(r.symbol));
+    await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: r.symbol, name: r.name, sector: r.sector, market: r.market }) }).catch(() => {});
+  };
+  const disp = (r: { name: string; nameZh: string | null }) => getPrimaryName({ name: r.name, nameZh: r.nameZh }, lang);
+
+  return (
+    <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.sc.all.title")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{t("dv.sc.all.hint")}</span></div>}>
+      <div className="flex items-center gap-1.5 flex-wrap text-[11px] mb-2">
+        {["", "STRONG_BUY", "BUY", "HOLD", "WATCH"].map((l) => (
+          <button key={l || "all"} onClick={() => setLevel(l)} className="h-6 px-2.5 rounded-full" style={{ background: level === l ? COLORS.text : COLORS.tile, color: level === l ? "#fff" : COLORS.textSecondary }}>{l ? t(`dv.sc.lv.${l}` as Parameters<typeof t>[0]) : t("dv.sc.all.filterAll")}</button>
+        ))}
+      </div>
+      {rows === null ? <div className="py-8"><AppLoading label={t("dv.sc.loading")} /></div>
+        : rows.length === 0 ? <div className="text-[12px] py-8 text-center" style={{ color: COLORS.textFaint }}>{t("dv.sc.all.empty")}</div>
+          : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
+                <thead><tr className="text-[10px]" style={{ color: COLORS.textFaint }}>
+                  {[t("wl.col.stock"), t("dc.ov.currentPrice"), t("dv.sc.col.ret5d"), "AI", t("dv.rc.col.level"), t("dv.sc.col.sector"), ""].map((h, i) => (
+                    <th key={i} className={`py-1.5 font-medium ${i === 0 ? "text-left pr-2" : i >= 5 ? "text-left px-2" : "text-right px-2"}`}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.symbol} onClick={() => onDetail(r.symbol, disp(r))} className="cursor-pointer" style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                      <td className="py-1.5 pr-2"><span style={{ color: COLORS.text }}>{disp(r)}</span><span className="ml-1 text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{r.symbol}</span></td>
+                      <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: COLORS.text }}>{fmtJpy(r.latestClose)}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: upDownColor(r.return5d) }}>{fmtPct(r.return5d)}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums font-semibold" style={{ color: COLORS.text }}>{fmtScore(r.adaptiveScore)}</td>
+                      <td className="py-1.5 px-2 text-right">{r.recommendationV2 ? <AppBadge tone={MKT_TONE[r.recommendationV2] ?? "neutral"}>{t(`dv.sc.lv.${r.recommendationV2}` as Parameters<typeof t>[0])}</AppBadge> : <span style={{ color: COLORS.textFaint }}>—</span>}</td>
+                      <td className="py-1.5 px-2 text-left"><span className="text-[11px]" style={{ color: COLORS.textSecondary }}>{r.sector ?? "—"}</span></td>
+                      <td className="py-1.5 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); addFav(r); }} className="h-6 px-2 rounded-full text-[11px]" style={{ border: `1px solid ${added.has(r.symbol) ? COLORS.success : COLORS.border}`, color: added.has(r.symbol) ? COLORS.success : COLORS.primary, background: COLORS.card }}>{added.has(r.symbol) ? "✓" : t("dv.pf.btnAdd")}</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+    </AppCard>
+  );
+}
+
+// ═══════════════════════ ③ 自选（watchlist）═══════════════════════
+function WatchlistView({ onDetail }: { onDetail: (s: string, n?: string) => void }) {
+  const { t, lang } = useI18n();
+  const [rows, setRows] = useState<FavRow[] | null>(null);
+  const load = useCallback(() => {
+    fetch("/api/watchlist", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])).then((j) => setRows(Array.isArray(j) ? j : [])).catch(() => setRows([]));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const remove = async (sym: string) => {
+    setRows((rs) => (rs ? rs.filter((x) => x.symbol !== sym) : rs));
+    await fetch(`/api/watchlist?symbol=${encodeURIComponent(sym)}`, { method: "DELETE" }).catch(() => {});
+  };
+  const disp = (r: { name: string; nameZh: string | null }) => getPrimaryName({ name: r.name, nameZh: r.nameZh }, lang);
+
+  if (rows === null) return <div className="py-10"><AppLoading label={t("dv.sc.loading")} /></div>;
+  if (rows.length === 0) return (
+    <AppCard><div className="py-12 text-center">
+      <div className="text-[14px] font-semibold" style={{ color: COLORS.text }}>{t("dv.sc.fav.empty")}</div>
+      <div className="text-[12px] mt-1.5" style={{ color: COLORS.textFaint }}>{t("dv.sc.fav.emptyHint")}</div>
+    </div></AppCard>
+  );
+
+  return (
+    <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.sc.fav.title")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{rows.length}</span></div>}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
+          <thead><tr className="text-[10px]" style={{ color: COLORS.textFaint }}>
+            {[t("wl.col.stock"), t("dc.ov.currentPrice"), t("dv.rc.col.today"), "AI", t("dv.rc.col.level"), ""].map((h, i) => (
+              <th key={i} className={`py-1.5 font-medium ${i === 0 ? "text-left pr-2" : i >= 5 ? "text-right px-2" : "text-right px-2"}`}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {rows.map((r) => {
+              const price = r.score?.realtimePrice ?? r.score?.latestClose ?? null;
+              const rec = r.score?.recommendationV2 ?? null;
+              return (
+                <tr key={r.symbol} onClick={() => onDetail(r.symbol, disp(r))} className="cursor-pointer" style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                  <td className="py-1.5 pr-2"><span style={{ color: COLORS.text }}>{disp(r)}</span><span className="ml-1 text-[10px] font-mono" style={{ color: COLORS.textFaint }}>{r.symbol}</span></td>
+                  <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: COLORS.text }}>{fmtJpy(price)}</td>
+                  <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: upDownColor(r.score?.changePct ?? null) }}>{fmtPct(r.score?.changePct ?? null)}</td>
+                  <td className="py-1.5 px-2 text-right tabular-nums font-semibold" style={{ color: COLORS.text }}>{fmtScore(r.score?.adaptiveScore ?? null)}</td>
+                  <td className="py-1.5 px-2 text-right">{rec ? <AppBadge tone={MKT_TONE[rec] ?? "neutral"}>{t(`dv.sc.lv.${rec}` as Parameters<typeof t>[0])}</AppBadge> : <span style={{ color: COLORS.textFaint }}>—</span>}</td>
+                  <td className="py-1.5 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); remove(r.symbol); }} className="h-6 px-2 rounded-full text-[11px]" style={{ border: `1px solid ${COLORS.border}`, color: COLORS.textSecondary, background: COLORS.card }}>{t("dv.sc.fav.remove")}</button></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </AppCard>
+  );
+}
+
+// ═══════════════════════ ① AI 推荐（保留原 Master–Detail）═══════════════════════
+function AiRecoView({ data, loading }: { data: Resp | null; loading: boolean }) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const sp = useSearchParams();
+  const [detail, setDetail] = useState<Record<string, { news: NewsItem[]; cats: CatItem[] }>>({});
 
   const recos = useMemo(() => data?.recommendations ?? [], [data]);
   const fLevel = sp.get("level") || "";
@@ -79,7 +269,6 @@ export default function DecisionRecommendationsV2() {
 
   const selected = recos.find((r) => r.symbol === sym) ?? recos[0] ?? null;
 
-  // 选中股详情懒加载（新闻/催化剂，按 symbol 缓存，避免请求风暴）
   useEffect(() => {
     if (!selected || detail[selected.symbol]) return;
     let alive = true;
@@ -96,8 +285,8 @@ export default function DecisionRecommendationsV2() {
     return () => { alive = false; };
   }, [selected, detail]);
 
-  if (loading) return <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10"><AppLoading label={t("dv.nav.picks")} /></div>;
-  if (!data || data.empty) return <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-16 text-center text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>;
+  if (loading) return <div className="py-10"><AppLoading label={t("dv.sc.view.ai")} /></div>;
+  if (!data || data.empty) return <div className="py-16 text-center text-[13px]" style={{ color: COLORS.textFaint }}>{t("dc.ov.noData")}</div>;
 
   const sm = data.summary!;
   const meta = data.metadata!;
@@ -112,7 +301,7 @@ export default function DecisionRecommendationsV2() {
   );
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 space-y-3">
+    <div className="space-y-3">
       {/* ① Summary */}
       <AppCard header={<div className="flex items-center justify-between"><span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.rc.summaryTitle")}</span><span className="text-[10px]" style={{ color: COLORS.textFaint }}>{data.asOf} · {t("dv.rc.model")} {meta.gptModel ?? "—"}（{t("dv.rc.notSnapshot")}）</span></div>}>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
@@ -141,7 +330,7 @@ export default function DecisionRecommendationsV2() {
         <select value={sort} onChange={(e) => setQ({ sort: e.target.value })} className="h-6 px-1.5 rounded-full bg-white" style={{ border: `1px solid ${COLORS.border}`, color: COLORS.text }}>
           <option value="rank">{t("dv.rc.rank")}</option><option value="ai">AI</option><option value="upside">{t("dv.rc.col.upside")}</option><option value="today">{t("dv.rc.col.today")}</option><option value="price">{t("dc.ov.currentPrice")}</option>
         </select>
-        <button onClick={() => router.replace("/decision-v2?tab=picks", { scroll: false })} className="h-6 px-2 rounded-full" style={{ background: COLORS.tile, color: COLORS.primary }}>{t("dv.rc.reset")}</button>
+        <button onClick={() => setQ({ level: "", risk: "", zone: "", sort: "", sym: "" })} className="h-6 px-2 rounded-full" style={{ background: COLORS.tile, color: COLORS.primary }}>{t("dv.rc.reset")}</button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-3">
@@ -204,10 +393,10 @@ export default function DecisionRecommendationsV2() {
                 </div>
               </AppCard>
 
-              {/* ⑧①② News + Catalyst */}
+              {/* News + Catalyst */}
               <NewsCatalystPanel news={d?.news ?? []} catalysts={d?.cats ?? []} />
 
-              {/* ⑧③ Risk（个股） */}
+              {/* Risk（个股） */}
               <RiskPanel titleKey="dv.ov.risk" overall={selected.riskLevel ?? "—"} overallTone={riskTone(selected.riskLevel)}
                 items={([
                   { labelKey: "dv.ov.rk.index", level: selected.riskLevel ?? "—", tone: riskTone(selected.riskLevel) },
@@ -215,7 +404,7 @@ export default function DecisionRecommendationsV2() {
                   { labelKey: "dv.ov.rk.vol", level: selected.riskLevel ?? "—", tone: riskTone(selected.riskLevel) },
                 ] as RiskItem[])} />
 
-              {/* ⑧④ Similar Ideas（同板块，真实关联） */}
+              {/* Similar Ideas */}
               <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.rc.similar")}</span>}>
                 {(() => {
                   const sim = recos.filter((r) => r.symbol !== selected.symbol && r.sector && r.sector === selected.sector).slice(0, 4);
@@ -230,7 +419,7 @@ export default function DecisionRecommendationsV2() {
                 })()}
               </AppCard>
 
-              {/* ⑧⑤ AI Confidence */}
+              {/* AI Confidence */}
               <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{t("dv.rc.confidence")}</span>}>
                 <div className="grid grid-cols-2 gap-x-4">
                   <K k="AI" v={fmtScore(selected.aiScore)} tone={COLORS.primary} />

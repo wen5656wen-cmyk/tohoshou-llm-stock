@@ -2,6 +2,23 @@
 
 ---
 
+## [18.27.0] - 2026-07-19 — 🎯 P2 股票中心三视图枢纽（AI 推荐 / 全市场 / 自选 + 收盘决策状态带）
+
+「股票中心」重构 P2：把 `DecisionRecommendationsV2` 从单一 AI Buy List 扩为**全站股票枢纽**。**未改**评分/引擎/Runtime/五维/交易/资金链路/Cron/Schema/核心表；仅**扩展 1 个只读路由字段** + 复用现有 API（screener/stocks/watchlist）+ UI 重构。
+
+- **三视图切换**（`?view=ai|all|fav`，默认 ai，切视图清 AI 筛选态避免串味）：
+  - **① AI 推荐**（原样保留）：正式 AI Buy List，SSOT=`/api/decision/recommendations`，Master–Detail（左 Top10 表 → 右详情/执行/新闻/风险/相似/信心）。原组件本体重构为内部 `AiRecoView`，fetch 上移到 Shell 单次拉取（去重复）。
+  - **② 全市场**（新）：`GET /api/screener?limit=50&sort=adaptiveScore[&recommendationV2=]`，等级筛选 chip（全部/STRONG_BUY/BUY/HOLD/WATCH）+ 表（股票/现价/5日/AI/等级/行业/加入自选）；行点击→研究报告。**注意 screener 无真分页**（仅 limit 截断，取 top-N）。
+  - **③ 自选**（新）：`GET/POST/DELETE /api/watchlist`（`WatchList` 表，**全局单用户无 userId**）；空态引导 + 表（股票/现价/今日/AI/等级/移除）。
+- **搜索任意股票**：顶部复用 `StockSearch`（`/api/stocks?q=`）→ 任意个股开 `StockDetailModal` 研究报告（全市场/自选行点击同样开）。
+- **收盘决策状态带**（择时/组合面 → 只做入口不搬内容）：新组件 `VerdictBand`，读**新增字段** `verdict`（见下），显 BUY_TODAY/WATCH_ONLY/STAY_CASH 徽章 + 建仓只数 + 「组合与仓位在决策总览 →」入口；AI 视图完整、全市场/自选收窄 slim。
+- **API 扩展（唯一后端改动，只读不重算）**：`/api/decision/recommendations` 新增 `verdict{action,reason,portfolioCount,top1}`（直读 `ClosingDecision.verdict/verdictReason/portfolio.length/top1*`）。
+- **i18n**：新增 27 个 `dv.sc.*` 双语 key（zh-CN + ja-JP + types.ts 同步，扁平键）。
+- **遗留**：`DISC_LABEL`（催化剂分类中文）为原文件既有 i18n 债务（ja 下显中文），非 P2 引入，未动；screener 无真分页 / watchlist 无用户维度（多用户场景需 P3 加 userId）；手机右栏为响应式堆叠（设计稿承诺的底部 sheet 属后续微调）。
+- 验收：tsc 0 / build ✅ / 生产 health CRITICAL=0；生产真实验证——verdict=BUY_TODAY·建仓3只·top1 7792.T、screener STRONG_BUY/AI76、watchlist 31 行、页面 200、bundle 含双语新文案。仅重启 web，cron 未动。
+
+---
+
 ## [18.26.0] - 2026-07-19 — 🧭 P1「AI 推荐」→「股票中心」（导航改名 + 上移）
 
 「股票中心」重构 P1（分两期实施的第一期，低风险几行改动，立即上线验证）。**纯导航文案 + 顺序**：未改任何页面业务内容 / API / 评分 / 交易 / 资金链路 / Schema / Cron；`dv-picks` 的 `key`/`href`/`Icon` 全保留（深链 `?tab=recommendations` 与 tab 别名不变），仅改 labelKey 的翻译值 + 数组位置。

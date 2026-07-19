@@ -77,8 +77,18 @@ export async function GET(req: Request) {
     totalPosition: null, // 建议总仓位无正式字段
   };
 
+  // 收盘决策择时/组合面（供股票中心状态带；明细在决策总览）——只读，不重算。
+  const portfolioArr = (row.portfolio as unknown as unknown[]) ?? [];
+  const verdict = {
+    action: row.verdict ?? null, // BUY_TODAY | WATCH_ONLY | STAY_CASH
+    reason: row.verdictReason ?? null,
+    portfolioCount: Array.isArray(portfolioArr) ? portfolioArr.length : 0,
+    top1: row.top1Symbol ? { symbol: row.top1Symbol, name: row.top1Name ?? row.top1Symbol } : null,
+  };
+
   return NextResponse.json({
     empty: false,
+    verdict,
     summary, recommendations,
     metadata: { date: row.date.toISOString().slice(0, 10), decidedAtJst: row.decidedAtJst, gptModel: row.gptModel, versionNote: "当前模型版本 · 非历史快照" },
     asOf: `${row.date.toISOString().slice(0, 10)} ${row.decidedAtJst ?? ""} JST`,

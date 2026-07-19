@@ -214,6 +214,15 @@ export type Messages = {
   "dv.title": string; "dv.placeholder": string;
   "dv.nav.overview": string; "dv.nav.strategy": string; "dv.nav.picks": string; "dv.nav.portfolio": string; "dv.nav.history": string;
   "dv.nav.sectors": string; "dv.nav.industry": string;
+  // P2 股票中心（Stock Center 三视图枢纽：AI 推荐 / 全市场 / 自选 + 收盘决策状态带）
+  "dv.sc.view.ai": string; "dv.sc.view.all": string; "dv.sc.view.fav": string;
+  "dv.sc.vd.BUY_TODAY": string; "dv.sc.vd.WATCH_ONLY": string; "dv.sc.vd.STAY_CASH": string;
+  "dv.sc.band.closing": string; "dv.sc.band.build": string; "dv.sc.band.units": string; "dv.sc.band.toOverview": string; "dv.sc.band.live": string; "dv.sc.band.noVerdict": string;
+  "dv.sc.all.title": string; "dv.sc.all.hint": string; "dv.sc.all.filterAll": string; "dv.sc.all.empty": string;
+  "dv.sc.lv.STRONG_BUY": string; "dv.sc.lv.BUY": string; "dv.sc.lv.HOLD": string; "dv.sc.lv.WATCH": string; "dv.sc.lv.AVOID": string;
+  "dv.sc.col.sector": string; "dv.sc.col.ret5d": string;
+  "dv.sc.fav.title": string; "dv.sc.fav.empty": string; "dv.sc.fav.emptyHint": string; "dv.sc.fav.remove": string;
+  "dv.sc.detail": string; "dv.sc.loading": string;
   // P15-01B Decision Overview V1 — 9 态动作 / 指令 / 触发 / 持仓 / 阶段 / 新鲜度 / 分组 / 个股
   "dv.act.BUY": string; "dv.act.ADD": string; "dv.act.HOLD": string; "dv.act.WAIT": string; "dv.act.REDUCE": string; "dv.act.TAKE_PROFIT": string; "dv.act.STOP_LOSS": string; "dv.act.CASH": string; "dv.act.NO_TRADE": string;
   "dv.instr.BUY": string; "dv.instr.ADD": string; "dv.instr.HOLD": string; "dv.instr.WAIT": string; "dv.instr.REDUCE": string; "dv.instr.TAKE_PROFIT": string; "dv.instr.STOP_LOSS": string; "dv.instr.CASH": string; "dv.instr.NO_TRADE": string;
