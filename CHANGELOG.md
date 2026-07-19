@@ -2,6 +2,18 @@
 
 ---
 
+## [18.26.0] - 2026-07-19 — 🧭 P1「AI 推荐」→「股票中心」（导航改名 + 上移）
+
+「股票中心」重构 P1（分两期实施的第一期，低风险几行改动，立即上线验证）。**纯导航文案 + 顺序**：未改任何页面业务内容 / API / 评分 / 交易 / 资金链路 / Schema / Cron；`dv-picks` 的 `key`/`href`/`Icon` 全保留（深链 `?tab=recommendations` 与 tab 别名不变），仅改 labelKey 的翻译值 + 数组位置。
+
+- **改名**：`dv.nav.picks` 由「AI 推荐 / AI 推奨」→ **「股票中心 / 銘柄センター」**（`lib/i18n/messages/zh-CN.ts` + `ja-JP.ts`，扁平键，双语同步；types 无需改）。
+- **上移**：`lib/navigation/nav-config.ts` `NAV_NODES` 中 `dv-picks` 从 #3 移到 **#2（决策总览正下方）**，决策工作区顺序变为 决策总览 → 股票中心 → 今日策略 → 模拟持仓 → 历史决策 → 行业分析 → 产业研究。
+- **子导航同步**：`components/decision/ds/SubNav.tsx` `DECISION_TABS` 同步交换 picks/strategy 顺序（顺序一致，`VALID` 为 Set 不受影响）。
+- **P2 预告（下一期）**：`DecisionRecommendationsV2` 扩为三视图枢纽（AI 推荐 / 全市场 / 自选）+ 顶部收盘决策状态带（选股面留站内、择时/组合面作入口跳决策总览）+ 搜索任意股票 + 桌面右栏/手机 sheet。侦察确认依赖多已就绪：`/api/screener`（过滤/排序/搜索/limit，**无真分页**）、`/api/stocks?q=`（真分页）、`/api/watchlist`（CRUD，**全局单用户无 userId**）、`StockDetailModal`（深度报告）；缺口=recommendations 路由未暴露 `verdict`（需扩展或直读 `ClosingDecision`）。
+- 验收：设计稿 Hi-Fi v4（评审自评 95，双语/明暗/verdict 三态/数据四态/桌面·手机）；tsc 0 / build ✅ / 生产 health CRITICAL=0（❌0，6 既有 WARNING 无关）/ 页面 200 / 生产构建产物含双语新文案。仅重启 web，cron 未动。
+
+---
+
 ## [18.25.0] - 2026-07-19 — 💹 组合每日净值快照 · AI Alpha 实测化（真账户 NAV）
 
 用户确认这是**长期真实账户**、只想看这一个页面 → 从今天起每天落一条真实组合净值，让 AI 超额收益（7D/30D/90D）随历史积累变为**实测**（不再是当前持仓回看近似）。同时先做**诚实标注**。

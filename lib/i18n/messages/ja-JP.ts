@@ -1898,7 +1898,7 @@ const jaJP: Messages = {
   "dv.placeholder": "このページは後続フェーズで構築",
   "dv.nav.overview": "意思決定サマリー",
   "dv.nav.strategy": "本日の戦略",
-  "dv.nav.picks": "AI 推奨",
+  "dv.nav.picks": "銘柄センター",
   "dv.nav.portfolio": "模擬ポートフォリオ",
   "dv.nav.history": "意思決定履歴",
   "dv.nav.sectors": "業種分析",

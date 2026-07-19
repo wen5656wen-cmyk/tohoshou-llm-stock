@@ -45,8 +45,9 @@ export const WORKSPACE_HOME: Record<Workspace, string> = {
 export const NAV_NODES: NavNode[] = [
   // ═══ 决策工作区（Decision · 5 页 → /decision-v2?tab=*）═══
   { key: "dv-overview", workspace: "boss", labelKey: "dv.nav.overview", href: "/decision-v2?tab=overview", Icon: LayoutGrid, glyph: "◎" },
-  { key: "dv-strategy", workspace: "boss", labelKey: "dv.nav.strategy", href: "/decision-v2?tab=strategy", Icon: Target, glyph: "◆" },
+  // 股票中心（原「AI 推荐」）：改名 + 上移至决策总览正下方（#2）。P2 再扩为三视图枢纽。
   { key: "dv-picks", workspace: "boss", labelKey: "dv.nav.picks", href: "/decision-v2?tab=recommendations", Icon: Star, glyph: "★" },
+  { key: "dv-strategy", workspace: "boss", labelKey: "dv.nav.strategy", href: "/decision-v2?tab=strategy", Icon: Target, glyph: "◆" },
   { key: "dv-portfolio", workspace: "boss", labelKey: "dv.nav.portfolio", href: "/decision-v2?tab=portfolio", Icon: PieChart, glyph: "◑" },
   { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },
   // 行业分析 / 产业研究：复用 screener 的 sectors/themes 两页，归属决策工作区。

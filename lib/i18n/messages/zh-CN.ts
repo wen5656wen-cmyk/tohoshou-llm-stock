@@ -1898,7 +1898,7 @@ const zhCN: Messages = {
   "dv.placeholder": "本页将在后续阶段构建",
   "dv.nav.overview": "决策总览",
   "dv.nav.strategy": "今日策略",
-  "dv.nav.picks": "AI 推荐",
+  "dv.nav.picks": "股票中心",
   "dv.nav.portfolio": "模拟持仓",
   "dv.nav.history": "历史决策",
   "dv.nav.sectors": "行业分析",

@@ -8,8 +8,8 @@ import { COLORS } from "@/lib/decision/ds";
 
 export const DECISION_TABS = [
   { key: "overview", labelKey: "dv.nav.overview" },
-  { key: "strategy", labelKey: "dv.nav.strategy" },
   { key: "picks", labelKey: "dv.nav.picks" },
+  { key: "strategy", labelKey: "dv.nav.strategy" },
   { key: "portfolio", labelKey: "dv.nav.portfolio" },
   { key: "history", labelKey: "dv.nav.history" },
 ] as const;
