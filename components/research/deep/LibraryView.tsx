@@ -65,7 +65,7 @@ export default function LibraryView() {
             <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{t("dr.lib.versions")} <span style={{ fontSize: 11, color: COLORS.textFaint }}>{d?.versions?.length ?? 0}</span></div>
             {!d?.versions?.length ? <div style={{ fontSize: 12, color: COLORS.textFaint, padding: "12px 0" }}>{t("dr.lib.empty")}</div> : (
               <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead><tr style={{ fontSize: 10, color: COLORS.textFaint }}>{["Entity", "Ver", "Status", "Provider", "Ev", "$", ""].map((h, i) => <th key={i} style={{ textAlign: i > 3 ? "right" : "left", padding: "5px 8px", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+                <thead><tr style={{ fontSize: 10.5, color: COLORS.textFaint }}>{[t("dr.lib.colEntity"), t("dr.lib.colVer"), t("dr.lib.colStatus"), t("dr.lib.colProvider"), t("dr.lib.colEvidence"), "$", ""].map((h, i) => <th key={i} style={{ textAlign: i > 3 ? "right" : "left", padding: "6px 8px", fontWeight: 600 }}>{h}</th>)}</tr></thead>
                 <tbody>
                   {d.versions.map((v: any) => (
                     <tr key={v.id} onClick={() => setVerId(v.id)} style={{ borderTop: `1px solid ${COLORS.borderSoft}`, cursor: "pointer" }}>
