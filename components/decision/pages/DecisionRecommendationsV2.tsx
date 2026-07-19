@@ -123,8 +123,7 @@ export default function DecisionRecommendationsV2() {
         </div>
       </div>
 
-      {/* 收盘决策状态带（择时/组合面 → 入口跳决策总览） */}
-      <VerdictBand verdict={data?.verdict ?? null} slim={view !== "ai"} onOverview={() => router.replace("/decision-v2?tab=overview", { scroll: false })} />
+      {/* 收盘决策状态带已移除：择时/组合面（verdict）在「决策总览」承载，股票中心专注选股。 */}
 
       {/* 视图内容 */}
       {view === "all" || view === "allstk" ? <MarketBrowseView onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
@@ -137,29 +136,10 @@ export default function DecisionRecommendationsV2() {
   );
 }
 
-// ═══════════════════════ 收盘决策状态带 ═══════════════════════
-function VerdictBand({ verdict, slim, onOverview }: { verdict: Verdict | null; slim: boolean; onOverview: () => void }) {
-  const { t } = useI18n();
-  const action = verdict?.action ?? null;
-  const conf = action === "BUY_TODAY" ? { tone: COLORS.success, wash: `${COLORS.success}14` }
-    : action === "WATCH_ONLY" ? { tone: COLORS.warning, wash: `${COLORS.warning}1f` }
-      : action === "STAY_CASH" ? { tone: COLORS.textMuted, wash: COLORS.tile }
-        : { tone: COLORS.textFaint, wash: COLORS.tile };
-  const pad = slim ? 7 : 10;
+// 自选星标切换（★ 已加入 / ☆ 未加入）——替代原「加入/已加入」按钮
+function FavStar({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) => void }) {
   return (
-    <div className="flex items-center gap-2.5 flex-wrap rounded-xl px-3.5" style={{ background: conf.wash, borderLeft: `3px solid ${conf.tone}`, border: `1px solid ${COLORS.border}`, paddingTop: pad, paddingBottom: pad }}>
-      <span className="text-[11px] font-bold px-2.5 py-1 rounded-md" style={{ background: conf.tone, color: "#fff" }}>
-        {action ? t(`dv.sc.vd.${action}` as Parameters<typeof t>[0]) : t("dv.sc.band.noVerdict")}
-      </span>
-      {action && (
-        <span className="text-[12px]" style={{ color: COLORS.textSecondary }}>
-          <b style={{ color: COLORS.text }}>{t("dv.sc.band.closing")}</b>
-          {action === "BUY_TODAY" && verdict ? ` · ${t("dv.sc.band.build")} ${verdict.portfolioCount} ${t("dv.sc.band.units")}` : ""}
-          {!slim ? <span style={{ color: COLORS.textFaint }}> · {t("dv.sc.band.live")}</span> : null}
-        </span>
-      )}
-      <button onClick={onOverview} className="ml-auto text-[12px] font-semibold px-2.5 py-1.5 rounded-lg" style={{ color: COLORS.primary, border: `1px solid ${COLORS.border}`, background: COLORS.card }}>{t("dv.sc.band.toOverview")} →</button>
-    </div>
+    <button onClick={onClick} aria-label="watchlist" className="leading-none" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, fontSize: 16, color: on ? COLORS.warning : COLORS.textFaint }}>{on ? "★" : "☆"}</button>
   );
 }
 
@@ -204,7 +184,7 @@ function MarketBrowseView({ onDetail, favSet, toggleFav }: { onDetail: (s: strin
                       <td className="py-1.5 px-2 text-right tabular-nums font-semibold" style={{ color: COLORS.text }}>{fmtScore(r.adaptiveScore)}</td>
                       <td className="py-1.5 px-2 text-right">{r.recommendationV2 ? <AppBadge tone={MKT_TONE[r.recommendationV2] ?? "neutral"}>{t(`dv.sc.lv.${r.recommendationV2}` as Parameters<typeof t>[0])}</AppBadge> : <span style={{ color: COLORS.textFaint }}>—</span>}</td>
                       <td className="py-1.5 px-2 text-left"><span className="text-[11px]" style={{ color: COLORS.textSecondary }}>{r.sector ?? "—"}</span></td>
-                      <td className="py-1.5 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name, sector: r.sector, market: r.market }); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${favSet.has(r.symbol) ? COLORS.success : COLORS.border}`, color: favSet.has(r.symbol) ? COLORS.success : COLORS.primary, background: favSet.has(r.symbol) ? `${COLORS.success}14` : COLORS.card }}>{favSet.has(r.symbol) ? "✓ " + t("dv.sc.added") : t("dv.pf.btnAdd")}</button></td>
+                      <td className="py-1.5 px-2 text-right"><FavStar on={favSet.has(r.symbol)} onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name, sector: r.sector, market: r.market }); }} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -315,7 +295,7 @@ function GroupListView({ kind, onDetail, favSet, toggleFav }: { kind: "holdings"
                 <td className="py-2 px-2 text-right tabular-nums font-semibold" style={{ color: UP_COLOR(r.upside) }}>{r.upside != null ? fmtPct(r.upside) : "—"}</td>
                 <td className="py-2 px-2 text-right tabular-nums" style={{ color: COLORS.text }}>{fmtJpy(r.currentPrice)}</td>
                 <td className="py-2 px-2 text-right tabular-nums" style={{ color: upDownColor(r.today) }}>{fmtPct(r.today)}</td>
-                <td className="py-2 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name }); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${favSet.has(r.symbol) ? COLORS.success : COLORS.border}`, color: favSet.has(r.symbol) ? COLORS.success : COLORS.primary, background: favSet.has(r.symbol) ? `${COLORS.success}14` : COLORS.card }}>{favSet.has(r.symbol) ? "✓ " + t("dv.sc.added") : t("dv.pf.btnAdd")}</button></td>
+                <td className="py-2 px-2 text-right"><FavStar on={favSet.has(r.symbol)} onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name }); }} /></td>
               </tr>
             ))}
           </tbody>
@@ -439,7 +419,7 @@ function AiRecoView({ data, loading, onDetail, favSet, toggleFav }: { data: Resp
                       <td className="py-2 px-2 text-right tabular-nums" style={{ color: upDownColor(r.todayChangePct) }}>{fmtPct(r.todayChangePct)}</td>
                       <td className="py-2 px-2 text-left tabular-nums text-[11px]" style={{ color: COLORS.textSecondary }}>{r.entryLow != null ? `${fmtJpy(r.entryLow)}~${fmtJpy(r.entryHigh)}` : "—"}</td>
                       <td className="py-2 px-2 text-right"><AppBadge tone={es.tone}>{t(es.key as Parameters<typeof t>[0])}</AppBadge></td>
-                      <td className="py-2 px-2 text-right"><button onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name, sector: r.sector }); }} className="h-6 px-2 rounded-full text-[11px] whitespace-nowrap" style={{ border: `1px solid ${favSet.has(r.symbol) ? COLORS.success : COLORS.border}`, color: favSet.has(r.symbol) ? COLORS.success : COLORS.primary, background: favSet.has(r.symbol) ? `${COLORS.success}14` : COLORS.card }}>{favSet.has(r.symbol) ? "✓ " + t("dv.sc.added") : t("dv.pf.btnAdd")}</button></td>
+                      <td className="py-2 px-2 text-right"><FavStar on={favSet.has(r.symbol)} onClick={(e) => { e.stopPropagation(); toggleFav(r.symbol, { name: r.name, sector: r.sector }); }} /></td>
                     </tr>
                   );
                 })}
