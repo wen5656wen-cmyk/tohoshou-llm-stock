@@ -221,6 +221,10 @@ export default function DecisionOverviewV2() {
           <div style={{ fontSize: 12, color: "#8E8E93", marginTop: 2 }}>AI Portfolio Manager</div>
         </div>
         <div className="flex justify-center min-w-0 order-3 sm:order-2" style={{ flex: "1 1 260px" }}><StockSearch onPick={(s, n) => openDetail(s, n)} focusSignal={searchFocus} /></div>
+        {/* P19-T3 Task3：今日简报快捷入口（仅导航，不新增任何内容） */}
+        <button onClick={() => router.push("/decision-v2?tab=strategy")} className="order-2 sm:order-3 text-[11px] hover:underline shrink-0" style={{ color: "#007AFF" }}>
+          {t("dv.nav.strategy")} →
+        </button>
         <div className="ml-auto order-2 sm:order-3" style={{ flex: "0 0 auto", textAlign: "right" }}>
           <div style={{ fontSize: 12.5, color: marketClosed ? "#6B7280" : "#34C759", fontWeight: 600 }}>{t(marketClosed ? "dv.ov2.marketClosed" : "dv.ov2.marketOk")}</div>
           <div className="tabular-nums" style={{ fontSize: 11, color: "#9CA3AF" }}>{fmtJstClock(fr.quoteUpdatedAt)} JST</div>

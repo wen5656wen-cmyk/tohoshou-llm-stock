@@ -90,21 +90,21 @@ export default function DecisionStrategyV2() {
 
       {/* ② 今日状态（四格，各自 As Of） */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <StatusCard title={t("br.st.market")} asOf={s.market.asOf} asOfLabel={t("br.asOf.close")}
+        <StatusCard title={t("br.st.market")} asOf={s.market.asOf} asOfLabel={t("common.asOf.close")}
           main={s.market.regime ? tx(`dc.regime.${s.market.regime}`) : "—"}
           tone={s.market.regime === "BULL" ? "green" : s.market.regime === "BEAR" ? "red" : "neutral"}
           rows={[{ k: t("db.riskLevel"), v: s.market.riskLevel ?? "—" },
                  ...(s.market.trendDegraded ? [{ k: "⚠", v: t("br.st.trendDegraded") }] : [])]}
           onClick={() => router.push("/decision-v2?tab=overview")} />
-        <StatusCard title={t("br.st.mission")} asOf={s.mission.asOf} asOfLabel={t("br.asOf.today")}
+        <StatusCard title={t("br.st.mission")} asOf={s.mission.asOf} asOfLabel={t("common.asOf.data")}
           main={`${s.mission.active} ${t("br.st.missionActive")}`} tone="blue"
           rows={s.mission.rows.map((m) => ({ k: m.periodLabel, v: `${fmtPct(m.returnPct, 2)} / +${m.targetPct}% · ${m.daysLeft}${t("tr.unit.day")}` }))}
           onClick={() => router.push("/decision-v2?tab=portfolio")} />
-        <StatusCard title={t("br.st.reco")} asOf={s.recommendation.asOf} asOfLabel={s.recommendation.isToday ? t("br.asOf.today") : t("dc.ov.lastClose")}
+        <StatusCard title={t("br.st.reco")} asOf={s.recommendation.asOf} asOfLabel={s.recommendation.isToday ? t("common.asOf.data") : t("common.asOf.closingDecision")}
           main={s.recommendation.verdict ? tx(`dc.verdict.${s.recommendation.verdict}`) : "—"} tone="amber"
           rows={[{ k: t("br.st.portfolio"), v: s.recommendation.portfolioCount != null ? `${s.recommendation.portfolioCount} ${t("tr.unit.trade")}` : "—" }]}
           onClick={() => router.push("/decision-v2?tab=recommendations")} />
-        <StatusCard title={t("br.st.system")} asOf={health?.auditAt ? fmtJstTime(health.auditAt) : null} asOfLabel={t("br.asOf.audit")}
+        <StatusCard title={t("br.st.system")} asOf={health?.auditAt ? fmtJstTime(health.auditAt) : null} asOfLabel={t("common.asOf.audit")}
           main={health ? (health.criticalCount > 0 ? `CRITICAL ${health.criticalCount}` : t("br.st.normal")) : "—"}
           tone={health ? (health.criticalCount > 0 ? "red" : health.warningCount > 0 ? "amber" : "green") : "neutral"}
           rows={health ? [{ k: "WARNING", v: String(health.warningCount) }, { k: "CRITICAL", v: String(health.criticalCount) }] : []} />
@@ -197,10 +197,10 @@ export default function DecisionStrategyV2() {
           <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>📌 {t("br.todo.title")}</span>}>
             <TodoRow icon="📌" label={t("br.todo.mission")} count={td.missionPending.count}
               detail={td.missionPending.count === 0 ? t("br.todo.missionDone") : t("br.todo.missionWait")}
-              asOf={td.missionPending.asOf} tAsOf={t("br.asOf.plain")} onGo={() => router.push("/decision-v2?tab=portfolio")} goLabel="Mission Lab" />
+              asOf={td.missionPending.asOf} tAsOf={t("common.asOf.data")} onGo={() => router.push("/decision-v2?tab=portfolio")} goLabel="Mission Lab" />
             <TodoRow icon="⚠" label={t("br.todo.tpsl")} count={td.tpSlAlerts.count}
               detail={td.tpSlAlerts.count === 0 ? `${td.tpSlAlerts.holdings} ${t("br.todo.allInRange")}` : ""}
-              asOf={td.tpSlAlerts.asOf} tAsOf={t("br.asOf.plain")} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
+              asOf={td.tpSlAlerts.asOf} tAsOf={t("common.asOf.data")} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
               {td.tpSlAlerts.items.map((it) => (
                 <div key={it.symbol} className="flex items-center gap-2 py-1 text-[11px]">
                   <AppBadge tone={it.kind.includes("SL") ? "red" : "green"}>{tx(`br.tpsl.${it.kind}`)}</AppBadge>
@@ -213,7 +213,7 @@ export default function DecisionStrategyV2() {
               ))}
             </TodoRow>
             <TodoRow icon="🔺" label={t("br.todo.risk")} count={td.riskAlerts.count} detail=""
-              asOf={td.riskAlerts.asOf} tAsOf={t("br.asOf.plain")} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
+              asOf={td.riskAlerts.asOf} tAsOf={t("common.asOf.data")} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
               {td.riskAlerts.items.map((it) => (
                 <div key={it.key} className="flex items-center gap-2 py-1 text-[11px]">
                   <AppBadge tone={it.level === "WARNING" ? "amber" : "neutral"}>{it.level}</AppBadge>
@@ -227,7 +227,7 @@ export default function DecisionStrategyV2() {
           <AppCard header={
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>🎯 {t("br.opp.title")}</span>
-              <span className="text-[10px]" style={{ color: COLORS.textFaint }}>{op.isToday ? t("br.asOf.today") : t("dc.ov.lastClose")} {op.asOf ?? "—"}</span>
+              <span className="text-[10px]" style={{ color: COLORS.textFaint }}>{op.isToday ? t("common.asOf.data") : t("common.asOf.closingDecision")} {op.asOf ?? "—"}</span>
             </div>}>
             {!op.available ? <EmptyLine text={t("br.opp.empty")} /> : (
               <>

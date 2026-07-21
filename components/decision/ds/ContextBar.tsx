@@ -67,7 +67,7 @@ export default function DecisionContextBar() {
             <span className="shrink-0" style={{ color: COLORS.textSecondary }}>
               {t("dv.ctx.confidence")} <b style={{ color: COLORS.primary }}>{fmtScore(confidence)}</b>
             </span>
-            <span className="ml-auto tabular-nums shrink-0" style={{ color: COLORS.textFaint }}>{t("dc.ov.lastClose")} {verdictAsOf}</span>
+            <span className="ml-auto tabular-nums shrink-0" style={{ color: COLORS.textFaint }}>{t("common.asOf.closingDecision")} {verdictAsOf}</span>
           </>
         )}
         <button onClick={() => setOpen((v) => !v)} className={open ? "ml-1.5" : "ml-auto"}

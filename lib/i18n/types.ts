@@ -527,9 +527,7 @@ export type Messages = {
   "dc.ov.outOfZone": string;
   "dc.ov.top1NotInPort": string;
   "dc.ov.marketState": string;
-  "dc.ov.lastClose": string;
   "dc.ov.trendDegradedHint": string;
-  "dc.ov.snapshotAsOf": string;
   "dc.ov.showTop3": string;
   "dc.ov.currentPrice": string;
   "dc.h.decision": string;
@@ -595,12 +593,12 @@ export type Messages = {
   "ex2.risk": string; "ex2.takeProfit": string; "ex2.stopLoss": string; "ex2.invalidation": string; "ex2.marketContext": string;
   "ex2.t1": string; "ex2.t2": string; "ex2.t3": string; "ex2.loading": string; "ex2.noData": string;
   // P8-2 AI 投资日报
-  "db.title": string; "db.updated": string;
+  "db.title": string;
   "db.s1": string; "db.s2": string; "db.s3": string; "db.s4": string; "db.s5": string; "db.s6": string; "db.s7": string;
   "db.trend": string; "db.trendUp": string; "db.trendSide": string; "db.trendDown": string;
   "db.riskLevel": string; "db.cashRatio": string; "db.holdCount": string;
   "db.todayAction": string; "db.actBuy": string; "db.actWatch": string; "db.actCash": string; "db.focusTop5": string; "db.sum.buy": string; "db.sum.watch": string; "db.sum.cash": string; "db.noRisk": string;
-  "ir.copy": string; "ir.print": string; "ir.aiScore": string; "ir.gptScore": string; "ir.gptRank": string; "ir.market": string; "ir.volatility": string; "ir.liquidity": string; "ir.updated": string; "ir.rankOf": string; "ir.holdSub": string; "ir.copied": string;
+  "ir.copy": string; "ir.print": string; "ir.aiScore": string; "ir.gptScore": string; "ir.gptRank": string; "ir.market": string; "ir.volatility": string; "ir.liquidity": string; "ir.rankOf": string; "ir.holdSub": string; "ir.copied": string;
 
   // ─── Recommendation ratings ────────────────────────────────────────────────
   "rating.STRONG_BUY": string;
@@ -724,7 +722,6 @@ export type Messages = {
   "screener.searching": string;
   "screener.result_count": string;
   "screener.bull_count": string;
-  "screener.updated": string;
 
   // ─── Market temperature ────────────────────────────────────────────────────
   "temp.HOT": string;
@@ -2076,12 +2073,18 @@ export type Messages = {
   "ml.how.title": string; "ml.how.s1": string; "ml.how.s2": string; "ml.how.s3": string;
   "ml.today.start": string; "ml.target.line": string;
   // P18-M1.1 · 实时行情刷新（展示层）
-  "ml.rt.live": string; "ml.rt.closed": string; "ml.rt.updated": string; "ml.rt.source": string;
+  "ml.rt.live": string; "ml.rt.closed": string; "ml.rt.source": string;
   "dv.tr.summary": string;
   "dv.tr.viewFull": string;
   "dv.tr.note": string;
+  // P19-T3 · 统一 As Of 命名
+  "common.asOf.data": string;
+  "common.asOf.close": string;
+  "common.asOf.snapshot": string;
+  "common.asOf.closingDecision": string;
+  "common.asOf.audit": string;
+  "common.asOf.updated": string;
   // P19-T2 · 今日简报
-  "br.asOf.plain": string;
   "br.need.announcement": string;
   "br.need.exDivDate": string;
   "br.loading": string;
@@ -2103,9 +2106,6 @@ export type Messages = {
   "br.st.missionActive": string;
   "br.st.portfolio": string;
   "br.st.normal": string;
-  "br.asOf.close": string;
-  "br.asOf.today": string;
-  "br.asOf.audit": string;
   "br.tl.title": string;
   "br.tl.produced": string;
   "br.tl.allTasks": string;
@@ -2168,7 +2168,6 @@ export type Messages = {
   "br.foot.notConnected": string;
   // P19-T1 · AI 战绩档案 Track Record
   "tr.loading": string;
-  "tr.asOf": string;
   "tr.l.signal": string;
   "tr.l.experiment": string;
   "tr.l.account": string;

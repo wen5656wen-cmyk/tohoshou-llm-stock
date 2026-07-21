@@ -159,7 +159,7 @@ function DataAsOfNote() {
   return (
     <div className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg" style={{ background: COLORS.tile, color: COLORS.textMuted }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: COLORS.textFaint }} />
-      <span>{t("dc.ov.snapshotAsOf")} <b className="tabular-nums" style={{ color: COLORS.textSecondary }}>{asOf}</b></span>
+      <span>{t("common.asOf.snapshot")} <b className="tabular-nums" style={{ color: COLORS.textSecondary }}>{asOf}</b></span>
     </div>
   );
 }

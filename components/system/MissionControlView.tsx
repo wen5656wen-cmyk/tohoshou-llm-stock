@@ -10,7 +10,7 @@ type StepStatus = "SUCCESS" | "WAITING" | "FAILED" | "SKIPPED";
 
 interface PipelineStep {
   key: string; name: string; scheduledLabel: string; status: StepStatus;
-  lastRunAt: string | null; lastRunJst: string | null; durationMs: number | null;
+  lastRunAt: string | null; lastRunJst: string | null; durationMs: number | null; timeSource?: "DB" | "LOG";
   duration: string | null; resultSummary: string | null; errorMessage: string | null;
 }
 interface StrategyRecBlock { total: number; top10Count: number; latestTradeDate: string | null; status: Severity }
@@ -222,7 +222,7 @@ export default function MissionControlPage() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                       {s.duration && <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{s.duration}</span>}
-                      {s.lastRunJst && <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }}>{s.lastRunJst.slice(11)}</span>}
+                      {s.lastRunJst && <span style={{ fontSize: 11, color: M.faint, fontVariantNumeric: "tabular-nums" }} title={`${s.lastRunAt ?? ""}${s.timeSource ? ` · ${s.timeSource}` : ""}`}>{s.lastRunJst.slice(11)}{s.timeSource === "DB" ? " ·DB" : ""}</span>}
                       <span style={{ fontSize: 11, fontWeight: 700, color: c, minWidth: 30, textAlign: "right" }}>{s.status === "SUCCESS" ? "✓" : stepText[s.status]}</span>
                     </div>
                   </div>

@@ -80,7 +80,7 @@ export default function DecisionHistoryV2() {
       {/* 口径条 */}
       <div className="flex items-center gap-2 flex-wrap text-[11px] px-3 py-2 rounded-lg" style={{ background: COLORS.tile, color: COLORS.textMuted }}>
         <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: COLORS.textFaint }} />
-        <b style={{ color: COLORS.textSecondary }}>{t("tr.asOf")} {data?.asOf ?? "—"}</b>
+        <b style={{ color: COLORS.textSecondary }}>{t("common.asOf.data")} {data?.asOf ?? "—"}</b>
         <span>·</span><span>{t("tr.l.signal")} {sig?.summary.cohortDays ?? 0} {t("tr.unit.cohort")}</span>
         <span>·</span><span>{t("tr.l.experiment")} {exp?.aggregate.total ?? 0} {t("tr.unit.period")}</span>
         <span>·</span><span>{t("tr.l.account")} {acc?.summary.closed ?? 0} {t("tr.unit.closed")}</span>

@@ -475,23 +475,37 @@ export async function GET() {
     const dayCaughtUp = !latestDueDayTradeDate
       || (dayExec.lastSettledDate === latestDueDayTradeDate.tradeDate.toISOString().slice(0, 10));
 
-    const groundTruthRanToday: Partial<Record<string, boolean>> = {
-      compute_scores: todayScoreCount > 0,
-      day_settle: dayCaughtUp,
+    // ── P19-T3 Task1：单一时间来源 ───────────────────────────────────────────
+    // Root Cause：本步骤的**状态**早已用 DB ground truth 判定（compute-scores 嵌套在
+    // sync-all-prices 的下游链里，从不写 pipeline-runs.jsonl，其 stage 日志永久陈旧），
+    // 但 `lastRunAt/lastRunJst/durationMs` 仍无条件取自该陈旧日志 → 同一行出现
+    // 「status=SUCCESS（今天）+ 时间=2026-07-04（17 天前）」两套时间判定。
+    // 修：凡有 ground truth 的步骤，**状态与时间必须同源**——时间也取 DB 证据，
+    // 日志时长置空（日志本就没有该次运行），并回传 timeSource 标明来源。
+    const groundTruth: Partial<Record<string, { ranToday: boolean; at: string | null }>> = {
+      compute_scores: {
+        ranToday: todayScoreCount > 0,
+        at: latestScoreRow?.computedAt ? new Date(latestScoreRow.computedAt).toISOString() : null,
+      },
+      day_settle: {
+        ranToday: dayCaughtUp,
+        at: dayExec.lastSettledDate ? new Date(`${dayExec.lastSettledDate}T00:00:00.000Z`).toISOString() : null,
+      },
     };
 
     const stepResults = STEP_DEFS.map(def => {
       const applies = def.appliesToday(today);
       const run = latestPerStage.get(def.stage) ?? null;
+      const gt = groundTruth[def.key] ?? null;
       const logRanToday = run ? isSameJstDay(new Date(run.finishedAt), today) : false;
-      const ranToday = groundTruthRanToday[def.key] ?? logRanToday;
+      const ranToday = gt ? gt.ranToday : logRanToday;
       const scheduledMinutes = def.scheduledHour * 60 + def.scheduledMinute;
 
       let status: StepStatus;
       if (!applies) {
         status = "SKIPPED";
       } else if (ranToday) {
-        status = (def.key in groundTruthRanToday) ? "SUCCESS" : (run!.status === "SUCCESS" ? "SUCCESS" : "FAILED");
+        status = gt ? "SUCCESS" : (run!.status === "SUCCESS" ? "SUCCESS" : "FAILED");
       } else if (nowMinutes < scheduledMinutes) {
         status = "WAITING";
       } else if (nowMinutes - scheduledMinutes > MISS_GRACE_MINUTES) {
@@ -549,10 +563,12 @@ export async function GET() {
         name: def.name,
         scheduledLabel: def.scheduledLabel,
         status,
-        lastRunAt: run?.finishedAt ?? null,
-        lastRunJst: run ? toJstClock(run.finishedAt) : null,
-        durationMs: run?.durationMs ?? null,
-        duration: fmtDuration(run?.durationMs ?? null),
+        // 时间与状态同源：有 ground truth 用 DB 证据，否则用日志（timeSource 标明）
+        lastRunAt: gt ? gt.at : (run?.finishedAt ?? null),
+        lastRunJst: gt ? (gt.at ? toJstClock(gt.at) : null) : (run ? toJstClock(run.finishedAt) : null),
+        durationMs: gt ? null : (run?.durationMs ?? null),
+        duration: gt ? null : fmtDuration(run?.durationMs ?? null),
+        timeSource: gt ? ("DB" as const) : ("LOG" as const),
         resultSummary,
         errorMessage: status === "FAILED" ? (run?.errorMessage ?? "逾期未执行") : null,
       };

@@ -2,6 +2,35 @@
 
 ---
 
+## [18.49.0] - 2026-07-21 — 🧊 P19-T3 Final：IA 收尾（时间源统一 / As Of 命名统一 / 导航补全）
+
+P19 收官四项任务，不新增功能。零 Schema / 零评分 / 零推荐算法 / 零交易 / 零 Cron / 零实时行情 / API 业务含义不变。
+
+### Task 1（P0）Mission Control 单一时间来源
+**Root Cause**：`compute-scores.ts` 嵌套在 `sync-all-prices.ts` 的下游链中执行（`execSync`，非 cron-scheduler 的 `runAsync`），**从不写 `pipeline-runs.jsonl`**，其 stage 日志永久陈旧。该步骤的**状态**早已用 DB ground truth（`todayScoreCount > 0`）判定为 SUCCESS，但 `lastRunAt / lastRunJst / durationMs` **无条件取自陈旧日志** → 同一行出现「status=SUCCESS（今天）+ 时间=2026-07-04（17 天前）」，与同一 API 内 `dataFreshness.stockScore.latestDate=2026-07-21` 互相矛盾。
+**修**：`groundTruthRanToday: Record<string, boolean>` → `groundTruth: Record<string, { ranToday; at }>`，**状态与时间强制同源**：有 DB 证据的步骤时间取 `StockScore.computedAt` / `dayExec.lastSettledDate`，日志时长置空（日志本无该次运行），并新增 `timeSource: "DB" | "LOG"` 标明来源；页面统一引用 `lastRunJst` 单一字段并展示来源标记。
+**验证**：`compute_scores lastRunAt 2026-07-04 → 2026-07-21 07:08 JST（src=DB）`，与 `dataFreshness` 一致；13 步全部状态与时间同源。
+
+### Task 2（P1）As Of i18n 统一为 `common.asOf.*`
+全项目原有 **12 个** 时间相关键、7 套措辞。统一为 6 个语义键：`common.asOf.{data, close, snapshot, closingDecision, audit, updated}`。
+迁移旧键 **9 个**（`tr.asOf` / `br.asOf.{plain,today,close,audit}` / `dc.ov.{snapshotAsOf,lastClose}` / `ml.rt.updated` / `ir.updated`）+ 删除废弃零引用键 **2 个**（`db.updated` / `screener.updated`）。消费端 6 个文件同步更新；**grep 复检旧键残留 = 0**。
+⚠️ 说明：`en-US` 已于 v18.20.0 移除，全站仅 `zh-CN` / `ja-JP`，故「英文 100% English」不适用。
+
+### Task 3（P2）Overview 增加「今日简报」快捷入口
+命令条右侧新增导航按钮，风格与既有 `查看完整战绩 →` 一致。**仅导航，零新增内容**。
+
+### Task 4（P2）Mission Lab 增加三个出口
+顶部新增 `决策总览 → / 今日简报 → / 股票中心 →`。Mission Lab 不再是叶子页面。**仅导航，零新增业务**。
+
+### Task 5 验证
+- ① IA：职责无重复；业绩统计仅存于战绩档案（Overview / Briefing / Mission Lab 均 0 命中）；Overview 深度统计残留 grep = **0**
+- ② Navigation：**10/10 HTTP 200**，零死链、无循环；新增出口实测可达（Overview→`tab=strategy`；Mission Lab 三出口全部渲染）
+- ③ i18n：**五页 × 双语 10/10 通过**，英文残留 0、跨语言混排 0
+- ④ 时间口径：全站统一 `common.asOf.*`
+- ⑤ Build PASS / TypeScript **0 Error**；ESLint 10 项均为 HEAD 既有（`git stash` 对比确认零新增）
+
+---
+
 ## [18.48.1] - 2026-07-21 — 🧭 P19 IA Review + i18n 中英混排修复（阻断级）
 
 P19 收官信息架构审计（只读），产出 `docs/P19-IA_REVIEW_REPORT.md`。审计中发现 **1 个阻断级问题并修复**，其余 8 项列为后续建议不开发。

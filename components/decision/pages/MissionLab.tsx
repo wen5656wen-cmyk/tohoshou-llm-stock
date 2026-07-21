@@ -9,7 +9,7 @@
 // 成本价·成交价·成交时间·Signal Time·Explain·建议成交区间 永远取自 /api/mission-lab，
 // 不参与刷新、不被覆盖。收盘后停止轮询并保留最后一次行情。
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppBadge, AppLoading, AppEmptyState, AppTimeline, COLORS, RADIUS } from "@/components/ui";
 import type { Tone } from "@/lib/design-tokens";
@@ -89,6 +89,7 @@ export default function MissionLab() {
   // P19-T1：AI 战绩档案「查看该期」跳转带 ?mission=<periodLabel>，据此切到对应 Mission。
   // 只影响初始选中项，不改布局/不改数据流。
   const sp = useSearchParams();
+  const router = useRouter();
   const missionParam = sp.get("mission");
   const [openEx, setOpenEx] = useState<Record<string, boolean>>({});
   const { live, failed, refreshAgeSec } = useLiveQuotes();
@@ -124,6 +125,14 @@ export default function MissionLab() {
       {/* ── 行情状态条 + 分段切换合并为一行（标题由工作区顶部承载，避免重复）── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <QuoteStatusBar live={live} failed={failed} refreshAgeSec={refreshAgeSec} t={tx} />
+        {/* P19-T3 Task4：出口（仅导航，Mission Lab 不再是叶子页面） */}
+        <div className="flex items-center gap-3 flex-wrap ml-auto">
+          {([["overview", "dv.nav.overview"], ["strategy", "dv.nav.strategy"], ["recommendations", "dv.nav.picks"]] as const).map(([tab, key]) => (
+            <button key={tab} onClick={() => router.push(`/decision-v2?tab=${tab}`)} className="text-[11px] hover:underline shrink-0" style={{ color: COLORS.primary }}>
+              {tx(key)} →
+            </button>
+          ))}
+        </div>
         <div className="flex p-0.5 gap-0.5 shrink-0" style={{ background: COLORS.track, borderRadius: RADIUS.lg }}>
           {(["WEEKLY", "MONTHLY"] as const).map((k) => (
             <button key={k} onClick={() => setSel(k)} className="px-4 py-1.5 text-sm font-medium transition-all" style={sel === k ? { background: COLORS.card, color: COLORS.text, borderRadius: RADIUS.md, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" } : { background: "transparent", color: COLORS.textMuted, borderRadius: RADIUS.md }}>{t(`ml.type.${k}`)}</button>
@@ -340,7 +349,7 @@ function QuoteStatusBar({ live, failed, refreshAgeSec, t }: { live: LivePayload 
       <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: c.dot }} />
       <span className="font-medium" style={{ color: c.text }}>{c.label}</span>
       <span style={{ color: COLORS.textFaint }}>·</span>
-      <span>{t("ml.rt.updated")} <b className="tabular-nums font-medium" style={{ color: COLORS.textSecondary }}>{fmtStamp(live?.marketPriceAt ?? live?.asOf ?? null)}</b></span>
+      <span>{t("common.asOf.updated")} <b className="tabular-nums font-medium" style={{ color: COLORS.textSecondary }}>{fmtStamp(live?.marketPriceAt ?? live?.asOf ?? null)}</b></span>
       {live?.quoteAgeSec != null && live.quoteAgeSec >= 60 ? (
         <span style={{ color: COLORS.textFaint }}>（{t("ml.rt.lag")} {Math.round(live.quoteAgeSec / 60)} {t("ml.rt.min")}）</span>
       ) : null}

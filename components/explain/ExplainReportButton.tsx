@@ -157,7 +157,7 @@ export default function ExplainReportButton({ symbol, name, size = "sm" }: { sym
                   </div>
                   <Sum icon="🥧" label={t("ex2.position")} value={`${rep.suggestedPositionPct}%`} sub={rep.suggestedPositionNote} />
                   <Sum icon="📅" label={t("ex2.hold")} value={rep.holdingPeriod} sub={t("ir.holdSub")} />
-                  <Sum icon="🕐" label={t("ir.updated")} value={rep.dataAsOf ?? "—"} sub="JST" />
+                  <Sum icon="🕐" label={t("common.asOf.updated")} value={rep.dataAsOf ?? "—"} sub="JST" />
                 </div>
 
                 {/* 8 卡片双列 */}
