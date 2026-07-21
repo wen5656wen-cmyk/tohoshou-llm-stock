@@ -9,6 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "cron": "npx tsx scripts/cron-scheduler.ts",
+    "sync-earnings": "npx tsx scripts/sync-earnings-schedule.ts",
+    "sync-exdiv": "npx tsx scripts/sync-ex-dividend.ts",
     "sync-meta": "npx tsx scripts/sync-stock-meta.ts",
     "sync-prices-recent": "npx tsx scripts/sync-all-prices.ts",
     "sync-prices-daily": "npx tsx scripts/sync-all-prices.ts --daily",

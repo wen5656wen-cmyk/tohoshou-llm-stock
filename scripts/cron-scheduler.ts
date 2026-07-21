@@ -88,7 +88,9 @@ function writePipelineLog(entry: {
  * 值为脚本是否成功（exit 0 且未超时）。P1-4 修复：此前恒 resolve()，调用方无法
  * 区分成功/失败，07:30 watchdog 因此把失败的价格同步误判为成功。
  */
-function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Promise<boolean> {
+// P20：新增可选 args —— 同一脚本按 --scope 跑不同范围（增量/全市场）。
+// 既有调用不传 args，行为完全不变。
+function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000, args: string[] = []): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     log("INFO", `▶ 开始 ${label}`);
     const startedAt = new Date();
@@ -96,7 +98,7 @@ function runAsync(script: string, label: string, timeoutMs = 10 * 60 * 1000): Pr
 
     const child = spawn(
       "npx",
-      ["tsx", join(process.cwd(), "scripts", script)],
+      ["tsx", join(process.cwd(), "scripts", script), ...args],
       { stdio: "inherit", env: { ...process.env, TZ: "Asia/Tokyo" } },
     );
 
@@ -594,3 +596,27 @@ log("INFO", "調度器起動完了");
 log("INFO", "スケジュール：金曜16:30 機構資金(J-Quants) / 月曜07:15 バックアップ");
 log("INFO", "           00:00 リセット / 05:30 市場 / 06:00 価格(並行spawn+流水線) / 07:00·12·18·22 ニュース");
 log("INFO", "           07:30 AI評分+rerank+健全性+Day(T+1結算)+推荐 / 16:35 Swing / 16:40 Long / 16:45 Backtest / 17:00 Learning / 17:15 DailyValidation(工作日) / 土17:30 WeeklyReport / 月末18:00 MonthlyReport / 18:30 空売り比率 / 22:00 複盤 / 22:30 配当");
+
+// ── P20 · 企业行动事件（财报発表予定 / 除权除息）─────────────────────────────
+// 数据源均为 Yahoo Finance。J-Quants v1 已 410 下线、v2 无 announcement 端点且
+// /v2/fins/dividend 不在当前订阅内（均已实测），故不走 J-Quants。
+// ⚠️ 本段新增 cron.schedule 后必须 `pm2 restart tohoshou-cron`，否则不会生效。
+
+// 07:45 JST — 财报発表予定（范围 = 持仓 ∪ 今日 TOP10）
+// 排在 07:30 评分之后，确保当日 TOP10 已产出；在 08:00 早报之前完成。
+cron.schedule("45 7 * * *", async () => {
+  log("INFO", "⏰ 07:45 触发：決算発表予定同期（保有 + 本日 TOP10）");
+  await runAsync("sync-earnings-schedule.ts", "決算発表予定", 5 * 60 * 1000);
+}, { timezone: "Asia/Tokyo" });
+
+// 07:50 JST — 除权除息 每日增量（同上范围，约 20 只，数秒完成）
+cron.schedule("50 7 * * *", async () => {
+  log("INFO", "⏰ 07:50 触发：権利落ち日 増分同期");
+  await runAsync("sync-ex-dividend.ts", "権利落ち日（増分）", 5 * 60 * 1000, ["--scope=focus"]);
+}, { timezone: "Asia/Tokyo" });
+
+// 周日 23:00 JST — 除权除息 全市场（约 3000 只，限速后 8–10 分钟；避开所有交易日任务）
+cron.schedule("0 23 * * 0", async () => {
+  log("INFO", "⏰ 周日 23:00 触发：権利落ち日 全市場同期");
+  await runAsync("sync-ex-dividend.ts", "権利落ち日（全市場）", 25 * 60 * 1000, ["--scope=market"]);
+}, { timezone: "Asia/Tokyo" });

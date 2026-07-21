@@ -2532,3 +2532,21 @@ model AiMissionNav {
   @@index([missionId, date])
   @@map("ai_mission_nav")
 }
+
+// ── P20 · 财报発表予定（Yahoo Finance 派生缓存）────────────────────────────────
+// 纯派生表：100% 可从 Yahoo 重建，无业务外键，回滚 = DROP TABLE，零数据损失。
+// 语义 = 「该股下一个财报日」，故 symbol 唯一；无有效未来日期则**不建行**（不存 null）。
+// ⚠️ 仅存「今日 JST 及未来」的日期。Yahoo 实测 70% 的 earningsTimestampStart 是陈旧
+//    历史值（如 9343.T → 2025-05-09），直接采信会造出大面积假「财报预定」。
+model EarningsSchedule {
+  id           Int      @id @default(autoincrement())
+  symbol       String
+  earningsDate DateTime @db.Date // JST 日历日
+  confirmed    Boolean  @default(false) // earningsTimestamp 与 Start 同日 → true
+  source       String   @default("yahoo")
+  fetchedAt    DateTime @default(now()) // 最后一次成功刷新时间（断点续跑判据）
+
+  @@unique([symbol])
+  @@index([earningsDate])
+  @@map("earnings_schedule")
+}

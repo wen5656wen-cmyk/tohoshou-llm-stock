@@ -37,8 +37,16 @@ type Payload = {
   events: {
     tdnet: { available: boolean; windowHours: number; items: TdnetItem[]; asOf: string | null };
     research: { available: boolean; windowDays: number; items: CalItem[] };
-    earnings: { available: boolean; reason: string; needKey: string };
-    exDividend: { available: boolean; reason: string; needKey: string; exDivRows: number };
+    earnings: {
+      available: boolean; scope: string; scopeCount: number; state: string; asOf: string | null;
+      coverage: { queried: number; withDate: number; confirmed: number };
+      items: { symbol: string; date: string | null; confirmed: boolean; held: boolean; inTop10: boolean }[];
+    };
+    exDividend: {
+      available: boolean; scope: string; windowDays: number; state: string; asOf: string | null;
+      coverage: { universe: number; withExDiv: number; pct: number };
+      items: { symbol: string; date: string | null; held: boolean }[];
+    };
   };
   todo: {
     missionPending: { count: number; asOf: string | null };
@@ -187,16 +195,59 @@ export default function DecisionStrategyV2() {
               </div>
             )}
           </Section>
-          {/* 未接入项：显式标注，绝不推测 */}
-          <div className="mt-2 rounded-lg p-2.5" style={{ background: COLORS.tile }}>
-            {[{ label: `📊 ${t("br.ev.earnings")}`, need: tx(ev.earnings.needKey) }, { label: `💰 ${t("br.ev.exDiv")}`, need: tx(ev.exDividend.needKey) }].map((x, i) => (
-              <div key={i} className="flex items-start gap-2 text-[11px] py-0.5">
-                <span style={{ color: COLORS.textMuted }}>{x.label}</span>
-                <AppBadge tone="neutral">⊘ {t("br.ev.notConnected")}</AppBadge>
-                <span className="flex-1 text-[10px]" style={{ color: COLORS.textFaint }}>{x.need}</span>
+          {/* 财报発表予定（范围 = 持仓 + 今日 TOP10，非全市场）*/}
+          <Section
+            label={`📊 ${t("br.ev.earnings")}`}
+            sub={`${t("br.ev.scopeFocus")}（${ev.earnings.scopeCount}）· ${t("br.ev.confirmed")} ${ev.earnings.coverage.confirmed}`}
+            count={ev.earnings.items.length}
+          >
+            {/* ⚠️ 空态必须是「当前数据源未确认」——本范围无确认日期 ≠ 全市场今日无财报，
+                禁止出现「今日 0 家」这类会被读成全市场无事件的表述。 */}
+            {ev.earnings.state === "NO_CONFIRMED_DATA" ? (
+              <div className="flex items-start gap-2 py-1.5 text-[11px]">
+                <AppBadge tone="neutral">⊘ {t("br.ev.unconfirmed")}</AppBadge>
+                <span className="flex-1 text-[10px]" style={{ color: COLORS.textFaint }}>{t("br.ev.unconfirmedEarn")}</span>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="flex flex-col">
+                {ev.earnings.items.slice(0, 6).map((it, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1.5 text-[11px]" style={{ borderTop: i ? `1px solid ${COLORS.borderSoft}` : undefined }}>
+                    <span className="tabular-nums shrink-0" style={{ color: COLORS.textFaint }}>{it.date?.slice(5, 10)}</span>
+                    <button onClick={() => setTarget({ symbol: it.symbol, name: it.symbol })} className="font-mono shrink-0 hover:underline" style={{ color: COLORS.primary }}>{it.symbol}</button>
+                    <AppBadge tone={it.confirmed ? "green" : "amber"}>{it.confirmed ? `✓ ${t("br.ev.confirmed")}` : `⚠ ${t("br.ev.pendingConfirm")}`}</AppBadge>
+                    <span className="ml-auto shrink-0 text-[10px]" style={{ color: COLORS.textFaint }}>
+                      {it.held ? t("br.ev.held") : it.inTop10 ? t("br.ev.top10") : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] mt-1" style={{ color: COLORS.textFaint }}>ⓘ {t("br.ev.srcFocus")}</p>
+          </Section>
+          {/* 除权除息（全市场，但覆盖率非 100% —— 必须把覆盖率标出来）*/}
+          <Section
+            label={`💰 ${t("br.ev.exDiv")}`}
+            sub={`${t("br.ev.scopeMarket")} · ${t("br.ev.window")} ${ev.exDividend.windowDays}d · ${t("br.ev.coverage")} ${ev.exDividend.coverage.pct}%`}
+            count={ev.exDividend.items.length}
+          >
+            {ev.exDividend.state === "NO_CONFIRMED_DATA" ? (
+              <div className="flex items-start gap-2 py-1.5 text-[11px]">
+                <AppBadge tone="neutral">⊘ {t("br.ev.unconfirmed")}</AppBadge>
+                <span className="flex-1 text-[10px]" style={{ color: COLORS.textFaint }}>{t("br.ev.unconfirmedExDiv")}</span>
+              </div>
+            ) : (
+              <div className="flex flex-col">
+                {ev.exDividend.items.slice(0, 6).map((it, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1.5 text-[11px]" style={{ borderTop: i ? `1px solid ${COLORS.borderSoft}` : undefined }}>
+                    <span className="tabular-nums shrink-0" style={{ color: COLORS.textFaint }}>{it.date?.slice(5, 10)}</span>
+                    <button onClick={() => setTarget({ symbol: it.symbol, name: it.symbol })} className="font-mono shrink-0 hover:underline" style={{ color: COLORS.primary }}>{it.symbol}</button>
+                    {it.held ? <AppBadge tone="green">{t("br.ev.held")}</AppBadge> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] mt-1" style={{ color: COLORS.textFaint }}>ⓘ {t("br.ev.srcMarket")}</p>
+          </Section>
         </AppCard>
 
         {/* ④ 今日待办 + ⑤ 今日关注机会 */}

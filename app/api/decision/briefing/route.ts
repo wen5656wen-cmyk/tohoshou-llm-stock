@@ -20,6 +20,7 @@ export const dynamic = "force-dynamic";
 
 const TDNET_WINDOW_H = 48;   // TDnet 窗口：今日常为 0 条，放宽到 48h 才有意义（实测）
 const CAL_WINDOW_D = 14;     // 研究日历窗口
+const EXDIV_WINDOW_D = 14;   // 除权息展示窗口（未来 N 天）
 const NEAR_PCT = 3;          // 距止盈/止损 ≤3% 视为「接近」
 
 type NodeState = "PRODUCED" | "RUNNING" | "PENDING" | "SKIPPED";
@@ -54,7 +55,7 @@ export async function GET() {
     const [
       score, scoreCount, missions, missionNavToday, decisionRows, tradeRows, skippedToday,
       closing, regime, gm, reviewsToday, pfNavToday, disclosures, calendar, exDivCount,
-      holdings, missionReady,
+      holdings, missionReady, top10Rows, earningsRows, exDivRows, universeCount,
     ] = await Promise.all([
       prisma.stockScore.findFirst({ orderBy: { computedAt: "desc" }, select: { computedAt: true } }),
       prisma.stockScore.count({ where: { computedAt: { gte: dayStart } } }),
@@ -81,6 +82,21 @@ export async function GET() {
       prisma.dividend.count({ where: { exDivDate: { not: null } } }),
       prisma.userHolding.findMany({ select: { symbol: true, name: true, shares: true, avgCost: true } }),
       prisma.aiMissionDecision.count({ where: { status: "READY_FOR_OPEN" } }),
+      // ── P20 · 今日事件数据源 ────────────────────────────────────────────
+      // 财报预定：范围 = 持仓 ∪ 今日 TOP10（见 scripts/sync-earnings-schedule.ts 的范围说明）
+      prisma.dailyRecommendation.findMany({ where: { date: dateOnly, gptRank: { lte: 10 } }, select: { symbol: true } }),
+      prisma.earningsSchedule.findMany({
+        where: { earningsDate: { gte: dateOnly } },
+        orderBy: { earningsDate: "asc" },
+        select: { symbol: true, earningsDate: true, confirmed: true, fetchedAt: true },
+      }),
+      // 除权息：全市场，未来 EXDIV_WINDOW_D 天内
+      prisma.dividend.findMany({
+        where: { exDivDate: { gte: dateOnly, lte: new Date(dateOnly.getTime() + EXDIV_WINDOW_D * 864e5) } },
+        orderBy: { exDivDate: "asc" }, take: 40,
+        select: { symbol: true, exDivDate: true },
+      }),
+      prisma.stockScore.count(),
     ]);
 
     // ── ① 今日执行时间轴（判据 = 当日数据是否已产出；绝不读 cron 日志）──
@@ -156,6 +172,7 @@ export async function GET() {
 
     // ── ③ 今日事件（诚实：无源即标未接入，绝不推测）──
     const heldSet = new Set(holdings.map((h) => h.symbol));
+    const top10Set = new Set(top10Rows.map((r) => r.symbol));
     const events = {
       tdnet: {
         available: true, windowHours: TDNET_WINDOW_H,
@@ -169,10 +186,41 @@ export async function GET() {
         available: true, windowDays: CAL_WINDOW_D,
         items: calendar.map((c) => ({ title: c.title, eventType: c.eventType, scheduledAt: ymd(c.scheduledAt), companyKey: c.companyKey })),
       },
-      // ⚠️ 以下两项当前无数据源，明确标注，不做任何推测
-      // ⚠️ 只回传结构化标识，展示文案一律由前端 i18n 渲染（API 禁返展示文案）
-      earnings: { available: false, reason: "NOT_CONNECTED", needKey: "br.need.announcement" },
-      exDividend: { available: false, reason: "NOT_CONNECTED", needKey: "br.need.exDivDate", exDivRows: exDivCount },
+      // ── P20 · 财报発表予定（范围 = 持仓 ∪ 今日 TOP10，**不是全市场**）────────
+      // ⚠️ 只回传结构化标识与数值，展示文案一律由前端 i18n 渲染（API 禁返展示文案）
+      // ⚠️ state=NO_CONFIRMED_DATA 时前端必须显示「当前数据源未确认」，
+      //    **禁止**显示「今日 0 家」——本范围无确认日期 ≠ 全市场今日无财报。
+      earnings: (() => {
+        const scope = new Set<string>([...heldSet, ...top10Set]);
+        const items = earningsRows
+          .filter((r) => scope.has(r.symbol))
+          .map((r) => ({
+            symbol: r.symbol, date: ymd(r.earningsDate), confirmed: r.confirmed,
+            held: heldSet.has(r.symbol), inTop10: top10Set.has(r.symbol),
+          }));
+        const fetched = earningsRows.filter((r) => scope.has(r.symbol)).map((r) => r.fetchedAt.getTime());
+        return {
+          available: true, scope: "HOLDINGS_AND_TOP10", scopeCount: scope.size,
+          coverage: { queried: scope.size, withDate: items.length, confirmed: items.filter((i) => i.confirmed).length },
+          items,
+          asOf: fetched.length ? iso(new Date(Math.max(...fetched))) : null,
+          state: items.length ? "OK" : "NO_CONFIRMED_DATA",
+        };
+      })(),
+      // ── P20 · 除权除息（全市场，但覆盖率非 100%，必须回传 pct 供展示）────────
+      exDividend: (() => {
+        const items = exDivRows.map((r) => ({ symbol: r.symbol, date: ymd(r.exDivDate), held: heldSet.has(r.symbol) }));
+        return {
+          available: true, scope: "MARKET_WIDE", windowDays: EXDIV_WINDOW_D,
+          coverage: {
+            universe: universeCount, withExDiv: exDivCount,
+            pct: universeCount ? +((exDivCount / universeCount) * 100).toFixed(1) : 0,
+          },
+          items,
+          asOf: null, // 除权息按周/日同步，Dividend 表无逐行写入时间列（禁改其结构）
+          state: exDivCount ? "OK" : "NO_CONFIRMED_DATA",
+        };
+      })(),
     };
 
     // ── ④ 今日待办（TP/SL = 与已落库的 target1/stopLoss 比价，不重算策略）──

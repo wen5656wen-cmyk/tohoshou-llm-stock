@@ -2085,8 +2085,6 @@ export type Messages = {
   "common.asOf.audit": string;
   "common.asOf.updated": string;
   // P19-T2 · 今日简报
-  "br.need.announcement": string;
-  "br.need.exDivDate": string;
   "br.loading": string;
   "br.empty": string;
   "br.title": string;
@@ -2140,6 +2138,17 @@ export type Messages = {
   "br.ev.exDiv": string;
   "br.ev.notConnected": string;
   "br.ev.toCalendar": string;
+  "br.ev.scopeFocus": string;
+  "br.ev.scopeMarket": string;
+  "br.ev.confirmed": string;
+  "br.ev.pendingConfirm": string;
+  "br.ev.coverage": string;
+  "br.ev.top10": string;
+  "br.ev.srcFocus": string;
+  "br.ev.srcMarket": string;
+  "br.ev.unconfirmed": string;
+  "br.ev.unconfirmedEarn": string;
+  "br.ev.unconfirmedExDiv": string;
   "br.todo.title": string;
   "br.todo.mission": string;
   "br.todo.missionDone": string;
