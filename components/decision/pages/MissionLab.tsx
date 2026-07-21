@@ -9,6 +9,7 @@
 // 成本价·成交价·成交时间·Signal Time·Explain·建议成交区间 永远取自 /api/mission-lab，
 // 不参与刷新、不被覆盖。收盘后停止轮询并保留最后一次行情。
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppBadge, AppLoading, AppEmptyState, AppTimeline, COLORS, RADIUS } from "@/components/ui";
 import type { Tone } from "@/lib/design-tokens";
@@ -85,6 +86,10 @@ export default function MissionLab() {
   const [data, setData] = useState<MissionView[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
+  // P19-T1：AI 战绩档案「查看该期」跳转带 ?mission=<periodLabel>，据此切到对应 Mission。
+  // 只影响初始选中项，不改布局/不改数据流。
+  const sp = useSearchParams();
+  const missionParam = sp.get("mission");
   const [openEx, setOpenEx] = useState<Record<string, boolean>>({});
   const { live, failed, refreshAgeSec } = useLiveQuotes();
 
@@ -93,6 +98,12 @@ export default function MissionLab() {
     fetch("/api/mission-lab").then((r) => r.json()).then((j) => { if (on) { setData(j.missions ?? []); setLoading(false); } }).catch(() => { if (on) { setData([]); setLoading(false); } });
     return () => { on = false; };
   }, []);
+
+  useEffect(() => {
+    if (!missionParam || !data) return;
+    const hit = data.find((x) => x.periodLabel === missionParam);
+    if (hit && (hit.missionType === "WEEKLY" || hit.missionType === "MONTHLY")) setSel(hit.missionType);
+  }, [missionParam, data]);
 
   const m = useMemo(() => (data ?? []).find((x) => x.missionType === sel) ?? null, [data, sel]);
   // 实时覆盖层：仅展示值，历史/成交/Explain 一律不参与

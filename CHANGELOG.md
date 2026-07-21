@@ -2,6 +2,46 @@
 
 ---
 
+## [18.47.0] - 2026-07-21 — 🏅 P19-T1：AI 战绩档案（原「历史决策」重做）+ Decision Center 去重
+
+「历史决策」重定位为 **AI 战绩档案 Track Record —— 全站唯一业绩验证入口**，回答「AI 到底准不准、凭什么信它」。同时把散在三处的业绩统计收敛到本页。设计稿见 `docs/P19-T1_TRACK_RECORD_HIFI.md`（IA：`docs/P19-IA_BRIEFING_TRACKRECORD.md`）。
+
+### 三条口径不同、绝不合并的业绩线
+| 线 | 口径 | 数据源 |
+|---|---|---|
+| 信号线 | 纸面 · 未扣成本 | `DailyRecommendation(gptRank≤10)` × `BacktestPositionResult(horizon)` |
+| 实验线 | 前向实验 · 含滑点 0.1% | `AiMission` / `AiMissionNav` / `AiMissionTrade` |
+| 账户线 | 真实账户 · 含手续费 | `UserTrade(side=SELL)` / `UserHolding` |
+
+- 页面全程展示口径徽章；**任何位置都不出现合并后的「总胜率」**；三线对照区仅在 ≥2 条线样本充足时才渲染。
+
+### 新增只读 API `GET /api/decision/track-record`
+- **零写入**、8 条查询无 N+1、失败隔离（任一线出错只让该线 `available:false`）。
+- 参数 `horizon`(1d/3d/5d/7d/10d，默认 **7d**) · `line` · `limit`。
+- **不新建第二套业绩计算**：每笔收益/Alpha/持有天数一律**直取落库字段**，本路由只做分组统计（计数/均值/中位/比率）。
+
+### 样本充分性（硬规则）
+- `minSample = 20` 由 API 下发，前端不硬编码；`N < 20` 的分组一律灰显 + 标样本量 + **命中率/收益/Alpha 全部显「—」不给结论**。
+- `totalRecommendations 12274` 移出首屏 → 页脚脚注并标「含未结算」；`StrategySnapshot` 的「累计收益」因口径不同**不再采用**。
+
+### ⚠️ 开发中实测发现（设计稿据此修正）
+`feat_*` 只在推荐创建时写入、**永不回填**，而「已结算」的恰是最老的决策日 → **全池覆盖率 ≠ 已结算样本内覆盖率**。实测 7d 已结算 20 笔中 `feat_stockStyle/feat_sector` 覆盖为 **0/20**（全池 190/250）。故 API 追加 `coverage.settledWithStyle/settledWithSector`，前端据此把风格/行业切片降级为「该持有期不可用」并说明原因，**不显示一行 unknown 冒充数据**。1d 口径下覆盖 60/120 → 切片自动恢复可用。
+
+### Decision Center 去重（P19-T1 核心目的之一）
+- 底部四栏 → **两栏**：`组合健康度`（当下组合状态，保留）+ `AI 战绩摘要`（胜率/平仓数/建仓以来超额/学习状态 4 个数字 + 「查看完整战绩 →」）。
+- **移除** `AiPerformance` / `AiAlpha` / `LearningStatus` 三张深度统计卡及其本页独立计算 —— 此前同一批指标在决策总览与战绩页各算一套。
+- 未影响 Decision Center 核心决策功能（决策条/持仓/机会/等待/观察/风险/市场/系统状态全部不动）。
+
+### 其它
+- Mission Lab 支持 `?mission=<periodLabel>` 切到对应期（只影响初始选中项，布局与数据流不动）。
+- 导航标签 `dv.nav.history`：历史决策 → **AI 战绩档案** / AI 実績アーカイブ。
+- i18n 新增 84 个 `tr.*` / `dv.tr.*` 双语键。
+
+### 边界
+零 Schema 变更 · 不改评分 · 不改交易与资金链路 · 不改 Decision/Mission Engine · 不改 Cron · 不重跑历史。tsc 0 / build ✅ / health CRITICAL=0 / 仅重启 web。
+
+---
+
 ## [18.46.0] - 2026-07-21 — 🛠️ P0 市场判定失真修复：量纲断裂防护 + GlobalMarket 垃圾行清理 + 顶栏口径
 
 用户反馈「股票中心数据过期 / 熊市却说今日可建仓」。核查后确认：**数据 as-of 正确，但市场判定被坏数据污染，且顶栏把两个不同来源、不同日期的判断拼成一行**。全部修复并回填。

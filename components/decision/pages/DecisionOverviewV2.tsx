@@ -6,8 +6,9 @@
 // + 右栏(风险→系统状态→市场) + 历史交易。所有股票点击 → 统一 Modal(含买/卖/编辑)。
 // 纯 UI + 新增 Portfolio API；不改 Decision Engine/Runtime Ranking/评分/权重/GPT/Cron/现有 API。
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { AppLoading } from "@/components/ui";
+import { AppLoading, AppCard } from "@/components/ui";
 import type { Tone } from "@/lib/design-tokens";
 import { fmtJpy, fmtPct, fmtScore, fmtJstClock, riskTone } from "@/lib/decision/ds";
 import { actionIcon } from "@/lib/decision/verdict";
@@ -16,7 +17,7 @@ import { useHoldings } from "@/lib/portfolio/use-holdings";
 import { computePortfolioHealth } from "@/lib/decision/portfolio-health";
 import { getPrimaryName } from "@/lib/company-name";
 import { RiskPanel, type RiskItem } from "@/components/decision/ds/panels";
-import { PortfolioHealth, AiPerformance, AiAlpha, LearningStatus } from "@/components/decision/ds/insight-panels";
+import { PortfolioHealth } from "@/components/decision/ds/insight-panels";
 import { DecisionBar, AccountSummary, HoldingsTable, OpportunityTable, SystemStatus, HistoryPanel, MarketPanel, FunnelBar,
   type HoldRow, type PickRow, type ColLabels, type HistoryRow } from "@/components/decision/ds/overview-panels";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
@@ -30,6 +31,7 @@ const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ b
 
 export default function DecisionOverviewV2() {
   const { t, lang } = useI18n();
+  const router = useRouter();
   const { overview, loading } = useDecision();
   const { data: pf, history, refresh } = useHoldings();
   const o = overview as any;
@@ -196,26 +198,19 @@ export default function DecisionOverviewV2() {
     { label: t("dv.ph.m.risk"), value: gd.riskLevel ?? "—" },
   ];
 
-  // ⑦ AI Performance（来自平仓历史 closedTrades）
-  const cReturns = closedTrades.map((x) => x.returnPct).filter((v): v is number => v != null);
-  const cDays = closedTrades.map((x) => x.holdingDays).filter((v): v is number => v != null);
-  const avgRet = cReturns.length ? cReturns.reduce((a, b) => a + b, 0) / cReturns.length : null;
-  const avgDays = cDays.length ? Math.round(cDays.reduce((a, b) => a + b, 0) / cDays.length) : null;
-  const wins = cReturns.filter((v) => v > 0), losses = cReturns.filter((v) => v < 0);
-  const avgWin = wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : null;
-  const avgLoss = losses.length ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : null;
-  const riskReward = avgWin != null && avgLoss != null && avgLoss > 0 ? Math.round((avgWin / avgLoss) * 100) / 100 : null;
-  const perfRows = [
-    { label: t("dv.perf.winRate"), value: winRate != null ? `${Math.round(winRate)}%` : "—" },
-    { label: t("dv.perf.avgReturn"), value: avgRet != null ? fmtPct(avgRet) : "—", tone: (avgRet ?? 0) < 0 ? "#FF3B30" : "#34C759" },
-    { label: t("dv.perf.avgDays"), value: avgDays != null ? `${avgDays}d` : "—" },
-    { label: t("dv.perf.riskReward"), value: riskReward != null ? `${riskReward}` : "—" },
-  ];
-
-  // ⑧ AI Alpha / ⑨ Learning（来自 insights 聚合）
+  // ⑦⑧⑨ P19-T1 去重：AI 表现 / AI 超额 / 学习状态 三张深度统计卡**移出本页**，
+  // 统一收敛到「AI 战绩档案」(?tab=history)——全站唯一业绩验证入口。本页只留 4 个摘要数字 +
+  // 跳转，不再各算各的（此前同一批指标在本页与战绩页各有一套计算）。
+  // 组合健康度保留：它回答「我现在的组合健不健康」，属当下组合状态，非过去战绩。
   const alphaData = insights?.alpha ?? { windows: [], sinceStart: { port: null, topix: null, nikkei: null, alpha: null } };
   const learning = insights?.learning ?? { closedTrades: 0, decisionRecords: 0, reviewRecords: 0, hit: 0, miss: 0, datasetSize: 0, readyKey: "dv.ls.collecting" };
-  const readyTone = learning.readyKey === "dv.ls.ready" ? "#34C759" : learning.readyKey === "dv.ls.partial" ? "#F5A623" : "#9CA3AF";
+  const trackSummary = [
+    { label: t("dv.perf.winRate"), value: winRate != null && closedTrades.length ? `${Math.round(winRate)}%` : "—" },
+    { label: t("dv.ls.closed"), value: String(closedTrades.length) },
+    { label: t("dv.alpha.sinceStart"), value: alphaData.sinceStart?.alpha != null ? fmtPct(alphaData.sinceStart.alpha) : "—",
+      tone: (alphaData.sinceStart?.alpha ?? 0) < 0 ? "#FF3B30" : "#34C759" },
+    { label: t("dv.ci.learning"), value: t(learning.readyKey as Parameters<typeof t>[0]) },
+  ];
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 space-y-2.5">
@@ -249,12 +244,26 @@ export default function DecisionOverviewV2() {
           <SystemStatus title={t("dv.pf.ss.title")} items={ssItems} />
         </div>
       </div>
-      {/* 战绩条（全宽页脚，不依赖两栏高度）：组合健康度 / AI超额 / AI表现 / 学习状态 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* 战绩条（P19-T1 瘦身）：组合健康度（当下状态，保留） + AI 战绩摘要（4 数字 + 跳转） */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <PortfolioHealth title={t("dv.ci.health")} health={health} metrics={healthMetrics} t={t} />
-        <AiAlpha title={t("dv.ci.alpha")} windows={alphaData.windows} sinceStart={alphaData.sinceStart} navDays={alphaData.navDays ?? 0} estNote={t("dv.alpha.estNote")} labels={{ port: t("dv.alpha.port"), topix: "TOPIX", nikkei: "Nikkei", alpha: t("dv.alpha.alpha"), sinceStart: t("dv.alpha.sinceStart") }} />
-        <AiPerformance title={t("dv.ci.perf")} rows={perfRows} emptyLabel={t("dv.perf.empty")} />
-        <LearningStatus title={t("dv.ci.learning")} learning={learning} labels={{ closed: t("dv.ls.closed"), decisions: t("dv.ls.decisions"), reviews: t("dv.ls.reviews"), hit: t("dv.ls.hit"), miss: t("dv.ls.miss"), dataset: t("dv.ls.dataset") }} readyLabel={t(learning.readyKey as Parameters<typeof t>[0])} readyTone={readyTone} />
+        <AppCard>
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <span className="text-[13px] font-semibold" style={{ color: "#111827" }}>{t("dv.tr.summary")}</span>
+            <button onClick={() => router.push("/decision-v2?tab=history")} className="text-[11px] hover:underline" style={{ color: "#007AFF" }}>
+              {t("dv.tr.viewFull")} →
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {trackSummary.map((s, i) => (
+              <div key={i} className="rounded-lg px-2.5 py-2" style={{ background: "#F7F8FA" }}>
+                <div className="text-[10px]" style={{ color: "#9CA3AF" }}>{s.label}</div>
+                <div className="text-[15px] font-bold tabular-nums" style={{ color: s.tone ?? "#111827" }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] mt-2" style={{ color: "#9CA3AF" }}>{t("dv.tr.note")}</p>
+        </AppCard>
       </div>
 
       {/* Top200 Runtime 默认折叠（系统运行详情） */}
