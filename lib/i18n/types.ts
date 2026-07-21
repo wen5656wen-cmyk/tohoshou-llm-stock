@@ -2081,6 +2081,7 @@ export type Messages = {
   "dv.tr.viewFull": string;
   "dv.tr.note": string;
   // P19-T2 · 今日简报
+  "br.asOf.plain": string;
   "br.need.announcement": string;
   "br.need.exDivDate": string;
   "br.loading": string;

@@ -197,10 +197,10 @@ export default function DecisionStrategyV2() {
           <AppCard header={<span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>📌 {t("br.todo.title")}</span>}>
             <TodoRow icon="📌" label={t("br.todo.mission")} count={td.missionPending.count}
               detail={td.missionPending.count === 0 ? t("br.todo.missionDone") : t("br.todo.missionWait")}
-              asOf={td.missionPending.asOf} onGo={() => router.push("/decision-v2?tab=portfolio")} goLabel="Mission Lab" />
+              asOf={td.missionPending.asOf} tAsOf={t("br.asOf.plain")} onGo={() => router.push("/decision-v2?tab=portfolio")} goLabel="Mission Lab" />
             <TodoRow icon="⚠" label={t("br.todo.tpsl")} count={td.tpSlAlerts.count}
               detail={td.tpSlAlerts.count === 0 ? `${td.tpSlAlerts.holdings} ${t("br.todo.allInRange")}` : ""}
-              asOf={td.tpSlAlerts.asOf} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
+              asOf={td.tpSlAlerts.asOf} tAsOf={t("br.asOf.plain")} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
               {td.tpSlAlerts.items.map((it) => (
                 <div key={it.symbol} className="flex items-center gap-2 py-1 text-[11px]">
                   <AppBadge tone={it.kind.includes("SL") ? "red" : "green"}>{tx(`br.tpsl.${it.kind}`)}</AppBadge>
@@ -213,7 +213,7 @@ export default function DecisionStrategyV2() {
               ))}
             </TodoRow>
             <TodoRow icon="🔺" label={t("br.todo.risk")} count={td.riskAlerts.count} detail=""
-              asOf={td.riskAlerts.asOf} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
+              asOf={td.riskAlerts.asOf} tAsOf={t("br.asOf.plain")} onGo={() => router.push("/decision-v2?tab=overview")} goLabel={t("tr.toOverview")}>
               {td.riskAlerts.items.map((it) => (
                 <div key={it.key} className="flex items-center gap-2 py-1 text-[11px]">
                   <AppBadge tone={it.level === "WARNING" ? "amber" : "neutral"}>{it.level}</AppBadge>
@@ -322,8 +322,8 @@ function Section({ label, sub, count, children }: { label: string; sub?: string;
   );
 }
 
-function TodoRow({ icon, label, count, detail, asOf, onGo, goLabel, children }: {
-  icon: string; label: string; count: number; detail: string; asOf: string | null;
+function TodoRow({ icon, label, count, detail, asOf, tAsOf, onGo, goLabel, children }: {
+  icon: string; label: string; count: number; detail: string; asOf: string | null; tAsOf: string;
   onGo: () => void; goLabel: string; children?: ReactNode;
 }) {
   return (
@@ -336,7 +336,7 @@ function TodoRow({ icon, label, count, detail, asOf, onGo, goLabel, children }: 
         <button onClick={onGo} className="ml-auto text-[11px] hover:underline shrink-0" style={{ color: COLORS.primary }}>{goLabel} →</button>
       </div>
       {children}
-      {asOf ? <div className="text-[10px] mt-1 tabular-nums" style={{ color: COLORS.textFaint }}>as of {asOf}</div> : null}
+      {asOf ? <div className="text-[10px] mt-1 tabular-nums" style={{ color: COLORS.textFaint }}>{tAsOf} {asOf}</div> : null}
     </div>
   );
 }
