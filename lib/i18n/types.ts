@@ -2075,7 +2075,7 @@ export type Messages = {
   // P18-M1.1 · 实时行情刷新（展示层）
   "ml.rt.live": string; "ml.rt.closed": string; "ml.rt.updated": string; "ml.rt.source": string;
   "ml.rt.delay": string; "ml.rt.fail": string; "ml.rt.halt": string; "ml.rt.lag": string; "ml.rt.min": string;
-  "ml.tile.today": string; "ml.tile.alpha": string;
+  "ml.tile.today": string; "ml.tile.alpha": string; "ml.tile.toTarget": string;
   "ml.h.today": string; "ml.h.upnl": string; "ml.h.at": string;
 };
 

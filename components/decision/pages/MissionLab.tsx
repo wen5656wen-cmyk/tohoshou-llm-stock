@@ -33,7 +33,7 @@ type Bench = { level: number; changePct: number | null; at: string | null; live:
 const ACTION_TONE: Record<string, Tone> = { BUY: "green", ADD: "green", SELL: "red", SL: "red", REDUCE: "amber", TP: "blue", HOLD: "neutral", NO_ACTION: "neutral" };
 const fmtClock = (iso: string | null | undefined) => { if (!iso) return "—"; return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)); };
 const fmtStamp = (iso: string | null | undefined) => { if (!iso) return "—"; return `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date(iso)).replace(",", "")} JST`; };
-const fmtHms = (iso: string | null | undefined) => { if (!iso) return "—"; return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date(iso)); };
+const fmtHm = (iso: string | null | undefined) => { if (!iso) return "—"; return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)); };
 
 // JST 交易时段判定（客户端轮询闸门：收盘期间零请求，09:00 到点自动恢复）
 const jstNow = () => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":").map(Number);
@@ -110,18 +110,15 @@ export default function MissionLab() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
-      {/* ── 描述 + 分段切换（标题由工作区顶部承载=AI Mission Lab，避免重复）── */}
+      {/* ── 行情状态条 + 分段切换合并为一行（标题由工作区顶部承载，避免重复）── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs" style={{ color: COLORS.textMuted }}>{t("ml.subtitle")}</p>
+        <QuoteStatusBar live={live} failed={failed} refreshAgeSec={refreshAgeSec} t={tx} />
         <div className="flex p-0.5 gap-0.5 shrink-0" style={{ background: COLORS.track, borderRadius: RADIUS.lg }}>
           {(["WEEKLY", "MONTHLY"] as const).map((k) => (
             <button key={k} onClick={() => setSel(k)} className="px-4 py-1.5 text-sm font-medium transition-all" style={sel === k ? { background: COLORS.card, color: COLORS.text, borderRadius: RADIUS.md, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" } : { background: "transparent", color: COLORS.textMuted, borderRadius: RADIUS.md }}>{t(`ml.type.${k}`)}</button>
           ))}
         </div>
       </div>
-
-      {/* ── M1.1 行情状态条（🟢 实时 / 🟡 延迟 / 🔴 失败 / ⚪ 休市）── */}
-      <QuoteStatusBar live={live} failed={failed} refreshAgeSec={refreshAgeSec} t={tx} />
 
       {!m ? (
         <AppEmptyState icon="🎯" title={t("ml.empty.title")} desc={t("ml.empty.desc")} />
@@ -161,7 +158,10 @@ export default function MissionLab() {
             {/* KPI 网格 */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px mt-4 rounded-xl overflow-hidden" style={{ background: COLORS.border }}>
               <Kpi label={t("ml.tile.today")} value={lm ? fmtJpy(lm.live.todayPnl) : "—"} sub={lm ? fmtPct(lm.live.todayPct, 2) : undefined} color={upDownColor(lm?.live.todayPnl)} />
-              <Kpi label={t("ml.tile.return")} value={fmtPct(ret, 2)} sub={fmtJpy(equity - m.summary.initialCapital)} color={upDownColor(ret)} />
+              {/* 首日（无昨日 NAV）累计收益必然 == 今日收益 → 换成互补信息「距目标」，次日起自动恢复 */}
+              {lm?.live.todayBaseline === "INITIAL"
+                ? <Kpi label={t("ml.tile.toTarget")} value={fmtPct(target - ret, 2)} sub={`${t("ml.target.line")} +${m.summary.targetPct}%`} />
+                : <Kpi label={t("ml.tile.return")} value={fmtPct(ret, 2)} sub={fmtJpy(equity - m.summary.initialCapital)} color={upDownColor(ret)} />}
               <Kpi label={t("ml.tile.cash")} value={fmtJpy(cashJpy)} />
               <Kpi label={t("ml.tile.mv")} value={fmtJpy(mvJpy)} sub={`${m.summary.positionCount} ${t("ml.holdings.title")}`} />
               <Kpi label={t("ml.tile.alpha")} value={fmtPct(lm?.live.alpha ?? null, 2)} color={upDownColor(lm?.live.alpha)} />
@@ -169,11 +169,12 @@ export default function MissionLab() {
               <Kpi label="Nikkei225" value={fmtPct(lm?.live.nikkeiCumPct ?? null, 2)} sub={live?.benchmarks.nikkei ? `${live.benchmarks.nikkei.level.toLocaleString("en-US")} (${fmtPct(live.benchmarks.nikkei.changePct, 2)})` : undefined} color={upDownColor(lm?.live.nikkeiCumPct)} />
               <Kpi label={t("ml.tile.realized")} value={fmtJpy(m.summary.realizedPnl)} sub={`${t("ml.tile.drawdown")} ${fmtPct(m.summary.drawdownPct, 2)}`} color={upDownColor(m.summary.realizedPnl)} />
             </div>
-            <p className="text-[11px] mt-3" style={{ color: COLORS.textFaint }}>{t("ml.disclaimer")}</p>
+            {/* 描述与免责合并为一行小字（顶部让位给行情状态条） */}
+            <p className="text-[11px] mt-3" style={{ color: COLORS.textFaint }}>{t("ml.subtitle")} · {t("ml.disclaimer")}</p>
           </AppCard>
 
-          {/* ── 宽屏两列（今日待跟单/持仓 · 曲线/日志），窄屏单列 ── */}
-          <div className="grid xl:grid-cols-2 gap-4 items-start">
+          {/* ── 宽屏两列瀑布流（按高度自动平衡，避免「待跟单很高 / 持仓很矮」导致右下大片留白）；窄屏单列按 DOM 顺序 ── */}
+          <div className="flex flex-col gap-4 xl:block xl:columns-2 xl:gap-4 xl:[&>*]:mb-4 xl:[&>*]:break-inside-avoid">
           {/* ── ② 今日待跟单 ── */}
           <AppCard padding={0} header={<CardTitle icon="📌" title={t("ml.today.title")} right={m.latestDay ?? undefined} />}>
             <div className="p-5">
@@ -224,9 +225,9 @@ export default function MissionLab() {
             <div className="p-5">
               {m.positions.length === 0 ? <EmptyLine text={t("ml.holdings.empty")} /> : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[620px]">
+                  <table className="w-full text-[13px] min-w-[520px] whitespace-nowrap">
                     <thead><tr style={{ color: COLORS.textFaint }} className="text-[11px] text-left">
-                      <th className="pb-2 font-medium">{t("ml.h.name")}</th><Rth>{t("ml.h.qty")}</Rth><Rth>{t("ml.h.cost")}</Rth><Rth>{`${t("ml.h.last")} / ${t("ml.h.at")}`}</Rth><Rth>{t("ml.h.today")}</Rth><Rth>{t("ml.h.upnl")}</Rth><Rth>{t("ml.h.mv")}</Rth><Rth>TP/SL</Rth>
+                      <th className="pb-2 font-medium">{t("ml.h.name")}</th><Rth>{`${t("ml.h.qty")} / ${t("ml.h.cost")}`}</Rth><Rth>{`${t("ml.h.last")} / ${t("ml.h.at")}`}</Rth><Rth>{t("ml.h.today")}</Rth><Rth>{t("ml.h.upnl")}</Rth><Rth>{t("ml.h.mv")}</Rth><Rth>TP/SL</Rth>
                     </tr></thead>
                     <tbody>
                       {m.positions.map((p) => {
@@ -240,13 +241,18 @@ export default function MissionLab() {
                         const grey = COLORS.textFaint;
                         return (
                           <tr key={p.symbol} style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
-                            <td className="py-2" style={{ color: COLORS.text }}>{p.name}<span className="text-xs ml-1" style={{ color: COLORS.textFaint }}>{p.symbol}</span></td>
-                            <td className="text-right tabular-nums">{p.qty.toLocaleString()}</td>
-                            {/* 成本价：永不参与行情刷新 */}
-                            <td className="text-right tabular-nums">{fmtJpy(p.avgCost)}</td>
+                            <td className="py-2 max-w-[118px]" style={{ color: COLORS.text }}>
+                              <span className="block truncate">{p.name}</span>
+                              <span className="block text-[10px]" style={{ color: COLORS.textFaint }}>{p.symbol}</span>
+                            </td>
+                            {/* 数量 × 成本价：永不参与行情刷新 */}
+                            <td className="text-right tabular-nums">
+                              {p.qty.toLocaleString()}
+                              <span className="block text-[10px]" style={{ color: COLORS.textFaint }}>{fmtJpy(p.avgCost)}</span>
+                            </td>
                             <td className="text-right tabular-nums font-medium" style={{ color: halted ? grey : COLORS.text }}>
                               {fmtJpy(last)}
-                              <span className="block text-[10px] font-normal" style={{ color: halted ? grey : COLORS.textFaint }}>{halted ? t("ml.rt.halt") : fmtHms(q?.quoteAt)}</span>
+                              <span className="block text-[10px] font-normal" style={{ color: halted ? grey : COLORS.textFaint }}>{halted ? t("ml.rt.halt") : fmtHm(q?.quoteAt)}</span>
                             </td>
                             <td className="text-right tabular-nums" style={{ color: halted ? grey : upDownColor(dayPct) }}>
                               {halted || dayPct == null ? "—" : <>{fmtPct(dayPct, 2)}<span className="block text-[10px]">{fmtJpy(q?.todayChange)}</span></>}
@@ -255,7 +261,11 @@ export default function MissionLab() {
                               {fmtJpy(uPnl)}<span className="block text-[10px]">{fmtPct(uPct, 2)}</span>
                             </td>
                             <td className="text-right tabular-nums" style={{ color: halted ? grey : undefined }}>{fmtJpy(mv)}</td>
-                            <td className="text-right text-xs tabular-nums" style={{ color: COLORS.textFaint }}>{fmtJpy(p.takeProfitPrice)}/{fmtJpy(p.stopLossPrice)}</td>
+                            {/* 止盈/止损上下两行，避免窄栏下被裁 */}
+                            <td className="text-right text-[10px] leading-tight tabular-nums" style={{ color: COLORS.textFaint }}>
+                              <span className="block" style={{ color: COLORS.success }}>{fmtJpy(p.takeProfitPrice)}</span>
+                              <span className="block" style={{ color: COLORS.danger }}>{fmtJpy(p.stopLossPrice)}</span>
+                            </td>
                           </tr>
                         );
                       })}

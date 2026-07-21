@@ -2129,6 +2129,7 @@ const zhCN: Messages = {
   "ml.today.start": "首个交易日 2026-07-21 开始生成决策", "ml.target.line": "目标",
   "ml.rt.live": "实时行情", "ml.rt.closed": "休市中（保持最后行情）", "ml.rt.updated": "最后更新", "ml.rt.source": "来源",
   "ml.rt.delay": "行情可能延迟（刷新超时）", "ml.rt.fail": "行情刷新失败，正在重试……", "ml.rt.halt": "停牌 / 无报价",
+  "ml.tile.toTarget": "距目标",
   "ml.rt.lag": "源延迟", "ml.rt.min": "分钟",
   "ml.tile.today": "今日收益", "ml.tile.alpha": "Alpha（vs TOPIX）",
   "ml.h.today": "今日涨跌", "ml.h.upnl": "累计浮盈", "ml.h.at": "现价更新",

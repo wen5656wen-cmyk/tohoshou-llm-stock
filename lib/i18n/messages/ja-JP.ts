@@ -2129,6 +2129,7 @@ const jaJP: Messages = {
   "ml.today.start": "初回取引日 2026-07-21 から判断を生成", "ml.target.line": "目標",
   "ml.rt.live": "リアルタイム相場", "ml.rt.closed": "取引時間外（最終相場を表示）", "ml.rt.updated": "最終更新", "ml.rt.source": "データ元",
   "ml.rt.delay": "相場が遅延しています（更新タイムアウト）", "ml.rt.fail": "相場の更新に失敗しました。再試行中……", "ml.rt.halt": "売買停止 / 気配なし",
+  "ml.tile.toTarget": "目標まで",
   "ml.rt.lag": "配信遅延", "ml.rt.min": "分",
   "ml.tile.today": "本日損益", "ml.tile.alpha": "Alpha（対 TOPIX）",
   "ml.h.today": "本日騰落", "ml.h.upnl": "評価損益", "ml.h.at": "現値更新",

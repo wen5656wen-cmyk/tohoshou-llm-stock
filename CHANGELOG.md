@@ -2,6 +2,19 @@
 
 ---
 
+## [18.45.1] - 2026-07-21 — 💅 Mission Lab 页面打磨（纯 UI，M1.1 后续）
+
+按用户反馈对 v18.45.0 的页面做四项打磨。**纯展示层**：未改 API / 引擎 / 评分 / 交易 / NAV 计算 / Schema，未改 M1.1 的刷新逻辑与禁刷新字段边界。
+
+- **① 消除右下大片留白**：原两栏是 grid 按行排（`待跟单|持仓` / `曲线|日志`），待跟单很高、持仓仅 4 行 → 右上空一大块。改为**宽屏瀑布流两列**（`xl:columns-2` + `break-inside-avoid`，按高度自动平衡），窄屏仍单列按 DOM 顺序。
+- **② KPI 首日重复**：首日无昨日 NAV，「累计收益」必然等于「今日收益」（同数字两格）。首日（`todayBaseline === "INITIAL"`）该格改显**「距目标」**（还差 X% + 目标 +N%），次日起自动恢复「累计收益」。新增 `ml.tile.toTarget` 双语键。
+- **③ 持仓表 TP/SL 被裁**：7→6 列（数量 × 成本合并为一格，上下两行）+ 名称列 `truncate max-w-[118px]` + 表内现价更新时间用 `HH:mm`（秒级仍在状态条）+ TP/SL 上下两行（止盈绿 / 止损红）。实测 `tableW 560→534 == wrapW 534`，**不再横向裁切**。
+- **④ 顶部两行合并**：行情状态条与 周/月 分段切换合并为一行；页面描述并入 Hero 底部小字与免责同行 → 首屏少一行、更紧凑。
+
+- 验收：1440 宽 zh/ja `hOverflow=0`、持仓表 `clipped=false`；tsc 0 / build ✅；仅重启 `tohoshou-web`，cron 未动。
+
+---
+
 ## [18.45.0] - 2026-07-21 — ⏱️ P18-M1.1：Mission Lab 实时行情刷新（展示层增强）
 
 Mission Lab 持仓页在交易时段像证券软件一样自动刷新真实行情。**纯展示层/API 聚合**：未改 Mission Engine / Decision Engine / Deep Research / AI Score / Strategy / Trade / Position / Cash / NAV 计算逻辑；**无 Schema 变更**；新路由**零写入**（只 SELECT）。
