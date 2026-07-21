@@ -113,7 +113,10 @@ export async function GET() {
         skip(session === "MORNING" || session === "AFTERNOON" ? "RUNNING" : session === "CLOSED" ? "PRODUCED" : "PENDING"),
         null, { session }, "Yahoo quote (M1.1)"),
       mk("closing_decision", "15:15", 915, skip(closingToday ? "PRODUCED" : "PENDING"),
-        closingToday ? `${ymd(closing!.date)} ${closing!.decidedAtJst ?? ""} JST` : null,
+        // ⚠️ producedAt 全节点必须是 ISO 时间戳（前端统一用 Intl 按 JST 渲染）。
+        // 曾经这里返回 `"2026-07-21 15:15 JST"` 这种展示串 → new Date() 得到 Invalid Date
+        // → Intl.format 抛 RangeError → 整页崩溃（且只在收盘后复现）。禁止在此返回展示文案。
+        closingToday ? iso(closing!.computedAt) : null,
         { verdict: closingToday ? closing!.verdict : null, latestDate: ymd(closing?.date) }, "ClosingDecision.date"),
       mk("review_nav", "15:15+", 920, skip(reviewNavProduced ? "PRODUCED" : "PENDING"), null,
         // missionNav 仅作上下文展示，不参与本节点的产出判定（归因见上）

@@ -51,7 +51,14 @@ type Health = { status: string; auditAt: string; criticalCount: number; warningC
 
 const STATE_TONE: Record<NodeState, Tone> = { PRODUCED: "green", RUNNING: "blue", PENDING: "neutral", SKIPPED: "neutral" };
 const STATE_ICON: Record<NodeState, string> = { PRODUCED: "✓", RUNNING: "◉", PENDING: "○", SKIPPED: "⊘" };
-const fmtJstTime = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)) + " JST" : null);
+// ⚠️ 必须容错：非法时间值会让 Intl.format 抛 RangeError，而本函数在 nodes.map() 内调用，
+// 一个坏值就会炸掉整页（P19-FINAL-T15 实测）。无法解析时返回 null，由调用方回退显示原值。
+const fmtJstTime = (iso: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(d) + " JST";
+};
 const fmtEta = (min: number | null) => (min == null ? null : min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}m` : `${min}m`);
 
 export default function DecisionStrategyV2() {
