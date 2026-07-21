@@ -24,23 +24,33 @@ export default function DecisionContextBar() {
   const riskLevel = market?.market?.riskLevel ?? null;
   const vol = market?.market?.volatility ?? closing?.market?.volatility ?? null;
   const confidence = closing?.market?.avgAiScore ?? null; // AI 信心（近似：合格候选平均分；无则 —）
-  const asOf = closing?.date ? `${closing.date} ${closing.decidedAtJst ?? ""} JST` : "—";
+
+  // ⚠️ 结论(verdict) 与 市场状态(regime) 是**两个来源、可能不同日期**的判断，曾出现
+  // 「熊市 + 今日可建仓」这类自相矛盾的拼接。故各自标注 as-of，且徽章用**自己的**语义色
+  // （原实现 `tone={verdictTone(verdict)}` 会把「熊市」渲染成绿色）。
+  const verdictAsOf = closing?.date ? `${closing.date} ${closing.decidedAtJst ?? ""} JST` : "—";
+  const regimeAsOf = market?.market?.regimeAsOf ?? null;
+  const trendDegraded = market?.market?.trendDegraded === true;
+  const regimeTone = regime === "BULL" ? "green" : regime === "BEAR" ? "red" : regime === "SIDEWAYS" ? "neutral" : "neutral";
 
   const verdictLabel = verdict ? t(`dc.verdict.${verdict}` as Parameters<typeof t>[0]) : t("dc.ov.noData");
 
   return (
     <div className="sticky top-0 z-30" style={{ background: COLORS.card, borderBottom: `1px solid ${COLORS.border}` }}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 min-h-11 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
-        {/* 结论 */}
+        {/* 结论（收盘决策 · 标注其 as-of，避免被当成「今天刚出的」）*/}
         <span className="flex items-center gap-1.5 shrink-0">
           <span className="text-[16px] leading-none">{verdictIcon(verdict)}</span>
           <b className="text-[13px]" style={{ color: COLORS.text }}>{loading ? "…" : verdictLabel}</b>
+          {closing?.date ? <span className="tabular-nums" style={{ color: COLORS.textFaint }}>{closing.date}</span> : null}
         </span>
         <span className="w-px h-4" style={{ background: COLORS.border }} />
-        {/* 市场 */}
+        {/* 市场状态（独立来源 MarketRegime · 用自己的语义色 + 自己的 as-of）*/}
         <span className="flex items-center gap-1.5 shrink-0">
           <span style={{ color: COLORS.textFaint }}>{t("dc.ov.marketState")}</span>
-          <AppBadge tone={verdictTone(verdict)}>{regimeLabel}</AppBadge>
+          <AppBadge tone={regimeTone}>{regimeLabel}</AppBadge>
+          {regimeAsOf ? <span className="tabular-nums" style={{ color: COLORS.textFaint }}>{regimeAsOf}</span> : null}
+          {trendDegraded ? <span title={t("dc.ov.trendDegradedHint")} style={{ color: COLORS.warning }}>⚠</span> : null}
         </span>
         {/* 风险 */}
         {(riskLevel != null || vol != null) && (
@@ -57,7 +67,7 @@ export default function DecisionContextBar() {
             <span className="shrink-0" style={{ color: COLORS.textSecondary }}>
               {t("dv.ctx.confidence")} <b style={{ color: COLORS.primary }}>{fmtScore(confidence)}</b>
             </span>
-            <span className="ml-auto tabular-nums shrink-0" style={{ color: COLORS.textFaint }}>{asOf}</span>
+            <span className="ml-auto tabular-nums shrink-0" style={{ color: COLORS.textFaint }}>{t("dc.ov.lastClose")} {verdictAsOf}</span>
           </>
         )}
         <button onClick={() => setOpen((v) => !v)} className={open ? "ml-1.5" : "ml-auto"}

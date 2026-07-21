@@ -13,6 +13,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import YahooFinance from "yahoo-finance2";
+import { getJPXTradingDayStatus } from "../lib/trading-calendar/jpx";
 
 const yf = new YahooFinance({ suppressNotices: ["ripHistorical", "yahooSurvey"] });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -100,7 +101,22 @@ async function fetchSymbol(sym: string): Promise<{ level: number | null; change:
 async function main() {
   console.log("=== V3 全球市场数据抓取 ===\n");
 
+  // ⚠️ 日期口径（勿改，2026-07-21 核实）：本任务 05:30 JST 运行，此刻 UTC 仍是前一日历日，
+  // 故 `todayStr`(UTC) 恰好等于「上一个日历日」，而 ^N225 / 1306.T 此刻的最新收盘正是该日的
+  // 收盘 → row(date=D) 装的就是 D 当天的 JP 收盘，语义正确。
+  //
+  // 但原实现**没有交易日守卫**：周末/假日照样建行，Yahoo 返回的仍是上一交易日收盘 →
+  // 产生纯重复的假日历行（实测 2026-07-18/19/20 三行与 07-17 完全相同，nikkeiChange 均为
+  // 07-17 的 −4.03%）。这些行会：①稀释 MarketRegime 的 MA 窗口 ②让 `findFirst(latest)`
+  // 返回休市日 → 顶栏「市场状态」as-of 显示休市日 ③被 compute-scores 当作最新背景读取。
+  // 修：D 非 JPX 交易日 → 直接跳过，不写行。
   const todayStr = new Date().toISOString().split("T")[0];
+  const tradingStatus = getJPXTradingDayStatus(new Date(`${todayStr}T03:00:00.000Z`)); // 该日 12:00 JST
+  if (!tradingStatus.isTradingDay) {
+    console.log(`⏭  ${todayStr} 非 JPX 交易日（${tradingStatus.reason}）→ 跳过写入（避免重复的假日历行）`);
+    await prisma.$disconnect();
+    return;
+  }
 
   console.log("正在抓取...");
   const [nasdaq, usdjpy, nikkei, topix] = await Promise.all([

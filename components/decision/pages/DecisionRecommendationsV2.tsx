@@ -20,6 +20,7 @@ import { buildChartBars, type ChartBar } from "@/components/charts/LightweightSt
 import StockSearch from "@/components/decision/StockSearch";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
 import { getPrimaryName } from "@/lib/company-name";
+import { useDecision } from "@/lib/decision/provider";
 import { localeSector } from "@/lib/i18n/market-labels";
 
 const LightweightStockChart = dynamic(() => import("@/components/charts/LightweightStockChart"), { ssr: false });
@@ -126,6 +127,10 @@ export default function DecisionRecommendationsV2() {
 
       {/* 收盘决策状态带已移除：择时/组合面（verdict）在「决策总览」承载，股票中心专注选股。 */}
 
+      {/* 数据口径条：本页「现价 / 5日涨跌」= 上一交易日收盘快照（非实时），与 Mission Lab 的
+          实时行情明确区分——不标注会被误认为数据过期（2026-07-21 用户反馈）。 */}
+      <DataAsOfNote />
+
       {/* 视图内容 */}
       {view === "all" || view === "allstk" ? <MarketBrowseView onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
         : view === "fav" ? <WatchlistView onDetail={openDetail} onChanged={loadFav} />
@@ -145,6 +150,20 @@ function FavStar({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) 
 }
 
 // ═══════════════════════ ② 全市场浏览（screener）═══════════════════════
+/** 数据口径提示：现价/5日涨跌来自上一交易日收盘快照（StockScore.latestClose），非实时行情。 */
+function DataAsOfNote() {
+  const { t } = useI18n();
+  const { market } = useDecision();
+  const asOf = market?.market?.asOf ?? null;
+  if (!asOf) return null;
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg" style={{ background: COLORS.tile, color: COLORS.textMuted }}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: COLORS.textFaint }} />
+      <span>{t("dc.ov.snapshotAsOf")} <b className="tabular-nums" style={{ color: COLORS.textSecondary }}>{asOf}</b></span>
+    </div>
+  );
+}
+
 function MarketBrowseView({ onDetail, favSet, toggleFav }: { onDetail: (s: string, n?: string) => void; favSet: Set<string>; toggleFav: (s: string, m?: { name?: string | null; sector?: string | null; market?: string | null }) => void }) {
   const { t, lang } = useI18n();
   const sp = useSearchParams();

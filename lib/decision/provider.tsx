@@ -18,7 +18,7 @@ export interface ClosingData {
 }
 export interface MarketData {
   ok?: boolean;
-  market?: { regime?: string | null; riskLevel?: string | null; volatility?: number | null; topix?: number | null; topixChange?: number | null; nikkei?: number | null; nikkeiChange?: number | null } | null;
+  market?: { regime?: string | null; riskLevel?: string | null; volatility?: number | null; topix?: number | null; topixChange?: number | null; nikkei?: number | null; nikkeiChange?: number | null; asOf?: string | null; regimeAsOf?: string | null; trendDegraded?: boolean | null } | null;
 }
 export interface ThemeData { stocks?: { symbol: string; theme: string; return5d: number | null; return20d?: number | null; scored: boolean }[]; themes?: { theme: string }[] }
 // P15-01B：决策总览唯一聚合入口（/api/admin/decision-overview）。字段以 API 返回为准，

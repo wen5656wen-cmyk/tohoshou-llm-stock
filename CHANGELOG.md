@@ -2,6 +2,43 @@
 
 ---
 
+## [18.46.0] - 2026-07-21 — 🛠️ P0 市场判定失真修复：量纲断裂防护 + GlobalMarket 垃圾行清理 + 顶栏口径
+
+用户反馈「股票中心数据过期 / 熊市却说今日可建仓」。核查后确认：**数据 as-of 正确，但市场判定被坏数据污染，且顶栏把两个不同来源、不同日期的判断拼成一行**。全部修复并回填。
+
+### 🔴 根因一：TOPIX 量纲断裂导致 BEAR 误判（影响面最大）
+- `GlobalMarket.topix` 在 **2026-03-27** 断裂（3827.0 → 376.4，指数→ETF 代理，见 KNOWN_ISSUES P2-020）。120 日窗口跨断点 → 实测 `topixClose 407.9 / ma120 1431.96`（现价 3.5 倍，指数均线不可能）。
+- 后果：`trend.ts` 5 条件中的 `px>ma120`、`ma60>ma120` **被硬钉为 false** → trendScore 从 −0.333 压到 −0.6 → regimeScore −0.33 → **误判 BEAR**。而 BEAR 会触发 `global-decision.ts` 的 `regime==="BEAR" → WAIT`、Top200 runtime **−5 全局降分**、指数风险 HIGH。**当天 15:15 的收盘决策本会因此转为观望**。
+- 修：`lib/market-regime/trend.ts` 新增**量纲连续段截断**（相邻交易日 ±50% 以上跳变即截断）+ 窗口不足的均线返回 `null` + trendScore **只用可用条件**计算 + 返回 `usableDays`/`degraded`。断点后满 120 交易日自动恢复（自愈），无需人工。
+- 效果（生产实测）：`2026-07-17 BEAR(−0.289) → SIDEWAYS(−0.142)`，与 ClosingDecision 自身记录的 SIDEWAYS 一致。
+
+### 🔴 根因二：GlobalMarket 无交易日守卫 → 假日历行
+- `fetch-global-market.ts` 每天 05:30 JST 无条件写行；周末/假日 Yahoo 返回上一交易日收盘 → **纯重复的假日历行**（07-18/19/20 三行与 07-17 完全相同，nikkeiChange 均为 07-17 的 −4.03%）。这些行稀释 MarketRegime 的 MA、让 `findFirst(latest)` 返回休市日、被 compute-scores 当作最新背景。
+- 修：加 `getJPXTradingDayStatus` 守卫，非交易日**跳过写入**（日期口径 UTC 经核实是正确的：05:30 JST 时 UTC 仍是前一日历日，恰好等于该行装载的 JP 收盘日，**不改**）。
+- 清理：删除 GlobalMarket 非交易日行 **11 条** + MarketRegime 孤儿行 **9 条**（先备份 `reports/globalmarket-junk-backup-*.json` / `marketregime-junk-backup-*.json`）。
+
+### 🟠 根因三：^N225 数据缺口
+- `nikkei` 在 2026-06-24 ~ 07-17 期间大面积为 null（抓取失败且无告警），清理垃圾行后暴露为最新行缺值 → `globalTrendScore` 会退化为 N/A。
+- 修：从 Yahoo 回填 **18 行**（07-17 = 64141.12 / −4.03%，与被删垃圾行的值一致，交叉验证通过）。
+
+### 🟠 根因四：顶栏把两个来源两个日期拼成一行（用户看到的「熊市＋今日可建仓」）
+- `ContextBar.tsx` 原实现：`verdict` 取 ClosingDecision(07-17)、`regime` 取 MarketRegime(07-20)，**只标了 verdict 的 as-of**，regime 的日期完全没标 → 自相矛盾。
+- 且 `<AppBadge tone={verdictTone(verdict)}>` 让 **「熊市」用 verdict 的绿色渲染**（截图里的 🟢 熊市）。
+- 修：regime 徽章改用**自己的语义色**（BULL 绿 / SIDEWAYS 中性 / BEAR 红）；verdict 与 regime **各自标注 as-of**；右侧总 as-of 明确写「上一交易日收盘决策」；`trendDegraded` 时显 ⚠ 并附提示。
+- API `/api/admin/decision-center` 追加 `regimeAsOf` / `trendDegraded`（additive）。
+
+### 🟡 股票中心数据口径未标注
+- 「现价 / 5日涨跌」= 上一交易日收盘快照（`StockScore.latestClose`），与 Mission Lab 的实时行情不同口径却都不标 → 被误认为过期。新增口径条「**收盘快照 · 截至 2026-07-17**」。
+- 说明：07-18 六 / 07-19 日 / **07-20 海の日休市** → 上一交易日就是 07-17；AI 评分 `computedAt = 07-21 07:08 JST` **是今天的**，未过期。
+
+### 边界与副作用
+- **未改**评分公式 / 5 维 / adaptiveScore / 交易 / 资金链路 / Schema / Cron 时刻表。`compute-scores` 与 `lib/ai-score.ts` **不读 MarketRegime**，故本次 regime 修复不影响个股评分。
+- ⚠️ 副作用（如实记录）：regime 历史分布改变（BULL 99 / SIDEWAYS 32 / BEAR 18）。degraded 期间趋势只有 3 个条件 → 4 档粒度，比 5 条件粗，个别日会从 SIDEWAYS 变 BULL。这是「诚实降级」的代价，优于用假 ma120 给出精确的错误结论。
+- MarketRegime 经唯一写入者 `research-fusion.ts` 重算（未另写第二套）。
+- tsc 0 / build ✅ / health CRITICAL=0 / 仅重启 web，cron 未动。
+
+---
+
 ## [18.45.1] - 2026-07-21 — 💅 Mission Lab 页面打磨（纯 UI，M1.1 后续）
 
 按用户反馈对 v18.45.0 的页面做四项打磨。**纯展示层**：未改 API / 引擎 / 评分 / 交易 / NAV 计算 / Schema，未改 M1.1 的刷新逻辑与禁刷新字段边界。

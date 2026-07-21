@@ -527,6 +527,9 @@ export type Messages = {
   "dc.ov.outOfZone": string;
   "dc.ov.top1NotInPort": string;
   "dc.ov.marketState": string;
+  "dc.ov.lastClose": string;
+  "dc.ov.trendDegradedHint": string;
+  "dc.ov.snapshotAsOf": string;
   "dc.ov.showTop3": string;
   "dc.ov.currentPrice": string;
   "dc.h.decision": string;

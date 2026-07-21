@@ -64,6 +64,12 @@ export async function GET() {
     nikkei: gm?.nikkei ?? null,
     nikkeiChange: gm?.nikkeiChange ?? null,
     asOf: gm?.date ? ymd(gm.date) : null,
+    // regime 与 verdict 是**两个不同来源、可能不同日期**的判断（实测曾出现
+    // regime(07-20 BEAR) 与 ClosingDecision(07-17 SIDEWAYS) 拼在同一行互相矛盾）。
+    // 故回传 regime 自己的 as-of 与降级标记，由 UI 分别标注，不再混为一谈。
+    regimeAsOf: regime?.date ? ymd(regime.date) : null,
+    // ma120 缺失 = TOPIX 量纲断裂后样本不足（见 lib/market-regime/trend.ts）→ 长期趋势暂不可用
+    trendDegraded: regime ? regime.ma120 == null : null,
   };
 
   // ── Section 2: Today's AI Decision ──
