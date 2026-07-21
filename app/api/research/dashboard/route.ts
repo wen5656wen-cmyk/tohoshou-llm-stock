@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAdminAuth } from "@/lib/admin-auth";
+import { guardAdminRoute } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 // 只消费现有 ResearchJob/Version/Review/Report/Claim/Evidence/Industry；不新增结构。
 // ⚠️ 仅暴露 provider/model 名与"是否已配置"布尔；绝不暴露 ANTHROPIC_API_KEY 等密钥。
 export async function GET(req: Request) {
-  if (!checkAdminAuth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const now = new Date();
   const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
   const weekStart = new Date(now.getTime() - 7 * 864e5);

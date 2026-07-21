@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkAdminAuth } from "@/lib/admin-auth";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import * as fs from "fs";
 import * as path from "path";
@@ -292,9 +292,8 @@ async function buildStatus() {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
   const module = searchParams.get("module") ?? "status";

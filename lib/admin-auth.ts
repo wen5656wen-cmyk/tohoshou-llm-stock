@@ -119,13 +119,13 @@ export async function guardAdminRoute(req: Request): Promise<Response | null> {
 }
 
 /**
- * 兼容旧调用点（app/api/research/* 等）的同步包装。
- * ⚠️ 仅支持 header 凭证；浏览器会话由 middleware 统一处理，故此处不做 Cookie 校验。
- * 与旧版行为的**唯一差别**：未配置 ADMIN_TOKEN 时返回 false（fail-closed）。
+ * ⚠️ P21-T5-4B.1：旧的 `checkAdminAuth`（仅认 header 的同步版本）**已删除**。
+ *
+ * 它比 middleware 更严 —— middleware 认 header **或** 会话 Cookie，而它只认 header。
+ * 结果是浏览器带着有效会话 Cookie 过了 middleware，却被 route 自己拒掉 401，
+ * 导致 7 个 Admin 页面（deployments / verify / mission-audit / health-mission /
+ * ai-universe / research-dashboard / research-review）在登录状态下取不到数据。
+ *
+ * 全站受保护 route 一律使用 `guardAdminRoute`（上方）—— 它走 `verifyAdminRequest`，
+ * 与 middleware **同一套判定**，两条凭证都认。禁止再引入第二个更严或更松的守卫。
  */
-export function checkAdminAuth(req: Request): boolean {
-  const token = process.env.ADMIN_TOKEN;
-  if (!token) return false; // ← 旧版此处 return true，即 R0 根因
-  const header = req.headers.get(ADMIN_TOKEN_HEADER);
-  return !!header && constantTimeEqual(header, token);
-}

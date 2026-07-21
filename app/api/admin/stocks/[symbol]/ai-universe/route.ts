@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkAdminAuth } from "@/lib/admin-auth";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { isValidExcludeReason } from "@/lib/ai-universe";
 
@@ -37,9 +37,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
 
   const { symbol: raw } = await params;
   const symbol = decodeURIComponent(raw);

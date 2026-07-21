@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isReviewAction, reviewPatch } from "@/lib/research/review-flow";
-import { checkAdminAuth } from "@/lib/admin-auth";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { applyVersion } from "@/lib/research/engine";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,8 @@ export async function GET() {
 // POST /api/research/review — 审阅动作 { versionId, reviewer, action: APPROVE|REJECT|REQUEST_CHANGES, comment }
 // APPROVE → PUBLISHED（唯有人审通过才发布，防幻觉）；REJECT → REJECTED；REQUEST_CHANGES → 退回 PENDING。
 export async function POST(req: Request) {
-  if (!checkAdminAuth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const body = await req.json().catch(() => null);
   const versionId = body?.versionId as string | undefined;
   const reviewer = (body?.reviewer as string | undefined)?.trim();

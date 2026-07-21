@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkAdminAuth } from "@/lib/admin-auth";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -8,9 +8,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/deployments?limit=20&offset=0
 export async function GET(req: NextRequest) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
 
   const url    = new URL(req.url);
   const limit  = Math.min(parseInt(url.searchParams.get("limit")  ?? "20"), 100);
@@ -47,9 +46,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/admin/deployments — create a new deployment record
 export async function POST(req: NextRequest) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
 
   let body: Record<string, unknown>;
   try {
