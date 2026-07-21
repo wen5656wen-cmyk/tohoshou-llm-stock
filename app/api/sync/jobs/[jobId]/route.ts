@@ -2,12 +2,16 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const { jobId } = await params;
 
   if (!jobId) {

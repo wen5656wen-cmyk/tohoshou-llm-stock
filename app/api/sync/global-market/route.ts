@@ -3,14 +3,21 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { spawn } from "child_process";
 import { join } from "path";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   return NextResponse.json({ endpoint: "POST /api/sync/global-market — 触发 fetch-global-market.ts" });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const startMs = Date.now();
 
   return new Promise<NextResponse>((resolve) => {

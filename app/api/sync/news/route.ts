@@ -21,6 +21,7 @@ export const runtime = "nodejs";
  */
 
 import { NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import {
   CONSOLE_LOGGER,
@@ -37,7 +38,10 @@ import {
 
 const deps = { prisma, logger: CONSOLE_LOGGER, clock: SYSTEM_CLOCK };
 
-export async function GET() {
+export async function GET(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const runningJob = await findRunningJob(deps);
 
   const [lastSync, newsCount, stockSpecific, highImportance] = await Promise.all([
@@ -63,7 +67,10 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const existingJob = await findRunningJob(deps);
 
   let staleAutoFailed = false;

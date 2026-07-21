@@ -2,10 +2,14 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { fetchTDnetForDate } from "@/lib/tdnet";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const lastSync = await prisma.syncLog.findFirst({
     where: { source: "tdnet" },
     orderBy: { createdAt: "desc" },
@@ -13,7 +17,10 @@ export async function GET() {
   return NextResponse.json({ configured: true, source: "tdnet_real", lastSync });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const startMs = Date.now();
 
   // Fetch last 3 trading days

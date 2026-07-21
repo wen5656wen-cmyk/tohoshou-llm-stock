@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import {
   isConfigured,
@@ -13,7 +14,10 @@ import {
   toJQuantsCode,
 } from "@/lib/jquants";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const cfg = configStatus();
   return NextResponse.json({
     configured: cfg.ok,
@@ -22,7 +26,10 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const cfg = configStatus();
   const syncedAt = new Date().toISOString();
 

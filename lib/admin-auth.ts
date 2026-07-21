@@ -94,6 +94,31 @@ export async function verifyAdminRequest(req: Request): Promise<AuthVerdict> {
 }
 
 /**
+ * Route 级守卫（P21-S2 · 纵深防御）。
+ *
+ * middleware 已覆盖 /api/admin/* 与 /api/sync/*，但那是**单点依赖**：matcher 配错、
+ * middleware 被删、或 handler 被内部直接调用，保护就消失。故每个受保护 handler
+ * 的第一行必须再调用本函数 —— 双保险，任一层都能独立拒绝。
+ *
+ * 用法（必须是函数体第一行，先于 body 解析 / spawn / exec / prisma / fs）：
+ *   const denied = await guardAdminRoute(req);
+ *   if (denied) return denied;
+ *
+ * 返回 null 表示放行；返回 Response 表示已拒绝，调用方必须原样 return。
+ */
+export async function guardAdminRoute(req: Request): Promise<Response | null> {
+  const verdict = await verifyAdminRequest(req);
+  if (verdict === "UNCONFIGURED") {
+    return Response.json(
+      { error: "ADMIN_TOKEN_NOT_CONFIGURED", message: "Server misconfiguration: admin auth is not configured." },
+      { status: 503 }
+    );
+  }
+  if (verdict === "DENIED") return Response.json({ error: "unauthorized" }, { status: 401 });
+  return null;
+}
+
+/**
  * 兼容旧调用点（app/api/research/* 等）的同步包装。
  * ⚠️ 仅支持 header 凭证；浏览器会话由 middleware 统一处理，故此处不做 Cookie 校验。
  * 与旧版行为的**唯一差别**：未配置 ADMIN_TOKEN 时返回 false（fail-closed）。

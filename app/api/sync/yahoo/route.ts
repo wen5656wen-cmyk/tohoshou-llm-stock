@@ -3,10 +3,14 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { fetchQuote } from "@/lib/yahoo";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const lastSync = await prisma.syncLog.findFirst({
     where: { source: "yahoo" },
     orderBy: { createdAt: "desc" },
@@ -14,7 +18,10 @@ export async function GET() {
   return NextResponse.json({ configured: true, lastSync });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const startMs = Date.now();
   let synced = 0;
   let errors = 0;

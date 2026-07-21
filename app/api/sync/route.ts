@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { ADMIN_TOKEN_HEADER } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { isConfigured as jquantsConfigured, configStatus as jquantsConfigStatus } from "@/lib/jquants";
@@ -27,7 +28,10 @@ async function safeJsonFetch(url: string, init?: RequestInit): Promise<unknown> 
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const REAL_FLOW_SOURCES = ["jquants_investor_types", "jpx", "jpx_file", "jpx_manual"];
 
   const [recentLogs, counts, globalMarket, latestRealFlow, latestAnyFlow, scoreSourceCounts] = await Promise.all([
@@ -120,7 +124,10 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // P21-S2 纵深防御：middleware 之外的第二道闸门，必须先于任何副作用。
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://aitohoshou.com";
   const results: Record<string, unknown> = {};
 
