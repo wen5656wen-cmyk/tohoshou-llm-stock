@@ -3,7 +3,12 @@
 // ── P18 · AI Mission Lab（M3-v1 · 接管 /decision-v2?tab=portfolio「模拟持仓」）──
 // 真实前向实验（Forward Test）：每日 AI 自动决策 → 用户可看可跟随。只读 /api/mission-lab。
 // 数据从 2026-07-21（首个交易日）起累计；无数据显精致空态/引导，绝不伪造。
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+//
+// M1.1 实时行情（展示层增强）：交易时段（09:00–11:30 / 12:30–15:30 JST）每 30 秒轮询
+// 只读 /api/mission-lab/quotes，仅覆盖「行情/市值/浮盈/NAV/KPI/基准」等展示值；
+// 成本价·成交价·成交时间·Signal Time·Explain·建议成交区间 永远取自 /api/mission-lab，
+// 不参与刷新、不被覆盖。收盘后停止轮询并保留最后一次行情。
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n";
 import { AppCard, AppBadge, AppLoading, AppEmptyState, AppTimeline, COLORS, RADIUS } from "@/components/ui";
 import type { Tone } from "@/lib/design-tokens";
@@ -19,8 +24,60 @@ type MissionView = {
   todayDecisions: Decision[]; latestDay: string | null; positions: Position[]; nav: NavPt[]; log: LogItem[];
 };
 
+// ── M1.1 实时行情载荷（只读 /api/mission-lab/quotes；均为展示投影，不落库）──
+type LivePos = { symbol: string; status: "LIVE" | "STALE"; lastPrice: number; previousClose: number | null; todayChange: number | null; todayChangePct: number | null; marketValue: number; unrealizedPnl: number; unrealizedPct: number; quoteAt: string | null };
+type LiveMission = { id: string; missionType: string; live: { equityJpy: number; positionsValue: number; cashJpy: number; realizedPnl: number; returnPct: number; todayPnl: number; todayPct: number; todayBaseline: string; alpha: number | null; topixCumPct: number | null; nikkeiCumPct: number | null; positionCount: number; quotedCount: number }; positions: LivePos[] };
+type LivePayload = { asOf: string; session: string; marketOpen: boolean; tradingDay: boolean; dateIso: string; pollMs: number; priceSource: string; marketPriceAt: string | null; quoteAgeSec: number | null; noQuote: boolean; quoteError: string | null; benchmarks: { topix: Bench | null; nikkei: Bench | null }; missions: LiveMission[] };
+type Bench = { level: number; changePct: number | null; at: string | null; live: boolean };
+
 const ACTION_TONE: Record<string, Tone> = { BUY: "green", ADD: "green", SELL: "red", SL: "red", REDUCE: "amber", TP: "blue", HOLD: "neutral", NO_ACTION: "neutral" };
 const fmtClock = (iso: string | null | undefined) => { if (!iso) return "—"; return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)); };
+const fmtStamp = (iso: string | null | undefined) => { if (!iso) return "—"; return `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date(iso)).replace(",", "")} JST`; };
+const fmtHms = (iso: string | null | undefined) => { if (!iso) return "—"; return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date(iso)); };
+
+// JST 交易时段判定（客户端轮询闸门：收盘期间零请求，09:00 到点自动恢复）
+const jstNow = () => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":").map(Number);
+const jstToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+function jstSessionOpen(): boolean {
+  const [h, mi] = jstNow();
+  const t = h * 60 + mi;
+  return (t >= 9 * 60 && t < 11 * 60 + 30) || (t >= 12 * 60 + 30 && t <= 15 * 60 + 30);
+}
+
+/** 交易时段每 30 秒拉一次实时行情；失败保留上一笔并提示重试；收盘不发请求。
+ *  refreshAgeSec = 距上次**成功**刷新的秒数（>90 秒 = 轮询异常 → 黄色告警）。 */
+function useLiveQuotes() {
+  const [live, setLive] = useState<LivePayload | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [refreshAgeSec, setRefreshAgeSec] = useState<number | null>(null);
+  const stateRef = useRef<{ tradingDay: boolean; dateIso: string } | null>(null);
+  const okAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let on = true;
+    const pull = async () => {
+      try {
+        const r = await fetch("/api/mission-lab/quotes", { cache: "no-store" });
+        const j = (await r.json()) as LivePayload & { error?: string };
+        if (!on) return;
+        if (!r.ok || j.error) { setFailed(true); return; } // 不清空数据
+        stateRef.current = { tradingDay: !!j.tradingDay, dateIso: j.dateIso };
+        okAtRef.current = Date.now();
+        setLive(j); setFailed(false); setRefreshAgeSec(0);
+      } catch { if (on) setFailed(true); }
+    };
+    pull(); // 首屏一次（无论开收盘），用于确定交易日与最后行情
+    const timer = setInterval(() => {
+      if (okAtRef.current != null) setRefreshAgeSec(Math.round((Date.now() - okAtRef.current) / 1000));
+      const s = stateRef.current;
+      if (!s || s.dateIso !== jstToday()) { pull(); return; } // 跨日 → 重新确认交易日状态
+      if (s.tradingDay && jstSessionOpen()) pull();           // 非交易时间：停止轮询
+    }, 30_000);
+    return () => { on = false; clearInterval(timer); };
+  }, []);
+
+  return { live, failed, refreshAgeSec };
+}
 
 export default function MissionLab() {
   const { t } = useI18n();
@@ -29,6 +86,7 @@ export default function MissionLab() {
   const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
   const [openEx, setOpenEx] = useState<Record<string, boolean>>({});
+  const { live, failed, refreshAgeSec } = useLiveQuotes();
 
   useEffect(() => {
     let on = true;
@@ -37,10 +95,16 @@ export default function MissionLab() {
   }, []);
 
   const m = useMemo(() => (data ?? []).find((x) => x.missionType === sel) ?? null, [data, sel]);
+  // 实时覆盖层：仅展示值，历史/成交/Explain 一律不参与
+  const lm = useMemo(() => (m && live ? live.missions.find((x) => x.id === m.id) ?? null : null), [m, live]);
+  const livePos = useMemo(() => new Map((lm?.positions ?? []).map((p) => [p.symbol, p])), [lm]);
   if (loading) return <AppLoading label={t("ml.loading")} />;
 
   const daysLeft = m ? Math.max(0, Math.ceil((new Date(m.endDate).getTime() - Date.now()) / 864e5)) : 0;
-  const ret = m?.summary.returnPct ?? 0;
+  const equity = lm?.live.equityJpy ?? m?.summary.equityJpy ?? 0;
+  const ret = lm?.live.returnPct ?? m?.summary.returnPct ?? 0;
+  const cashJpy = lm?.live.cashJpy ?? m?.summary.cashJpy ?? 0;
+  const mvJpy = lm?.live.positionsValue ?? m?.summary.positionsValue ?? 0;
   const target = m?.summary.targetPct ?? 1;
   const progress = Math.max(0, Math.min(100, (ret / target) * 100));
 
@@ -55,6 +119,9 @@ export default function MissionLab() {
           ))}
         </div>
       </div>
+
+      {/* ── M1.1 行情状态条（🟢 实时 / 🟡 延迟 / 🔴 失败 / ⚪ 休市）── */}
+      <QuoteStatusBar live={live} failed={failed} refreshAgeSec={refreshAgeSec} t={tx} />
 
       {!m ? (
         <AppEmptyState icon="🎯" title={t("ml.empty.title")} desc={t("ml.empty.desc")} />
@@ -73,7 +140,7 @@ export default function MissionLab() {
             <div className="flex items-end gap-4 flex-wrap">
               <div>
                 <div className="text-[11px]" style={{ color: COLORS.textMuted }}>{t("ml.tile.equity")}</div>
-                <div className="text-[30px] font-bold tabular-nums leading-tight" style={{ color: COLORS.text }}>{fmtJpy(m.summary.equityJpy)}</div>
+                <div className="text-[30px] font-bold tabular-nums leading-tight" style={{ color: COLORS.text }}>{fmtJpy(equity)}</div>
               </div>
               <div className="pb-1 flex items-baseline gap-1.5">
                 <span className="text-lg font-semibold tabular-nums" style={{ color: upDownColor(ret) }}>{fmtPct(ret)}</span>
@@ -93,10 +160,14 @@ export default function MissionLab() {
             </div>
             {/* KPI 网格 */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px mt-4 rounded-xl overflow-hidden" style={{ background: COLORS.border }}>
-              <Kpi label={t("ml.tile.cash")} value={fmtJpy(m.summary.cashJpy)} />
-              <Kpi label={t("ml.tile.mv")} value={fmtJpy(m.summary.positionsValue)} sub={`${m.summary.positionCount} ${t("ml.holdings.title")}`} />
-              <Kpi label={t("ml.tile.realized")} value={fmtJpy(m.summary.realizedPnl)} color={upDownColor(m.summary.realizedPnl)} />
-              <Kpi label={t("ml.tile.drawdown")} value={fmtPct(m.summary.drawdownPct)} color={upDownColor(m.summary.drawdownPct)} />
+              <Kpi label={t("ml.tile.today")} value={lm ? fmtJpy(lm.live.todayPnl) : "—"} sub={lm ? fmtPct(lm.live.todayPct, 2) : undefined} color={upDownColor(lm?.live.todayPnl)} />
+              <Kpi label={t("ml.tile.return")} value={fmtPct(ret, 2)} sub={fmtJpy(equity - m.summary.initialCapital)} color={upDownColor(ret)} />
+              <Kpi label={t("ml.tile.cash")} value={fmtJpy(cashJpy)} />
+              <Kpi label={t("ml.tile.mv")} value={fmtJpy(mvJpy)} sub={`${m.summary.positionCount} ${t("ml.holdings.title")}`} />
+              <Kpi label={t("ml.tile.alpha")} value={fmtPct(lm?.live.alpha ?? null, 2)} color={upDownColor(lm?.live.alpha)} />
+              <Kpi label="TOPIX" value={fmtPct(lm?.live.topixCumPct ?? null, 2)} sub={live?.benchmarks.topix ? `${live.benchmarks.topix.level.toLocaleString("en-US")} (${fmtPct(live.benchmarks.topix.changePct, 2)})` : undefined} color={upDownColor(lm?.live.topixCumPct)} />
+              <Kpi label="Nikkei225" value={fmtPct(lm?.live.nikkeiCumPct ?? null, 2)} sub={live?.benchmarks.nikkei ? `${live.benchmarks.nikkei.level.toLocaleString("en-US")} (${fmtPct(live.benchmarks.nikkei.changePct, 2)})` : undefined} color={upDownColor(lm?.live.nikkeiCumPct)} />
+              <Kpi label={t("ml.tile.realized")} value={fmtJpy(m.summary.realizedPnl)} sub={`${t("ml.tile.drawdown")} ${fmtPct(m.summary.drawdownPct, 2)}`} color={upDownColor(m.summary.realizedPnl)} />
             </div>
             <p className="text-[11px] mt-3" style={{ color: COLORS.textFaint }}>{t("ml.disclaimer")}</p>
           </AppCard>
@@ -153,22 +224,41 @@ export default function MissionLab() {
             <div className="p-5">
               {m.positions.length === 0 ? <EmptyLine text={t("ml.holdings.empty")} /> : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[560px]">
+                  <table className="w-full text-sm min-w-[620px]">
                     <thead><tr style={{ color: COLORS.textFaint }} className="text-[11px] text-left">
-                      <th className="pb-2 font-medium">{t("ml.h.name")}</th><Rth>{t("ml.h.qty")}</Rth><Rth>{t("ml.h.cost")}</Rth><Rth>{t("ml.h.last")}</Rth><Rth>{t("ml.h.pnl")}</Rth><Rth>{t("ml.h.mv")}</Rth><Rth>TP/SL</Rth>
+                      <th className="pb-2 font-medium">{t("ml.h.name")}</th><Rth>{t("ml.h.qty")}</Rth><Rth>{t("ml.h.cost")}</Rth><Rth>{`${t("ml.h.last")} / ${t("ml.h.at")}`}</Rth><Rth>{t("ml.h.today")}</Rth><Rth>{t("ml.h.upnl")}</Rth><Rth>{t("ml.h.mv")}</Rth><Rth>TP/SL</Rth>
                     </tr></thead>
                     <tbody>
-                      {m.positions.map((p) => (
-                        <tr key={p.symbol} style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
-                          <td className="py-2" style={{ color: COLORS.text }}>{p.name}<span className="text-xs ml-1" style={{ color: COLORS.textFaint }}>{p.symbol}</span></td>
-                          <td className="text-right tabular-nums">{p.qty.toLocaleString()}</td>
-                          <td className="text-right tabular-nums">{fmtJpy(p.avgCost)}</td>
-                          <td className="text-right tabular-nums">{fmtJpy(p.lastPrice)}</td>
-                          <td className="text-right tabular-nums font-medium" style={{ color: upDownColor(p.unrealizedPct) }}>{fmtPct(p.unrealizedPct)}</td>
-                          <td className="text-right tabular-nums">{fmtJpy(p.marketValue)}</td>
-                          <td className="text-right text-xs tabular-nums" style={{ color: COLORS.textFaint }}>{fmtJpy(p.takeProfitPrice)}/{fmtJpy(p.stopLossPrice)}</td>
-                        </tr>
-                      ))}
+                      {m.positions.map((p) => {
+                        const q = livePos.get(p.symbol);                       // 有实时则用实时，无则保留最后一笔
+                        const halted = q?.status === "STALE";                  // 停牌 / 无报价 → 灰色
+                        const last = q?.lastPrice ?? p.lastPrice;
+                        const uPnl = q?.unrealizedPnl ?? p.unrealizedPnl;
+                        const uPct = q?.unrealizedPct ?? p.unrealizedPct;
+                        const mv = q?.marketValue ?? p.marketValue;
+                        const dayPct = q?.todayChangePct ?? null;
+                        const grey = COLORS.textFaint;
+                        return (
+                          <tr key={p.symbol} style={{ borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                            <td className="py-2" style={{ color: COLORS.text }}>{p.name}<span className="text-xs ml-1" style={{ color: COLORS.textFaint }}>{p.symbol}</span></td>
+                            <td className="text-right tabular-nums">{p.qty.toLocaleString()}</td>
+                            {/* 成本价：永不参与行情刷新 */}
+                            <td className="text-right tabular-nums">{fmtJpy(p.avgCost)}</td>
+                            <td className="text-right tabular-nums font-medium" style={{ color: halted ? grey : COLORS.text }}>
+                              {fmtJpy(last)}
+                              <span className="block text-[10px] font-normal" style={{ color: halted ? grey : COLORS.textFaint }}>{halted ? t("ml.rt.halt") : fmtHms(q?.quoteAt)}</span>
+                            </td>
+                            <td className="text-right tabular-nums" style={{ color: halted ? grey : upDownColor(dayPct) }}>
+                              {halted || dayPct == null ? "—" : <>{fmtPct(dayPct, 2)}<span className="block text-[10px]">{fmtJpy(q?.todayChange)}</span></>}
+                            </td>
+                            <td className="text-right tabular-nums font-medium" style={{ color: halted ? grey : upDownColor(uPct) }}>
+                              {fmtJpy(uPnl)}<span className="block text-[10px]">{fmtPct(uPct, 2)}</span>
+                            </td>
+                            <td className="text-right tabular-nums" style={{ color: halted ? grey : undefined }}>{fmtJpy(mv)}</td>
+                            <td className="text-right text-xs tabular-nums" style={{ color: COLORS.textFaint }}>{fmtJpy(p.takeProfitPrice)}/{fmtJpy(p.stopLossPrice)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -206,6 +296,35 @@ export default function MissionLab() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── M1.1 行情状态条：状态点 + 最后更新时间(JST) + 数据源；刷新超时/失败告警 ──
+// 「最后更新」显示 Yahoo 真实报价戳；Yahoo 免费源对日股约延迟 15 分钟 → 如实标注 (延迟 N 分)。
+function QuoteStatusBar({ live, failed, refreshAgeSec, t }: { live: LivePayload | null; failed: boolean; refreshAgeSec: number | null; t: (k: string) => string }) {
+  const open = !!live?.marketOpen;
+  const staleRefresh = open && (live?.noQuote || (refreshAgeSec != null && refreshAgeSec > 90)); // 轮询卡住
+  const state = failed ? "fail" : !live ? "idle" : !open ? "closed" : staleRefresh ? "delay" : "live";
+  const cfg: Record<string, { dot: string; text: string; bg: string; label: string }> = {
+    live: { dot: COLORS.success, text: COLORS.success, bg: "transparent", label: t("ml.rt.live") },
+    delay: { dot: COLORS.warning, text: COLORS.warning, bg: `${COLORS.warning}14`, label: t("ml.rt.delay") },
+    fail: { dot: COLORS.danger, text: COLORS.danger, bg: `${COLORS.danger}14`, label: t("ml.rt.fail") },
+    closed: { dot: COLORS.textFaint, text: COLORS.textMuted, bg: "transparent", label: t("ml.rt.closed") },
+    idle: { dot: COLORS.textFaint, text: COLORS.textMuted, bg: "transparent", label: t("ml.rt.closed") },
+  };
+  const c = cfg[state];
+  return (
+    <div className="flex items-center gap-2 flex-wrap text-[11px] px-3 py-2 rounded-lg" style={{ background: c.bg === "transparent" ? COLORS.tile : c.bg, color: COLORS.textMuted }}>
+      <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: c.dot }} />
+      <span className="font-medium" style={{ color: c.text }}>{c.label}</span>
+      <span style={{ color: COLORS.textFaint }}>·</span>
+      <span>{t("ml.rt.updated")} <b className="tabular-nums font-medium" style={{ color: COLORS.textSecondary }}>{fmtStamp(live?.marketPriceAt ?? live?.asOf ?? null)}</b></span>
+      {live?.quoteAgeSec != null && live.quoteAgeSec >= 60 ? (
+        <span style={{ color: COLORS.textFaint }}>（{t("ml.rt.lag")} {Math.round(live.quoteAgeSec / 60)} {t("ml.rt.min")}）</span>
+      ) : null}
+      <span style={{ color: COLORS.textFaint }}>·</span>
+      <span>{t("ml.rt.source")} {live?.priceSource ?? "Yahoo Finance"}</span>
     </div>
   );
 }

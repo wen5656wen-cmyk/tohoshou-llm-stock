@@ -2,6 +2,41 @@
 
 ---
 
+## [18.45.0] - 2026-07-21 — ⏱️ P18-M1.1：Mission Lab 实时行情刷新（展示层增强）
+
+Mission Lab 持仓页在交易时段像证券软件一样自动刷新真实行情。**纯展示层/API 聚合**：未改 Mission Engine / Decision Engine / Deep Research / AI Score / Strategy / Trade / Position / Cash / NAV 计算逻辑；**无 Schema 变更**；新路由**零写入**（只 SELECT）。
+
+### 新增只读聚合 API `GET /api/mission-lab/quotes`
+- 只 SELECT `ai_mission_{mission,position,nav}` + `GlobalMarket`（基准基线），**绝不 INSERT/UPDATE**；行情落库仍只由 `lib/mission-lab/engine.ts::markAndSnapshot` 在收盘链路完成。
+- 数据源仍是 Yahoo Finance（复用 `lib/yahoo.ts::fetchQuotesBatch`，**单次批量请求**，未新增数据源）；返回 `priceSource` / `marketPriceAt` / 每股 `quoteAt`。
+- 返回展示投影（与引擎同公式、永不落库）：持仓现价·涨跌额·涨跌幅·浮盈额·浮盈率·市值、Mission NAV(equity)、今日收益、累计收益、Alpha、TOPIX/Nikkei225 累计与实时点位。
+- 基准 symbol 与 `scripts/fetch-global-market.ts` 严格一致（TOPIX=`1306.T` / Nikkei=`^N225`），量纲可比。
+- 进程内 15 秒报价缓存（TTL < 30 秒轮询间隔），多端轮询不重复打 Yahoo；空结果不缓存。
+- 交易时段判定：`isJPXTradingDay` + JST 09:00–11:30 / 12:30–15:30，返回 `session` / `marketOpen` / `pollMs`。
+
+### 前端 `MissionLab.tsx`（仅刷新展示值）
+- 交易时段每 **30 秒**轮询，**非交易时间零请求**（客户端 JST 闸门，09:00 到点自动恢复，无需刷新页面）；仅更新相关组件，**无整页 reload**。
+- **禁止刷新的字段全部取自 `/api/mission-lab` 且永不被覆盖**：成本价 / 成交价 / 成交时间 / Signal Time / Explain / 建议成交区间。
+- 顶部 KPI 扩为 8 格并实时化：Mission NAV(Hero) · 今日收益 · 累计收益 · 现金 · 持仓市值 · Alpha(vs TOPIX) · TOPIX · Nikkei225（+ 已实现/最大回撤）。
+- 持仓表新增 **今日涨跌**（%+额）、**累计浮盈**（额+%）、**现价更新时间**（并入现价列下方，两栏布局不裁切）；上涨绿 / 下跌红 / **停牌·无报价灰**。
+- 行情状态条：🟢 实时行情 · 最后更新 `2026-07-21 10:26:32 JST` · 来源 Yahoo Finance；🟡 刷新超时 / 🔴「行情刷新失败，正在重试……」/ ⚪ 休市（保持最后行情）。
+- 容错：Yahoo 失败**保留上一笔行情不清空**，下一轮继续刷新。
+
+### ⚠️ 真实性订正（重要）
+需求原文要求「行情超过 90 秒未更新 → 黄色告警」。实测 Yahoo 免费源对日股报价**固有约 15 分钟延迟**（`quoteAgeSec≈901`，也正是 M1 引擎把 Phase2 成交定在 09:30 的原因），若照搬会**永远黄灯**、告警失效。故按真实语义拆为两项，不伪装 tick 级实时：
+- **刷新时效**（我方轮询是否正常，>90 秒未成功刷新 → 🟡 告警）；
+- **行情时间**（Yahoo 真实报价戳，状态条如实标注「源延迟 15 分钟」）。
+
+### 生产验收（2026-07-21 交易时段实测）
+- 75 秒内轮询请求 **3 次**（间隔精确 30 秒），页面数值随之跳动；时钟拨到 17:00 JST → **新增轮询 0 次**。
+- 两次采样：价格 `4258.T 4315→4335`、equity `9,956,280→9,964,270`、alpha `-1.736→-1.607`、TOPIX 点位实时变动。
+- 拦截行情请求 70 秒：持仓 4 行**未清空**、出现「行情刷新失败，正在重试……」、成本价不变。
+- 连续两轮刷新对比：成交价 / 可跟随区间 / 信号时间 / Explain / 成本价 **完全未变**。
+- zh/ja 全语言无混排、1440 宽 `hOverflow=0`；页面 200；Mission Health **15/15 PASS**（critical 0）。
+- tsc 0 / build ✅ / 生产 health CRITICAL=0（❌0，4 项既有 WARNING 无关）；仅重启 `tohoshou-web`，**cron 未动**。
+
+---
+
 ## [18.44.0] - 2026-07-19 — 🎯 P18 AI Mission Lab：真实前向实验上线（M1 引擎 + M3 UI + H1 健康 + H2 审计）
 
 TOHOSHOU AI 的真实验证中心。**独立数据域 `ai_mission_*`（5 表），与 paper_/user_/strategy_/资金链路禁止共表；只读 StockScore/DecisionEngine/News/Risk，绝不改评分；GPT 不参与（规则派生 Explain）。**

@@ -2072,6 +2072,11 @@ export type Messages = {
   "ml.tile.mv": string; "ml.tile.realized": string;
   "ml.how.title": string; "ml.how.s1": string; "ml.how.s2": string; "ml.how.s3": string;
   "ml.today.start": string; "ml.target.line": string;
+  // P18-M1.1 · 实时行情刷新（展示层）
+  "ml.rt.live": string; "ml.rt.closed": string; "ml.rt.updated": string; "ml.rt.source": string;
+  "ml.rt.delay": string; "ml.rt.fail": string; "ml.rt.halt": string; "ml.rt.lag": string; "ml.rt.min": string;
+  "ml.tile.today": string; "ml.tile.alpha": string;
+  "ml.h.today": string; "ml.h.upnl": string; "ml.h.at": string;
 };
 
 export type MessageKey = keyof Messages;
