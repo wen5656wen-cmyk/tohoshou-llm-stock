@@ -6,6 +6,7 @@
 // 当前 shadow 因子无 Backtest 样本 → pending（WATCH，统计显示「—」），不实际淘汰/提升。
 
 import { useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   AppCard, AppKpiCard, AppKpiGrid, AppTable, AppTh, AppTd, AppStatusChip, AppButton,
   appRowHover, COLORS,
@@ -17,7 +18,7 @@ const REC_KIND: Record<ValidationRecommendation, StatusKind> = {
   KEEP: "SUCCESS", PROMOTE: "INFO", WATCH: "WARNING", REMOVE: "ERROR",
 };
 const REC_LABEL: Record<ValidationRecommendation, string> = {
-  KEEP: "保留", PROMOTE: "建议提升", WATCH: "观察", REMOVE: "建议移除",
+  KEEP: "rp.valid.r.keep", PROMOTE: "rp.valid.r.promote", WATCH: "rp.valid.r.watch", REMOVE: "rp.valid.r.remove",
 };
 const CONF_KIND: Record<string, StatusKind> = { HIGH: "SUCCESS", MEDIUM: "WARNING", LOW: "COMING_SOON" };
 
@@ -28,6 +29,8 @@ function fmt(v: number | null, suffix = ""): string {
 }
 
 export default function ValidationPanel() {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const rows = useMemo(() => getFeatureValidations(), []);
   const summary = useMemo(() => getValidationSummary(), []);
   const [q, setQ] = useState("");
@@ -60,25 +63,23 @@ export default function ValidationPanel() {
     <div className="space-y-6">
       <AppCard accent={`${COLORS.warning}33`} style={{ background: `${COLORS.warning}0A` }}>
         <div style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.7 }}>
-          <b style={{ color: COLORS.text }}>验证框架 V1：</b>
-          每个 Feature 须经 <b>Registry → Shadow → Validation → Learning → Production</b> 全流程验证。
-          当前 Shadow 因子<b>尚无 Backtest 样本</b> → 状态 <b>pending（观察）</b>，命中率/Alpha 等统计显示「—」，
-          <b>本阶段不实际淘汰或提升任何 Feature</b>；PROMOTE/REMOVE 仅为规则建议，待样本成熟后执行。生产因子按历史标 KEEP。
+          <b style={{ color: COLORS.text }}>{tx("rp.valid.frameTitle")}</b>
+          {tx("rp.valid.frameBody")}
         </div>
       </AppCard>
 
       <AppKpiGrid>
-        <AppKpiCard label="验证 Feature 总数" value={summary.total} tone="blue" />
-        <AppKpiCard label="KEEP 保留" value={summary.keep} tone="green" />
-        <AppKpiCard label="PROMOTE 建议提升" value={summary.promote} tone="blue" />
-        <AppKpiCard label="WATCH 观察" value={summary.watch} tone="amber" />
-        <AppKpiCard label="REMOVE 建议移除" value={summary.remove} tone={summary.remove > 0 ? "red" : "neutral"} />
-        <AppKpiCard label="Pending 待样本" value={summary.pending} tone="neutral" sub="无 Backtest 数据" />
+        <AppKpiCard label={tx("rp.valid.kTotal")} value={summary.total} tone="blue" />
+        <AppKpiCard label={tx("rp.valid.r.keep")} value={summary.keep} tone="green" />
+        <AppKpiCard label={tx("rp.valid.r.promote")} value={summary.promote} tone="blue" />
+        <AppKpiCard label={tx("rp.valid.r.watch")} value={summary.watch} tone="amber" />
+        <AppKpiCard label={tx("rp.valid.r.remove")} value={summary.remove} tone={summary.remove > 0 ? "red" : "neutral"} />
+        <AppKpiCard label={tx("rp.fpro.pending")} value={summary.pending} tone="neutral" sub={tx("rp.valid.noBacktest")} />
       </AppKpiGrid>
 
       <AppCard>
         <div className="flex flex-wrap items-center gap-2">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索 名称 / id…"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx("rp.freg.search")}
             style={{ flex: "1 1 220px", minWidth: 180, height: 36, padding: "0 14px", fontSize: 13, border: `1px solid ${COLORS.border}`, borderRadius: 9999, background: COLORS.card, color: COLORS.text }} />
           {(["ALL", "KEEP", "PROMOTE", "WATCH", "REMOVE"] as const).map((r) => (
             <button key={r} type="button" onClick={() => setRecFilter(r)}
@@ -86,23 +87,23 @@ export default function ValidationPanel() {
                 border: `1px solid ${recFilter === r ? COLORS.primary : COLORS.border}`,
                 background: recFilter === r ? `${COLORS.primary}12` : COLORS.card,
                 color: recFilter === r ? COLORS.primary : COLORS.textSecondary }}>
-              {r === "ALL" ? "全部建议" : REC_LABEL[r]}
+              {r === "ALL" ? tx("rp.valid.allRec") : tx(REC_LABEL[r])}
             </button>
           ))}
-          {(recFilter !== "ALL" || q) && <AppButton size="sm" variant="ghost" onClick={() => { setQ(""); setRecFilter("ALL"); }}>清除</AppButton>}
+          {(recFilter !== "ALL" || q) && <AppButton size="sm" variant="ghost" onClick={() => { setQ(""); setRecFilter("ALL"); }}>{tx("common.reset")}</AppButton>}
         </div>
       </AppCard>
 
       <div>
         <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Validation 清单</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{tx("rp.valid.listTitle")}</span>
           <span style={{ fontSize: 12, color: COLORS.textMuted }}>{filtered.length} / {summary.total}</span>
         </div>
         <AppTable minWidth={960}>
           <thead>
             <tr>
               <AppTh sortable active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")}>Feature</AppTh>
-              <AppTh>分类</AppTh>
+              <AppTh>{tx("rp.freg.colCat")}</AppTh>
               <AppTh align="right" sortable active={sortKey === "coverage"} dir={sortDir} onClick={() => toggleSort("coverage")}>Coverage</AppTh>
               <AppTh align="right" sortable active={sortKey === "sampleSize"} dir={sortDir} onClick={() => toggleSort("sampleSize")}>Sample</AppTh>
               <AppTh align="right" sortable active={sortKey === "hitRate"} dir={sortDir} onClick={() => toggleSort("hitRate")}>HitRate</AppTh>
@@ -125,12 +126,12 @@ export default function ValidationPanel() {
                   <AppTd align="right" mono color={v.alpha == null ? COLORS.textFaint : v.alpha >= 0 ? COLORS.success : COLORS.danger}>{fmt(v.alpha, "%")}</AppTd>
                   <AppTd><AppStatusChip kind={CONF_KIND[v.confidence]} label={v.confidence} /></AppTd>
                   <AppTd color={COLORS.textSecondary}>{v.stage}</AppTd>
-                  <AppTd><AppStatusChip kind={REC_KIND[v.recommendation]} label={REC_LABEL[v.recommendation]} /></AppTd>
+                  <AppTd><AppStatusChip kind={REC_KIND[v.recommendation]} label={tx(REC_LABEL[v.recommendation])} /></AppTd>
                 </tr>
               );
             })}
             {filtered.length === 0 && (
-              <tr><AppTd align="center" color={COLORS.textFaint}>无匹配</AppTd>{Array.from({ length: 8 }).map((_, i) => <AppTd key={i}>{""}</AppTd>)}</tr>
+              <tr><AppTd align="center" color={COLORS.textFaint}>{tx("rp.freg.noMatch")}</AppTd>{Array.from({ length: 8 }).map((_, i) => <AppTd key={i}>{""}</AppTd>)}</tr>
             )}
           </tbody>
         </AppTable>
