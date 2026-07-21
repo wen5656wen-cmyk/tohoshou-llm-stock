@@ -29,16 +29,32 @@ const FeaturesView = dynamic(() => import("./FeaturesView"), { ssr: false, loadi
 const FeaturePromotionView = dynamic(() => import("./FeaturePromotionView"), { ssr: false, loading: spin });
 const FeaturePlatformView = dynamic(() => import("./FeaturePlatformView"), { ssr: false, loading: spin });
 const VersionsView = dynamic(() => import("./VersionsView"), { ssr: false, loading: spin });
+const LearningReportView = dynamic(() => import("./LearningReportView"), { ssr: false, loading: spin });
 
 type Sub = { key: string; labelKey: string; node: React.ReactNode };
+// P21-T5-3：顶级 Tab = 研究流程的第 ②–⑤ 阶段（① 数据探索在 /screener，不在本 Hub）。
+// 原本按**实现代际**切分（alpha / v3）而非按**用途**切分，老板不需要知道哪个是第几代。
 const TOP = [
-  { key: "factors", labelKey: "rw.factors" },
-  { key: "alpha", labelKey: "rw.alpha" },
-  { key: "v3", labelKey: "rw.v3" },
-  { key: "experiments", labelKey: "rw.experiments" },
-  { key: "backtest", labelKey: "rw.backtest" },
+  { key: "factors", labelKey: "rw.factors" },          // ② 因子研究
+  { key: "analysis", labelKey: "rw.alpha" },           // ③ AI 分析（原 alpha + v3 合并）
+  { key: "experiments", labelKey: "rw.experiments" },  // ④ 实验验证（原 experiments + backtest 合并）
+  { key: "conclusions", labelKey: "rw.conclusions" },  // ⑤ 研究结论（原游离页 learning-report 转正）
 ] as const;
 const VALID = new Set<string>(TOP.map((t) => t.key));
+
+// P21-T5-3：旧顶级 tab key → 新 { tab, sub }。保证 T5-3 之前的深链不 404、不静默跳错。
+//   alpha    → analysis（子标签同名，未指定则落该组第一个 score）
+//   v3       → analysis&sub=shadow（v3 原默认子标签）
+//   backtest → experiments&sub=backtest
+//   overview → factors（T2 已删该 Tab）
+//   learning → conclusions（游离页转正）
+const LEGACY_TAB: Record<string, { tab: string; sub?: string }> = {
+  alpha: { tab: "analysis" },
+  v3: { tab: "analysis", sub: "shadow" },
+  backtest: { tab: "experiments", sub: "backtest" },
+  overview: { tab: "factors" },
+  learning: { tab: "conclusions" },
+};
 
 // 旧面板 onNavigate 的键 → { 顶级 Tab, 子标签 }
 // P21-T3：过去只映射到顶级 tab，而子标签是本地 state 不进 URL，导致「点了没反应」——
@@ -47,13 +63,13 @@ const VALID = new Set<string>(TOP.map((t) => t.key));
 // P21-T2：overview / learning / freeze 目标已下线，映射到新默认 tab。
 const NAV_MAP: Record<string, { tab: string; sub?: string }> = {
   factors: { tab: "factors" },
-  score: { tab: "alpha", sub: "score" },
-  analytics: { tab: "alpha", sub: "analytics" },
-  fusion: { tab: "alpha", sub: "fusion" },
-  regime: { tab: "alpha", sub: "regime" },
-  v3: { tab: "v3", sub: "shadow" },
-  calibration: { tab: "v3", sub: "calibration" },
-  backtest: { tab: "backtest" },
+  score: { tab: "analysis", sub: "score" },
+  analytics: { tab: "analysis", sub: "analytics" },
+  fusion: { tab: "analysis", sub: "fusion" },
+  regime: { tab: "analysis", sub: "regime" },
+  v3: { tab: "analysis", sub: "shadow" },
+  calibration: { tab: "analysis", sub: "calibration" },
+  backtest: { tab: "experiments", sub: "backtest" },
 };
 
 export default function ResearchWorkspaceHub() {
@@ -61,9 +77,11 @@ export default function ResearchWorkspaceHub() {
   const router = useRouter();
   const sp = useSearchParams();
   const raw = sp.get("tab");
-  const active = raw && VALID.has(raw) ? raw : "factors";
+  const legacy = raw && !VALID.has(raw) ? LEGACY_TAB[raw] : undefined;
+  const active = raw && VALID.has(raw) ? raw : legacy ? legacy.tab : "factors";
   // P21-T3：子标签由 URL 决定（?sub=），刷新可保持、可分享深链、跨面板跳转不再是 no-op。
-  const rawSub = sp.get("sub");
+  // 旧深链未带 sub 时，用 LEGACY_TAB 指定的 sub 兜底（如 ?tab=v3 → sub=shadow）
+  const rawSub = sp.get("sub") ?? legacy?.sub ?? null;
 
   const go = (tab: string, subKey?: string) => {
     const q = subKey ? `?tab=${tab}&sub=${subKey}` : `?tab=${tab}`;
@@ -82,21 +100,23 @@ export default function ResearchWorkspaceHub() {
       { key: "promotion", labelKey: "rw.f.promotion", node: <FeaturePromotionView /> },
       { key: "platform", labelKey: "rw.f.platform", node: <FeaturePlatformView /> },
     ],
-    alpha: [
+    // ③ AI 分析：原 alpha(4) + v3(2) 合并 —— 六者同属「模型输出 vs 正式版」对照
+    analysis: [
       { key: "score", labelKey: "rw.a.score", node: <AlphaScorePanel onNavigate={onNav} /> },
       { key: "analytics", labelKey: "rw.a.analytics", node: <AlphaAnalyticsPanel onNavigate={onNav} /> },
       { key: "fusion", labelKey: "rw.a.fusion", node: <FusionReportPanel onNavigate={onNav} /> },
       { key: "regime", labelKey: "rw.a.regime", node: <MarketRegimePanel onNavigate={onNav} /> },
-    ],
-    v3: [
       { key: "shadow", labelKey: "rw.v.shadow", node: <ScoreV3Panel onNavigate={onNav} /> },
       { key: "calibration", labelKey: "rw.v.calibration", node: <CalibrationPanel onNavigate={onNav} /> },
     ],
+    // ④ 实验验证：原 experiments(1) + backtest(1) 合并
     experiments: [
+      { key: "backtest", labelKey: "rw.b.alpha", node: <AlphaBacktestPanel onNavigate={onNav} /> },
       { key: "versions", labelKey: "rw.e.versions", node: <VersionsView /> },
     ],
-    backtest: [
-      { key: "alpha", labelKey: "rw.b.alpha", node: <AlphaBacktestPanel onNavigate={onNav} /> },
+    // ⑤ 研究结论：原游离页 /admin/learning-report 转正
+    conclusions: [
+      { key: "learning", labelKey: "rw.c.learning", node: <LearningReportView /> },
     ],
   };
 

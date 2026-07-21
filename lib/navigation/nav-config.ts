@@ -57,10 +57,13 @@ export const NAV_NODES: NavNode[] = [
   { key: "dv-history", workspace: "boss", labelKey: "dv.nav.history", href: "/decision-v2?tab=history", Icon: Clock, glyph: "↺" },
 
   // ═══ 研究工作区（Research · 股票研究 Hub + 股票研究五页 /screener?tab=*）═══
-  { key: "rs-home", workspace: "research", labelKey: "nav.researchHome", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
-  { key: "rs-sectors", workspace: "research", labelKey: "sr.tab.sectors", href: "/screener?tab=sectors&ws=research", Icon: Layers, glyph: "▦" },
-  { key: "rs-themes", workspace: "research", labelKey: "sr.tab.themes", href: "/screener?tab=themes&ws=research", Icon: Boxes, glyph: "◈" },
-  { key: "rs-news", workspace: "research", labelKey: "sr.tab.news", href: "/screener?tab=news&ws=research", Icon: Newspaper, glyph: "▤" },
+  // P21-T5-3：研究工作区 = 五阶段研究流程（导航即流程）。
+  // 原本 rs-home 标签是「股票研究」却指向因子/模型 Hub，而真正的股票研究被拆成 3 个平级节点。
+  { key: "rs-explore", workspace: "research", labelKey: "rw.stage1", href: "/screener?tab=sectors&ws=research", Icon: Layers, glyph: "▦" },
+  { key: "rs-factors", workspace: "research", labelKey: "rw.stage2", href: "/admin/research?tab=factors", Icon: Boxes, glyph: "◈" },
+  { key: "rs-analysis", workspace: "research", labelKey: "rw.stage3", href: "/admin/research?tab=analysis", Icon: Microscope, glyph: "🔬" },
+  { key: "rs-experiments", workspace: "research", labelKey: "rw.stage4", href: "/admin/research?tab=experiments", Icon: Clock, glyph: "↺" },
+  { key: "rs-conclusions", workspace: "research", labelKey: "rw.stage5", href: "/admin/research?tab=conclusions", Icon: Star, glyph: "★" },
 
   // ═══ 管理工作区（Management · 保留现有入口 = Mission Control Hub，本轮不重构）═══
   { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },

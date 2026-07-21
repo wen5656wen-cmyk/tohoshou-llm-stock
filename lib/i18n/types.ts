@@ -799,6 +799,14 @@ export type Messages = {
   "ind.base_date": string;
 
   // ─── Common UI ─────────────────────────────────────────────────────────────
+  "rw.conclusions": string;
+  "rw.c.learning": string;
+  "rw.stage1": string;
+  "rw.stage2": string;
+  "rw.stage3": string;
+  "rw.stage4": string;
+  "rw.stage5": string;
+  "common.refresh": string;
   "common.loading": string;
   "common.search": string;
   "common.filter": string;
