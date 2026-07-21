@@ -16,9 +16,7 @@ const RuntimeView = dynamic(() => import("./RuntimeView"), { ssr: false, loading
 const HealthView = dynamic(() => import("./HealthView"), { ssr: false, loading: spin });
 const VerifyView = dynamic(() => import("./VerifyView"), { ssr: false, loading: spin });
 const SyncView = dynamic(() => import("./SyncView"), { ssr: false, loading: spin });
-const CronView = dynamic(() => import("./CronView"), { ssr: false, loading: spin });
 const DeployView = dynamic(() => import("./DeployView"), { ssr: false, loading: spin });
-const LogView = dynamic(() => import("./LogView"), { ssr: false, loading: spin });
 
 const TABS = [
   { key: "overview", labelKey: "sys.tab.overview" },
@@ -26,9 +24,7 @@ const TABS = [
   { key: "health", labelKey: "sys.tab.health" },
   { key: "verify", labelKey: "sys.tab.verify" },
   { key: "sync", labelKey: "sys.tab.sync" },
-  { key: "cron", labelKey: "sys.tab.cron" },
   { key: "deploy", labelKey: "sys.tab.deploy" },
-  { key: "log", labelKey: "sys.tab.log" },
 ] as const;
 const VALID = new Set<string>(TABS.map((t) => t.key));
 
@@ -73,9 +69,7 @@ export default function SystemHub() {
         {active === "health" && <HealthView />}
         {active === "verify" && <VerifyView />}
         {active === "sync" && <SyncView />}
-        {active === "cron" && <CronView />}
         {active === "deploy" && <DeployView />}
-        {active === "log" && <LogView />}
       </div>
     </div>
   );

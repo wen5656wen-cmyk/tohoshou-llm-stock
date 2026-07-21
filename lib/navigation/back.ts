@@ -29,7 +29,7 @@ export function getBackHref(
   if (returnTo) return returnTo;
   const sourceMap: Record<string, string> = {
     screener:  "/screener",
-    stocks:    "/stocks",
+    stocks:    "/decision-v2?tab=recommendations", // P21-T2：/stocks 已下线，回退到股票中心
     "ai-theme": "/ai-theme",
     sectors:   "/sectors",
     portfolio: "/portfolio",

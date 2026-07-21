@@ -12,11 +12,9 @@ const PATH_KEY_MAP: Record<string, MessageKey> = {
   "/screener": "nav.screener",
   "/sync": "nav.sync",
   "/notifications": "nav.notifications",
-  "/stocks": "nav.stocks",
   "/watchlist": "nav.watchlist",
   "/news": "nav.news",
   "/portfolio": "nav.portfolio",
-  "/indicators": "nav.indicators",
   "/sectors": "nav.sectors",
 };
 

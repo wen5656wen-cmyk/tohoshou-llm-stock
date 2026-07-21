@@ -17,7 +17,6 @@ const named = (p: () => Promise<Record<string, unknown>>, key: string) =>
   dynamic(() => p().then((m) => ({ default: m[key] as React.ComponentType<Record<string, unknown>> })), { ssr: false, loading: spin });
 
 // 现有面板（named export）
-const ResearchCenter = named(() => import("./center"), "ResearchCenter");
 const AlphaFactorsPanel = named(() => import("./AlphaFactorsPanel"), "AlphaFactorsPanel");
 const AlphaAnalyticsPanel = named(() => import("./AlphaAnalyticsPanel"), "AlphaAnalyticsPanel");
 const AlphaScorePanel = named(() => import("./AlphaScorePanel"), "AlphaScorePanel");
@@ -26,32 +25,27 @@ const MarketRegimePanel = named(() => import("./MarketRegimePanel"), "MarketRegi
 const FusionReportPanel = named(() => import("./FusionReportPanel"), "FusionReportPanel");
 const ScoreV3Panel = named(() => import("./ScoreV3Panel"), "ScoreV3Panel");
 const CalibrationPanel = named(() => import("./CalibrationPanel"), "CalibrationPanel");
-const FreezeMonitorPanel = named(() => import("./FreezeMonitorPanel"), "FreezeMonitorPanel");
 // 移动的独立页（default export）
 const FeaturesView = dynamic(() => import("./FeaturesView"), { ssr: false, loading: spin });
 const FeaturePromotionView = dynamic(() => import("./FeaturePromotionView"), { ssr: false, loading: spin });
 const FeaturePlatformView = dynamic(() => import("./FeaturePlatformView"), { ssr: false, loading: spin });
-const LearningReportView = dynamic(() => import("./LearningReportView"), { ssr: false, loading: spin });
-const ExperimentsView = dynamic(() => import("./ExperimentsView"), { ssr: false, loading: spin });
 const VersionsView = dynamic(() => import("./VersionsView"), { ssr: false, loading: spin });
-const StrategyBacktestView = dynamic(() => import("./StrategyBacktestView"), { ssr: false, loading: spin });
 
 type Sub = { key: string; labelKey: string; node: React.ReactNode };
 const TOP = [
-  { key: "overview", labelKey: "rw.overview" },
   { key: "factors", labelKey: "rw.factors" },
   { key: "alpha", labelKey: "rw.alpha" },
   { key: "v3", labelKey: "rw.v3" },
-  { key: "learning", labelKey: "rw.learning" },
   { key: "experiments", labelKey: "rw.experiments" },
   { key: "backtest", labelKey: "rw.backtest" },
 ] as const;
 const VALID = new Set<string>(TOP.map((t) => t.key));
 
 // 旧面板 onNavigate 的键 → 新顶级 Tab
+// P21-T2：overview / learning / freeze 三个目标已下线，映射到新默认 tab（factors）。
 const NAV_MAP: Record<string, string> = {
-  overview: "overview", factors: "factors", analytics: "alpha", score: "alpha",
-  regime: "alpha", fusion: "alpha", v3: "v3", calibration: "v3", freeze: "v3", backtest: "backtest",
+  factors: "factors", analytics: "alpha", score: "alpha",
+  regime: "alpha", fusion: "alpha", v3: "v3", calibration: "v3", backtest: "backtest",
 };
 
 export default function ResearchWorkspaceHub() {
@@ -59,11 +53,11 @@ export default function ResearchWorkspaceHub() {
   const router = useRouter();
   const sp = useSearchParams();
   const raw = sp.get("tab");
-  const active = raw && VALID.has(raw) ? raw : "overview";
+  const active = raw && VALID.has(raw) ? raw : "factors";
   const [sub, setSub] = useState<Record<string, string>>({});
 
   const goTop = (key: string) => { if (key !== active) router.replace(`/admin/research?tab=${key}`, { scroll: false }); };
-  const onNav = (k: string) => goTop(NAV_MAP[k] ?? "overview");
+  const onNav = (k: string) => goTop(NAV_MAP[k] ?? "factors");
 
   // 分组子标签定义（懒加载：仅激活子标签的 node 会挂载）
   const GROUPS: Record<string, Sub[]> = {
@@ -82,21 +76,16 @@ export default function ResearchWorkspaceHub() {
     v3: [
       { key: "shadow", labelKey: "rw.v.shadow", node: <ScoreV3Panel onNavigate={onNav} /> },
       { key: "calibration", labelKey: "rw.v.calibration", node: <CalibrationPanel onNavigate={onNav} /> },
-      { key: "freeze", labelKey: "rw.v.freeze", node: <FreezeMonitorPanel onNavigate={onNav} /> },
     ],
     experiments: [
-      { key: "exp", labelKey: "rw.e.exp", node: <ExperimentsView /> },
       { key: "versions", labelKey: "rw.e.versions", node: <VersionsView /> },
     ],
     backtest: [
-      { key: "strategy", labelKey: "rw.b.strategy", node: <StrategyBacktestView /> },
       { key: "alpha", labelKey: "rw.b.alpha", node: <AlphaBacktestPanel onNavigate={onNav} /> },
     ],
   };
 
   const renderBody = () => {
-    if (active === "overview") return <ResearchCenter onTab={onNav} />;
-    if (active === "learning") return <LearningReportView />;
     const group = GROUPS[active];
     if (!group) return null;
     const curSub = sub[active] ?? group[0].key;

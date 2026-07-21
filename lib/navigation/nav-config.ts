@@ -62,19 +62,18 @@ export const NAV_NODES: NavNode[] = [
   { key: "rs-sectors", workspace: "research", labelKey: "sr.tab.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },
   { key: "rs-themes", workspace: "research", labelKey: "sr.tab.themes", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈" },
   { key: "rs-news", workspace: "research", labelKey: "sr.tab.news", href: "/screener?tab=news", Icon: Newspaper, glyph: "▤" },
-  { key: "rs-indicators", workspace: "research", labelKey: "sr.tab.indicators", href: "/screener?tab=indicators", Icon: BarChart3, glyph: "▮" },
 
   // ═══ 管理工作区（Management · 保留现有入口 = Mission Control Hub，本轮不重构）═══
   { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },
 ];
 
 // ── 路径 → 工作区 推导（软切换核心：URL 决定当前工作区）──────────────────────
-const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime"];
+const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime", "/admin/universe", "/admin/learning-report"];
 const RESEARCH_PREFIXES = [
   // 研究工作区：研究综合 Hub + 股票研究（screener 及其旧深链重定向桩）+ 量化研究
   "/admin/research", "/admin/features", "/admin/feature-promotion", "/admin/feature-platform",
   "/admin/learning-report", "/admin/experiments", "/admin/versions", "/backtest", "/alpha", "/fusion", "/market-regime",
-  "/screener", "/sectors", "/ai-theme", "/news", "/indicators", "/stocks",
+  "/screener", "/sectors", "/ai-theme", "/news",
 ];
 function matchPrefix(p: string, list: string[]): boolean {
   return list.some((x) => p === x || p.startsWith(x + "/") || p.startsWith(x + "?"));

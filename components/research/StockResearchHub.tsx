@@ -18,14 +18,12 @@ const spin = () => <AppLoading />;
 const SectorsView = dynamic(() => import("./SectorsView"), { ssr: false, loading: spin });
 const AiThemeView = dynamic(() => import("./AiThemeView"), { ssr: false, loading: spin });
 const NewsView = dynamic(() => import("./NewsView"), { ssr: false, loading: spin });
-const IndicatorsView = dynamic(() => import("./IndicatorsView"), { ssr: false, loading: spin });
 
 const TABS = [
   { key: "screen", labelKey: "sr.tab.screen" },
   { key: "sectors", labelKey: "sr.tab.sectors" },
   { key: "themes", labelKey: "sr.tab.themes" },
   { key: "news", labelKey: "sr.tab.news" },
-  { key: "indicators", labelKey: "sr.tab.indicators" },
 ] as const;
 
 const VALID = new Set<string>(TABS.map((t) => t.key));
@@ -79,7 +77,6 @@ export default function StockResearchHub() {
         {active === "sectors" && <SectorsView />}
         {active === "themes" && <AiThemeView initialSubTab={initialSub} />}
         {active === "news" && <NewsView />}
-        {active === "indicators" && <IndicatorsView />}
       </div>
     </div>
   );
