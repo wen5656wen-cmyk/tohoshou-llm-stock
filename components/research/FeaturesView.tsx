@@ -5,6 +5,7 @@
 // 数据来自静态 lib/features（无 API、无 DB），故无 loading/error。
 
 import { useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   AppHeader, AppCard, AppKpiCard, AppKpiGrid, AppStackBar, AppTable, AppTh, AppTd,
   AppStatusChip, AppBadge, AppButton, appRowHover, COLORS,
@@ -31,6 +32,8 @@ const STATUS_KIND: Record<FeatureStatus, StatusKind> = {
 };
 
 export default function FeaturesPage() {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const all = useMemo(() => getAllFeatures(), []);
   const summary = useMemo(() => getSummary(), []);
   const catDist = useMemo(() => categoryDistribution(), []);
@@ -67,22 +70,22 @@ export default function FeaturesPage() {
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 space-y-6">
         <AppHeader
           title="Feature Registry"
-          titleEn="因子管理中心"
-          subtitle="TOHOSHOU AI Feature 登记与管理中心 · 仅登记不计算，不参与任何评分 / 推荐 / 权重"
+          titleEn=""
+          subtitle={tx("rp.freg.subtitle")}
           status="V1"
           statusTone="blue"
         />
 
         {/* Tab: 注册视图 / 验证视图 */}
         <div className="flex items-center gap-1.5">
-          {([["registry", "因子注册"], ["validation", "验证 Validation"]] as const).map(([v, label]) => (
+          {([["registry", "rp.freg.tabRegistry"], ["validation", "rp.freg.tabValidation"]] as const).map(([v, label]) => (
             <button key={v} type="button" onClick={() => setView(v)}
               style={{
                 height: 34, padding: "0 16px", fontSize: 13, fontWeight: 600, borderRadius: 9999, cursor: "pointer",
                 border: `1px solid ${view === v ? COLORS.primary : COLORS.border}`,
                 background: view === v ? `${COLORS.primary}12` : COLORS.card,
                 color: view === v ? COLORS.primary : COLORS.textSecondary,
-              }}>{label}</button>
+              }}>{tx(label)}</button>
           ))}
         </div>
 
@@ -92,29 +95,27 @@ export default function FeaturesPage() {
         {/* 原则声明 */}
         <AppCard accent={`${COLORS.primary}33`} style={{ background: `${COLORS.primary}08` }}>
           <div style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.7 }}>
-            <b style={{ color: COLORS.text }}>Registry 只读原则：</b>
-            本中心仅登记与管理 Feature 元数据，<b style={{ color: COLORS.text }}>不参与任何计算、不影响任何评分与推荐</b>。
-            新增因子须先在此登记，再依次经 <b>Shadow → Backtest → Learning → Production</b> 验证，未经验证禁止进入正式评分。
-            统计字段（命中率 / 收益 / 覆盖率）为<b>预留</b>，V1 一律为空。
+            <b style={{ color: COLORS.text }}>{tx("rp.freg.principleTitle")}</b>
+            {tx("rp.freg.principleBody")}
           </div>
         </AppCard>
 
         {/* KPI */}
         <AppKpiGrid>
-          <AppKpiCard label="Feature 总数" value={summary.total} tone="blue" />
-          <AppKpiCard label="Production 正式" value={summary.production} tone="green" sub="已进入正式评分" />
-          <AppKpiCard label="Shadow 影子" value={summary.shadow} tone="amber" sub="仅观测未接入" />
-          <AppKpiCard label="Disabled 停用" value={summary.disabled} tone="neutral" />
-          <AppKpiCard label="分类数" value={summary.categories} tone="purple" />
-          <AppKpiCard label="来源数" value={summary.sources} tone="neutral" />
+          <AppKpiCard label={tx("rp.freg.kTotal")} value={summary.total} tone="blue" />
+          <AppKpiCard label={tx("rp.freg.kProd")} value={summary.production} tone="green" sub={tx("rp.freg.kProdSub")} />
+          <AppKpiCard label={tx("rp.freg.kShadow")} value={summary.shadow} tone="amber" sub={tx("rp.freg.kShadowSub")} />
+          <AppKpiCard label={tx("rp.freg.kDisabled")} value={summary.disabled} tone="neutral" />
+          <AppKpiCard label={tx("rp.freg.kCategories")} value={summary.categories} tone="purple" />
+          <AppKpiCard label={tx("rp.freg.kSources")} value={summary.sources} tone="neutral" />
         </AppKpiGrid>
 
         {/* 分布 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <AppCard header={<span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>分类分布 Category Distribution</span>}>
+          <AppCard header={<span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{tx("rp.freg.catDist")}</span>}>
             <AppStackBar segments={catSegments} />
           </AppCard>
-          <AppCard header={<span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>来源分布 Source Distribution</span>}>
+          <AppCard header={<span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{tx("rp.freg.srcDist")}</span>}>
             <AppStackBar segments={srcSegments} />
           </AppCard>
         </div>
@@ -125,7 +126,7 @@ export default function FeaturesPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="搜索 名称 / id / 说明…"
+              placeholder={tx("rp.freg.search")}
               style={{
                 flex: "1 1 240px", minWidth: 200, height: 36, padding: "0 14px", fontSize: 13,
                 border: `1px solid ${COLORS.border}`, borderRadius: 9999, background: COLORS.card, color: COLORS.text,
@@ -144,12 +145,12 @@ export default function FeaturesPage() {
                     color: statusFilter === s ? COLORS.primary : COLORS.textSecondary,
                   }}
                 >
-                  {s === "ALL" ? "全部状态" : STATUS_LABEL[s]}
+                  {s === "ALL" ? tx("rp.freg.allStatus") : STATUS_LABEL[s]}
                 </button>
               ))}
             </div>
             {(catFilter !== "ALL" || statusFilter !== "ALL" || q) && (
-              <AppButton size="sm" variant="ghost" onClick={() => { setQ(""); setStatusFilter("ALL"); setCatFilter("ALL"); }}>清除</AppButton>
+              <AppButton size="sm" variant="ghost" onClick={() => { setQ(""); setStatusFilter("ALL"); setCatFilter("ALL"); }}>{tx("common.reset")}</AppButton>
             )}
           </div>
           {/* 分类芯片 */}
@@ -158,7 +159,7 @@ export default function FeaturesPage() {
               type="button"
               onClick={() => setCatFilter("ALL")}
               style={chipStyle(catFilter === "ALL")}
-            >全部分类</button>
+            >{tx("rp.freg.allCat")}</button>
             {catDist.map((d) => (
               <button
                 key={d.key}
@@ -175,18 +176,18 @@ export default function FeaturesPage() {
         {/* 表格 */}
         <div>
           <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Feature 清单</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{tx("rp.freg.listTitle")}</span>
             <span style={{ fontSize: 12, color: COLORS.textMuted }}>{rows.length} / {summary.total}</span>
           </div>
           <AppTable minWidth={860}>
             <thead>
               <tr>
-                <AppTh>名称</AppTh>
-                <AppTh>分类</AppTh>
-                <AppTh>来源</AppTh>
-                <AppTh>状态</AppTh>
-                <AppTh>版本</AppTh>
-                <AppTh>说明</AppTh>
+                <AppTh>{tx("rp.freg.colName")}</AppTh>
+                <AppTh>{tx("rp.freg.colCat")}</AppTh>
+                <AppTh>{tx("rp.freg.colSrc")}</AppTh>
+                <AppTh>{tx("rp.freg.colStatus")}</AppTh>
+                <AppTh>{tx("rp.freg.colVer")}</AppTh>
+                <AppTh>{tx("rp.freg.colDesc")}</AppTh>
               </tr>
             </thead>
             <tbody>
@@ -204,7 +205,7 @@ export default function FeaturesPage() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><AppTd align="center" color={COLORS.textFaint}>无匹配 Feature</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd></tr>
+                <tr><AppTd align="center" color={COLORS.textFaint}>{tx("rp.freg.noMatch")}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd><AppTd>{""}</AppTd></tr>
               )}
             </tbody>
           </AppTable>

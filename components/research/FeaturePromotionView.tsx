@@ -6,24 +6,26 @@
 // 数据来自 GET /api/admin/feature-promotion。**只做建议 · 不自动改任何状态 · 不影响推荐。**
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { fmtAsOf } from "./PanelFrame";
 import {
   AppHeader, AppCard, AppKpiCard, AppKpiGrid, AppBadge, AppButton,
   AppLoading, AppEmptyState, COLORS,
 } from "@/components/ui";
 
 const CATEGORY_LABEL: Record<string, string> = {
-  PRICE: "价格", TECHNICAL: "技术指标", FUNDAMENTAL: "基本面", NEWS: "新闻情绪",
-  MARKET: "市场状态", MONEY_FLOW: "资金流", TDNET: "开示 TDnet", GLOBAL: "全球市场",
-  AI: "AI 派生", OTHER: "其他",
+  PRICE: "rp.fpro.c.price", TECHNICAL: "rp.fpro.c.tech", FUNDAMENTAL: "rp.fpro.c.fund", NEWS: "rp.fpro.c.news",
+  MARKET: "rp.fpro.c.market", MONEY_FLOW: "rp.fpro.c.flow", TDNET: "rp.fpro.c.tdnet", GLOBAL: "rp.fpro.c.global",
+  AI: "rp.fpro.c.ai", OTHER: "rp.fpro.c.other",
 };
-const STATUS_LABEL: Record<string, string> = { PRODUCTION: "正式", SHADOW: "影子", DISABLED: "停用" };
+const STATUS_LABEL: Record<string, string> = { PRODUCTION: "rp.fpro.s.prod", SHADOW: "rp.fpro.s.shadow", DISABLED: "rp.fpro.s.disabled" };
 const REC_META: Record<string, { label: string; color: string }> = {
-  PROMOTE: { label: "建议晋升", color: COLORS.success },
-  KEEP_SHADOW: { label: "保持影子", color: COLORS.warning },
-  DISABLE: { label: "建议停用", color: COLORS.danger },
+  PROMOTE: { label: "rp.fpro.r.promote", color: COLORS.success },
+  KEEP_SHADOW: { label: "rp.fpro.r.keep", color: COLORS.warning },
+  DISABLE: { label: "rp.fpro.r.disable", color: COLORS.danger },
 };
-const TREND_LABEL: Record<string, string> = { IMPROVING: "↗ 走强", FLAT: "→ 平稳", DECAYING: "↘ 衰减" };
-const CONF_LABEL: Record<string, string> = { HIGH: "高置信", MEDIUM: "中置信", LOW: "低置信" };
+const TREND_LABEL: Record<string, string> = { IMPROVING: "rp.fpro.t.up", FLAT: "rp.fpro.t.flat", DECAYING: "rp.fpro.t.down" };
+const CONF_LABEL: Record<string, string> = { HIGH: "rp.fpro.cf.high", MEDIUM: "rp.fpro.cf.mid", LOW: "rp.fpro.cf.low" };
 
 interface Horizon { horizon: number; alpha: number | null; avgReturn: number | null; benchReturn: number | null; hitRate: number | null; rankIc: number | null }
 interface Bundle {
@@ -53,7 +55,7 @@ interface ApiResponse {
 
 type SortKey = "promotionScore" | "primaryAlpha" | "contribution" | "primaryHitRate";
 const SORT_LABEL: Record<SortKey, string> = {
-  promotionScore: "晋升分", primaryAlpha: "Alpha(10d)", contribution: "贡献", primaryHitRate: "命中率",
+  promotionScore: "rp.fpro.m.score", primaryAlpha: "Alpha(10d)", contribution: "rp.fpro.m.contrib", primaryHitRate: "rp.fpro.m.hit",
 };
 
 function fmt(v: number | null | undefined, suffix = "", digits = 2): string {
@@ -115,8 +117,10 @@ function Chip({ text, color }: { text: string; color: string }) {
 }
 
 function FeatureCard({ r, reasonLabels }: { r: Row; reasonLabels: Record<string, string> }) {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const rec = r.recommendation;
-  const recMeta = rec ? REC_META[rec] : { label: "生产基线", color: COLORS.textSecondary };
+  const recMeta = rec ? REC_META[rec] : { label: "rp.fpro.r.baseline", color: COLORS.textSecondary };
   const b = r.factorAlpha;
   return (
     <AppCard style={{ borderLeft: `3px solid ${recMeta.color}` }}>
@@ -129,14 +133,14 @@ function FeatureCard({ r, reasonLabels }: { r: Row; reasonLabels: Record<string,
           </div>
           <div className="flex items-center gap-1.5" style={{ marginTop: 5 }}>
             <AppBadge tone="neutral">{CATEGORY_LABEL[r.category] ?? r.category}</AppBadge>
-            <AppBadge tone={r.status === "PRODUCTION" ? "green" : r.status === "SHADOW" ? "amber" : "neutral"}>{STATUS_LABEL[r.status] ?? r.status}</AppBadge>
+            <AppBadge tone={r.status === "PRODUCTION" ? "green" : r.status === "SHADOW" ? "amber" : "neutral"}>{tx(STATUS_LABEL[r.status] ?? r.status)}</AppBadge>
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: scoreTone(r.promotionScore), fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-            {r.pending ? "待样本" : fmt(r.promotionScore, "", 1)}
+            {r.pending ? tx("rp.fpro.pending") : fmt(r.promotionScore, "", 1)}
           </div>
-          <div style={{ fontSize: 10, color: COLORS.textFaint, marginTop: 2 }}>晋升分</div>
+          <div style={{ fontSize: 10, color: COLORS.textFaint, marginTop: 2 }}>{tx("rp.fpro.m.score")}</div>
         </div>
       </div>
 
@@ -146,13 +150,13 @@ function FeatureCard({ r, reasonLabels }: { r: Row; reasonLabels: Record<string,
           <Stars rating={r.rating} />
           <span style={{ fontSize: 11.5, color: COLORS.textSecondary }}>{r.ratingLabel}</span>
         </div>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: recMeta.color, background: `${recMeta.color}14`, borderRadius: 9999, padding: "3px 10px" }}>{recMeta.label}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: recMeta.color, background: `${recMeta.color}14`, borderRadius: 9999, padding: "3px 10px" }}>{tx(recMeta.label)}</span>
       </div>
 
       {/* 因子 alpha 曲线（真实回测 · vs 等权宇宙） */}
       {b && b.horizons.length > 0 && (
         <div style={{ padding: "6px 0", borderTop: `1px solid ${COLORS.borderSoft}` }}>
-          <div style={{ fontSize: 10, color: COLORS.textFaint, marginBottom: 2 }}>因子 Alpha 曲线（1/3/5/10/20d · cohort − 宇宙 %）</div>
+          <div style={{ fontSize: 10, color: COLORS.textFaint, marginBottom: 2 }}>{tx("rp.fpro.curve")}</div>
           <AlphaCurve horizons={b.horizons} />
         </div>
       )}
@@ -162,25 +166,25 @@ function FeatureCard({ r, reasonLabels }: { r: Row; reasonLabels: Record<string,
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "9px 8px", padding: "9px 0", borderTop: `1px solid ${COLORS.borderSoft}`, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
             <Metric label={`Alpha ${r.factorAlpha?.primary?.horizon ?? 10}d`} value={r.primaryAlpha == null ? "—" : `${r.primaryAlpha >= 0 ? "+" : ""}${fmt(r.primaryAlpha, "%")}`} color={alphaColor(r.primaryAlpha)} />
-            <Metric label="平均 rankIC" value={fmt(r.meanRankIc, "", 3)} color={alphaColor(r.meanRankIc)} />
-            <Metric label="命中率" value={fmt(r.primaryHitRate, "%", 1)} />
-            <Metric label="贡献" value={fmt(r.contribution, "%", 1)} color={r.contribution ? COLORS.purple : undefined} />
-            <Metric label="稳定性" value={fmt(r.stability, "%", 0)} />
-            <Metric label="覆盖率" value={fmt(r.coverage, "%", 1)} />
+            <Metric label={tx("rp.fpro.m.rankic")} value={fmt(r.meanRankIc, "", 3)} color={alphaColor(r.meanRankIc)} />
+            <Metric label={tx("rp.fpro.m.hit")} value={fmt(r.primaryHitRate, "%", 1)} />
+            <Metric label={tx("rp.fpro.m.contrib")} value={fmt(r.contribution, "%", 1)} color={r.contribution ? COLORS.purple : undefined} />
+            <Metric label={tx("rp.fpro.m.stability")} value={fmt(r.stability, "%", 0)} />
+            <Metric label={tx("rp.fpro.m.coverage")} value={fmt(r.coverage, "%", 1)} />
           </div>
           <div className="flex items-center gap-1.5" style={{ marginTop: 8, flexWrap: "wrap" }}>
-            <Chip text={CONF_LABEL[r.confidence] ?? r.confidence} color={r.confidence === "HIGH" ? COLORS.success : r.confidence === "MEDIUM" ? COLORS.warning : COLORS.textMuted} />
-            {r.trend && <Chip text={TREND_LABEL[r.trend] ?? r.trend} color={r.trend === "IMPROVING" ? COLORS.success : r.trend === "DECAYING" ? COLORS.danger : COLORS.textSecondary} />}
-            <Chip text={`${r.factorAlpha?.asOfCount ?? "—"} 再平衡日`} color={COLORS.textMuted} />
+            <Chip text={tx(CONF_LABEL[r.confidence] ?? r.confidence)} color={r.confidence === "HIGH" ? COLORS.success : r.confidence === "MEDIUM" ? COLORS.warning : COLORS.textMuted} />
+            {r.trend && <Chip text={tx(TREND_LABEL[r.trend] ?? r.trend)} color={r.trend === "IMPROVING" ? COLORS.success : r.trend === "DECAYING" ? COLORS.danger : COLORS.textSecondary} />}
+            <Chip text={`${r.factorAlpha?.asOfCount ?? "—"} ${tx("rp.fpro.rebalDays")}`} color={COLORS.textMuted} />
           </div>
         </>
       ) : (
         <div style={{ padding: "9px 0", borderTop: `1px solid ${COLORS.borderSoft}` }}>
           <div className="flex items-center gap-1.5" style={{ marginBottom: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.warning, background: `${COLORS.warning}14`, borderRadius: 9999, padding: "2px 9px" }}>
-              {r.pendingReasonCode ? (reasonLabels[r.pendingReasonCode] ?? r.pendingReasonCode) : "待样本"}
+              {r.pendingReasonCode ? (reasonLabels[r.pendingReasonCode] ?? r.pendingReasonCode) : tx("rp.fpro.pending")}
             </span>
-            {r.coverage != null && <Chip text={`覆盖 ${fmt(r.coverage, "%", 1)}`} color={COLORS.textMuted} />}
+            {r.coverage != null && <Chip text={`${tx("rp.fpro.m.coverage")} ${fmt(r.coverage, "%", 1)}`} color={COLORS.textMuted} />}
           </div>
         </div>
       )}
@@ -214,6 +218,8 @@ function Section({ title, desc, rows, accent, emptyText, reasonLabels }: {
 }
 
 export default function FeaturePromotionPage() {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -225,10 +231,10 @@ export default function FeaturePromotionPage() {
       const res = await fetch("/api/admin/feature-promotion", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as ApiResponse;
-      if (!json.ok) throw new Error("API 返回异常");
+      if (!json.ok) throw new Error(tx("common.load_error"));
       setData(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
+      setError(e instanceof Error ? e.message : tx("common.load_error"));
     } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
@@ -245,44 +251,41 @@ export default function FeaturePromotionPage() {
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 space-y-6">
         <AppHeader
           title="Feature Promotion V2"
-          titleEn="因子晋升引擎 · 因子级 Alpha"
-          subtitle="真实回测因子级 Alpha（vs 等权宇宙）+ Attribution + Confidence + Trend → Promote / Keep Shadow / Disable · 仅建议不自动改状态"
+          titleEn=""
+          subtitle={tx("rp.fpro.subtitle")}
           status="V2" statusTone="blue"
         />
 
         <AppCard accent={`${COLORS.primary}33`} style={{ background: `${COLORS.primary}08` }}>
           <div style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.7 }}>
-            <b style={{ color: COLORS.text }}>Promotion Engine V2 · 只读原则：</b>
-            每个可评估因子在 90 个历史再平衡日上按 top-quintile cohort 计算 <b>1/3/5/10/20d 真实前向 Alpha</b>（cohort − 等权宇宙均值，
-            <b>禁止估算</b>）；结合 <b>rankIC / 稳定性 / 贡献度 / 置信度</b> 算晋升分。无回测的影子因子输出真实 <b>Pending Reason</b>。
-            <b style={{ color: COLORS.text }}>本轮只做建议</b>，不自动写 Production、不启用/禁用任何因子、不影响推荐结果。
-            <br /><span style={{ fontSize: 11.5, color: COLORS.textMuted }}>基准=等权宇宙（GlobalMarket.topix 点位序列 2026-03-30 有量纲断裂，不用作跨期基准）。</span>
+            <b style={{ color: COLORS.text }}>{tx("rp.fpro.principleTitle")}</b>
+            {tx("rp.fpro.principleBody")}
           </div>
         </AppCard>
 
-        {loading && <AppCard><AppLoading label="加载因子级晋升评估…" /></AppCard>}
+        {loading && <AppCard><AppLoading /></AppCard>}
         {error && !loading && (
-          <AppCard><AppEmptyState title="加载失败" desc={error} actions={<AppButton size="sm" onClick={load}>重试</AppButton>} icon="⚠" /></AppCard>
+          <AppCard><AppEmptyState title={tx("common.load_error")} desc={error} actions={<AppButton size="sm" onClick={load}>{tx("common.refresh")}</AppButton>} icon="⚠" /></AppCard>
         )}
 
         {!loading && !error && s && data && (
           <>
             <AppKpiGrid>
-              <AppKpiCard label="因子总数" value={s.totalFeatures} tone="blue" sub={`正式 ${s.production} · 影子 ${s.shadow}`} />
-              <AppKpiCard label="已回测评估" value={s.evaluated} tone="purple" sub={`影子 ${s.evaluatedShadow} · 待样本 ${s.pending}`} />
-              <AppKpiCard label="建议晋升" value={s.promoteCandidates} tone="green" sub="Ready for Production" />
-              <AppKpiCard label="保持影子" value={s.keepShadow} tone="amber" sub="需更多样本 / 观察" />
-              <AppKpiCard label="建议停用" value={s.disableCandidates} tone="neutral" sub="偏弱 / 反向预测" />
-              <AppKpiCard label="最高贡献因子" value={s.topContributor ? `${fmt(s.topContributor.contribution, "%", 1)}` : "—"} tone="purple" sub={s.topContributor?.id ?? "—"} />
+              <AppKpiCard label={tx("rp.fpro.kTotal")} value={s.totalFeatures} tone="blue" sub={`${tx("rp.fpro.s.prod")} ${s.production} · ${tx("rp.fpro.s.shadow")} ${s.shadow}`} />
+              <AppKpiCard label={tx("rp.fpro.kEvaluated")} value={s.evaluated} tone="purple" sub={`${tx("rp.fpro.s.shadow")} ${s.evaluatedShadow} · ${tx("rp.fpro.pending")} ${s.pending}`} />
+              <AppKpiCard label={tx("rp.fpro.r.promote")} value={s.promoteCandidates} tone="green" sub={tx("rp.fpro.kPromoteSub")} />
+              <AppKpiCard label={tx("rp.fpro.r.keep")} value={s.keepShadow} tone="amber" sub={tx("rp.fpro.kKeepSub")} />
+              <AppKpiCard label={tx("rp.fpro.r.disable")} value={s.disableCandidates} tone="neutral" sub={tx("rp.fpro.kDisableSub")} />
+              <AppKpiCard label={tx("rp.fpro.kTopContrib")} value={s.topContributor ? `${fmt(s.topContributor.contribution, "%", 1)}` : "—"} tone="purple" sub={s.topContributor?.id ?? "—"} />
             </AppKpiGrid>
 
             <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: 10 }}>
               <div style={{ fontSize: 11.5, color: COLORS.textFaint }}>
-                数据锚点 {s.asOf ?? "—"} · {s.asOfCount ?? "—"} 再平衡日 · 主周期 {s.primaryHorizon}d · 更新 {new Date(data.generatedAt).toLocaleString("zh-CN", { hour12: false })}
-                <AppButton size="sm" variant="ghost" onClick={load} style={{ marginLeft: 10 }}>刷新</AppButton>
+                {tx("common.asOf.data")} {s.asOf ?? "—"} · {s.asOfCount ?? "—"} {tx("rp.fpro.rebalDays")} · {fmtAsOf(data.generatedAt) ?? "—"}
+                <AppButton size="sm" variant="ghost" onClick={load} style={{ marginLeft: 10 }}>{tx("common.refresh")}</AppButton>
               </div>
               <div className="flex items-center gap-1.5">
-                <span style={{ fontSize: 11.5, color: COLORS.textMuted }}>排序</span>
+                <span style={{ fontSize: 11.5, color: COLORS.textMuted }}>{tx("rp.fpro.sort")}</span>
                 {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
                   <button key={k} type="button" onClick={() => setSortKey(k)}
                     style={{ height: 28, padding: "0 11px", fontSize: 11.5, fontWeight: 600, borderRadius: 9999, cursor: "pointer",
@@ -293,24 +296,24 @@ export default function FeaturePromotionPage() {
               </div>
             </div>
 
-            <Section title="Promotion Candidates · 建议晋升"
-              desc="晋升分高 · 平均 rankIC>0.02 · 全周期正 Alpha · 高置信 → 达可进入 Production 门槛（仍需人工确认）。"
+            <Section title={tx("rp.fpro.r.promote")}
+              desc={tx("rp.fpro.secPromoteDesc")}
               rows={sortRows(data.promotionCandidates)} accent={COLORS.success}
-              emptyText="当前无因子达到晋升门槛（历史仅约 4 个月 / 86 再平衡日，置信度未达 HIGH 属正常）。" reasonLabels={data.reasonLabels} />
+              emptyText={tx("rp.fpro.secPromoteEmpty")} reasonLabels={data.reasonLabels} />
 
-            <Section title="Keep Shadow · 保持影子"
-              desc="有正 Alpha 但样本/置信不足或综合分处观察区，继续影子积累。"
-              rows={sortRows(data.keepShadow)} accent={COLORS.warning} emptyText="暂无保持影子的评估因子。" reasonLabels={data.reasonLabels} />
+            <Section title={tx("rp.fpro.r.keep")}
+              desc={tx("rp.fpro.secKeepDesc")}
+              rows={sortRows(data.keepShadow)} accent={COLORS.warning} emptyText={tx("common.no_data")} reasonLabels={data.reasonLabels} />
 
-            <Section title="Weak / Disable Candidates · 偏弱 / 建议停用"
-              desc="Alpha≤0 或平均 rankIC 反向（因子值与前向收益负相关）→ 建议停用（仅建议，不自动执行）。"
-              rows={sortRows(data.disabledCandidates)} accent={COLORS.danger} emptyText="暂无建议停用的因子。" reasonLabels={data.reasonLabels} />
+            <Section title={tx("rp.fpro.r.disable")}
+              desc={tx("rp.fpro.secDisableDesc")}
+              rows={sortRows(data.disabledCandidates)} accent={COLORS.danger} emptyText={tx("common.no_data")} reasonLabels={data.reasonLabels} />
 
             {/* Pending / Shadow Sample Completion */}
             <div>
               <div className="flex items-center gap-2" style={{ marginBottom: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 9999, background: COLORS.textMuted, display: "inline-block" }} />
-                <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>Pending · 待补齐样本（Shadow Sample Completion）</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{tx("rp.fpro.secPending")}</span>
                 <span style={{ fontSize: 12, color: COLORS.textMuted }}>{data.pendingFeatures.length}</span>
               </div>
               <div className="flex items-center gap-1.5" style={{ marginBottom: 12, flexWrap: "wrap" }}>
@@ -323,9 +326,9 @@ export default function FeaturePromotionPage() {
               </div>
             </div>
 
-            <Section title="Production Features · 生产因子（参考基线）"
-              desc="已进入正式评分的因子；含真实因子 Alpha 仅作对照，本引擎不重评、不产出变更建议。"
-              rows={sortRows(data.productionFeatures)} accent={COLORS.primary} emptyText="无生产因子。" reasonLabels={data.reasonLabels} />
+            <Section title={tx("rp.fpro.secProd")}
+              desc={tx("rp.fpro.secProdDesc")}
+              rows={sortRows(data.productionFeatures)} accent={COLORS.primary} emptyText={tx("common.no_data")} reasonLabels={data.reasonLabels} />
           </>
         )}
       </div>

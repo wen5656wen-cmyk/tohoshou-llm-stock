@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { fmtAsOf } from "./PanelFrame";
 import Link from "next/link";
 import {
   RM,
@@ -50,20 +52,20 @@ type NumKey =
 
 // 库内量化因子清单（列 = 因子维度）。均为真实字段，非新算指标。
 const COLS: { key: NumKey; label: string; fmt: (v: number | null) => string }[] = [
-  { key: "rs5", label: "相对强弱5日 · RS5", fmt: (v) => pct(v) },
-  { key: "rs20", label: "相对强弱20日 · RS20", fmt: (v) => pct(v) },
-  { key: "rs60", label: "相对强弱60日 · RS60", fmt: (v) => pct(v) },
-  { key: "atr14", label: "波动幅度 · ATR14", fmt: (v) => num(v) },
-  { key: "atrPct", label: "波动率% · ATR%", fmt: (v) => pct(v) },
-  { key: "distanceTo52WeekHigh", label: "距52周高 · 52WH", fmt: (v) => pct(v) },
-  { key: "distanceTo52WeekLow", label: "距52周低 · 52WL", fmt: (v) => pct(v) },
-  { key: "averageTurnover20", label: "20日成交额 · TO20", fmt: (v) => turnover(v) },
-  { key: "volumeRatio5", label: "5日量比 · VR5", fmt: (v) => num(v) },
-  { key: "volumeRatio20", label: "20日量比 · VR20", fmt: (v) => num(v) },
-  { key: "volumeExpansionDays", label: "放量天数 · VED", fmt: (v) => (v == null ? "—" : String(v)) },
+  { key: "rs5", label: "rp.flib.f.rs5", fmt: (v) => pct(v) },
+  { key: "rs20", label: "rp.flib.f.rs20", fmt: (v) => pct(v) },
+  { key: "rs60", label: "rp.flib.f.rs60", fmt: (v) => pct(v) },
+  { key: "atr14", label: "rp.flib.f.atr14", fmt: (v) => num(v) },
+  { key: "atrPct", label: "rp.flib.f.atrPct", fmt: (v) => pct(v) },
+  { key: "distanceTo52WeekHigh", label: "rp.flib.f.d52h", fmt: (v) => pct(v) },
+  { key: "distanceTo52WeekLow", label: "rp.flib.f.d52l", fmt: (v) => pct(v) },
+  { key: "averageTurnover20", label: "rp.flib.f.to20", fmt: (v) => turnover(v) },
+  { key: "volumeRatio5", label: "rp.flib.f.vr5", fmt: (v) => num(v) },
+  { key: "volumeRatio20", label: "rp.flib.f.vr20", fmt: (v) => num(v) },
+  { key: "volumeExpansionDays", label: "rp.flib.f.ved", fmt: (v) => (v == null ? "—" : String(v)) },
 ];
 // 事件因子（布尔）。
-const EVENT_FACTORS = ["回购 · Buyback", "增派息 · DividendRaise", "上调指引 · GuidanceRaise", "TDnet事件 · TDnetEvent"];
+const EVENT_FACTORS = ["rp.flib.e.buyback", "rp.flib.e.divRaise", "rp.flib.e.guidance", "rp.flib.e.tdnet"];
 
 function pct(v: number | null) { return v == null ? "—" : `${v.toFixed(2)}%`; }
 function num(v: number | null) { return v == null ? "—" : v.toFixed(2); }
@@ -75,6 +77,8 @@ function turnover(v: number | null) {
 }
 
 export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const [data, setData] = useState<ApiResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,14 +146,14 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
 
   const hero = (
     <ResearchHero
-      title="Alpha因子库"
+      title={tx("rp.flib.title")}
       titleEn="Factor Library"
-      subtitle="因子资产库 · 覆盖率 · 启用状态 · 研究健康度"
-      statusText={loading ? "运行中" : error ? "暂无数据" : hasData ? "已就绪" : "暂无数据"}
+      subtitle={tx("rp.flib.subtitle")}
+      statusText={loading ? tx("common.loading") : hasData && !error ? tx("rp.flib.ready") : tx("common.no_data")}
       statusTone={loading ? "amber" : error || !hasData ? "neutral" : "green"}
-      metaLabel="最近更新"
-      metaValue={data?.computedAt ? new Date(data.computedAt).toLocaleString("zh-CN") : "暂无数据"}
-      action={<ResearchButton onClick={goAnalytics} disabled={!goAnalytics}>查看因子分析 →</ResearchButton>}
+      metaLabel={tx("common.asOf.data")}
+      metaValue={fmtAsOf(data?.computedAt) ?? tx("common.no_data")}
+      action={<ResearchButton onClick={goAnalytics} disabled={!goAnalytics}>{tx("rp.flib.toAnalytics")} →</ResearchButton>}
     />
   );
 
@@ -159,8 +163,8 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
         {hero}
         <ResearchErrorState
           message={error}
-          hint={<>请运行 <code style={{ color: RM.sub }}>npm run compute-alpha-factors</code> 生成因子数据。</>}
-          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>}
+          hint={tx("rp.flib.errHint")}
+          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.flib.backFactors")}</ResearchButton>}
         />
       </ResearchPanelShell>
     );
@@ -170,7 +174,7 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
     return (
       <ResearchPanelShell>
         {hero}
-        <ResearchLoadingState label="正在加载 Alpha 因子库…" />
+        <ResearchLoadingState />
       </ResearchPanelShell>
     );
   }
@@ -180,12 +184,12 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
       <ResearchPanelShell>
         {hero}
         <ResearchEmptyState
-          title="暂无 Alpha 因子数据"
-          desc="当前因子库尚未生成或 API 暂无返回。"
+          title={tx("rp.flib.emptyTitle")}
+          desc={tx("rp.flib.emptyDesc")}
           actions={
             <>
-              <ResearchButton variant="primary" onClick={goAnalytics} disabled={!goAnalytics}>查看因子分析</ResearchButton>
-              <ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>
+              <ResearchButton variant="primary" onClick={goAnalytics} disabled={!goAnalytics}>{tx("rp.flib.toAnalytics")}</ResearchButton>
+              <ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.flib.backFactors")}</ResearchButton>
             </>
           }
         />
@@ -199,61 +203,61 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
 
       {/* KPI —— 全部为真实字段/结构派生，无字段处显示暂无数据 */}
       <ResearchKpiGrid>
-        <ResearchKpiCard label="因子总数" value={COLS.length + EVENT_FACTORS.length} sub={`${COLS.length} 量化 · ${EVENT_FACTORS.length} 事件`} tone="blue" />
-        <ResearchKpiCard label="量化因子" value={COLS.length} sub="技术 / 量价维度" />
-        <ResearchKpiCard label="事件因子" value={EVENT_FACTORS.length} sub="回购 / 派息 / 指引 / TDnet" />
-        <ResearchKpiCard label="覆盖股票数" value={totalStocks.toLocaleString()} sub="最新交易日" tone="green" />
-        <ResearchKpiCard label="数据日期" value={<span className="text-[16px]">{data?.date ?? "暂无数据"}</span>} sub="因子快照" />
-        <ResearchKpiCard label="研究状态" value={<span className="text-[16px]">研究模式</span>} sub="不影响正式AI推荐" tone="amber" />
+        <ResearchKpiCard label={tx("rp.flib.kTotal")} value={COLS.length + EVENT_FACTORS.length} sub={`${COLS.length} + ${EVENT_FACTORS.length}`} tone="blue" />
+        <ResearchKpiCard label={tx("rp.flib.kQuant")} value={COLS.length} sub={tx("rp.flib.kQuantSub")} />
+        <ResearchKpiCard label={tx("rp.flib.kEvent")} value={EVENT_FACTORS.length} sub={tx("rp.flib.kEventSub")} />
+        <ResearchKpiCard label={tx("rp.flib.kStocks")} value={totalStocks.toLocaleString()} sub={tx("rp.flib.kStocksSub")} tone="green" />
+        <ResearchKpiCard label={tx("rp.flib.kDate")} value={<span className="text-[16px]">{data?.date ?? tx("common.no_data")}</span>} sub={tx("rp.flib.kDateSub")} />
+        <ResearchKpiCard label={tx("rp.flib.kMode")} value={<span className="text-[16px]">{tx("rp.flib.kModeVal")}</span>} sub={tx("rp.flib.kModeSub")} tone="amber" />
       </ResearchKpiGrid>
 
       {/* 因子清单（API 无官方分类字段 → 展示真实因子清单，不伪造分类） */}
-      <ResearchSection title="因子清单" desc="Alpha 引擎当前追踪的量化与事件因子（API 暂无官方分类字段）">
+      <ResearchSection title={tx("rp.flib.listTitle")} desc={tx("rp.flib.listDesc")}>
         <div className="flex flex-wrap gap-2">
           {COLS.map((c) => (
-            <ResearchChip key={c.key}>{c.label}</ResearchChip>
+            <ResearchChip key={c.key}>{tx(c.label)}</ResearchChip>
           ))}
           {EVENT_FACTORS.map((e) => (
             <ResearchChip key={e} tone="amber">{e}</ResearchChip>
           ))}
         </div>
         <div className="mt-3 text-[12px]" style={{ color: RM.faint }}>
-          暂无官方分类数据 · 因子有效性与重要度请见 <button onClick={goAnalytics} disabled={!goAnalytics} className="font-semibold disabled:opacity-40" style={{ color: RM.blue }}>因子分析</button>
+          {tx("rp.flib.noCategory")}
         </div>
       </ResearchSection>
 
       {/* 因子明细矩阵（每行 = 一只股票的因子值） */}
       <ResearchSection
-        title="因子明细矩阵"
-        desc={`按股票展示底层因子值 · 共 ${rows.length.toLocaleString()} 行`}
+        title={tx("rp.flib.matrixTitle")}
+        desc={tx("rp.flib.matrixDesc").replace("{n}", rows.length.toLocaleString())}
         right={
           <div className="flex items-center gap-2">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="搜索代码 / 名称…"
+              placeholder={tx("rp.flib.search")}
               className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none"
               style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }}
             />
-            <ResearchButton onClick={exportCsv} disabled={!rows.length}>导出CSV</ResearchButton>
+            <ResearchButton onClick={exportCsv} disabled={!rows.length}>{tx("rp.flib.exportCsv")}</ResearchButton>
           </div>
         }
       >
         {rows.length === 0 ? (
-          <ResearchEmptyState title="无匹配因子行" desc="尝试更换搜索关键词，或清空搜索框。" />
+          <ResearchEmptyState title={tx("rp.flib.noMatch")} desc={tx("rp.flib.noMatchDesc")} />
         ) : (
           <div style={{ maxHeight: "calc(100vh - 300px)", overflow: "auto" }}>
             <ResearchTable minWidth={1180}>
               <thead>
                 <tr>
-                  <RTh>股票代码</RTh>
-                  <RTh>股票名称</RTh>
+                  <RTh>{tx("rp.flib.colCode")}</RTh>
+                  <RTh>{tx("rp.flib.colName")}</RTh>
                   {COLS.map((c) => (
                     <RTh key={c.key} align="right" sortable active={sortKey === c.key} dir={sortDir} onClick={() => toggleSort(c.key)}>
-                      {c.label}
+                      {tx(c.label)}
                     </RTh>
                   ))}
-                  <RTh align="center">事件</RTh>
+                  <RTh align="center">{tx("rp.flib.colEvent")}</RTh>
                 </tr>
               </thead>
               <tbody>
@@ -280,7 +284,7 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
             </ResearchTable>
             {rows.length > 600 && (
               <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>
-                为保证渲染性能，仅展示前 600 行（共 {rows.length.toLocaleString()} 行）。完整数据请使用「导出CSV」。
+                {tx("rp.flib.rowLimit").replace("{n}", rows.length.toLocaleString())}
               </div>
             )}
           </div>
