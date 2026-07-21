@@ -348,8 +348,16 @@ function Kpi({ label, value, sub, color }: { label: string; value: string; sub?:
     </div>
   );
 }
+// ⚠️ 这些卡用 AppCard padding={0}（正文自带 p-5），而 AppCard 的 header 内边距是
+// `14px ${padding}px` → 水平内边距为 0，标题会贴住卡片左右边框。故在标题行内补 20px，
+// 与正文 p-5 对齐（只在本页修，不改全站 AppCard 原语）。
 function CardTitle({ icon, title, right }: { icon: string; title: string; right?: string }) {
-  return <div className="flex items-center gap-2"><span className="text-sm font-semibold" style={{ color: COLORS.text }}>{icon} {title}</span>{right ? <span className="ml-auto text-xs" style={{ color: COLORS.textFaint }}>{right}</span> : null}</div>;
+  return (
+    <div className="flex items-center gap-2 px-5">
+      <span className="text-sm font-semibold truncate" style={{ color: COLORS.text }}>{icon} {title}</span>
+      {right ? <span className="ml-auto shrink-0 text-xs tabular-nums" style={{ color: COLORS.textFaint }}>{right}</span> : null}
+    </div>
+  );
 }
 function Rth({ children }: { children: ReactNode }) { return <th className="pb-2 font-medium text-right">{children}</th>; }
 function EmptyLine({ text }: { text: string }) { return <p className="text-sm py-3 text-center" style={{ color: COLORS.textFaint }}>{text}</p>; }
