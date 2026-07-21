@@ -1,6 +1,8 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { getRecommendationLabel } from "@/lib/rec-config";
 import Link from "next/link";
 import {
   RM,
@@ -41,14 +43,17 @@ type Shadow = {
   ratingDist: Record<string, number>; dimCoverage: Record<string, number>; rows: Row[];
 };
 
-const DIM_ZH: Record<string, string> = { technical: "技术面", fundamental: "基本面", alpha: "Alpha", news: "新闻事件", flow: "资金流动性" };
-const RATING_ZH: Record<string, string> = { STRONG_BUY: "强烈买入", BUY: "买入", HOLD: "持有", WATCH: "观察", AVOID: "回避" };
+const DIM_KEY: Record<string, string> = { technical: "rp.v3cal.dim.technical", fundamental: "rp.v3cal.dim.fundamental", alpha: "rp.v3cal.dim.alpha", news: "rp.v3cal.dim.news", flow: "rp.v3cal.dim.flow" };
+
 const RATING_TONE: Record<string, Tone> = { STRONG_BUY: "green", BUY: "green", HOLD: "neutral", WATCH: "amber", AVOID: "red" };
 const RATING_HEX: Record<string, string> = { STRONG_BUY: RM.green, BUY: "#30B0C7", HOLD: RM.faint, WATCH: RM.amber, AVOID: RM.red };
-const REGIME_ZH: Record<string, string> = { BULL: "牛市", BEAR: "熊市", SIDEWAYS: "震荡市" };
+const REGIME_KEY: Record<string, string> = { BULL: "dc.regime.BULL", BEAR: "dc.regime.BEAR", SIDEWAYS: "dc.regime.SIDEWAYS" };
 function fx(v: number | null | undefined, d = 1) { return v == null ? "—" : v.toFixed(d); }
 
 export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  const { lang } = useI18n();
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const [data, setData] = useState<Shadow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -93,9 +98,9 @@ export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => voi
       total={total} loading={!data && !error} error={!!error} hasData={hasData} topRating={topRow?.rating ?? null} onCalib={goCalib} />
   );
 
-  if (error) return <ResearchPanelShell>{hero}<ResearchErrorState message={error} hint={<>请运行 <code style={{ color: RM.sub }}>npm run compute-scores</code> 生成 V3 影子评分。</>} actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>} /></ResearchPanelShell>;
-  if (!data) return <ResearchPanelShell>{hero}<ResearchLoadingState label="正在加载 V3 动态评分…" /></ResearchPanelShell>;
-  if (!hasData) return <ResearchPanelShell>{hero}<ResearchEmptyState title="暂无 V3 评分数据" desc="V3 动态评分尚未生成或 API 暂无返回。" actions={<><ResearchButton variant="primary" onClick={goCalib} disabled={!goCalib}>查看 V3 Calibration</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton></>} /></ResearchPanelShell>;
+  if (error) return <ResearchPanelShell>{hero}<ResearchErrorState message={error} hint={tx("rp.v3s.errHint")} actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.v3s.backFactors")}</ResearchButton>} /></ResearchPanelShell>;
+  if (!data) return <ResearchPanelShell>{hero}<ResearchLoadingState /></ResearchPanelShell>;
+  if (!hasData) return <ResearchPanelShell>{hero}<ResearchEmptyState title={tx("common.no_data")} desc={tx("rp.v3s.emptyDesc")} actions={<><ResearchButton variant="primary" onClick={goCalib} disabled={!goCalib}>{tx("rw.v.calibration")}</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.v3s.backFactors")}</ResearchButton></>} /></ResearchPanelShell>;
 
   const dims = ["technical", "fundamental", "alpha", "news", "flow"] as const;
 
@@ -105,52 +110,52 @@ export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => voi
 
       {/* KPI —— 今日评分数 + 评分均值 + 5 评级桶（真实字段） */}
       <ResearchKpiGrid>
-        <ResearchKpiCard label="今日评分数" value={total.toLocaleString()} sub="覆盖股票数" tone="blue" />
-        <ResearchKpiCard label="评分均值" value={fx(avgScore, 1)} sub="全市场 scoreV3 均值" />
-        <ResearchKpiCard label="强烈买入" value={dist.STRONG_BUY ?? 0} sub="STRONG_BUY" tone="green" />
-        <ResearchKpiCard label="买入" value={dist.BUY ?? 0} sub="BUY" tone="green" />
-        <ResearchKpiCard label="持有 / 观察" value={`${dist.HOLD ?? 0} / ${dist.WATCH ?? 0}`} sub="HOLD / WATCH" />
-        <ResearchKpiCard label="回避" value={dist.AVOID ?? 0} sub="AVOID" tone="red" />
+        <ResearchKpiCard label={tx("rp.v3s.kToday")} value={total.toLocaleString()} sub={tx("rp.v3s.kTodaySub")} tone="blue" />
+        <ResearchKpiCard label={tx("rp.v3s.kAvg")} value={fx(avgScore, 1)} sub={tx("rp.v3s.kAvgSub")} />
+        <ResearchKpiCard label={tx("rp.v3cal.cut.sb")} value={dist.STRONG_BUY ?? 0} sub="STRONG_BUY" tone="green" />
+        <ResearchKpiCard label={tx("rp.v3cal.cut.buy")} value={dist.BUY ?? 0} sub="BUY" tone="green" />
+        <ResearchKpiCard label={tx("rp.v3s.kHoldWatch")} value={`${dist.HOLD ?? 0} / ${dist.WATCH ?? 0}`} sub="HOLD / WATCH" />
+        <ResearchKpiCard label={tx("rp.v3s.kAvoid")} value={dist.AVOID ?? 0} sub="AVOID" tone="red" />
       </ResearchKpiGrid>
 
       {/* Distribution + 权重/覆盖 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2">
-          <ResearchSection title="评级分布" desc="V3 动态评分标定后的评级构成">
-            <ResearchStackBar segments={["STRONG_BUY", "BUY", "HOLD", "WATCH", "AVOID"].map((k) => ({ label: RATING_ZH[k], value: dist[k] ?? 0, color: RATING_HEX[k] }))} />
+          <ResearchSection title={tx("rp.v3s.distTitle")} desc={tx("rp.v3s.distDesc")}>
+            <ResearchStackBar segments={["STRONG_BUY", "BUY", "HOLD", "WATCH", "AVOID"].map((k) => ({ label: getRecommendationLabel(k, lang), value: dist[k] ?? 0, color: RATING_HEX[k] }))} />
           </ResearchSection>
         </div>
-        <ResearchInsightCard title="AI 今日评分结论" tone="blue">
-          市场状态 <b style={{ color: RM.ink }}>{REGIME_ZH[data.regime ?? ""] ?? "—"}</b>，共评分 <b style={{ color: RM.ink }}>{total.toLocaleString()}</b> 只，均值 <b style={{ color: RM.ink }}>{fx(avgScore, 1)}</b>。看多信号（强烈买入 + 买入）<b style={{ color: RM.green }}>{(dist.STRONG_BUY ?? 0) + (dist.BUY ?? 0)}</b> 只。校准与就绪度见 <button onClick={goCalib} disabled={!goCalib} className="font-semibold disabled:opacity-40" style={{ color: RM.blue }}>V3 Calibration</button>。
+        <ResearchInsightCard title={tx("rp.v3s.insight")} tone="blue">
+          {tx("rp.v3s.insightBody").replace("{regime}", REGIME_KEY[data.regime ?? ""] ? tx(REGIME_KEY[data.regime ?? ""]) : "—").replace("{n}", total.toLocaleString()).replace("{avg}", String(fx(avgScore, 1))).replace("{bull}", String((dist.STRONG_BUY ?? 0) + (dist.BUY ?? 0)))}
         </ResearchInsightCard>
       </div>
 
       {/* 动态权重 + 维度覆盖 */}
       {data.weights ? (
-        <ResearchSection title="今日动态权重 · 维度覆盖" desc={`按因子质量 / 覆盖率 / RankIC 自动调整 · 市场状态 ${REGIME_ZH[data.regime ?? ""] ?? "—"}`}>
+        <ResearchSection title={tx("rp.v3s.weightsTitle")} desc={REGIME_KEY[data.regime ?? ""] ? tx(REGIME_KEY[data.regime ?? ""]) : "—"}>
           <div className="flex flex-wrap gap-2">
             {dims.map((dm) => (
-              <ResearchChip key={dm}>{DIM_ZH[dm]} <b style={{ color: RM.ink }} className="mx-1">{((data.weights![dm] ?? 0) * 100).toFixed(1)}%</b><span style={{ color: RM.faint }}>覆盖{fx(data.dimCoverage?.[dm])}%</span></ResearchChip>
+              <ResearchChip key={dm}>{tx(DIM_KEY[dm])} <b style={{ color: RM.ink }} className="mx-1">{((data.weights![dm] ?? 0) * 100).toFixed(1)}%</b><span style={{ color: RM.faint }}>{fx(data.dimCoverage?.[dm])}%</span></ResearchChip>
             ))}
           </div>
         </ResearchSection>
       ) : null}
 
       {/* 评分明细表 */}
-      <ResearchSection title="V3 评分明细" desc={`按 V3 评分排名 · 共 ${rows.length.toLocaleString()} 行`} right={
+      <ResearchSection title={tx("rp.v3s.detailTitle")} desc={tx("rp.v3s.detailDesc").replace("{n}", rows.length.toLocaleString())} right={
         <div className="flex items-center gap-2">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索代码 / 名称…" className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none" style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }} />
-          <ResearchButton onClick={exportCsv} disabled={!rows.length}>导出CSV</ResearchButton>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx("rp.ascore.search")} className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none" style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }} />
+          <ResearchButton onClick={exportCsv} disabled={!rows.length}>{tx("rp.ascore.exportCsv")}</ResearchButton>
         </div>
       }>
-        {rows.length === 0 ? <ResearchEmptyState title="无匹配股票" desc="尝试更换搜索关键词。" /> : (
+        {rows.length === 0 ? <ResearchEmptyState title={tx("rp.ascore.noMatch")} desc={tx("rp.ascore.noMatchDesc")} /> : (
           <div style={{ maxHeight: "calc(100vh - 320px)", overflow: "auto" }}>
             <ResearchTable minWidth={920}>
               <thead>
                 <tr>
-                  <RTh align="right">#</RTh><RTh>股票</RTh><RTh align="right">V3评分</RTh><RTh align="center">评级</RTh>
-                  <RTh align="right">百分位</RTh><RTh align="right">Confidence</RTh><RTh align="right">风险扣分</RTh>
-                  <RTh align="right">V2评分</RTh><RTh align="center">解释</RTh>
+                  <RTh align="right">#</RTh><RTh>{tx("rp.ascore.colStock")}</RTh><RTh align="right">{tx("rp.v3s.colScore")}</RTh><RTh align="center">{tx("rp.ascore.colRating")}</RTh>
+                  <RTh align="right">{tx("rp.v3s.colPct")}</RTh><RTh align="right">Confidence</RTh><RTh align="right">{tx("rp.v3s.colRisk")}</RTh>
+                  <RTh align="right">{tx("rp.v3s.colV2")}</RTh><RTh align="center">{tx("rp.v3s.colExplain")}</RTh>
                 </tr>
               </thead>
               <tbody>
@@ -163,12 +168,12 @@ export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => voi
                         <span className="ml-1.5 truncate inline-block max-w-[130px] align-bottom" style={{ color: RM.sub }}>{r.nameZh ?? r.name}</span>
                       </RTd>
                       <RTd align="right" mono color={RM.ink}>{r.scoreV3.toFixed(1)}</RTd>
-                      <RTd align="center"><ResearchStatusBadge tone={RATING_TONE[r.rating] ?? "neutral"}>{RATING_ZH[r.rating] ?? r.rating}</ResearchStatusBadge></RTd>
+                      <RTd align="center"><ResearchStatusBadge tone={RATING_TONE[r.rating] ?? "neutral"}>{getRecommendationLabel(r.rating, lang)}</ResearchStatusBadge></RTd>
                       <RTd align="right" mono color={RM.sub}>{r.percentile.toFixed(1)}</RTd>
                       <RTd align="right" mono color={r.confidence >= 80 ? RM.green : r.confidence >= 60 ? RM.amber : RM.red}>{r.confidence.toFixed(0)}%</RTd>
                       <RTd align="right" mono color={r.riskAdjustment < 0 ? RM.red : RM.faint}>{r.riskAdjustment.toFixed(1)}</RTd>
                       <RTd align="right" mono color={RM.sub}>{fx(r.v2AdaptiveScore, 0)}</RTd>
-                      <RTd align="center"><button onClick={() => setExpanded(expanded === r.symbol ? null : r.symbol)} style={{ color: RM.blue }} className="hover:underline">{expanded === r.symbol ? "收起" : "查看"}</button></RTd>
+                      <RTd align="center"><button onClick={() => setExpanded(expanded === r.symbol ? null : r.symbol)} style={{ color: RM.blue }} className="hover:underline">{expanded === r.symbol ? tx("rp.v3s.collapse") : tx("rp.v3s.expand")}</button></RTd>
                     </tr>
                     {expanded === r.symbol ? (
                       <tr><td colSpan={9} style={{ background: RM.card, borderBottom: `1px solid ${RM.border}` }}><pre className="text-[11px] whitespace-pre-wrap font-sans leading-relaxed px-4 py-3" style={{ color: RM.sub }}>{r.explanation}</pre></td></tr>
@@ -177,7 +182,7 @@ export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => voi
                 ))}
               </tbody>
             </ResearchTable>
-            {rows.length > 600 && <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>为保证渲染性能，仅展示前 600 行（共 {rows.length.toLocaleString()} 行）。完整数据请「导出CSV」。</div>}
+            {rows.length > 600 && <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>{tx("rp.ascore.rowLimit").replace("{n}", rows.length.toLocaleString())}</div>}
           </div>
         )}
       </ResearchSection>
@@ -189,29 +194,32 @@ export function ScoreV3Panel({ onNavigate }: { onNavigate?: (tab: string) => voi
 function AdaptiveScoreHero({ date, computedAt, regime, total, loading, error, hasData, topRating, onCalib }: {
   date: string | null; computedAt: string | null; regime: string | null; total: number; loading: boolean; error: boolean; hasData: boolean; topRating: string | null; onCalib?: () => void;
 }) {
-  const statusText = loading ? "运行中" : error ? "暂无数据" : hasData ? "已完成" : "暂无数据";
+  const { t, lang } = useI18n();
+  const tx = t as (k: string) => string;
+  void lang;
+  const statusText = loading ? tx("common.loading") : hasData && !error ? tx("rp.v3s.done") : tx("common.no_data");
   const statusTone: Tone = loading ? "amber" : error || !hasData ? "neutral" : "green";
   return (
     <div className="rounded-2xl px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-4" style={{ background: RM.panel, border: `1px solid ${RM.border}` }}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>V3动态评分</h1>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>{tx("rw.v.shadow")}</h1>
           <span className="text-[12px] font-medium" style={{ color: RM.faint }}>Adaptive V3 Intelligence</span>
-          <ResearchStatusBadge tone={statusTone}>今日评分{statusText}</ResearchStatusBadge>
+          <ResearchStatusBadge tone={statusTone}>{statusText}</ResearchStatusBadge>
           <ResearchStatusBadge tone="blue">adaptive-v3</ResearchStatusBadge>
-          <ResearchStatusBadge tone="amber">影子模式</ResearchStatusBadge>
+          <ResearchStatusBadge tone="amber">{tx("rw.v.shadow")}</ResearchStatusBadge>
         </div>
-        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>Adaptive Score Engine · 动态权重 + 风险层 + 市场状态门控</p>
+        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>{tx("rp.v3s.subtitle")}</p>
         <div className="mt-2 flex items-center gap-4 flex-wrap text-[12px]">
-          <span style={{ color: RM.sub }}>今日评分 <b className="tabular-nums" style={{ color: RM.ink }}>{total.toLocaleString()}</b> 只</span>
-          <span style={{ color: RM.sub }}>市场状态 <b style={{ color: RM.ink }}>{REGIME_ZH[regime ?? ""] ?? "—"}</b></span>
-          <span style={{ color: RM.faint }}>数据日期 <b className="tabular-nums" style={{ color: RM.sub }}>{date ?? "暂无数据"}</b></span>
-          <span style={{ color: RM.faint }}>更新 <span className="tabular-nums" style={{ color: RM.sub }}>{computedAt ? new Date(computedAt).toLocaleString("zh-CN") : "暂无数据"}</span></span>
+          <span style={{ color: RM.sub }}>{tx("rp.v3s.kToday")} <b className="tabular-nums" style={{ color: RM.ink }}>{total.toLocaleString()}</b></span>
+          <span style={{ color: RM.sub }}>{tx("rw.a.regime")} <b style={{ color: RM.ink }}>{REGIME_KEY[regime ?? ""] ? tx(REGIME_KEY[regime ?? ""]) : "—"}</b></span>
+          <span style={{ color: RM.faint }}>{tx("common.asOf.data")} <b className="tabular-nums" style={{ color: RM.sub }}>{date ?? tx("common.no_data")}</b></span>
+          
         </div>
       </div>
       <div className="shrink-0 flex items-center gap-2">
-        {topRating && <div className="text-right hidden xl:block"><div className="text-[11px]" style={{ color: RM.faint }}>榜首建议</div><div className="text-[14px] font-semibold" style={{ color: RATING_HEX[topRating] ?? RM.ink }}>{RATING_ZH[topRating] ?? topRating}</div></div>}
-        <ResearchButton onClick={onCalib} disabled={!onCalib}>查看 V3 Calibration →</ResearchButton>
+        {topRating && <div className="text-right hidden xl:block"><div className="text-[11px]" style={{ color: RM.faint }}>{tx("rp.v3s.topPick")}</div><div className="text-[14px] font-semibold" style={{ color: RATING_HEX[topRating] ?? RM.ink }}>{getRecommendationLabel(topRating, lang)}</div></div>}
+        <ResearchButton onClick={onCalib} disabled={!onCalib}>{tx("rw.v.calibration")} →</ResearchButton>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { fmtAsOf } from "./PanelFrame";
 import {
   RM,
   ResearchPanelShell,
@@ -37,22 +39,26 @@ type Resp = {
   timeline: Row[];
 };
 
-const RZH: Record<string, string> = { BULL: "牛市", SIDEWAYS: "震荡市", BEAR: "熊市" };
-const RJUDGE: Record<string, string> = { BULL: "偏多", SIDEWAYS: "震荡", BEAR: "偏空" };
+const RKEY: Record<string, string> = { BULL: "dc.regime.BULL", SIDEWAYS: "dc.regime.SIDEWAYS", BEAR: "dc.regime.BEAR" };
+const RJUDGE: Record<string, string> = { BULL: "rp.areg.j.bull", SIDEWAYS: "rp.areg.j.side", BEAR: "rp.areg.j.bear" };
 const RHEX: Record<string, string> = { BULL: RM.green, SIDEWAYS: RM.amber, BEAR: RM.red };
 const RTONE: Record<string, Tone> = { BULL: "green", SIDEWAYS: "amber", BEAR: "red" };
-function rzh(s: string) { return RZH[s] ?? s; }
+function rlabel(r: string, tx: (k: string) => string) { return RKEY[r] ? tx(RKEY[r]) : r; }
 function fx(v: number | null, d = 1) { return v == null ? "—" : v.toFixed(d); }
 
 // 风险等级 = 波动率阈值映射（沿用 AI指挥中心既有口径 <20 低 / ≤25 中 / >25 高），非新算指标
 function riskFromVol(v: number | null): { label: string; tone: Tone } {
-  if (v == null) return { label: "暂无数据", tone: "neutral" };
-  if (v < 20) return { label: "低风险", tone: "green" };
-  if (v <= 25) return { label: "中风险", tone: "amber" };
-  return { label: "高风险", tone: "red" };
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
+  if (v == null) return { label: "common.no_data", tone: "neutral" };
+  if (v < 20) return { label: "rp.areg.risk.low", tone: "green" };
+  if (v <= 25) return { label: "rp.areg.risk.mid", tone: "amber" };
+  return { label: "rp.areg.risk.high", tone: "red" };
 }
 
 export function MarketRegimePanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,18 +105,18 @@ export function MarketRegimePanel({ onNavigate }: { onNavigate?: (tab: string) =
     return (
       <ResearchPanelShell>
         {hero}
-        <ResearchErrorState message={error} hint={<>请运行 <code style={{ color: RM.sub }}>npm run fetch-global-market</code> 后重算市场状态。</>}
-          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>} />
+        <ResearchErrorState message={error} hint={tx("rp.areg.errHint")}
+          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.areg.backFactors")}</ResearchButton>} />
       </ResearchPanelShell>
     );
   }
-  if (loading) return <ResearchPanelShell>{hero}<ResearchLoadingState label="正在加载市场状态…" /></ResearchPanelShell>;
+  if (loading) return <ResearchPanelShell>{hero}<ResearchLoadingState /></ResearchPanelShell>;
   if (!cur) {
     return (
       <ResearchPanelShell>
         {hero}
-        <ResearchEmptyState title="暂无市场状态数据" desc="市场状态尚未生成或 API 暂无返回。"
-          actions={<><ResearchButton variant="primary" onClick={goFusion} disabled={!goFusion}>查看 AI融合策略研究</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton></>} />
+        <ResearchEmptyState title={tx("common.no_data")} desc={tx("rp.areg.emptyDesc")}
+          actions={<><ResearchButton variant="primary" onClick={goFusion} disabled={!goFusion}>{tx("rp.areg.toFusion")}</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.areg.backFactors")}</ResearchButton></>} />
       </ResearchPanelShell>
     );
   }
@@ -123,54 +129,54 @@ export function MarketRegimePanel({ onNavigate }: { onNavigate?: (tab: string) =
 
       {/* KPI —— 全部为 /api/regime 已有字段；无字段处显示暂无数据 */}
       <ResearchKpiGrid>
-        <ResearchKpiCard label="市场状态" value={<span style={{ color: RHEX[cur.regime] }}>{rzh(cur.regime)}</span>} sub={`AI 判断 · ${RJUDGE[cur.regime] ?? "—"}`} />
-        <ResearchKpiCard label="风险等级" value={<span className="text-[18px]">{risk.label}</span>} sub="由波动率映射" tone={risk.tone} />
-        <ResearchKpiCard label="状态评分" value={fx(cur.regimeScore, 2)} sub="regimeScore" tone={RTONE[cur.regime]} />
-        <ResearchKpiCard label="趋势" value={fx(cur.trendScore, 2)} sub="trendScore" />
-        <ResearchKpiCard label="市场宽度" value={`${fx(cur.breadth)}%`} sub="Breadth · 上涨占比" />
-        <ResearchKpiCard label="波动率" value={`${fx(cur.volatility)}%`} sub="Volatility" />
+        <ResearchKpiCard label={tx("rw.a.regime")} value={<span style={{ color: RHEX[cur.regime] }}>{rlabel(cur.regime, tx)}</span>} sub={RJUDGE[cur.regime] ? tx(RJUDGE[cur.regime]) : "—"} />
+        <ResearchKpiCard label={tx("db.riskLevel")} value={<span className="text-[18px]">{tx(risk.label)}</span>} sub={tx("rp.areg.riskSub")} tone={risk.tone} />
+        <ResearchKpiCard label={tx("rp.areg.kScore")} value={fx(cur.regimeScore, 2)} sub="regimeScore" tone={RTONE[cur.regime]} />
+        <ResearchKpiCard label={tx("rp.areg.kTrend")} value={fx(cur.trendScore, 2)} sub="trendScore" />
+        <ResearchKpiCard label={tx("rp.areg.kBreadth")} value={`${fx(cur.breadth)}%`} sub={tx("rp.areg.kBreadthSub")} />
+        <ResearchKpiCard label={tx("rp.areg.kVol")} value={`${fx(cur.volatility)}%`} sub="Volatility" />
       </ResearchKpiGrid>
 
       {/* Market Insight —— 今日市场摘要（真实字段的确定性展示层复述，非模型编造） */}
       <MarketInsight current={cur} risk={risk} />
 
       {/* 市场状态分布 + 色带 */}
-      <ResearchSection title="市场状态分布" desc={`近 ${totalDays} 个交易日 · 牛/震荡/熊 天数占比`} right={<ResearchButton onClick={exportCsv} disabled={!data?.timeline.length}>导出CSV</ResearchButton>}>
+      <ResearchSection title={tx("rp.areg.distTitle")} desc={tx("rp.areg.distDesc").replace("{n}", String(totalDays))} right={<ResearchButton onClick={exportCsv} disabled={!data?.timeline.length}>{tx("rp.areg.exportCsv")}</ResearchButton>}>
         <div className="grid grid-cols-3 gap-3 mb-4">
           {(["BULL", "SIDEWAYS", "BEAR"] as const).map((r) => (
             <div key={r} className="rounded-xl px-4 py-3" style={{ background: RM.card, border: `1px solid ${RM.border}` }}>
-              <div className="text-[11px]" style={{ color: RM.muted }}>{rzh(r)}</div>
-              <div className="mt-1 text-[22px] font-semibold tabular-nums" style={{ color: RHEX[r] }}>{dist[r]}<span className="text-[12px] ml-1" style={{ color: RM.faint }}>天</span></div>
-              <div className="text-[11px] tabular-nums" style={{ color: RM.faint }}>{((dist[r] / totalDays) * 100).toFixed(0)}% 占比</div>
+              <div className="text-[11px]" style={{ color: RM.muted }}>{rlabel(r, tx)}</div>
+              <div className="mt-1 text-[22px] font-semibold tabular-nums" style={{ color: RHEX[r] }}>{dist[r]}<span className="text-[12px] ml-1" style={{ color: RM.faint }}>d</span></div>
+              <div className="text-[11px] tabular-nums" style={{ color: RM.faint }}>{((dist[r] / totalDays) * 100).toFixed(0)}%</div>
             </div>
           ))}
         </div>
-        <div className="text-[11px] mb-1.5" style={{ color: RM.faint }}>状态色带（旧 → 新）</div>
+        <div className="text-[11px] mb-1.5" style={{ color: RM.faint }}>{tx("rp.areg.band")}</div>
         <div className="flex gap-[1px] h-7 rounded-lg overflow-hidden" style={{ border: `1px solid ${RM.border}` }}>
           {[...data!.timeline].reverse().map((r) => (
-            <div key={r.date} title={`${r.date} · ${rzh(r.regime)} · 评分 ${fx(r.regimeScore, 2)}`} style={{ background: RHEX[r.regime], flex: 1, opacity: 0.9 }} />
+            <div key={r.date} title={`${r.date} · ${rlabel(r.regime, tx)} · ${fx(r.regimeScore, 2)}`} style={{ background: RHEX[r.regime], flex: 1, opacity: 0.9 }} />
           ))}
         </div>
         <div className="flex items-center gap-4 mt-2 text-[11px]" style={{ color: RM.sub }}>
           {(["BULL", "SIDEWAYS", "BEAR"] as const).map((r) => (
-            <span key={r} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: RHEX[r] }} />{rzh(r)}</span>
+            <span key={r} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: RHEX[r] }} />{rlabel(r, tx)}</span>
           ))}
         </div>
       </ResearchSection>
 
       {/* Market Timeline —— 状态切换点 */}
-      <ResearchSection title="市场状态时间轴" desc="按时间序列检测到的状态切换点（最近在前）">
+      <ResearchSection title={tx("rp.areg.tlTitle")} desc={tx("rp.areg.tlDesc")}>
         {transitions.length === 0 ? (
-          <ResearchEmptyState title="近期无状态切换" desc={`近 ${totalDays} 个交易日市场状态保持稳定，无牛/震荡/熊切换。`} />
+          <ResearchEmptyState title={tx("rp.areg.noSwitch")} desc={tx("rp.areg.noSwitchDesc").replace("{n}", String(totalDays))} />
         ) : (
           <div className="space-y-1.5">
             {transitions.map((tr) => (
               <div key={tr.date} className="flex items-center gap-3 px-3 py-2.5 rounded-lg" style={{ background: RM.card, border: `1px solid ${RM.border}` }}>
                 <span className="text-[12px] font-mono shrink-0 w-24" style={{ color: RM.sub }}>{tr.date}</span>
-                <span className="text-[12px] font-semibold" style={{ color: RHEX[tr.from] }}>{rzh(tr.from)}</span>
+                <span className="text-[12px] font-semibold" style={{ color: RHEX[tr.from] }}>{rlabel(tr.from, tx)}</span>
                 <span style={{ color: RM.faint }}>→</span>
-                <span className="text-[12px] font-semibold" style={{ color: RHEX[tr.to] }}>{rzh(tr.to)}</span>
-                <ResearchStatusBadge tone={RTONE[tr.to]}>切换为{rzh(tr.to)}</ResearchStatusBadge>
+                <span className="text-[12px] font-semibold" style={{ color: RHEX[tr.to] }}>{rlabel(tr.to, tx)}</span>
+                <ResearchStatusBadge tone={RTONE[tr.to]}>{rlabel(tr.to, tx)}</ResearchStatusBadge>
               </div>
             ))}
           </div>
@@ -178,31 +184,31 @@ export function MarketRegimePanel({ onNavigate }: { onNavigate?: (tab: string) =
       </ResearchSection>
 
       {/* 市场指标 —— TOPIX + 均线（/api/regime 已有；日经/VIX/USDJPY 不在本 API，不伪造） */}
-      <ResearchSection title="市场指标" desc={`TOPIX 收盘与均线 · ${t0?.date ?? cur.date}`}>
+      <ResearchSection title={tx("rp.areg.indicators")} desc={`TOPIX · ${t0?.date ?? cur.date}`}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ResearchKpiCard label="TOPIX 收盘" value={t0?.topixClose == null ? "暂无数据" : t0.topixClose.toFixed(1)} sub="topixClose" tone="blue" />
-          <ResearchKpiCard label="MA20" value={t0?.ma20 == null ? "暂无数据" : t0.ma20.toFixed(1)} sub="20 日均线" />
-          <ResearchKpiCard label="MA60" value={t0?.ma60 == null ? "暂无数据" : t0.ma60.toFixed(1)} sub="60 日均线" />
-          <ResearchKpiCard label="MA120" value={t0?.ma120 == null ? "暂无数据" : t0.ma120.toFixed(1)} sub="120 日均线" />
+          <ResearchKpiCard label={tx("rp.areg.topixClose")} value={t0?.topixClose == null ? tx("common.no_data") : t0.topixClose.toFixed(1)}  tone="blue" />
+          <ResearchKpiCard label="MA20" value={t0?.ma20 == null ? tx("common.no_data") : t0.ma20.toFixed(1)} sub="MA20" />
+          <ResearchKpiCard label="MA60" value={t0?.ma60 == null ? tx("common.no_data") : t0.ma60.toFixed(1)} sub="MA60" />
+          <ResearchKpiCard label="MA120" value={t0?.ma120 == null ? tx("common.no_data") : t0.ma120.toFixed(1)} sub="MA120" />
         </div>
-        <div className="mt-3 text-[12px]" style={{ color: RM.faint }}>日经 225 / VIX / USDJPY 不在本 API 范围 · 见 <button onClick={goOverview} disabled={!goOverview} className="font-semibold disabled:opacity-40" style={{ color: RM.blue }}>AI 指挥中心</button></div>
+        
       </ResearchSection>
 
       {/* 完整状态历史表 */}
-      <ResearchSection title="状态历史" desc={`每日市场状态明细 · 共 ${data!.timeline.length} 行`}>
+      <ResearchSection title={tx("rp.areg.histTitle")} desc={tx("rp.areg.histDesc").replace("{n}", String(data!.timeline.length))}>
         <div style={{ maxHeight: "calc(100vh - 320px)", overflow: "auto" }}>
           <ResearchTable minWidth={720}>
             <thead>
               <tr>
-                <RTh>日期</RTh><RTh>状态</RTh><RTh align="right">评分</RTh><RTh align="right">趋势</RTh>
-                <RTh align="right">市场宽度</RTh><RTh align="right">波动率</RTh><RTh align="right">TOPIX</RTh>
+                <RTh>{tx("rp.areg.colDate")}</RTh><RTh>{tx("rw.a.regime")}</RTh><RTh align="right">{tx("rp.areg.kScore")}</RTh><RTh align="right">{tx("rp.areg.kTrend")}</RTh>
+                <RTh align="right">{tx("rp.areg.kBreadth")}</RTh><RTh align="right">{tx("rp.areg.kVol")}</RTh><RTh align="right">TOPIX</RTh>
               </tr>
             </thead>
             <tbody>
               {data!.timeline.map((r) => (
                 <tr key={r.date} className={rowHoverClass}>
                   <RTd mono color={RM.sub}>{r.date}</RTd>
-                  <RTd><ResearchStatusBadge tone={RTONE[r.regime]}>{rzh(r.regime)}</ResearchStatusBadge></RTd>
+                  <RTd><ResearchStatusBadge tone={RTONE[r.regime]}>{rlabel(r.regime, tx)}</ResearchStatusBadge></RTd>
                   <RTd align="right" mono>{fx(r.regimeScore, 2)}</RTd>
                   <RTd align="right" mono>{fx(r.trendScore, 2)}</RTd>
                   <RTd align="right" mono>{fx(r.breadth)}%</RTd>
@@ -223,51 +229,53 @@ function MarketHero({ current, computedAt, loading, error, risk, onFusion }: {
   current: Current | null; computedAt: string | null; loading: boolean; error: boolean;
   risk: { label: string; tone: Tone }; onFusion?: () => void;
 }) {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const regime = current?.regime;
   const accent = regime ? RHEX[regime] : RM.sub;
-  const statusText = loading ? "运行中" : error ? "暂无数据" : current ? "已就绪" : "暂无数据";
+  const statusText = loading ? tx("common.loading") : current && !error ? tx("rp.aanal.ready") : tx("common.no_data");
   const statusTone: Tone = loading ? "amber" : error || !current ? "neutral" : "green";
   return (
     <div className="rounded-2xl px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-4" style={{ background: RM.panel, border: `1px solid ${RM.border}` }}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>市场状态</h1>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>{tx("rw.a.regime")}</h1>
           <span className="text-[12px] font-medium" style={{ color: RM.faint }}>Market Regime Intelligence</span>
           <ResearchStatusBadge tone={statusTone}>{statusText}</ResearchStatusBadge>
         </div>
-        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>市场环境分析 · 风险监控 · AI市场判断</p>
+        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>{tx("rp.areg.subtitle")}</p>
         {current && (
           <div className="mt-3 flex items-center gap-4 flex-wrap">
             <div className="flex items-baseline gap-2.5">
-              <span className="text-[34px] font-bold leading-none tracking-[-0.02em]" style={{ color: accent }}>{regime ? RZH[regime] : "—"}</span>
-              <span className="text-[13px] font-semibold" style={{ color: accent }}>AI 判断 · {regime ? RJUDGE[regime] : "—"}</span>
+              <span className="text-[34px] font-bold leading-none tracking-[-0.02em]" style={{ color: accent }}>{regime && RKEY[regime] ? tx(RKEY[regime]) : "—"}</span>
+              <span className="text-[13px] font-semibold" style={{ color: accent }}>{regime && RJUDGE[regime] ? tx(RJUDGE[regime]) : "—"}</span>
             </div>
             <span className="h-6 w-px" style={{ background: RM.border }} />
-            <span className="text-[12px]" style={{ color: RM.sub }}>风险 <b style={{ color: RM.ink }}>{risk.label}</b></span>
-            <span className="text-[12px]" style={{ color: RM.sub }}>置信度 <b style={{ color: RM.faint }}>暂无数据</b></span>
-            <span className="text-[12px]" style={{ color: RM.faint }}>最近更新 <span className="tabular-nums" style={{ color: RM.sub }}>{computedAt ? new Date(computedAt).toLocaleString("zh-CN") : current.date}</span></span>
+            <span className="text-[12px]" style={{ color: RM.sub }}>{tx("db.riskLevel")} <b style={{ color: RM.ink }}>{tx(risk.label)}</b></span>
+            
+            <span className="text-[12px]" style={{ color: RM.faint }}>{tx("common.asOf.data")} <span className="tabular-nums" style={{ color: RM.sub }}>{fmtAsOf(computedAt) ?? current.date}</span></span>
           </div>
         )}
       </div>
-      <div className="shrink-0"><ResearchButton onClick={onFusion} disabled={!onFusion}>查看 AI融合策略研究 →</ResearchButton></div>
+      <div className="shrink-0"><ResearchButton onClick={onFusion} disabled={!onFusion}>{tx("rp.areg.toFusion")} →</ResearchButton></div>
     </div>
   );
 }
 
 // ── MarketInsight ─────────────────────────────────────────────────────────────
 function MarketInsight({ current, risk }: { current: Current; risk: { label: string; tone: Tone } }) {
-  const judge = RJUDGE[current.regime] ?? "—";
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
+  const judge = RJUDGE[current.regime] ? tx(RJUDGE[current.regime]) : "—";
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div className="md:col-span-2">
-        <ResearchInsightCard title="今日市场摘要" tone={RTONE[current.regime]}>
-          AI 市场判断：当前处于<span style={{ color: RHEX[current.regime], fontWeight: 600 }}>{rzh(current.regime)}</span>，倾向<b style={{ color: RM.ink }}>{judge}</b>。
-          市场宽度 <b style={{ color: RM.ink }}>{fx(current.breadth)}%</b>，波动率 <b style={{ color: RM.ink }}>{fx(current.volatility)}%</b>（{risk.label}），
-          状态评分 <b style={{ color: RM.ink }}>{fx(current.regimeScore, 2)}</b>、趋势 <b style={{ color: RM.ink }}>{fx(current.trendScore, 2)}</b>。
+        <ResearchInsightCard title={tx("rp.areg.summary")} tone={RTONE[current.regime]}>
+          {tx("rp.areg.summaryBody").replace("{regime}", rlabel(current.regime, tx)).replace("{judge}", judge).replace("{b}", String(fx(current.breadth))).replace("{v}", String(fx(current.volatility))).replace("{risk}", tx(risk.label)).replace("{s}", String(fx(current.regimeScore, 2))).replace("{t}", String(fx(current.trendScore, 2)))}
         </ResearchInsightCard>
       </div>
-      <ResearchInsightCard title="研究说明" tone="neutral">
-        市场状态为只读研究判断，<b style={{ color: RM.ink }}>不直接影响正式 AI 推荐</b>。风险等级由波动率按既有阈值映射。
+      <ResearchInsightCard title={tx("rp.areg.noteTitle")} tone="neutral">
+        {tx("rp.areg.noteBody")}
       </ResearchInsightCard>
     </div>
   );

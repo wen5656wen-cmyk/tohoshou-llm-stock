@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { fmtAsOf } from "./PanelFrame";
 import {
   RM,
   SHADOW_SM,
@@ -62,16 +64,18 @@ function ratingTone(n: number): "green" | "amber" | "neutral" {
 function ratingHex(n: number) { return n >= 4 ? RM.green : n === 3 ? RM.amber : RM.faint; }
 
 // 显示层翻译（不改 API 返回值）
-const RATING_ZH: Record<string, string> = { Effective: "有效", Moderate: "一般", Weak: "较弱" };
+const RATING_KEY: Record<string, string> = { Effective: "rp.aanal.r.eff", Moderate: "rp.aanal.r.mod", Weak: "rp.aanal.r.weak" };
 const FACTOR_ZH: Record<string, string> = {
-  RelativeStrength: "相对强弱 · RS", ATR: "波动率 · ATR", VolumeRatio: "量比 · VR",
-  AverageTurnover: "平均成交额 · TO", Distance52WeekHigh: "距52周高 · 52WH", VolumeExpansion: "放量天数 · VED",
+  RelativeStrength: "rp.aanal.f.rs", ATR: "rp.aanal.f.atr", VolumeRatio: "rp.aanal.f.vr",
+  AverageTurnover: "rp.aanal.f.to", Distance52WeekHigh: "rp.aanal.f.d52h", VolumeExpansion: "rp.aanal.f.ved",
 };
-function ratingZh(s: string) { return RATING_ZH[s] ?? s; }
-function factorZh(s: string) { return FACTOR_ZH[s] ?? s; }
+function ratingLabel(s: string, tx: (k: string) => string) { return RATING_KEY[s] ? tx(RATING_KEY[s]) : s; }
+function factorLabel(s: string, tx: (k: string) => string) { return FACTOR_ZH[s] ? tx(FACTOR_ZH[s]) : s; }
 const LOW_SAMPLE = 200; // 低覆盖率告警阈值（展示层判断，非新算指标）
 
 export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
   const [period, setPeriod] = useState(30);
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -135,7 +139,7 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
             className="text-[12px] font-semibold px-3 h-7 rounded-md transition-all"
             style={on ? { background: RM.panel, color: RM.ink, boxShadow: SHADOW_SM } : { color: RM.sub }}
           >
-            {p}日
+            {p}d
           </button>
         );
       })}
@@ -144,14 +148,14 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
 
   const hero = (
     <ResearchHero
-      title="因子分析"
+      title={tx("rw.a.analytics")}
       titleEn="Factor Analysis"
-      subtitle="因子表现 · 稳定性 · 相关性 · 贡献度"
-      statusText={loading ? "运行中" : error ? "暂无数据" : hasData ? "已就绪" : "暂无数据"}
+      subtitle={tx("rp.aanal.subtitle")}
+      statusText={loading ? tx("common.loading") : hasData && !error ? tx("rp.aanal.ready") : tx("common.no_data")}
       statusTone={loading ? "amber" : error || !hasData ? "neutral" : "green"}
-      metaLabel="最近分析"
-      metaValue={data?.asOfLatest ?? (data?.computedAt ? new Date(data.computedAt).toLocaleDateString("zh-CN") : "暂无数据")}
-      action={<ResearchButton onClick={goFactors} disabled={!goFactors}>查看因子库 →</ResearchButton>}
+      metaLabel={tx("common.asOf.data")}
+      metaValue={data?.asOfLatest ?? fmtAsOf(data?.computedAt) ?? tx("common.no_data")}
+      action={<ResearchButton onClick={goFactors} disabled={!goFactors}>{tx("rp.aanal.toLib")} →</ResearchButton>}
     />
   );
 
@@ -162,8 +166,8 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
         <div className="flex items-center gap-2">{periodSelector}</div>
         <ResearchErrorState
           message={error}
-          hint={<>请运行 <code style={{ color: RM.sub }}>npm run compute-alpha-analytics</code> 生成因子分析报告。</>}
-          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>}
+          hint={tx("rp.aanal.errHint")}
+          actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.aanal.backFactors")}</ResearchButton>}
         />
       </ResearchPanelShell>
     );
@@ -174,7 +178,7 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
       <ResearchPanelShell>
         {hero}
         <div className="flex items-center gap-2">{periodSelector}</div>
-        <ResearchLoadingState label="正在加载因子分析报告…" />
+        <ResearchLoadingState />
       </ResearchPanelShell>
     );
   }
@@ -185,12 +189,12 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
         {hero}
         <div className="flex items-center gap-2">{periodSelector}</div>
         <ResearchEmptyState
-          title={`${period}日 暂无因子分析报告`}
-          desc="该周期分析数据尚未生成或 API 暂无返回。可切换其它周期查看。"
+          title={`${period}d · ${tx("common.no_data")}`}
+          desc={tx("rp.aanal.emptyDesc")}
           actions={
             <>
-              <ResearchButton variant="primary" onClick={goFactors} disabled={!goFactors}>查看因子库</ResearchButton>
-              <ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>
+              <ResearchButton variant="primary" onClick={goFactors} disabled={!goFactors}>{tx("rp.aanal.toLib")}</ResearchButton>
+              <ResearchButton onClick={goOverview} disabled={!goOverview}>{tx("rp.aanal.backFactors")}</ResearchButton>
             </>
           }
         />
@@ -207,78 +211,78 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
 
       <div className="flex items-center gap-3 flex-wrap">
         {periodSelector}
-        <span className="text-[12px]" style={{ color: RM.faint }}>预测窗口：未来 {period} 个交易日</span>
-        <div className="ml-auto"><ResearchButton onClick={exportCsv}>导出CSV</ResearchButton></div>
+        <span className="text-[12px]" style={{ color: RM.faint }}>{tx("rp.aanal.window").replace("{n}", String(period))}</span>
+        <div className="ml-auto"><ResearchButton onClick={exportCsv}>{tx("rp.aanal.exportCsv")}</ResearchButton></div>
       </div>
 
       {/* KPI —— 全部基于 API 原始字段的展示聚合，缺字段显示暂无数据 */}
       <ResearchKpiGrid>
-        <ResearchKpiCard label="分析因子数" value={factors.length} sub={`${period}日周期`} tone="blue" />
-        <ResearchKpiCard label="平均重要度" value={`${kpi!.avgRating.toFixed(1)}`} sub="满分 5 · 评级均值" />
-        <ResearchKpiCard label="稳定因子数" value={kpi!.stable} sub="评级 ≥ 4（有效）" tone="green" />
-        <ResearchKpiCard label="待观察因子" value={kpi!.weak} sub="评级 ≤ 2（较弱）" tone={kpi!.weak > 0 ? "amber" : "neutral"} />
-        <ResearchKpiCard label="累计样本" value={kpi!.samples.toLocaleString()} sub="覆盖股票数暂无字段" />
-        <ResearchKpiCard label="最近分析" value={<span className="text-[15px]">{data?.asOfLatest ?? "暂无数据"}</span>} sub="报告基准日" />
+        <ResearchKpiCard label={tx("rp.aanal.kCount")} value={factors.length} sub={`${period}d`} tone="blue" />
+        <ResearchKpiCard label={tx("rp.aanal.kAvg")} value={`${kpi!.avgRating.toFixed(1)}`} sub={tx("rp.aanal.kAvgSub")} />
+        <ResearchKpiCard label={tx("rp.aanal.kStable")} value={kpi!.stable} sub={tx("rp.aanal.kStableSub")} tone="green" />
+        <ResearchKpiCard label={tx("rp.aanal.kWeak")} value={kpi!.weak} sub={tx("rp.aanal.kWeakSub")} tone={kpi!.weak > 0 ? "amber" : "neutral"} />
+        <ResearchKpiCard label={tx("rp.aanal.kSamples")} value={kpi!.samples.toLocaleString()} sub={tx("rp.aanal.kSamplesSub")} />
+        <ResearchKpiCard label={tx("common.asOf.data")} value={<span className="text-[15px]">{data?.asOfLatest ?? tx("common.no_data")}</span>} sub={tx("rp.aanal.kDateSub")} />
       </ResearchKpiGrid>
 
       {/* 研究洞察 —— 真实最优/最弱因子 + 平均重要度 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <ResearchInsightCard title="表现最佳因子" tone="green">
-          {best ? <><span style={{ color: RM.ink, fontWeight: 600 }}>{factorZh(best.factor)}</span> · {ratingZh(best.ratingLabel)}（{stars(best.rating)}）· IC {fx(best.ic)}</> : "暂无数据"}
+        <ResearchInsightCard title={tx("rp.aanal.best")} tone="green">
+          {best ? <><span style={{ color: RM.ink, fontWeight: 600 }}>{factorLabel(best.factor, tx)}</span> · {ratingLabel(best.ratingLabel, tx)}（{stars(best.rating)}）· IC {fx(best.ic)}</> : tx("common.no_data")}
         </ResearchInsightCard>
-        <ResearchInsightCard title="表现最弱因子" tone="red">
-          {worst ? <><span style={{ color: RM.ink, fontWeight: 600 }}>{factorZh(worst.factor)}</span> · {ratingZh(worst.ratingLabel)}（{stars(worst.rating)}）· IC {fx(worst.ic)}</> : "暂无数据"}
+        <ResearchInsightCard title={tx("rp.aanal.worst")} tone="red">
+          {worst ? <><span style={{ color: RM.ink, fontWeight: 600 }}>{factorLabel(worst.factor, tx)}</span> · {ratingLabel(worst.ratingLabel, tx)}（{stars(worst.rating)}）· IC {fx(worst.ic)}</> : tx("common.no_data")}
         </ResearchInsightCard>
-        <ResearchInsightCard title="整体重要度" tone="blue">
-          {factors.length} 个因子平均评级 <span style={{ color: RM.ink, fontWeight: 600 }}>{kpi!.avgRating.toFixed(1)}/5</span>，其中有效 {kpi!.stable} 个、较弱 {kpi!.weak} 个。
+        <ResearchInsightCard title={tx("rp.aanal.overall")} tone="blue">
+          {tx("rp.aanal.overallBody").replace("{n}", String(factors.length)).replace("{avg}", kpi!.avgRating.toFixed(1)).replace("{s}", String(kpi!.stable)).replace("{w}", String(kpi!.weak))}
         </ResearchInsightCard>
       </div>
 
       {/* Top / Weak Factors 双列 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <ResearchSection title="Top Factors" desc="按评级 / IC 排序 · 表现最佳">
+        <ResearchSection title={tx("rp.aanal.topFactors")} desc={tx("rp.aanal.topDesc")}>
           <FactorMiniList list={topFactors} />
         </ResearchSection>
-        <ResearchSection title="Weak Factors" desc="按评级 / IC 排序 · 表现最弱">
+        <ResearchSection title={tx("rp.aanal.weakFactors")} desc={tx("rp.aanal.weakDesc")}>
           <FactorMiniList list={weakFactors} />
         </ResearchSection>
       </div>
 
       {/* 相关性 / 稳定性 —— API 无对应字段，如实标注暂无，不伪造 */}
-      <ResearchSection title="相关性 · 稳定性" desc="因子相关性 / 稳定性 / 方差 / 趋势">
+      <ResearchSection title={tx("rp.aanal.corrTitle")} desc={tx("rp.aanal.corrDesc")}>
         <ResearchEmptyState
-          title="暂无相关性数据"
-          desc="当前分析 API 不返回因子相关性 / 稳定性 / 方差 / 时序趋势字段。可参考下方各因子的 IC / RankIC / 夏普比率评估预测一致性。"
+          title={tx("common.no_data")}
+          desc={tx("rp.aanal.noCorr")}
         />
       </ResearchSection>
 
       {/* 完整因子分析表 */}
-      <ResearchSection title="因子分析表" desc={`各因子对未来 ${period} 日收益的预测能力`}>
+      <ResearchSection title={tx("rp.aanal.tableTitle")} desc={tx("rp.aanal.tableDesc").replace("{n}", String(period))}>
         <div style={{ maxHeight: "calc(100vh - 320px)", overflow: "auto" }}>
           <ResearchTable minWidth={1080}>
             <thead>
               <tr>
-                <RTh>因子</RTh>
-                <RTh align="center">评级</RTh>
+                <RTh>{tx("rp.aanal.colFactor")}</RTh>
+                <RTh align="center">{tx("rp.aanal.colRating")}</RTh>
                 <RTh align="right">IC</RTh>
                 <RTh align="right">RankIC</RTh>
-                <RTh align="right">胜率</RTh>
-                <RTh align="right">平均超额</RTh>
-                <RTh align="right">未来5日</RTh>
-                <RTh align="right">未来10日</RTh>
-                <RTh align="right">未来20日</RTh>
-                <RTh align="right">前20%</RTh>
-                <RTh align="right">后20%</RTh>
-                <RTh align="right">夏普</RTh>
-                <RTh align="right">样本</RTh>
+                <RTh align="right">{tx("rp.aanal.colWin")}</RTh>
+                <RTh align="right">{tx("rp.aanal.colExcess")}</RTh>
+                <RTh align="right">{tx("rp.aanal.colF5")}</RTh>
+                <RTh align="right">{tx("rp.aanal.colF10")}</RTh>
+                <RTh align="right">{tx("rp.aanal.colF20")}</RTh>
+                <RTh align="right">{tx("rp.aanal.colTop")}</RTh>
+                <RTh align="right">{tx("rp.aanal.colBottom")}</RTh>
+                <RTh align="right">Sharpe</RTh>
+                <RTh align="right">{tx("rp.aanal.colSample")}</RTh>
               </tr>
             </thead>
             <tbody>
               {ranked.map((f) => (
                 <tr key={f.factor} className={rowHoverClass}>
-                  <RTd><span style={{ color: RM.ink, fontWeight: 600 }}>{factorZh(f.factor)}</span></RTd>
+                  <RTd><span style={{ color: RM.ink, fontWeight: 600 }}>{factorLabel(f.factor, tx)}</span></RTd>
                   <RTd align="center" color={ratingHex(f.rating)}>
-                    <span title={ratingZh(f.ratingLabel)}>{stars(f.rating)}</span>
+                    <span title={ratingLabel(f.ratingLabel, tx)}>{stars(f.rating)}</span>
                   </RTd>
                   <RTd align="right" mono color={retColor(f.ic)}>{fx(f.ic)}</RTd>
                   <RTd align="right" mono color={retColor(f.rankIc)}>{fx(f.rankIc)}</RTd>
@@ -293,7 +297,7 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
                   <RTd align="right" mono>
                     {f.sampleCount < LOW_SAMPLE ? (
                       <span className="inline-flex items-center gap-1">
-                        <ResearchStatusBadge tone="amber">低覆盖</ResearchStatusBadge>
+                        <ResearchStatusBadge tone="amber">{tx("rp.aanal.lowCov")}</ResearchStatusBadge>
                         {f.sampleCount.toLocaleString()}
                       </span>
                     ) : (
@@ -311,7 +315,9 @@ export function AlphaAnalyticsPanel({ onNavigate }: { onNavigate?: (tab: string)
 }
 
 function FactorMiniList({ list }: { list: FactorReport[] }) {
-  if (!list.length) return <ResearchEmptyState title="暂无因子数据" />;
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
+  if (!list.length) return <ResearchEmptyState title={tx("common.no_data")} />;
   return (
     <div className="space-y-1.5">
       {list.map((f) => (
@@ -320,10 +326,10 @@ function FactorMiniList({ list }: { list: FactorReport[] }) {
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
           style={{ background: RM.card, border: `1px solid ${RM.border}` }}
         >
-          <span className="text-[13px] font-semibold truncate flex-1" style={{ color: RM.ink }}>{factorZh(f.factor)}</span>
-          <span className="text-[13px] tabular-nums shrink-0" style={{ color: ratingHex(f.rating) }} title={ratingZh(f.ratingLabel)}>{stars(f.rating)}</span>
+          <span className="text-[13px] font-semibold truncate flex-1" style={{ color: RM.ink }}>{factorLabel(f.factor, tx)}</span>
+          <span className="text-[13px] tabular-nums shrink-0" style={{ color: ratingHex(f.rating) }} title={ratingLabel(f.ratingLabel, tx)}>{stars(f.rating)}</span>
           <span className="text-[11px] tabular-nums shrink-0 w-16 text-right" style={{ color: retColor(f.ic) }}>IC {fx(f.ic)}</span>
-          <span className="text-[11px] tabular-nums shrink-0 w-20 text-right" style={{ color: RM.faint }}>{f.sampleCount.toLocaleString()} 样本</span>
+          <span className="text-[11px] tabular-nums shrink-0 w-20 text-right" style={{ color: RM.faint }}>{f.sampleCount.toLocaleString()}</span>
         </div>
       ))}
     </div>
