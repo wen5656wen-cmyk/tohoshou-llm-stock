@@ -1,5 +1,13 @@
+// 🔒 P21-P0-API-G1 · 访问级别：AUTHENTICATED（个人资产 / 决策数据）
+//
+// 逻辑分类是 AUTHENTICATED —— 属于账户主人，而非运维。本轮技术上暂与 ADMIN_ONLY
+// 共用 admin_session Cookie / x-admin-token（系统单租户，尚无普通用户体系）。
+// **凭证相同不等于分类相同**：后续拆权限等级时，本文件应归入用户级而非管理员级。
+//
+// 封闭前状态：未登录公网可读写（P21-P0-API 审计实测 200）。
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { guardAdminRoute } from "@/lib/admin-auth";
 
 export type SimPositionItem = {
   id: number;
@@ -52,7 +60,10 @@ async function getOrCreatePortfolio() {
   return portfolio.id;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
+
   const portfolioId = await getOrCreatePortfolio();
 
   const [portfolio, positions, trades] = await Promise.all([
@@ -129,7 +140,10 @@ export async function GET() {
 }
 
 // Reset portfolio back to initial state
-export async function DELETE() {
+export async function DELETE(req: Request) {
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
+
   const portfolioId = await getOrCreatePortfolio();
   await prisma.$transaction([
     prisma.simTrade.deleteMany({ where: { portfolioId } }),

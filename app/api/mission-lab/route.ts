@@ -1,15 +1,26 @@
+// 🔒 P21-P0-API-G1 · 访问级别：AUTHENTICATED（个人资产 / 决策数据）
+//
+// 逻辑分类是 AUTHENTICATED —— 属于账户主人，而非运维。本轮技术上暂与 ADMIN_ONLY
+// 共用 admin_session Cookie / x-admin-token（系统单租户，尚无普通用户体系）。
+// **凭证相同不等于分类相同**：后续拆权限等级时，本文件应归入用户级而非管理员级。
+//
+// 封闭前状态：未登录公网可读写（P21-P0-API 审计实测 200）。
 // ── P18 · AI Mission Lab · 只读聚合 API（M3-v1 · /decision-v2?tab=portfolio 接管）──
 // 只读 ai_mission_*（+ StockScore 只读取公司名）；后端聚合，前端零指标计算；缺数据显空态，绝不伪造。
 // 不改评分/Decision Engine/PaperBroker/资金链路。
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getJPXTradingDayStatus } from "@/lib/trading-calendar/jpx";
+import { guardAdminRoute } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 type Json = Record<string, unknown>;
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
+
   try {
     const missions = await prisma.aiMission.findMany({
       where: { status: { in: ["ACTIVE", "COMPLETED"] } },

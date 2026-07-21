@@ -1,3 +1,10 @@
+// 🔒 P21-P0-API-G1 · 访问级别：AUTHENTICATED（个人资产 / 决策数据）
+//
+// 逻辑分类是 AUTHENTICATED —— 属于账户主人，而非运维。本轮技术上暂与 ADMIN_ONLY
+// 共用 admin_session Cookie / x-admin-token（系统单租户，尚无普通用户体系）。
+// **凭证相同不等于分类相同**：后续拆权限等级时，本文件应归入用户级而非管理员级。
+//
+// 封闭前状态：未登录公网可读写（P21-P0-API 审计实测 200）。
 // ── GET /api/decision/track-record（P19-T1 · AI 战绩档案 · 只读聚合）──────────────
 // 全站唯一业绩验证入口的数据源。回答「AI 到底准不准」，三条**口径不同、绝不合并**的业绩线：
 //   ① 信号线 signal      = AI 每日推荐 TOP10 的前瞻表现（纸面，未扣成本）
@@ -16,6 +23,7 @@
 //   · 失败隔离：任一线出错只让该线 available=false，其余照常返回。
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { guardAdminRoute } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +65,9 @@ const scoreBucket = (s: number | null | undefined): string =>
   s == null ? "unknown" : s >= 80 ? "80+" : s >= 70 ? "70-79" : s >= 60 ? "60-69" : "<60";
 
 export async function GET(req: NextRequest) {
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
+
   const sp = new URL(req.url).searchParams;
   const hz = (sp.get("horizon") ?? DEFAULT_HORIZON) as Horizon;
   const horizon: Horizon = HORIZONS.includes(hz) ? hz : DEFAULT_HORIZON;

@@ -14,8 +14,43 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 
+// ── P21-P0-API-G1 · 紧急封闭（个人资产读写）─────────────────────────────────
+//
+// S1 封闭的是**管理面**（/api/admin、/api/sync）。但资产数据从来不在管理面下 ——
+// P21-P0-API 审计实测：/api/holdings 未登录返回真实持仓 6 只（shares/avgCost/
+// unrealizedPnl/cash/equity），/api/mission-lab 返回 8 个仓位 + NAV + 当日成交价，
+// 且 14 个写接口（buy/sell/delete/watchlist…）零鉴权 —— 任何人可改你的持仓。
+// 那比 S1 修掉的洞更严重，因为它**可写**。
+//
+// 分类说明（本轮技术凭证相同，逻辑等级不同，后续拆分）：
+//   ADMIN_ONLY     /api/admin  /api/sync                    运维
+//   AUTHENTICATED  以下全部                                  账户主人
+//
+// ⚠️ 有意**不**纳入的公开接口，改前逐一确认过：
+//   · /api/mission-lab/quotes —— 纯 Yahoo 行情，无账户字段（故只匹配
+//     "/api/mission-lab" 精确路径，不用 :path*）
+//   · /api/stocks/*、/api/prices/*、/api/news 等 —— 公开市场数据，
+//     仅其中的写端点 /api/stocks/:symbol/analysis 单独纳入
 export const config = {
-  matcher: ["/api/admin/:path*", "/api/sync/:path*"],
+  matcher: [
+    // ADMIN_ONLY
+    "/api/admin/:path*",
+    "/api/sync/:path*",
+    // AUTHENTICATED —— 个人资产 / 决策数据（父路径与子路径都要写，
+    // ":path*" 不匹配父路径本身）
+    "/api/holdings",
+    "/api/holdings/:path*",
+    "/api/mission-lab",            // 注意：不含 /quotes（纯行情，保持公开）
+    "/api/decision/:path*",
+    "/api/portfolio",
+    "/api/portfolio/:path*",
+    "/api/sim-portfolio",
+    "/api/sim-portfolio/:path*",
+    "/api/watchlist",
+    "/api/watchlist/:path*",
+    "/api/explain/:path*",
+    "/api/stocks/:symbol/analysis", // 写端点；其余 /api/stocks/* 保持公开
+  ],
 };
 
 const SESSION_PATH = "/api/admin/session";

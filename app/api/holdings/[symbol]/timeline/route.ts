@@ -1,8 +1,16 @@
+// 🔒 P21-P0-API-G1 · 访问级别：AUTHENTICATED（个人资产 / 决策数据）
+//
+// 逻辑分类是 AUTHENTICATED —— 属于账户主人，而非运维。本轮技术上暂与 ADMIN_ONLY
+// 共用 admin_session Cookie / x-admin-token（系统单租户，尚无普通用户体系）。
+// **凭证相同不等于分类相同**：后续拆权限等级时，本文件应归入用户级而非管理员级。
+//
+// 封闭前状态：未登录公网可读写（P21-P0-API 审计实测 200）。
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fetchQuotesBatch } from "@/lib/yahoo";
 import { runReview, shapeTimeline } from "@/lib/trading/decision-log";
 import type { Quote } from "@/lib/decision-engine";
+import { guardAdminRoute } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -14,6 +22,9 @@ function withTimeout<T>(pr: Promise<T>, ms: number, fb: T): Promise<T> {
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
+  const denied = await guardAdminRoute(_req);
+  if (denied) return denied;
+
   const p = prisma as any;
   const { symbol } = await params;
   const decoded = decodeURIComponent(symbol);
