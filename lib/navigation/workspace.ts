@@ -7,7 +7,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { workspaceForPath, type Workspace } from "./nav-config";
+import { workspaceForPath, WS_HINT_PARAM, type Workspace } from "./nav-config";
 
 const KEY = "tohoshou.workspace";
 
@@ -29,8 +29,12 @@ export function readWorkspace(): Workspace | null {
  */
 export function useWorkspace(): Workspace {
   const pathname = usePathname();
-  const tab = useSearchParams().get("tab");
-  const workspace = workspaceForPath(pathname, tab);
+  const sp = useSearchParams();
+  const tab = sp.get("tab");
+  // P21-T3：URL 显式 ?ws= 提示优先，使 /screener?tab=sectors 能同时服务
+  // 决策区（无提示）与研究区（ws=research），不再互相弹出。
+  const wsHint = sp.get(WS_HINT_PARAM);
+  const workspace = workspaceForPath(pathname, tab, wsHint);
   useEffect(() => { persistWorkspace(workspace); }, [workspace]);
   return workspace;
 }

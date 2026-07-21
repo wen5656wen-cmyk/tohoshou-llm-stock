@@ -5,7 +5,6 @@
 // 顶级 Tab 走 ?tab= URL（刷新保持）；分组内子标签本地态。各 Tab/子标签懒加载 + 仅激活挂载。
 // 复用现有面板与移动的 View，不复制代码/API。Scoring V3 保持 Shadow，未改任何评分逻辑。
 
-import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/lib/i18n";
@@ -41,11 +40,20 @@ const TOP = [
 ] as const;
 const VALID = new Set<string>(TOP.map((t) => t.key));
 
-// 旧面板 onNavigate 的键 → 新顶级 Tab
-// P21-T2：overview / learning / freeze 三个目标已下线，映射到新默认 tab（factors）。
-const NAV_MAP: Record<string, string> = {
-  factors: "factors", analytics: "alpha", score: "alpha",
-  regime: "alpha", fusion: "alpha", v3: "v3", calibration: "v3", backtest: "backtest",
+// 旧面板 onNavigate 的键 → { 顶级 Tab, 子标签 }
+// P21-T3：过去只映射到顶级 tab，而子标签是本地 state 不进 URL，导致「点了没反应」——
+// 组内跳转（如 alpha:score → alpha:fusion）因 key === active 被 goTop 直接 return。
+// 现在子标签进 URL，跨面板跳转与旧深链都能精确落到目标子标签。
+// P21-T2：overview / learning / freeze 目标已下线，映射到新默认 tab。
+const NAV_MAP: Record<string, { tab: string; sub?: string }> = {
+  factors: { tab: "factors" },
+  score: { tab: "alpha", sub: "score" },
+  analytics: { tab: "alpha", sub: "analytics" },
+  fusion: { tab: "alpha", sub: "fusion" },
+  regime: { tab: "alpha", sub: "regime" },
+  v3: { tab: "v3", sub: "shadow" },
+  calibration: { tab: "v3", sub: "calibration" },
+  backtest: { tab: "backtest" },
 };
 
 export default function ResearchWorkspaceHub() {
@@ -54,10 +62,17 @@ export default function ResearchWorkspaceHub() {
   const sp = useSearchParams();
   const raw = sp.get("tab");
   const active = raw && VALID.has(raw) ? raw : "factors";
-  const [sub, setSub] = useState<Record<string, string>>({});
+  // P21-T3：子标签由 URL 决定（?sub=），刷新可保持、可分享深链、跨面板跳转不再是 no-op。
+  const rawSub = sp.get("sub");
 
-  const goTop = (key: string) => { if (key !== active) router.replace(`/admin/research?tab=${key}`, { scroll: false }); };
-  const onNav = (k: string) => goTop(NAV_MAP[k] ?? "factors");
+  const go = (tab: string, subKey?: string) => {
+    const q = subKey ? `?tab=${tab}&sub=${subKey}` : `?tab=${tab}`;
+    router.replace(`/admin/research${q}`, { scroll: false });
+  };
+  const onNav = (k: string) => {
+    const target = NAV_MAP[k] ?? { tab: "factors" };
+    go(target.tab, target.sub);
+  };
 
   // 分组子标签定义（懒加载：仅激活子标签的 node 会挂载）
   const GROUPS: Record<string, Sub[]> = {
@@ -88,7 +103,7 @@ export default function ResearchWorkspaceHub() {
   const renderBody = () => {
     const group = GROUPS[active];
     if (!group) return null;
-    const curSub = sub[active] ?? group[0].key;
+    const curSub = rawSub && group.some((g) => g.key === rawSub) ? rawSub : group[0].key;
     const cur = group.find((s) => s.key === curSub) ?? group[0];
     return (
       <div>
@@ -100,7 +115,7 @@ export default function ResearchWorkspaceHub() {
               return (
                 <button
                   key={s.key}
-                  onClick={() => setSub((m) => ({ ...m, [active]: s.key }))}
+                  onClick={() => go(active, s.key)}
                   className="px-3 py-1.5 rounded-lg text-[12px] whitespace-nowrap transition-colors"
                   style={{
                     background: on ? COLORS.primary : COLORS.card,
@@ -133,7 +148,7 @@ export default function ResearchWorkspaceHub() {
               return (
                 <button
                   key={tab.key}
-                  onClick={() => goTop(tab.key)}
+                  onClick={() => go(tab.key)}
                   className="px-3.5 py-2 rounded-xl text-[13px] whitespace-nowrap transition-colors active:scale-[0.99]"
                   style={{
                     background: on ? COLORS.text : COLORS.card,

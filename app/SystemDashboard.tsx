@@ -322,14 +322,14 @@ export function SystemDashboard({
             }}>
               ⚡ Factors
             </Link>
-            <Link href="/admin/research?tab=analytics" style={{
+            <Link href="/admin/research?tab=alpha&sub=analytics" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#818cf8", fontSize: 11, textDecoration: "none",
             }}>
               ★ Analytics
             </Link>
-            <Link href="/admin/research?tab=score" style={{
+            <Link href="/admin/research?tab=alpha&sub=score" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#a5b4fc", fontSize: 11, textDecoration: "none",
@@ -347,14 +347,14 @@ export function SystemDashboard({
             </Link>
           </div>
           <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <Link href="/admin/research?tab=regime" style={{
+            <Link href="/admin/research?tab=alpha&sub=regime" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#fbbf24", fontSize: 11, textDecoration: "none",
             }}>
               ◱ Market Regime
             </Link>
-            <Link href="/admin/research?tab=fusion" style={{
+            <Link href="/admin/research?tab=alpha&sub=fusion" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #1e293b", borderRadius: 6,
               color: "#fbbf24", fontSize: 11, textDecoration: "none",
@@ -363,7 +363,7 @@ export function SystemDashboard({
             </Link>
           </div>
           <div style={{ marginTop: 8 }}>
-            <Link href="/admin/research?tab=fusion" style={{
+            <Link href="/admin/research?tab=alpha&sub=fusion" style={{
               display: "block", textAlign: "center", padding: "8px 4px",
               background: "#0a0a0a", border: "1px solid #334155", borderRadius: 6,
               color: "#f0abfc", fontSize: 11, textDecoration: "none",

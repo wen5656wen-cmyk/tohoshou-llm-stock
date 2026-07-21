@@ -32,11 +32,11 @@ export const ROUTES = {
   NEWS: "/news",
   MARKET: "/market-regime",
   // Research-center tabs
-  SHADOW_SCORE: "/admin/research?tab=score",
-  FUSION_REPORT: "/admin/research?tab=fusion",
+  SHADOW_SCORE: "/admin/research?tab=alpha&sub=score",
+  FUSION_REPORT: "/admin/research?tab=alpha&sub=fusion",
   FACTORS: "/admin/research?tab=factors",
-  ANALYTICS: "/admin/research?tab=analytics",
-  PAPER_TRADING: "/admin/research?tab=fusion", // P4-T4: legacy /fusion/paper 收敛至研究中心
+  ANALYTICS: "/admin/research?tab=alpha&sub=analytics",
+  PAPER_TRADING: "/admin/research?tab=alpha&sub=fusion", // P4-T4: legacy /fusion/paper 收敛至研究中心
   // Fallback
   COMING_SOON: "/coming-soon",
 } as const;

@@ -58,10 +58,10 @@ export const NAV_NODES: NavNode[] = [
 
   // ═══ 研究工作区（Research · 股票研究 Hub + 股票研究五页 /screener?tab=*）═══
   { key: "rs-home", workspace: "research", labelKey: "nav.researchHome", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
-  { key: "rs-screen", workspace: "research", labelKey: "sr.tab.screen", href: "/screener?tab=screen", Icon: SlidersHorizontal, glyph: "✦" },
-  { key: "rs-sectors", workspace: "research", labelKey: "sr.tab.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },
-  { key: "rs-themes", workspace: "research", labelKey: "sr.tab.themes", href: "/screener?tab=themes", Icon: Boxes, glyph: "◈" },
-  { key: "rs-news", workspace: "research", labelKey: "sr.tab.news", href: "/screener?tab=news", Icon: Newspaper, glyph: "▤" },
+  { key: "rs-screen", workspace: "research", labelKey: "sr.tab.screen", href: "/screener?tab=screen&ws=research", Icon: SlidersHorizontal, glyph: "✦" },
+  { key: "rs-sectors", workspace: "research", labelKey: "sr.tab.sectors", href: "/screener?tab=sectors&ws=research", Icon: Layers, glyph: "▦" },
+  { key: "rs-themes", workspace: "research", labelKey: "sr.tab.themes", href: "/screener?tab=themes&ws=research", Icon: Boxes, glyph: "◈" },
+  { key: "rs-news", workspace: "research", labelKey: "sr.tab.news", href: "/screener?tab=news&ws=research", Icon: Newspaper, glyph: "▤" },
 
   // ═══ 管理工作区（Management · 保留现有入口 = Mission Control Hub，本轮不重构）═══
   { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },
@@ -78,16 +78,37 @@ const RESEARCH_PREFIXES = [
 function matchPrefix(p: string, list: string[]): boolean {
   return list.some((x) => p === x || p.startsWith(x + "/") || p.startsWith(x + "?"));
 }
-/** 决策工作区借用 screener 的两个 tab（行业分析=sectors / 产业研究=themes）。 */
+/**
+ * 决策工作区借用 screener 的两个 tab（行业分析=sectors / 产业研究=themes）。
+ *
+ * ⚠️ P21-T3：这个特判曾是研究工作区的**开放阻断项** —— 研究侧栏的 rs-sectors /
+ * rs-themes 指向同样的 URL，用户点进去后 workspaceForPath 把它判回 boss，
+ * 侧栏整个弹回决策区、研究项永远无法 active。
+ *
+ * 修法：URL 显式携带 `ws=research` 时以其为准（见 workspaceForPath）。
+ * 这样同一个页面可服务两个工作区而不互相踩踏，且不需要动老板现有导航
+ * （boss 的 dv-sectors 在研究区开放前仍是老板访问行业轮动的唯一途径）。
+ *
+ * 遗留：boss 与 research 同时拥有 sectors 入口属「重复入口」，按 P21-T1 裁决
+ * 应在 P21-T8 开放工作区时把 dv-sectors 从 boss 移除。本轮不动（会造成能力回退）。
+ */
 const BOSS_SCREENER_TABS = new Set(["sectors", "themes"]);
+/** URL 显式工作区提示参数（research 侧栏链接携带）。 */
+export const WS_HINT_PARAM = "ws";
 /**
  * 当前路径归属的工作区。research/admin 前缀命中对应区，其余（含决策/首页/回退壳）归决策(boss)。
  * tab 感知：/screener?tab=sectors|themes 属决策(boss)，其余 /screener 属研究(research)。
  * 注：usePathname() 不含 query，故调用方需显式把当前 ?tab 传入才能命中特判。
  */
-export function workspaceForPath(pathname: string | null | undefined, tab?: string | null): Workspace {
+export function workspaceForPath(
+  pathname: string | null | undefined,
+  tab?: string | null,
+  wsHint?: string | null,
+): Workspace {
   const p = pathname || "/";
   const base = p.split("?")[0];
+  // P21-T3：显式提示优先于任何路径/tab 推导，消除 boss/research 争抢同一 URL。
+  if (wsHint === "boss" || wsHint === "research" || wsHint === "admin") return wsHint;
   if (base === "/screener") {
     // tab 未传时回退从 pathname 里解析（防御：某些调用方可能带 query）。
     const t = tab ?? (p.includes("?") ? new URLSearchParams(p.split("?")[1]).get("tab") : null);
