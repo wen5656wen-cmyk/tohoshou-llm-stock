@@ -132,7 +132,7 @@ function FeatureCard({ r, reasonLabels }: { r: Row; reasonLabels: Record<string,
             <span style={{ fontSize: 11, color: COLORS.textFaint, fontFamily: "monospace" }}>{r.id}</span>
           </div>
           <div className="flex items-center gap-1.5" style={{ marginTop: 5 }}>
-            <AppBadge tone="neutral">{CATEGORY_LABEL[r.category] ?? r.category}</AppBadge>
+            <AppBadge tone="neutral">{CATEGORY_LABEL[r.category] ? tx(CATEGORY_LABEL[r.category]) : r.category}</AppBadge>
             <AppBadge tone={r.status === "PRODUCTION" ? "green" : r.status === "SHADOW" ? "amber" : "neutral"}>{tx(STATUS_LABEL[r.status] ?? r.status)}</AppBadge>
           </div>
         </div>
@@ -291,7 +291,7 @@ export default function FeaturePromotionPage() {
                     style={{ height: 28, padding: "0 11px", fontSize: 11.5, fontWeight: 600, borderRadius: 9999, cursor: "pointer",
                       border: `1px solid ${sortKey === k ? COLORS.primary : COLORS.border}`,
                       background: sortKey === k ? `${COLORS.primary}12` : COLORS.card,
-                      color: sortKey === k ? COLORS.primary : COLORS.textSecondary }}>{SORT_LABEL[k]}</button>
+                      color: sortKey === k ? COLORS.primary : COLORS.textSecondary }}>{tx(SORT_LABEL[k])}</button>
                 ))}
               </div>
             </div>

@@ -218,7 +218,7 @@ export function AlphaFactorsPanel({ onNavigate }: { onNavigate?: (tab: string) =
             <ResearchChip key={c.key}>{tx(c.label)}</ResearchChip>
           ))}
           {EVENT_FACTORS.map((e) => (
-            <ResearchChip key={e} tone="amber">{e}</ResearchChip>
+            <ResearchChip key={e} tone="amber">{tx(e)}</ResearchChip>
           ))}
         </div>
         <div className="mt-3 text-[12px]" style={{ color: RM.faint }}>
