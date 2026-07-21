@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkAdminAuth } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 // Optional auth — same pattern as /api/admin/verify
-function isAuthorized(req: NextRequest): boolean {
-  const envToken = process.env.ADMIN_TOKEN;
-  if (!envToken) return true; // open if not configured
-  const headerToken = req.headers.get("x-admin-token");
-  const queryToken  = new URL(req.url).searchParams.get("token");
-  return headerToken === envToken || queryToken === envToken;
-}
 
 // GET /api/admin/deployments?limit=20&offset=0
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!checkAdminAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -53,7 +47,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/admin/deployments — create a new deployment record
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!checkAdminAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

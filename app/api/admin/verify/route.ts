@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkAdminAuth } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import * as fs from "fs";
 import * as path from "path";
@@ -6,14 +7,6 @@ import * as os from "os";
 
 export const dynamic = "force-dynamic";
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-function checkAuth(req: NextRequest): boolean {
-  const token = process.env.ADMIN_TOKEN;
-  if (!token) return true;
-  const header = req.headers.get("x-admin-token") ?? "";
-  const query  = new URL(req.url).searchParams.get("token") ?? "";
-  return header === token || query === token;
-}
 
 // ── File helpers ──────────────────────────────────────────────────────────────
 function getCommit(): string {
@@ -299,7 +292,7 @@ async function buildStatus() {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
+  if (!checkAdminAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

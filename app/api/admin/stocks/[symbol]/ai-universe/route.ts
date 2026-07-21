@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkAdminAuth } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { isValidExcludeReason } from "@/lib/ai-universe";
 
 export const dynamic = "force-dynamic";
 
 // Optional auth — same pattern as /api/admin/verify + /api/admin/deployments
-function isAuthorized(req: NextRequest): boolean {
-  const envToken = process.env.ADMIN_TOKEN;
-  if (!envToken) return true; // open if not configured
-  const headerToken = req.headers.get("x-admin-token");
-  const queryToken = new URL(req.url).searchParams.get("token");
-  return headerToken === envToken || queryToken === envToken;
-}
 
 const UNIVERSE_SELECT = {
   symbol: true, name: true, aiEnabled: true, excludeReason: true,
@@ -43,7 +37,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
-  if (!isAuthorized(req)) {
+  if (!checkAdminAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

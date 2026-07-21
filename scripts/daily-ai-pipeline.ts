@@ -128,7 +128,9 @@ function runNewsSync(): StepResult {
   log("INFO", `▶  [step:${name}] start — POST ${APP_URL}/api/sync/news`);
   try {
     execSync(
-      `curl -sf -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"`,
+      // P21-S1：/api/sync/* 已受保护。token 经 header 传入（不进 URL/日志）。
+      `curl -sf -X POST "${APP_URL}/api/sync/news" -H "Content-Type: application/json"` +
+        (process.env.ADMIN_TOKEN ? ` -H "x-admin-token: ${process.env.ADMIN_TOKEN}"` : ""),
       { stdio: "inherit", timeout: 10 * 60 * 1000 },
     );
     const ms = Date.now() - t0;

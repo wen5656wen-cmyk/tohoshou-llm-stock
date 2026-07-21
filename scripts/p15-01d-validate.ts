@@ -32,7 +32,13 @@ async function sampleOnce() {
   const t0 = Date.now();
   let body: any = null; let httpMs = 0; let httpErr: string | null = null;
   try {
-    const r = await fetch(`${BASE_URL}/api/admin/decision-overview?debug=1`, { headers: { "cache-control": "no-cache" } });
+    const r = await fetch(`${BASE_URL}/api/admin/decision-overview?debug=1`, {
+      headers: {
+        "cache-control": "no-cache",
+        // P21-S1：受保护端点，token 从服务端环境读取
+        ...(process.env.ADMIN_TOKEN ? { "x-admin-token": process.env.ADMIN_TOKEN } : {}),
+      },
+    });
     httpMs = Date.now() - t0;
     body = await r.json();
     if (!r.ok || body?.ok === false) httpErr = `status ${r.status} / ${body?.error ?? ""}`;

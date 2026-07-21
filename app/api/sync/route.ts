@@ -2,11 +2,22 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { ADMIN_TOKEN_HEADER } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { isConfigured as jquantsConfigured, configStatus as jquantsConfigStatus } from "@/lib/jquants";
 
+// P21-S1：本路由会以 HTTP 自调其它 /api/sync/* 端点，而这些端点现受 middleware 保护。
+// token 从**服务端环境**读取并注入 header —— 绝不经过客户端、绝不写入 URL。
+function internalAuthHeaders(): Record<string, string> {
+  const t = process.env.ADMIN_TOKEN;
+  return t ? { [ADMIN_TOKEN_HEADER]: t } : {};
+}
+
 async function safeJsonFetch(url: string, init?: RequestInit): Promise<unknown> {
-  const r = await fetch(url, init);
+  const r = await fetch(url, {
+    ...init,
+    headers: { ...(init?.headers as Record<string, string> | undefined), ...internalAuthHeaders() },
+  });
   const text = await r.text();
   if (!text) return { error: "空响应", httpStatus: r.status };
   try {
