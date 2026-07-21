@@ -3,6 +3,7 @@
 // 不改评分/Decision Engine/PaperBroker/资金链路。
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getJPXTradingDayStatus } from "@/lib/trading-calendar/jpx";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +38,14 @@ export async function GET() {
       const positionsValue = positions.reduce((s, p) => s + p.marketValue, 0);
       const latestNav = navs.length ? navs[navs.length - 1] : null;
 
-      // 今日待跟单 = 最近一批 decidedAt（同一交易日）的决策
-      const latestDay = decisions.length ? decisions[0].decidedAt.toISOString().slice(0, 10) : null;
+      // 今日待跟单 = 最近一批 decidedAt（同一 JST 交易日）的决策
+      // ⚠️ 必须按 JST 日历日分组，不能用 toISOString()（= UTC 日）：08:20 JST 是前一日 23:20Z、
+      // 09:30 JST 是当日 00:30Z，两者会被 UTC 切成两天 → latestDay 显示昨日，且同一交易日的
+      // Phase1/Phase2 决策被拆散、漏出「今日」。日历日一律取全站唯一来源 getJPXTradingDayStatus().date。
+      const jstDayOf = (d: Date) => getJPXTradingDayStatus(d).date;
+      const latestDay = decisions.length ? jstDayOf(decisions[0].decidedAt) : null;
       const todayDecisions = decisions
-        .filter((d) => latestDay && d.decidedAt.toISOString().slice(0, 10) === latestDay)
+        .filter((d) => latestDay && jstDayOf(d.decidedAt) === latestDay)
         .map((d) => {
           const tr = tradeByDecision.get(d.id);
           return {
