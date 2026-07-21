@@ -67,7 +67,11 @@ export const NAV_NODES: NavNode[] = [
 ];
 
 // ── 路径 → 工作区 推导（软切换核心：URL 决定当前工作区）──────────────────────
-const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime", "/admin/universe", "/admin/learning-report"];
+// ⚠️ P21-T5-1：本列表与 RESEARCH_PREFIXES **不得有交集** —— workspaceForPath 先匹配
+//    RESEARCH 再匹配 ADMIN，双命中时 ADMIN 侧永远不生效（D1：/admin/learning-report
+//    曾同时出现在两边）。新增前缀前请先确认另一侧没有。
+//    /admin/mission-audit 原本两边都没有 → 回落 boss，一个管理页出现在老板工作区（D2）。
+const ADMIN_PREFIXES = ["/admin/mission-control", "/sync", "/admin/verify", "/admin/runtime", "/admin/universe", "/admin/mission-audit"];
 const RESEARCH_PREFIXES = [
   // 研究工作区：研究综合 Hub + 股票研究（screener 及其旧深链重定向桩）+ 量化研究
   "/admin/research", "/admin/features", "/admin/feature-promotion", "/admin/feature-platform",
