@@ -1,3 +1,12 @@
+// 🔒 P21-P0-API-G2 · 访问级别：ADMIN_ONLY（内部研究 / 实验 / 回测 / 系统状态）
+//
+// 不属于公开市场数据，也不属于 Boss 决策读取 —— 是内部评分实验、Shadow/Freeze/
+// Calibration、融合模型、Alpha 分析与回测、研究资料与 Review、系统健康与内部业绩。
+// 封闭前状态：未登录公网可读（P21-P0-API 审计实测 200）。
+//
+// 凭证与 AUTHENTICATED 本轮相同（单租户，尚无用户体系），但**逻辑等级更高**：
+// 后续拆权限时本文件应保持管理员级，不随 AUTHENTICATED 一起下放。
+import { guardAdminRoute } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -6,6 +15,9 @@ export const dynamic = "force-dynamic";
 // GET /api/research/library — 研究库：报告 + 版本（现有 ResearchReport/ResearchVersion，不新增模型）
 // 筛选: scope / status / provider / q。只读，不影响 Stock Center / Decision Center。
 export async function GET(req: Request) {
+  const denied = await guardAdminRoute(req);
+  if (denied) return denied;
+
   const u = new URL(req.url);
   const scope = u.searchParams.get("scope") || undefined;
   const status = u.searchParams.get("status") || undefined;

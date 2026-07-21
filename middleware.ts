@@ -50,6 +50,23 @@ export const config = {
     "/api/watchlist/:path*",
     "/api/explain/:path*",
     "/api/stocks/:symbol/analysis", // 写端点；其余 /api/stocks/* 保持公开
+
+    // ── P21-P0-API-G2 · ADMIN_ONLY（内部研究 / 实验 / 回测 / 系统状态）──────
+    // 内部评分实验、Shadow/Freeze/Calibration、融合模型、Alpha 分析与回测、
+    // 研究资料与 Review、系统健康、内部策略业绩 —— 既非公开市场数据，
+    // 也非 Boss 决策读取。封闭前均为未登录 200。
+    "/api/scoring-v3/:path*",
+    "/api/fusion/:path*",
+    "/api/alpha",
+    "/api/alpha/:path*",
+    "/api/backtest/:path*",
+    "/api/strategy/:path*",
+    "/api/health/status",
+    // ⚠️ 只锁 research 的这两个，不用 "/api/research/:path*" —— 该前缀下还有
+    //    company / industry / calendar / graph / industries / version 等公司与
+    //    行业资料，本轮裁定未覆盖，不擅自扩大范围。
+    "/api/research/library",
+    "/api/research/review",
   ],
 };
 

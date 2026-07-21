@@ -35,10 +35,13 @@ export default function DecisionStateNotice({
   status,
   compact = false,
   onRetry,
+  titleKey = "dv.ov2.title",
 }: {
   status: LoadStatus;
   compact?: boolean;
   onRetry?: () => void;
+  /** 整页形态的标题；默认决策总览。Research/System 工作区传自己的标题。 */
+  titleKey?: string;
 }) {
   const { t } = useI18n();
   const tx = t as (k: string) => string;
@@ -82,7 +85,7 @@ export default function DecisionStateNotice({
 
   return (
     <div className="max-w-[1760px] mx-auto px-4 sm:px-6 py-14 text-center">
-      <div className="text-[15px] font-semibold" style={{ color: COLORS.text }}>{tx("dv.ov2.title")}</div>
+      <div className="text-[15px] font-semibold" style={{ color: COLORS.text }}>{tx(titleKey)}</div>
       <div className="text-[12px] mt-1.5" style={{ color: COLORS.textSecondary }}>{msg}</div>
       {action ? <div className="mt-4">{action}</div> : null}
     </div>

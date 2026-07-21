@@ -1,5 +1,6 @@
 "use client";
 // Strategy 页面 · 仅负责 Layout + Data Fetch(hook) + 组合（P4-T3 模块化拆分）
+import AuthGate from "@/components/auth/AuthGate";
 import { useI18n } from "@/lib/i18n";
 import type { StratType, ActiveTab } from "@/components/strategy/types";
 import { ALL_TYPES } from "@/components/strategy/types";
@@ -8,7 +9,7 @@ import { SRing, SBadge, MissionCard, StratPremiumCard } from "@/components/strat
 import { StrategyTab, StabilizationTab, ReportsTab } from "@/components/strategy/tabs";
 import { useStrategyOverview, useStrategyTabs } from "@/components/strategy/hooks";
 
-export default function StrategyPage() {
+function StrategyPageInner() {
   const { t } = useI18n();
   const { overview, overviewLoading } = useStrategyOverview();
   const { activeTab, setActiveTab } = useStrategyTabs("DAY_TRADE");
@@ -115,5 +116,15 @@ export default function StrategyPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// P21-P0-API-G2：本页依赖的 /api/strategy/* 与 /api/fusion/* 已改为 ADMIN_ONLY。
+// 未登录时各面板会拿到 401 并渲染成「—」「データなし」——那是假话。外层加闸说清楚。
+export default function StrategyPage() {
+  return (
+    <AuthGate titleKey="dv.nav.strategy">
+      <StrategyPageInner />
+    </AuthGate>
   );
 }

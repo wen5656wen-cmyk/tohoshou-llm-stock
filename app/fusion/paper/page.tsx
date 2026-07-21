@@ -1,5 +1,6 @@
 "use client";
 
+import AuthGate from "@/components/auth/AuthGate";
 import { useEffect, useState } from "react";
 
 // Fusion Paper Trading (P2-T4) — live 3-strategy comparison (admin). English labels.
@@ -19,7 +20,7 @@ const HLABEL: Record<string, string> = { ret1d: "1d", ret3d: "3d", ret5d: "5d", 
 function pct(v: number | null) { return v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`; }
 function col(v: number | null) { return v == null ? "#94a3b8" : v > 0 ? "#16a34a" : v < 0 ? "#dc2626" : "#334155"; }
 
-export default function FusionPaperPage() {
+function FusionPaperPageInner() {
   const [topN, setTopN] = useState(20);
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,5 +114,15 @@ export default function FusionPaperPage() {
       )}
       {data?.note ? <p className="text-[11px] text-slate-400 mt-4">{data.note}</p> : null}
     </div>
+  );
+}
+
+// P21-P0-API-G2：本页依赖的 /api/strategy/* 与 /api/fusion/* 已改为 ADMIN_ONLY。
+// 未登录时各面板会拿到 401 并渲染成「—」「データなし」——那是假话。外层加闸说清楚。
+export default function FusionPaperPage() {
+  return (
+    <AuthGate titleKey="rw.a.fusion">
+      <FusionPaperPageInner />
+    </AuthGate>
   );
 }
