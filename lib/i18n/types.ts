@@ -492,6 +492,11 @@ export type Messages = {
   "dc.ov.closingStatus": string;
   "dc.ov.viewDetail": string;
   "dc.ov.noData": string;
+  "dc.state.unauthorized": string;
+  "dc.state.loginCta": string;
+  "dc.state.serverError": string;
+  "dc.state.networkError": string;
+  "dc.state.retry": string;
   "dc.ov.confidence": string;
   "dc.ov.holdPeriod": string;
   "dc.ov.loadFail": string;

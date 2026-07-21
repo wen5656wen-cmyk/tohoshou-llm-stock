@@ -19,7 +19,12 @@
 
 export const ADMIN_TOKEN_HEADER = "x-admin-token";
 export const ADMIN_SESSION_COOKIE = "admin_session";
-export const SESSION_TTL_SEC = 7 * 24 * 3600;
+// P21-P0-Boss：7 天 → 90 天。老板每天要看决策页，7 天意味着一个月强制重新输入
+// ADMIN_TOKEN 四次；过期后页面只会显示「暂无数据」（该误导已一并修复），
+// 实际结果是「不如别登录」，反而促使把接口重新公开 —— 那才是真正的安全倒退。
+// 凭证强度不因时长改变：Cookie 仍是 httpOnly + Secure + SameSite，且不含 token 明文；
+// 过期时间被 HMAC 签在 payload 里，改期即验签失败，客户端无法自行延长。
+export const SESSION_TTL_SEC = 90 * 24 * 3600;
 
 export type AuthVerdict = "OK" | "UNCONFIGURED" | "DENIED";
 

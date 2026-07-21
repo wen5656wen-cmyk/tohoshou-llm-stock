@@ -13,6 +13,7 @@ import type { Tone } from "@/lib/design-tokens";
 import { fmtJpy, fmtPct, fmtScore, fmtJstClock, riskTone } from "@/lib/decision/ds";
 import { actionIcon } from "@/lib/decision/verdict";
 import { useDecision } from "@/lib/decision/provider";
+import DecisionStateNotice from "@/components/decision/DecisionStateNotice";
 import { useHoldings } from "@/lib/portfolio/use-holdings";
 import { computePortfolioHealth } from "@/lib/decision/portfolio-health";
 import { getPrimaryName } from "@/lib/company-name";
@@ -32,7 +33,7 @@ const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ b
 export default function DecisionOverviewV2() {
   const { t, lang } = useI18n();
   const router = useRouter();
-  const { overview, loading } = useDecision();
+  const { overview, loading, status, refresh: reloadDecision } = useDecision();
   const { data: pf, history, refresh } = useHoldings();
   const o = overview as any;
   const [detail, setDetail] = useState<ReportTarget | null>(null);
@@ -49,8 +50,10 @@ export default function DecisionOverviewV2() {
   }, [history]);
 
   if (loading) return <div className="max-w-[1760px] mx-auto px-4 sm:px-6 py-8"><AppLoading label={t("dv.ov2.title")} /></div>;
-  if (!o || o.ok === false || o.empty) {
-    return <div className="max-w-[1760px] mx-auto px-4 sm:px-6 py-14 text-center"><div className="text-[15px] font-semibold">{t("dv.ov2.title")}</div><div className="text-[12px] mt-1" style={{ color: "#9CA3AF" }}>{t("dc.ov.noData")}</div></div>;
+  // P21-P0-Boss：先按真实状态说话（未登录/服务端错/断网各有各的话），
+  // 只有确实拿到 200 且无内容才落到 EMPTY 的「暂无今日决策数据」。
+  if (status !== "READY" || !o) {
+    return <DecisionStateNotice status={status === "READY" ? "EMPTY" : status} onRetry={reloadDecision} />;
   }
 
   const gd = o.globalDecision ?? {}, fr = o.freshness ?? {}, mc = o.marketContext ?? {};

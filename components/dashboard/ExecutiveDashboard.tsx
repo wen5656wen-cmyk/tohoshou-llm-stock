@@ -15,6 +15,8 @@ import { verdictIcon, verdictTone } from "@/lib/decision/verdict";
 import { themeMomentum } from "@/lib/decision/themes";
 import ExplainReportButton from "@/components/explain/ExplainReportButton";
 import { evaluateOutcome, summarizeOutcomes, type OutcomeSummary } from "@/lib/decision/outcome";
+import { fetchDecision, worstStatus, type LoadStatus } from "@/lib/decision/provider";
+import DecisionStateNotice from "@/components/decision/DecisionStateNotice";
 
 interface Top1 { symbol: string; name: string | null; aiScore: number | null; gptScore: number | null; confidence: string | null; price: number | null; changePct: number | null; entryLow: number | null; entryHigh: number | null; target1: number | null; target2: number | null; stopLoss: number | null; holdPeriod: string | null }
 interface Leg { symbol: string; name: string | null; weight: number }
@@ -34,23 +36,30 @@ export default function ExecutiveDashboard() {
   const [th, setTh] = useState<ThemeApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [perf, setPerf] = useState<OutcomeSummary | null | "loading">("loading");
+  const [status, setStatus] = useState<LoadStatus>("READY");
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    const get = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     (async () => {
-      const [cj, dj, tj] = await Promise.all([get("/api/admin/closing-decision"), get("/api/admin/decision-center"), get("/api/ai-theme")]);
+      const [c, d, th] = await Promise.all([
+        fetchDecision<ClosingApi>("/api/admin/closing-decision"),
+        fetchDecision<DcApi>("/api/admin/decision-center"),
+        fetchDecision<ThemeApi>("/api/ai-theme"),
+      ]);
       if (!alive) return;
-      setC(cj && !cj.empty ? cj : null); setDc(dj); setTh(tj); setLoading(false);
+      // P21-P0-Boss：状态不再被吞。ai-theme 是配角，不参与页面级判定。
+      setStatus(worstStatus(c.status, d.status));
+      setC(c.data); setDc(d.data); setTh(th.data); setLoading(false);
     })();
     return () => { alive = false; };
-  }, []);
+  }, [nonce]);
 
   // AI 近期表现（最近 20 次第一推荐 · 经 outcome SSOT 评估，懒加载不阻塞决策）
   useEffect(() => {
     let alive = true;
     (async () => {
-      const get = (u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const get = async (u: string) => (await fetchDecision<any>(u)).data;
       const first = await get("/api/admin/closing-decision");
       const dates: string[] = Array.isArray(first?.availableDates) ? first.availableDates.slice(0, 20) : [];
       const outs = await Promise.all(dates.map(async (d) => {
@@ -66,6 +75,15 @@ export default function ExecutiveDashboard() {
   }, []);
 
   if (loading) return <div style={{ background: COLORS.background, minHeight: "100vh" }}><AppLoading label={t("ed.today")} /></div>;
+  // P21-P0-Boss：首页是系统第一眼，取不到决策数据时必须说清楚**为什么**。
+  // 未登录说未登录并给入口，服务端错/断网各自成话 —— 绝不再一律显示「暂无今日决策数据」。
+  if (status !== "READY") {
+    return (
+      <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
+        <DecisionStateNotice status={status} onRetry={() => { setLoading(true); setNonce((n) => n + 1); }} />
+      </div>
+    );
+  }
 
   const verdict = c?.verdict ?? null;
   const top1 = c?.top1 ?? null;

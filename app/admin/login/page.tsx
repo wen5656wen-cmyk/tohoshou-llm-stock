@@ -11,11 +11,16 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { safeNext } from "@/lib/navigation/safe-next";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/admin/mission-control";
+  // ⚠️ 开放重定向防护：next 完全来自 URL，属不可信输入。只允许**站内相对路径**。
+  //    "//evil.com" 与 "/\\evil.com" 在浏览器里都会被解析成站外地址，故第二个字符
+  //    不得是 / 或 \；同时排除带协议的绝对 URL。任何不合规输入一律回退到默认页，
+  //    不报错、不跳转 —— 攻击者拿不到跳转，用户也不会卡住。
+  const next = safeNext(params.get("next"));
   const [token, setToken] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "error" | "unconfigured">("idle");
 
