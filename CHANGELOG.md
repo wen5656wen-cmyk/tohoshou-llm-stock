@@ -2,6 +2,43 @@
 
 ---
 
+## [18.48.0] - 2026-07-21 — 📋 P19-T2：今日简报 Daily Briefing（原「今日策略」重做）
+
+「今日策略」重定位为 **今日简报** —— 回答「今天系统运行到哪里、接下来要做什么、今天需要关注什么」。设计稿 `docs/P19-T2_DAILY_BRIEFING_HIFI.md`。
+
+### 删除的空壳（原页约 60% 内容）
+交易时间轴 8 节点**全部「计划待生成」**（无盘中执行引擎）· 同一句 verdict 重复 3 次（顶部执行条/收盘计划/AI 备注）· 与决策总览重复的风险七项 · 弱于行业分析的行业重点。
+
+### ① 今日执行时间轴（核心）
+- 6 个节点全部对齐**真实 cron**，状态以**当日数据是否已产出**为唯一判据：
+  `07:30 AI评分`(StockScore.computedAt) · `08:20 Mission准备`(lastPrepareDate) · `09:30 Mission成交`(lastExecuteDate+Trade) · `09:00–15:30 盘中行情`(M1.1 session) · `15:15 收盘决策`(ClosingDecision.date) · `15:15+ 复盘+NAV`(PortfolioNavSnapshot)
+- **不读 `logs/pipeline-runs.jsonl`**：实测 mission-control 显示 `compute_scores 2026-07-04`，而 `StockScore.computedAt` 实为 `2026-07-21 07:08 JST`（陈旧 17 天）——同一 API 内 `todayPipeline` 与 `dataFreshness` 两套判据自相矛盾。本页改用直接 DB 证据。
+- 状态词统一 **已产出 / 进行中 / 未产出 / 已跳过**，**禁用「已执行」**（判据是数据存在性；实测 15:15 未到时当日已有 NAV 行，写「已执行」即错误断言）。
+- **归因精确**：`AiMissionNav` 由 09:30 Phase2 写入，**不作为** 15:15 节点的产出证据，仅作上下文展示。
+- 「下一步」节点唯一高亮 + 倒计时；非交易日整轴标「已跳过」。
+- 全量 13 步运维视图仍归 `/admin/mission-control`，本页只做入口，不搬内容。
+
+### ② 今日状态（四格，**各自独立 As Of**）
+市场状态（regime + trendDegraded，as of 收盘）· Mission 状态（as of 今日）· AI 推荐状态（as of 上一交易日 15:15）· 系统健康（取既有 `/api/health/status`，as of 审计时刻）。**不同口径不合并为单一时间标签。**
+
+### ③ 今日事件（诚实原则）
+TDnet 披露（窗口 **48h**——实测「今日」常为 0 条）· 研究日历（未来 **14 天**）· **财报发表预定 ⊘未接入** · **除权除息 ⊘未接入**，并说明所需数据源，未接入前**不展示、不推测**。
+
+### ④ 今日待办 / ⑤ 今日关注机会
+- 待办：Mission 待执行 · 持仓触及止盈/止损（与已落库的 `target1`/`stopLoss` **比价**，不重算策略）· 风险提醒，全部带跳转。
+- 今日关注机会（原「今日战术」改名并重新定位）：只读 `ClosingDecision.top10` 的**既有标记**分组（强势突破/回调低吸/新闻驱动/趋势跟随/进入买区），**不新增评分与推荐逻辑**，仅作关注方向。
+
+### 新增只读 API `GET /api/decision/briefing`
+零写入 · 约 17 条轻查询 · 失败隔离。**API 禁返展示文案**：未接入项只回传 `needKey`，文案由前端 i18n 渲染（开发中曾硬编码中文导致日文页面混排，已修）。
+
+### 其它
+导航 `dv.nav.strategy`：今日策略 → **今日简报 / デイリーブリーフィング**；i18n 新增 84 个 `br.*` 双语键。
+
+### 边界
+零 Schema · 零评分 · 零交易与资金链路 · 零 Decision/Mission Engine · **零 Cron（未新增任何 schedule）** · 不新增统计体系 · 不复制 Mission Control 运维视图。tsc 0 / eslint 0 / build ✅ / health CRITICAL=0 / zh·ja 无混排 / 1440·390 无横向溢出 / 仅重启 web。
+
+---
+
 ## [18.47.0] - 2026-07-21 — 🏅 P19-T1：AI 战绩档案（原「历史决策」重做）+ Decision Center 去重
 
 「历史决策」重定位为 **AI 战绩档案 Track Record —— 全站唯一业绩验证入口**，回答「AI 到底准不准、凭什么信它」。同时把散在三处的业绩统计收敛到本页。设计稿见 `docs/P19-T1_TRACK_RECORD_HIFI.md`（IA：`docs/P19-IA_BRIEFING_TRACKRECORD.md`）。
