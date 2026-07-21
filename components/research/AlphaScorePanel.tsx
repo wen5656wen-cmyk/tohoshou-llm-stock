@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { getRecommendationLabel } from "@/lib/rec-config";
 import Link from "next/link";
 import {
   RM,
@@ -39,11 +41,8 @@ type Weight = { factor: string; direction: number; weight: number };
 type Resp = { date: string | null; computedAt: string | null; total: number; weights: Weight[]; rows: Row[] };
 
 const FSHORT: Record<string, string> = {
-  RelativeStrength: "相对强弱", ATR: "波动率", VolumeRatio: "量比",
-  AverageTurnover: "成交额", Distance52WeekHigh: "距52周高", VolumeExpansion: "放量",
 };
 const REC_TONE: Record<string, Tone> = { STRONG_BUY: "green", BUY: "green", HOLD: "amber", WATCH: "amber", AVOID: "red" };
-const REC_ZH: Record<string, string> = { STRONG_BUY: "强力买入", BUY: "买入", HOLD: "持有", WATCH: "观察", AVOID: "回避" };
 const HIGH_DIV = 20; // 高分歧阈值（展示层分类，非新研究指标）
 
 function fx(v: number | null, d = 1) { return v == null ? "—" : v.toFixed(d); }
@@ -55,6 +54,8 @@ function topContribs(bd: Contribution[]): string {
 function deltaOf(r: Row): number | null { return r.aiAdaptiveScore == null ? null : r.alphaScore - r.aiAdaptiveScore; }
 
 export function AlphaScorePanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  const { t, lang } = useI18n();
+  const tx = t as (k: string) => string;
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,9 +107,9 @@ export function AlphaScorePanel({ onNavigate }: { onNavigate?: (tab: string) => 
   const goOverview = onNavigate ? () => onNavigate("overview") : undefined;
   const hero = <ShadowAlphaHero computedAt={data?.computedAt ?? null} date={data?.date ?? null} loading={loading} error={!!error} hasData={hasData} onBacktest={goBacktest} />;
 
-  if (error) return <ResearchPanelShell>{hero}<ResearchErrorState message={error} hint={<>请运行 <code style={{ color: RM.sub }}>npm run compute-alpha-score</code> 生成影子评分。</>} actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton>} /></ResearchPanelShell>;
-  if (loading) return <ResearchPanelShell>{hero}<ResearchLoadingState label="正在加载影子评分…" /></ResearchPanelShell>;
-  if (!hasData) return <ResearchPanelShell>{hero}<ResearchEmptyState title="暂无影子评分数据" desc="Alpha 影子评分尚未生成或 API 暂无返回。" actions={<><ResearchButton variant="primary" onClick={goBacktest} disabled={!goBacktest}>查看 Alpha策略回测</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>返回综合驾驶舱</ResearchButton></>} /></ResearchPanelShell>;
+  if (error) return <ResearchPanelShell>{hero}<ResearchErrorState message={error} hint={t("rp.ascore.errHint")} actions={<ResearchButton onClick={goOverview} disabled={!goOverview}>{t("rp.ascore.backFactors")}</ResearchButton>} /></ResearchPanelShell>;
+  if (loading) return <ResearchPanelShell>{hero}<ResearchLoadingState /></ResearchPanelShell>;
+  if (!hasData) return <ResearchPanelShell>{hero}<ResearchEmptyState title={t("rp.ascore.emptyTitle")} desc={t("rp.ascore.emptyDesc")} actions={<><ResearchButton variant="primary" onClick={goBacktest} disabled={!goBacktest}>{t("rp.ascore.toBacktest")}</ResearchButton><ResearchButton onClick={goOverview} disabled={!goOverview}>{t("rp.ascore.backFactors")}</ResearchButton></>} /></ResearchPanelShell>;
 
   return (
     <ResearchPanelShell>
@@ -116,18 +117,18 @@ export function AlphaScorePanel({ onNavigate }: { onNavigate?: (tab: string) => 
 
       {/* KPI —— Alpha/Production 覆盖 + 分歧统计（真实字段相减的展示层聚合） */}
       <ResearchKpiGrid>
-        <ResearchKpiCard label="Alpha评分覆盖" value={total.toLocaleString()} sub="影子评分股票数" tone="blue" />
-        <ResearchKpiCard label="Production覆盖" value={stat.withProd.toLocaleString()} sub="有正式评分对照" />
-        <ResearchKpiCard label="平均分差" value={fx(stat.mean, 1)} sub="|Alpha − 正式| 均值" />
-        <ResearchKpiCard label="高分歧数" value={stat.high.toLocaleString()} sub={`|分差| ≥ ${HIGH_DIV}`} tone={stat.high > 0 ? "amber" : "neutral"} />
-        <ResearchKpiCard label="最大分差" value={fx(stat.max, 1)} sub="单只最大分歧" />
-        <ResearchKpiCard label="影子健康度" value={<span className="text-[16px]">暂无数据</span>} sub="API 无健康度字段" />
+        <ResearchKpiCard label={t("rp.ascore.kpiCoverage")} value={total.toLocaleString()} sub={t("rp.ascore.kpiCoverageSub")} tone="blue" />
+        <ResearchKpiCard label={t("rp.ascore.kpiProd")} value={stat.withProd.toLocaleString()} sub={t("rp.ascore.kpiProdSub")} />
+        <ResearchKpiCard label={t("rp.ascore.kpiMean")} value={fx(stat.mean, 1)} sub={t("rp.ascore.kpiMeanSub")} />
+        <ResearchKpiCard label={t("rp.ascore.kpiHigh")} value={stat.high.toLocaleString()} sub={`|Δ| ≥ ${HIGH_DIV}`} tone={stat.high > 0 ? "amber" : "neutral"} />
+        <ResearchKpiCard label={t("rp.ascore.kpiMax")} value={fx(stat.max, 1)} sub={t("rp.ascore.kpiMaxSub")} />
+        <ResearchKpiCard label={t("rp.ascore.kpiHealth")} value={<span className="text-[16px]">{t("common.no_data")}</span>} sub={t("rp.ascore.kpiHealthSub")} />
       </ResearchKpiGrid>
 
       {/* 因子权重 + 观察 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-2">
-          <ResearchSection title="Alpha 因子权重" desc="影子评分的 6 因子方向与权重（API 原值）">
+          <ResearchSection title={t("rp.ascore.weights")} desc={t("rp.ascore.weightsDesc")}>
             <div className="flex flex-wrap gap-2">
               {(data!.weights ?? []).map((w) => (
                 <ResearchChip key={w.factor} tone={w.direction >= 0 ? "green" : "red"}>
@@ -137,44 +138,44 @@ export function AlphaScorePanel({ onNavigate }: { onNavigate?: (tab: string) => 
             </div>
           </ResearchSection>
         </div>
-        <ResearchInsightCard title="影子评分观察" tone="blue">
-          覆盖 <b style={{ color: RM.ink }}>{total.toLocaleString()}</b> 只，与正式评分平均分差 <b style={{ color: RM.ink }}>{fx(stat.mean, 1)}</b>，高分歧 <b style={{ color: RM.ink }}>{stat.high}</b> 只。是否融合见 <button onClick={goBacktest} disabled={!goBacktest} className="font-semibold disabled:opacity-40" style={{ color: RM.blue }}>Alpha策略回测</button>。
+        <ResearchInsightCard title={t("rp.ascore.insight")} tone="blue">
+          {t("rp.ascore.insightBody").replace("{total}", total.toLocaleString()).replace("{mean}", String(fx(stat.mean, 1))).replace("{high}", String(stat.high))}
         </ResearchInsightCard>
       </div>
 
       {/* Production vs Shadow 分歧分布 */}
-      <ResearchSection title="Production vs Shadow 分歧分布" desc="按 |Alpha − 正式| 分档统计（一致 / 分歧 / 高分歧）">
+      <ResearchSection title={t("rp.ascore.divTitle")} desc={t("rp.ascore.divDesc")}>
         <div className="grid grid-cols-3 gap-3">
-          <DivBucket label="一致" sub="|分差| < 10" value={stat.low} tone="green" />
-          <DivBucket label="分歧" sub="10 ≤ |分差| < 20" value={stat.mid} tone="amber" />
-          <DivBucket label="高分歧" sub={`|分差| ≥ ${HIGH_DIV}`} value={stat.high} tone="red" />
+          <DivBucket label={t("rp.ascore.bucketLow")} sub="|Δ| < 10" value={stat.low} tone="green" />
+          <DivBucket label={t("rp.ascore.bucketMid")} sub="10 ≤ |Δ| < 20" value={stat.mid} tone="amber" />
+          <DivBucket label={t("rp.ascore.bucketHigh")} sub={`|Δ| ≥ ${HIGH_DIV}`} value={stat.high} tone="red" />
         </div>
       </ResearchSection>
 
       {/* Top Divergence 表 */}
       <ResearchSection
-        title="Top Divergence · 分歧最大股票"
-        desc={`按 |Alpha − 正式| 降序 · 共 ${rows.length.toLocaleString()} 行`}
+        title={t("rp.ascore.topDiv")}
+        desc={t("rp.ascore.topDivDesc").replace("{n}", rows.length.toLocaleString())}
         right={
           <div className="flex items-center gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索代码 / 名称…" className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none" style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }} />
-            <ResearchButton onClick={exportCsv} disabled={!rows.length}>导出CSV</ResearchButton>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("rp.ascore.search")} className="text-[12px] rounded-lg px-3 h-9 w-52 focus:outline-none" style={{ background: RM.card, color: RM.ink, border: `1px solid ${RM.border}` }} />
+            <ResearchButton onClick={exportCsv} disabled={!rows.length}>{t("rp.ascore.exportCsv")}</ResearchButton>
           </div>
         }
       >
         {rows.length === 0 ? (
-          <ResearchEmptyState title="无匹配股票" desc="尝试更换搜索关键词，或清空搜索框。" />
+          <ResearchEmptyState title={t("rp.ascore.noMatch")} desc={t("rp.ascore.noMatchDesc")} />
         ) : (
           <div style={{ maxHeight: "calc(100vh - 300px)", overflow: "auto" }}>
             <ResearchTable minWidth={860}>
               <thead>
                 <tr>
-                  <RTh>股票</RTh>
-                  <RTh align="right">正式评分</RTh>
-                  <RTh align="right">Alpha评分</RTh>
-                  <RTh align="right">差异</RTh>
-                  <RTh align="center">AI评级</RTh>
-                  <RTh>主要贡献因子</RTh>
+                  <RTh>{t("rp.ascore.colStock")}</RTh>
+                  <RTh align="right">{t("rp.ascore.colProd")}</RTh>
+                  <RTh align="right">{t("rp.ascore.colAlpha")}</RTh>
+                  <RTh align="right">{t("rp.ascore.colDelta")}</RTh>
+                  <RTh align="center">{t("rp.ascore.colRating")}</RTh>
+                  <RTh>{t("rp.ascore.colFactors")}</RTh>
                 </tr>
               </thead>
               <tbody>
@@ -190,16 +191,16 @@ export function AlphaScorePanel({ onNavigate }: { onNavigate?: (tab: string) => 
                       <RTd align="right" mono color={RM.ink}>{r.alphaScore.toFixed(1)}</RTd>
                       <RTd align="right" mono color={retColor(d)}>
                         {d == null ? "—" : `${d >= 0 ? "+" : ""}${d.toFixed(1)}`}
-                        {d != null && Math.abs(d) >= HIGH_DIV ? <span className="ml-1.5"><ResearchStatusBadge tone="amber">高分歧</ResearchStatusBadge></span> : null}
+                        {d != null && Math.abs(d) >= HIGH_DIV ? <span className="ml-1.5"><ResearchStatusBadge tone="amber">{t("rp.ascore.bucketHigh")}</ResearchStatusBadge></span> : null}
                       </RTd>
-                      <RTd align="center">{r.aiRecommendationV2 ? <ResearchStatusBadge tone={REC_TONE[r.aiRecommendationV2] ?? "neutral"}>{REC_ZH[r.aiRecommendationV2] ?? r.aiRecommendationV2}</ResearchStatusBadge> : <span style={{ color: RM.faint }}>—</span>}</RTd>
+                      <RTd align="center">{r.aiRecommendationV2 ? <ResearchStatusBadge tone={REC_TONE[r.aiRecommendationV2] ?? "neutral"}>{getRecommendationLabel(r.aiRecommendationV2, lang)}</ResearchStatusBadge> : <span style={{ color: RM.faint }}>—</span>}</RTd>
                       <RTd color={RM.faint}><span className="text-[11px] font-mono">{topContribs(r.factorBreakdown)}</span></RTd>
                     </tr>
                   );
                 })}
               </tbody>
             </ResearchTable>
-            {rows.length > 600 && <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>为保证渲染性能，仅展示前 600 行（共 {rows.length.toLocaleString()} 行）。完整数据请「导出CSV」。</div>}
+            {rows.length > 600 && <div className="mt-2 text-[12px]" style={{ color: RM.faint }}>{t("rp.ascore.rowLimit").replace("{n}", rows.length.toLocaleString())}</div>}
           </div>
         )}
       </ResearchSection>
@@ -212,7 +213,7 @@ function DivBucket({ label, sub, value, tone }: { label: string; sub: string; va
   return (
     <div className="rounded-xl px-4 py-3" style={{ background: RM.card, border: `1px solid ${RM.border}` }}>
       <div className="text-[11px]" style={{ color: RM.muted }}>{label}</div>
-      <div className="mt-1 text-[22px] font-semibold tabular-nums" style={{ color: c }}>{value.toLocaleString()}<span className="text-[12px] ml-1" style={{ color: RM.faint }}>只</span></div>
+      <div className="mt-1 text-[22px] font-semibold tabular-nums" style={{ color: c }}>{value.toLocaleString()}</div>
       <div className="text-[11px]" style={{ color: RM.faint }}>{sub}</div>
     </div>
   );
@@ -222,25 +223,27 @@ function DivBucket({ label, sub, value, tone }: { label: string; sub: string; va
 function ShadowAlphaHero({ computedAt, date, loading, error, hasData, onBacktest }: {
   computedAt: string | null; date: string | null; loading: boolean; error: boolean; hasData: boolean; onBacktest?: () => void;
 }) {
-  const statusText = loading ? "运行中" : error ? "暂无数据" : hasData ? "已启用" : "暂无数据";
+  const { t } = useI18n();
+  const tx = t as (k: string) => string;
+  const statusText = loading ? tx("common.loading") : hasData && !error ? tx("rp.ascore.statusOn") : tx("common.no_data");
   const statusTone: Tone = loading ? "amber" : error || !hasData ? "neutral" : "green";
   return (
     <div className="rounded-2xl px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-4" style={{ background: RM.panel, border: `1px solid ${RM.border}` }}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>影子评分</h1>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: RM.ink }}>{tx("rw.a.score")}</h1>
           <span className="text-[12px] font-medium" style={{ color: RM.faint }}>Shadow Alpha Scoring</span>
           <ResearchStatusBadge tone={statusTone}>{statusText}</ResearchStatusBadge>
-          <ResearchStatusBadge tone="amber">影子模式</ResearchStatusBadge>
+          <ResearchStatusBadge tone="amber">{tx("rw.v.shadow")}</ResearchStatusBadge>
         </div>
-        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>Alpha评分对照 · Production差异 · Shadow验证</p>
+        <p className="mt-1.5 text-[13px]" style={{ color: RM.muted }}>{tx("rp.ascore.subtitle")}</p>
         <div className="mt-2 flex items-center gap-4 flex-wrap text-[12px]">
-          <span style={{ color: RM.sub }}>当前模式 <b style={{ color: RM.ink }}>影子（Shadow）</b></span>
-          <span style={{ color: RM.faint }}>数据日期 <b className="tabular-nums" style={{ color: RM.sub }}>{date ?? "暂无数据"}</b></span>
-          <span style={{ color: RM.faint }}>最近计算 <span className="tabular-nums" style={{ color: RM.sub }}>{computedAt ? new Date(computedAt).toLocaleString("zh-CN") : "暂无数据"}</span></span>
+          
+          <span style={{ color: RM.faint }}>{tx("common.asOf.data")} <b className="tabular-nums" style={{ color: RM.sub }}>{date ?? tx("common.no_data")}</b></span>
+          
         </div>
       </div>
-      <div className="shrink-0"><ResearchButton onClick={onBacktest} disabled={!onBacktest}>查看 Alpha策略回测 →</ResearchButton></div>
+      <div className="shrink-0"><ResearchButton onClick={onBacktest} disabled={!onBacktest}>{tx("rp.ascore.toBacktest")} →</ResearchButton></div>
     </div>
   );
 }

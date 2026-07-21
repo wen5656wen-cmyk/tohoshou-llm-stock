@@ -59,7 +59,7 @@ export function AsOfBar({ asOf, source, onRefresh, refreshing }: {
 export function SummaryCard({ headline, items, tone = "neutral" }: {
   headline: string;
   items?: { label: string; value: ReactNode }[];
-  tone?: "neutral" | "green" | "amber" | "red";
+  tone?: "neutral" | "blue" | "green" | "amber" | "red";
 }) {
   const bar = tone === "green" ? COLORS.success : tone === "amber" ? COLORS.warning : tone === "red" ? COLORS.danger : COLORS.primary;
   return (

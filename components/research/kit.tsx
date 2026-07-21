@@ -7,6 +7,7 @@
 
 import type { ReactNode, CSSProperties } from "react";
 import { COLORS, SHADOW as TOK_SHADOW } from "@/lib/design-tokens";
+import { useI18n } from "@/lib/i18n";
 
 // 研究中心调色板 —— 现由全站 Design Tokens 派生（单一来源，P4-T2），值不变。
 export const RM = {
@@ -200,11 +201,13 @@ export function RTd({
 export const rowHoverClass = "hover:bg-[#F5F6F8] transition-colors";
 
 // ── States ────────────────────────────────────────────────────────────────────
-export function ResearchLoadingState({ label = "加载中…" }: { label?: string }) {
+export function ResearchLoadingState({ label }: { label?: string }) {
+  const { t } = useI18n();
+  const text = label ?? t("common.loading");
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16" style={{ background: RM.panel, border: `1px solid ${RM.border}`, borderRadius: R_CARD, boxShadow: SHADOW }}>
       <div className="w-7 h-7 rounded-full animate-spin" style={{ border: `2.5px solid ${RM.border}`, borderTopColor: RM.blue }} />
-      <div className="text-[13px]" style={{ color: RM.muted }}>{label}</div>
+      <div className="text-[13px]" style={{ color: RM.muted }}>{text}</div>
     </div>
   );
 }
@@ -221,9 +224,10 @@ export function ResearchEmptyState({ title, desc, actions }: { title: string; de
 }
 
 export function ResearchErrorState({ message, hint, actions }: { message: string; hint?: ReactNode; actions?: ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="px-6 py-8 flex flex-col items-center text-center gap-2" style={{ background: `${RM.red}0d`, border: `1px solid ${RM.red}33`, borderRadius: R_CARD }}>
-      <div className="text-[14px] font-semibold" style={{ color: RM.red }}>加载失败</div>
+      <div className="text-[14px] font-semibold" style={{ color: RM.red }}>{t("common.load_error")}</div>
       <div className="text-[13px]" style={{ color: RM.sub }}>{message}</div>
       {hint && <div className="text-[12px] mt-0.5" style={{ color: RM.faint }}>{hint}</div>}
       {actions && <div className="mt-2 flex items-center gap-2 flex-wrap justify-center">{actions}</div>}
