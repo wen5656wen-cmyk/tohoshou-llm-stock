@@ -25,6 +25,8 @@ export const isWorkspaceEnabled = (ws: Workspace): boolean => ENABLED_WORKSPACES
 
 export type NavNode = {
   key: string;
+  /** P21-T5-4B：受众标记，为后续权限控制预留。boss = 老板可见；ops = 运维专属。 */
+  audience?: "boss" | "ops";
   labelKey: string;
   href: string;
   Icon: NavIcon;
@@ -64,9 +66,13 @@ export const NAV_NODES: NavNode[] = [
   { key: "rs-analysis", workspace: "research", labelKey: "rw.stage3", href: "/admin/research?tab=analysis", Icon: Microscope, glyph: "🔬" },
   { key: "rs-experiments", workspace: "research", labelKey: "rw.stage4", href: "/admin/research?tab=experiments", Icon: Clock, glyph: "↺" },
   { key: "rs-conclusions", workspace: "research", labelKey: "rw.stage5", href: "/admin/research?tab=conclusions", Icon: Star, glyph: "★" },
-
-  // ═══ 管理工作区（Management · 保留现有入口 = Mission Control Hub，本轮不重构）═══
-  { key: "system", workspace: "admin", labelKey: "ws.systemOverview", href: "/admin/mission-control", Icon: Settings, glyph: "⚙" },
+  // ═══ 系统工作区（P21-T5-4B · 四阶段：运行 → 监控 → 维护 → 操作）═══
+  // audience 为后续权限控制预留：boss 可见 / ops 运维专属。
+  // ⚠️ sys-ops 是唯一含写操作的节点，UI 上以分隔线 + ⚠ 与只读区切开。
+  { key: "sys-runtime", workspace: "admin", labelKey: "sys.stage1", href: "/admin/mission-control?tab=runtime", Icon: Settings, glyph: "⚙", audience: "boss" },
+  { key: "sys-health", workspace: "admin", labelKey: "sys.stage2", href: "/admin/mission-control?tab=health", Icon: Boxes, glyph: "◈", audience: "boss" },
+  { key: "sys-maintenance", workspace: "admin", labelKey: "sys.stage3", href: "/admin/mission-control?tab=maintenance", Icon: Layers, glyph: "▦", audience: "ops" },
+  { key: "sys-ops", workspace: "admin", labelKey: "sys.stage4", href: "/admin/mission-control?tab=ops", Icon: Clock, glyph: "⚠", audience: "ops" },
 ];
 
 // ── 路径 → 工作区 推导（软切换核心：URL 决定当前工作区）──────────────────────

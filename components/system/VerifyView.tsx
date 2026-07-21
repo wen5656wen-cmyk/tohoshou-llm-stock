@@ -31,19 +31,7 @@ interface StatusData {
   };
 }
 
-type DailyRecRow = {
-  date: string; symbol: string; name: string; nameZh: string | null;
-  gptRank: number; finalScore: number; adaptiveScore: number; gptScore: number;
-  gptRating: string | null; buyPrice: number | null; recommendation: string | null;
-  summaryZh: string | null; entryPrice: number | null;
-  return7d: number | null; return30d: number | null; return90d: number | null;
-};
 
-type HistoryRow = {
-  date: string; gptRank: number; finalScore: number; adaptiveScore: number;
-  gptScore: number; gptRating: string | null; buyPrice: number | null;
-  recommendation: string | null; return7d: number | null; return30d: number | null; return90d: number | null;
-};
 
 type BacktestResult = {
   date: string; horizon: string; portfolioSize: string; winRate: number | null;
@@ -188,15 +176,7 @@ export default function AdminVerifyPage() {
   const [copied, setCopied]         = useState(false);
   const [health, setHealth]         = useState<{ status: string; criticalCount: number; warningCount: number; passCount: number; adjCoveragePct: number; auditAt: string; latestPriceDate: string } | null>(null);
 
-  const [recDate, setRecDate]       = useState("");
-  const [recSymbol, setRecSymbol]   = useState("");
-  const [recRows, setRecRows]       = useState<DailyRecRow[]>([]);
-  const [availDates, setAvailDates] = useState<{ date: string; count: number }[]>([]);
-  const [recLoading, setRecLoading] = useState(false);
 
-  const [histSymbol, setHistSymbol] = useState("");
-  const [histData, setHistData]     = useState<{ symbol: string; name: string; nameZh: string | null; rows: HistoryRow[] } | null>(null);
-  const [histLoading, setHistLoading] = useState(false);
 
   // ── Loaders ────────────────────────────────────────────────────────────────
   const loadStatus = useCallback(async () => {
@@ -214,29 +194,10 @@ export default function AdminVerifyPage() {
     }
   }, []);
 
-  const loadDailyRec = useCallback((date: string, sym: string) => {
-    setRecLoading(true);
-    const p = new URLSearchParams({ module: "dailyrec", limit: "100" });
-    if (date) p.set("date", date);
-    if (sym)  p.set("symbol", sym);
-    fetch(`/api/admin/verify?${p}`)
-      .then(r => r.json())
-      .then(d => { setRecRows(d.rows ?? []); setAvailDates(d.availDates ?? []); })
-      .finally(() => setRecLoading(false));
-  }, []);
 
-  const loadHistory = useCallback((sym: string) => {
-    if (!sym) return;
-    setHistLoading(true);
-    fetch(`/api/admin/verify?module=history&symbol=${encodeURIComponent(sym)}`)
-      .then(r => r.json())
-      .then(d => setHistData(d))
-      .finally(() => setHistLoading(false));
-  }, []);
 
   useEffect(() => {
     loadStatus();
-    loadDailyRec("", "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -282,17 +243,17 @@ export default function AdminVerifyPage() {
 
       {/* ── Hero — Verification Center ─────────────────────────────────────── */}
       {(() => {
-        const hCrit = health?.criticalCount ?? status?.meta.healthCritical ?? blocking.length;
+        const hCrit = health?.criticalCount ?? status?.meta?.healthCritical ?? blocking.length;
         const hWarn = health?.warningCount ?? warnings.length;
         const hScore = Math.max(0, Math.min(100, 100 - hCrit * 25 - hWarn * 3));
         const scoreColor = hCrit > 0 ? "#FF3B30" : hScore >= 90 ? "#34C759" : "#FF9F0A";
-        const coverage = health?.adjCoveragePct ?? (status?.meta.priceSyncOk ? 100 : null);
+        const coverage = health?.adjCoveragePct ?? (status?.meta?.priceSyncOk ? 100 : null);
         const lastCheck = status ? new Date(status.checkedAt).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" }).slice(5, 16) : "—";
         const cells = [
           { label: "Health Score", value: `${hScore}`, unit: health?.status === "WARNING" ? "注意" : hCrit > 0 ? "异常" : "Healthy", color: scoreColor },
           { label: "Warnings", value: `${hWarn}`, unit: "Non Blocking", color: hWarn > 0 ? "#FF9F0A" : "#34C759" },
           { label: "Critical", value: `${hCrit}`, unit: hCrit === 0 ? "PASS" : "Blocking", color: hCrit > 0 ? "#FF3B30" : "#34C759" },
-          { label: "Stocks", value: (status?.meta.stockCount ?? 0).toLocaleString(), unit: "上市", color: "#1D1D1F" },
+          { label: "Stocks", value: (status?.meta?.stockCount ?? 0).toLocaleString(), unit: "上市", color: "#1D1D1F" },
           { label: "Coverage", value: coverage != null ? `${coverage}%` : "—", unit: "行情覆盖", color: coverage != null && coverage >= 95 ? "#34C759" : "#FF9F0A" },
           { label: "Last Check", value: lastCheck.split(" ")[1] ?? lastCheck, unit: `${lastCheck.split(" ")[0] ?? ""} JST`, color: "#1D1D1F" },
         ];
@@ -382,116 +343,6 @@ export default function AdminVerifyPage() {
       <div className="mb-4">
         <AISafetyPanel />
       </div>
-
-      {/* ── 每日推荐快照 / DailyRecommendation Snapshot ─────────────────── */}
-      <Section id="dailyrec" title="每日推荐快照 / DailyRecommendation Snapshot">
-        <div className="flex gap-2 mb-3 flex-wrap items-center">
-          <select
-            value={recDate}
-            onChange={e => { setRecDate(e.target.value); loadDailyRec(e.target.value, recSymbol); }}
-            className="border border-slate-200 rounded px-2 py-1 text-xs bg-white"
-          >
-            <option value="">全部日期 / All dates</option>
-            {availDates.map(d => (
-              <option key={d.date} value={d.date}>{d.date}（{d.count} 条）</option>
-            ))}
-          </select>
-          <input
-            type="text" placeholder="代码 / Symbol…" value={recSymbol}
-            onChange={e => setRecSymbol(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && loadDailyRec(recDate, recSymbol)}
-            className="border border-slate-200 rounded px-2 py-1 text-xs w-28 font-mono"
-          />
-          <button onClick={() => loadDailyRec(recDate, recSymbol)}
-            className="bg-slate-700 text-white text-xs px-3 py-1 rounded">筛选 / Filter</button>
-          <span className="text-xs text-slate-400">{recRows.length} 条</span>
-        </div>
-        {recLoading ? <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50">
-                  {["日期/Date","代码/Sym","名称/Name","排名/Rank","综合分","规则分","GPT分","GPT评级","推荐","价格/Price","7日%","30日%"].map(h => (
-                    <th key={h} className="text-left px-2 py-1.5 text-slate-500 font-semibold border-b border-slate-100 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recRows.length === 0 && (
-                  <tr><td colSpan={12} className="text-center py-6 text-slate-400">暂无数据 / No data</td></tr>
-                )}
-                {recRows.map((r, i) => (
-                  <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="px-2 py-1 font-mono text-slate-400">{r.date}</td>
-                    <td className="px-2 py-1 font-mono font-bold text-indigo-600">{r.symbol}</td>
-                    <td className="px-2 py-1 max-w-[90px] truncate text-slate-600" title={r.nameZh ?? r.name}>{r.nameZh ?? r.name}</td>
-                    <td className="px-2 py-1 font-semibold text-slate-700">#{r.gptRank}</td>
-                    <td className="px-2 py-1 font-mono">{fmt(r.finalScore)}</td>
-                    <td className="px-2 py-1 font-mono text-slate-500">{fmt(r.adaptiveScore)}</td>
-                    <td className="px-2 py-1 font-mono text-slate-500">{fmt(r.gptScore)}</td>
-                    <td className="px-2 py-1">{ratingBadge(r.gptRating)}</td>
-                    <td className="px-2 py-1">{ratingBadge(r.recommendation)}</td>
-                    <td className="px-2 py-1 font-mono">{fmtJpy(r.buyPrice)}</td>
-                    <td className={`px-2 py-1 font-mono ${retColor(r.return7d)}`}>{fmtPct(r.return7d)}</td>
-                    <td className={`px-2 py-1 font-mono ${retColor(r.return30d)}`}>{fmtPct(r.return30d)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Section>
-
-      {/* ── 历史快照 / Historical Snapshot ──────────────────────────────── */}
-      <Section id="history" title="历史快照 / Historical Snapshot — 按代码查询">
-        <div className="flex gap-2 mb-3">
-          <input
-            type="text" placeholder="如 / e.g. 7203.T" value={histSymbol}
-            onChange={e => setHistSymbol(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === "Enter" && loadHistory(histSymbol)}
-            className="border border-slate-200 rounded px-2 py-1 text-xs w-32 font-mono"
-          />
-          <button onClick={() => loadHistory(histSymbol)}
-            className="bg-slate-700 text-white text-xs px-3 py-1 rounded">查询 / Search</button>
-        </div>
-        {histLoading && <p className="text-xs text-slate-400 animate-pulse">加载中 / Loading…</p>}
-        {histData && !histLoading && (
-          <div>
-            <p className="text-sm font-semibold text-slate-700 mb-2">
-              {histData.symbol} · {histData.nameZh ?? histData.name}
-              <span className="ml-2 text-xs text-slate-400">{histData.rows.length} 日</span>
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50">
-                    {["日期","排名","综合分","规则分","GPT分","GPT评级","推荐","参考价","7日%","30日%","90日%"].map(h => (
-                      <th key={h} className="text-left px-2 py-1 text-slate-500 font-semibold border-b border-slate-100">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {histData.rows.map((r, i) => (
-                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="px-2 py-1 font-mono text-slate-400">{r.date}</td>
-                      <td className="px-2 py-1 font-semibold text-slate-700">#{r.gptRank}</td>
-                      <td className="px-2 py-1 font-mono">{fmt(r.finalScore)}</td>
-                      <td className="px-2 py-1 font-mono text-slate-500">{fmt(r.adaptiveScore)}</td>
-                      <td className="px-2 py-1 font-mono text-slate-500">{fmt(r.gptScore)}</td>
-                      <td className="px-2 py-1">{ratingBadge(r.gptRating)}</td>
-                      <td className="px-2 py-1">{ratingBadge(r.recommendation)}</td>
-                      <td className="px-2 py-1 font-mono">{fmtJpy(r.buyPrice)}</td>
-                      <td className={`px-2 py-1 font-mono ${retColor(r.return7d)}`}>{fmtPct(r.return7d)}</td>
-                      <td className={`px-2 py-1 font-mono ${retColor(r.return30d)}`}>{fmtPct(r.return30d)}</td>
-                      <td className={`px-2 py-1 font-mono ${retColor(r.return90d)}`}>{fmtPct(r.return90d)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </Section>
 
       {/* ── 回测结果 → 重定向 ────────────────────────────────────────────── */}
       <Section id="backtest" title="回测验证">
