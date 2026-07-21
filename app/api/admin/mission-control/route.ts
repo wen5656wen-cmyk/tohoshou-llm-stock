@@ -163,6 +163,8 @@ const STEP_DEFS: StepDef[] = [
 const MISS_GRACE_MINUTES = 150;
 
 export async function GET() {
+  // P21-P0-Health：真实探测的计时起点。
+  const probeT0 = Date.now();
   try {
     const today = todayJst();
     const now = nowJst();
@@ -707,7 +709,40 @@ export async function GET() {
       .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
       .slice(0, 10);
 
+
+    // ── P21-P0-Health · 真实服务探测 ────────────────────────────────────────
+    // ⚠️ 改造前 Database / API / AI Engine 三盏灯在前端是**写死的 ok:true**，
+    //    从未探测过任何东西 —— 给出的是错误的系统健康信号。
+    //    这里改为真实探测，结果可能是黄/红，那是事实，不是回退。
+    const dbT0 = Date.now();
+    let dbOk = false;
+    let dbLatencyMs: number | null = null;
+    let dbError: string | null = null;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbOk = true;
+      dbLatencyMs = Date.now() - dbT0;
+    } catch (e) {
+      dbError = String((e as Error)?.message ?? e).slice(0, 120);
+      dbLatencyMs = Date.now() - dbT0;
+    }
+
+    // AI Engine：不看「有没有配置」，看**今天是否真的算出了评分**。
+    // 配置存在但 cron 挂了，仍应是异常。
+    const aiScoredToday = todayScoreCount > 0;
+    const aiLastComputedAt = latestScoreRow?.computedAt?.toISOString() ?? null;
+    const aiKeyConfigured = !!process.env.OPENAI_API_KEY;
+
+    const probes = {
+      // API 自身：能读到这个响应即说明 API 活着 —— 故不报「是否正常」（那是同义反复），
+      // 只报**真实的聚合耗时**，让慢化可见。
+      api: { latencyMs: Date.now() - probeT0 },
+      database: { ok: dbOk, latencyMs: dbLatencyMs, error: dbError },
+      aiEngine: { ok: aiScoredToday, scoredToday: todayScoreCount, lastComputedAt: aiLastComputedAt, keyConfigured: aiKeyConfigured },
+    };
+
     return NextResponse.json({
+      probes,
       productionStatus: {
         status: productionStatus,
         passCount: healthGuard.pass,
@@ -750,7 +785,7 @@ export async function GET() {
           latestDate: latestScoreRow?.computedAt
             ? new Date(latestScoreRow.computedAt.getTime() + 9 * 3600_000).toISOString().slice(0, 10)
             : null,
-          scoredTodayCount: todayScoreCount,
+          todayScoreCount: todayScoreCount,
         },
       },
       strategyRecommendations,

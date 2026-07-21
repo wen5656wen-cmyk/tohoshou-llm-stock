@@ -22,7 +22,15 @@ interface IssueDetail { id: string; name: string; level: Severity; value: string
 interface Incident { time: string; level: Severity; module: string; title: string; description: string; status: string }
 interface ArchitectureStatus { version: string; status: string; frozenDate: string; currentMode: string; nextPhase: string; unlocked: boolean }
 
+/** P21-P0-Health：真实服务探测。改造前 Database/API/AI Engine 三盏灯是写死的 ok:true。 */
+interface Probes {
+  api: { latencyMs: number };
+  database: { ok: boolean; latencyMs: number | null; error: string | null };
+  aiEngine: { ok: boolean; scoredToday: number; lastComputedAt: string | null; keyConfigured: boolean };
+}
+
 interface MissionControlV2 {
+  probes?: Probes;
   productionStatus: { status: Severity; passCount: number; healthWarningCount: number; healthCriticalCount: number; highestSeverity: Severity; reasons: string[]; lastUpdated: string | null };
   todayPipeline: { completedSteps: number; totalSteps: number; completionPct: number; failedCount: number; allDoneToday: boolean; steps: PipelineStep[] };
   dataFreshness: {
@@ -125,14 +133,15 @@ export default function MissionControlPage() {
   const healthy = data.health.criticalCount === 0;
   const scoreVer = version.scoreVersion ?? "adaptive-v3";
   const nextCron = todayPipeline.steps.find((s) => s.status === "WAITING")?.scheduledLabel.replace(" JST", "") ?? "—";
+  const probes = data.probes;
   const webOnline = pm2.web?.status === "online";
   const cronOnline = pm2.cron?.status === "online";
 
   const kpis = [
     { label: "AI Engine", value: scoreVer, sub: arch.status === "FROZEN" ? "已冻结 · 影子" : arch.currentMode, color: M.blue },
     { label: "Cron", value: cronOnline ? "运行中" : "异常", sub: pm2.cron ? `↺${pm2.cron.restarts} · ${fmtUptime(pm2.cron.uptimeMs)}` : "—", tone: cronOnline ? M.green : M.red },
-    { label: "API", value: "正常", sub: "接口响应正常", tone: M.green },
-    { label: "Database", value: "正常", sub: "PostgreSQL 连接正常", tone: M.green },
+    { label: "API", value: probes ? `${probes.api.latencyMs}ms` : "—", sub: "聚合耗时", tone: !probes ? M.faint : probes.api.latencyMs > 3000 ? M.amber : M.green },
+    { label: "Database", value: !probes ? "—" : probes.database.ok ? `${probes.database.latencyMs}ms` : "异常", sub: !probes ? "未探测" : probes.database.ok ? "PostgreSQL" : (probes.database.error ?? "连接失败"), tone: !probes ? M.faint : !probes.database.ok ? M.red : (probes.database.latencyMs ?? 0) > 500 ? M.amber : M.green },
     { label: "Pipeline", value: `${todayPipeline.completedSteps}/${todayPipeline.totalSteps}`, sub: `完成率 ${todayPipeline.completionPct}%`, tone: todayPipeline.failedCount > 0 ? M.red : M.ink },
     { label: "Health", value: `${healthScore}`, sub: `${data.health.status} · ⚠${data.health.warningCount} ✕${data.health.criticalCount}`, tone: healthy ? M.green : M.red },
   ];
@@ -163,9 +172,9 @@ export default function MissionControlPage() {
   const services = [
     { n: "Web", ok: webOnline, extra: pm2.web ? `↺${pm2.web.restarts} · ${fmtUptime(pm2.web.uptimeMs)}` : "—" },
     { n: "Cron", ok: cronOnline, extra: pm2.cron ? `↺${pm2.cron.restarts} · ${fmtUptime(pm2.cron.uptimeMs)}` : "—" },
-    { n: "Database", ok: true, extra: "PostgreSQL" },
-    { n: "API", ok: true, extra: "REST · 200" },
-    { n: "AI Engine", ok: true, extra: scoreVer },
+    { n: "Database", ok: probes?.database.ok ?? false, extra: probes ? (probes.database.ok ? `PostgreSQL · ${probes.database.latencyMs}ms` : (probes.database.error ?? "连接失败")) : "未探测" },
+    { n: "API", ok: !!probes, extra: probes ? `聚合 ${probes.api.latencyMs}ms` : "未探测" },
+    { n: "AI Engine", ok: probes?.aiEngine.ok ?? false, extra: probes ? (probes.aiEngine.ok ? `${scoreVer} · 今日 ${probes.aiEngine.scoredToday} 只` : "今日未产出评分") : "未探测" },
   ];
 
   return (
