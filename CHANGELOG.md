@@ -2,6 +2,24 @@
 
 ---
 
+## [18.49.1] - 2026-07-21 — 🔒 P19-FINAL-T15：收盘决策最终验收 + 两个日期口径缺陷修复
+
+P19 最终验收（只读复核）中实测发现两个缺陷，均已修复并重验通过。零 Schema / 零评分 / 零推荐 / 零交易 / 零 Cron。
+
+### P0 · 今日简报每交易日 15:15 后整页崩溃（`1e1c65a`）
+**Root Cause**：`app/api/decision/briefing/route.ts` 的 `closing_decision` 节点 `producedAt` 返回**展示串** `"2026-07-21 15:15 JST"`（其余 3 个节点均为 ISO），违反「API 禁返展示文案」。前端 `fmtJstTime` 对其 `new Date()` 得到 Invalid Date → `Intl.format` 抛 `RangeError: Invalid time value`；该调用位于 `timeline nodes.map()` 内 → 整页 `This page couldn't load`。15:15 前 `closingToday=false`、`producedAt=null`，故预检不复现——**潜伏至每个交易日收盘后必现**。
+**修**：① 后端归一 `iso(closing.computedAt)`；② 前端 `fmtJstTime` 增加 `Number.isNaN` 守卫，坏值返回 `null` 由调用方回退原值，杜绝单个坏值炸整页。
+
+### P1 · Mission Lab「今日待跟单」UTC/JST 日期缺陷（`5752536`）
+**Root Cause**：`app/api/mission-lab/route.ts:41,43` 用 `decidedAt.toISOString().slice(0,10)`（**UTC 日历日**）计算 `latestDay` 并过滤 `todayDecisions`。08:20 JST = 前一日 23:20Z、09:30 JST = 当日 00:30Z，**同一交易日的 Phase1/Phase2 决策被 UTC 切成两天**：① 页面显示昨日日期（实测 2026-07-21 显示 `2026-07-20`）；② 09:00 JST 之后产生的决策被排除出「今日」（漏项；当日决策恰好全在 08:20 批次故未暴露数据缺失）。
+**修**：日历日改取全站唯一来源 `getJPXTradingDayStatus(d).date`，未新增第二套日期工具。
+**验证**：`08:20 JST(UTC 07-20)` 与 `09:30 JST(UTC 07-21)` 两个不同 UTC 日均归入 JST `2026-07-21`；`latestDay=2026-07-21`，`todayDecisions` 8/4 条不变。
+
+### 最终验收结果
+①ClosingDecision ②MarketRegime ③Verdict ④Mission ⑤Daily Recommendation ⑥AI Track Record ⑦Cross Page Consistency ⑧Smoke Test(7/7) **全部 PASS** → **P19 CLOSED · Information Architecture Stable v1.0 · Freeze Observation Started**。
+
+---
+
 ## [18.49.0] - 2026-07-21 — 🧊 P19-T3 Final：IA 收尾（时间源统一 / As Of 命名统一 / 导航补全）
 
 P19 收官四项任务，不新增功能。零 Schema / 零评分 / 零推荐算法 / 零交易 / 零 Cron / 零实时行情 / API 业务含义不变。
