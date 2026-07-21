@@ -58,7 +58,6 @@ export const NAV_NODES: NavNode[] = [
 
   // ═══ 研究工作区（Research · 股票研究 Hub + 股票研究五页 /screener?tab=*）═══
   { key: "rs-home", workspace: "research", labelKey: "nav.researchHome", href: "/admin/research", Icon: Microscope, glyph: "🔬" },
-  { key: "rs-screen", workspace: "research", labelKey: "sr.tab.screen", href: "/screener?tab=screen&ws=research", Icon: SlidersHorizontal, glyph: "✦" },
   { key: "rs-sectors", workspace: "research", labelKey: "sr.tab.sectors", href: "/screener?tab=sectors&ws=research", Icon: Layers, glyph: "▦" },
   { key: "rs-themes", workspace: "research", labelKey: "sr.tab.themes", href: "/screener?tab=themes&ws=research", Icon: Boxes, glyph: "◈" },
   { key: "rs-news", workspace: "research", labelKey: "sr.tab.news", href: "/screener?tab=news&ws=research", Icon: Newspaper, glyph: "▤" },

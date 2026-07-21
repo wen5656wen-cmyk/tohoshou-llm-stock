@@ -12,7 +12,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/lib/i18n";
 import { AppHeader, AppLoading, COLORS } from "@/components/ui";
-import { ScreenerBody } from "@/components/screener/ScreenerBody";
 
 const spin = () => <AppLoading />;
 const SectorsView = dynamic(() => import("./SectorsView"), { ssr: false, loading: spin });
@@ -20,7 +19,6 @@ const AiThemeView = dynamic(() => import("./AiThemeView"), { ssr: false, loading
 const NewsView = dynamic(() => import("./NewsView"), { ssr: false, loading: spin });
 
 const TABS = [
-  { key: "screen", labelKey: "sr.tab.screen" },
   { key: "sectors", labelKey: "sr.tab.sectors" },
   { key: "themes", labelKey: "sr.tab.themes" },
   { key: "news", labelKey: "sr.tab.news" },
@@ -36,6 +34,8 @@ const VALID = new Set<string>(TABS.map((t) => t.key));
 //   ai-analysis   → 主题研究·主题概览（含 AI 摘要）
 const LEGACY: Record<string, { tab?: string; sub?: string; redirect?: string }> = {
   "research": { redirect: "/admin/research" },
+  // P21-T4：选股 Tab 下线，能力全部迁入股票中心 → 旧深链重定向，不留 404。
+  "screen": { redirect: "/decision-v2?tab=picks&view=all" },
   "industry-chain": { tab: "themes", sub: "chain" },
   "theme-news": { tab: "news" },
   "leaders": { tab: "themes", sub: "concept" },
@@ -55,7 +55,8 @@ export default function StockResearchHub() {
   }, [legacy, router]);
 
   const initialSub = legacy?.sub;
-  const active = legacy?.redirect ? "screen" : legacy?.tab ?? (raw && VALID.has(raw) ? raw : "screen");
+  // P21-T4：screen Tab 已下线（能力全部迁入股票中心），默认 Tab 改为 sectors。
+  const active = legacy?.redirect ? "sectors" : legacy?.tab ?? (raw && VALID.has(raw) ? raw : "sectors");
 
   // 研究分析旧链跳转中：占位加载态（避免闪现选股）。
   if (legacy?.redirect) {
@@ -72,8 +73,7 @@ export default function StockResearchHub() {
         {/* P14-UI-03：一级页面切换统一移至左侧 Sidebar，内容区不再放同名一级 Tab（Tab bar 已移除）。 */}
         <div className="mt-4" />
 
-        {/* 仅激活 Tab 挂载 → 懒加载对应 API。选股用完整 ScreenerBody(保留全部筛选/排序/分页)。 */}
-        {active === "screen" && <ScreenerBody />}
+        {/* 仅激活 Tab 挂载 → 懒加载对应 API。 */}
         {active === "sectors" && <SectorsView />}
         {active === "themes" && <AiThemeView initialSubTab={initialSub} />}
         {active === "news" && <NewsView />}

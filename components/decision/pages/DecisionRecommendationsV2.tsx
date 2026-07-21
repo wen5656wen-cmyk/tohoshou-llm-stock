@@ -18,6 +18,7 @@ import { COLORS, fmtJpy, fmtPct, fmtScore, upDownColor } from "@/lib/decision/ds
 import { deriveLiveStatus } from "@/lib/decision/live-status";
 import { buildChartBars, type ChartBar } from "@/components/charts/LightweightStockChart";
 import StockSearch from "@/components/decision/StockSearch";
+import MarketBrowser from "./MarketBrowser";
 import StockDetailModal, { type ReportTarget } from "@/components/decision/StockDetailModal";
 import { getPrimaryName } from "@/lib/company-name";
 import { useDecision } from "@/lib/decision/provider";
@@ -119,7 +120,7 @@ export default function DecisionRecommendationsV2() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-[220px] max-w-[460px]"><StockSearch onPick={openDetail} endpoint="/api/screener" pickRows={(j) => (Array.isArray(j?.scores) ? j.scores : [])} mapRow={(r) => ({ symbol: r.symbol, name: r.name, nameZh: r.nameZh, price: r.latestClose, changeRate: null })} /></div>
         <div className="flex flex-wrap p-1 rounded-xl gap-0.5" style={{ background: COLORS.track }}>
-          {(["ai", "all", "fav", "holdings", "wait", "watch", "allstk"] as const).map((v) => (
+          {(["ai", "all", "holdings", "watch", "fav"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} className="px-3.5 py-1.5 rounded-lg text-[13px] font-semibold" style={{ background: view === v ? COLORS.card : "transparent", color: view === v ? COLORS.text : COLORS.textSecondary, boxShadow: view === v ? "0 1px 2px rgba(0,0,0,0.08)" : undefined }}>{t(`dv.sc.view.${v}` as Parameters<typeof t>[0])}</button>
           ))}
         </div>
@@ -132,9 +133,10 @@ export default function DecisionRecommendationsV2() {
       <DataAsOfNote />
 
       {/* 视图内容 */}
-      {view === "all" || view === "allstk" ? <MarketBrowseView onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
+      {view === "all" || view === "allstk" ? <MarketBrowser onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
         : view === "fav" ? <WatchlistView onDetail={openDetail} onChanged={loadFav} />
-          : view === "holdings" || view === "wait" || view === "watch" ? <GroupListView kind={view} onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
+          : view === "watch" || view === "wait" ? <WatchGroups initial={view === "wait" ? "wait" : "watch"} onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
+            : view === "holdings" ? <GroupListView kind="holdings" onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />
             : <AiRecoView data={data} loading={loading} onDetail={openDetail} favSet={favSet} toggleFav={toggleFav} />}
 
       <StockDetailModal report={detail} onClose={() => setDetail(null)} />
@@ -275,6 +277,28 @@ function WatchlistView({ onDetail, onChanged }: { onDetail: (s: string, n?: stri
 
 // ═══════════════════════ ④ 我的持仓 / 等待买点 / 观察名单（P17-04 §四，复用现有端点）═══════════════════════
 type NormRow = { symbol: string; name: string; nameZh: string | null; aiScore: number | null; upside: number | null; currentPrice: number | null; today: number | null };
+// ── 「观察」视图（P21-T4）──────────────────────────────────────────────────
+// 原 wait（等待买点）与 watch（观察名单）是两个顶级 Tab。按 T4 设计收敛为一个主视图
+// 下的两个子分组 —— 二者都是「尚未买入、正在盯」的清单，数据量均为 10 量级，
+// 不值得各占一个顶级 Tab。能力不减少：两份清单都在，只是换了层级。
+function WatchGroups({ initial, onDetail, favSet, toggleFav }: { initial: "watch" | "wait"; onDetail: (s: string, n?: string) => void; favSet: Set<string>; toggleFav: (s: string, m?: { name?: string | null; sector?: string | null; market?: string | null }) => void }) {
+  const { t } = useI18n();
+  const [g, setG] = useState<"watch" | "wait">(initial);
+  return (
+    <div className="space-y-2.5">
+      <div className="flex p-0.5 rounded-lg gap-0.5 w-fit" style={{ background: COLORS.track }}>
+        {(["watch", "wait"] as const).map((k) => (
+          <button key={k} onClick={() => setG(k)} className="px-3 py-1 rounded-md text-[12px] font-medium"
+            style={{ background: g === k ? COLORS.card : "transparent", color: g === k ? COLORS.text : COLORS.textSecondary }}>
+            {t(`dv.sc.view.${k}` as Parameters<typeof t>[0])}
+          </button>
+        ))}
+      </div>
+      <GroupListView kind={g} onDetail={onDetail} favSet={favSet} toggleFav={toggleFav} />
+    </div>
+  );
+}
+
 function GroupListView({ kind, onDetail, favSet, toggleFav }: { kind: "holdings" | "wait" | "watch"; onDetail: (s: string, n?: string) => void; favSet: Set<string>; toggleFav: (s: string, m?: { name?: string | null; sector?: string | null; market?: string | null }) => void }) {
   const { t, lang } = useI18n();
   const [rows, setRows] = useState<NormRow[] | null>(null);
