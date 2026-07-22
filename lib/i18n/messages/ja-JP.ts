@@ -831,8 +831,6 @@ const jaJP: Messages = {
 
   // AI Picks page
   "picks.title": "AIおすすめ",
-  "picks.core_title": "コア・日次2％計画",
-  "picks.core_subtitle": "大引け後AI自動選定・翌営業日リターン検証",
   "picks.position": "推奨比率",
   "picks.risk": "リスク",
   "picks.action": "売買判断",
@@ -2607,7 +2605,6 @@ const jaJP: Messages = {
   "dv.nav.history": "AI 実績アーカイブ",
   "dv.nav.sectors": "業種分析",
   "dv.nav.industry": "深掘りリサーチ",
-  "dv.nav.coredaily": "コア・日次2％計画",
   "dv.nav.badge.core": "コア",
   "dr.title": "AIディープリサーチ",
   "dr.sub": "AI 全産業チェーン・キー技術・日本受益企業の深掘り情報",

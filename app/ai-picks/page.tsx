@@ -346,9 +346,8 @@ export default function AiPicksPage() {
   return (
     <div className="p-4 md:p-6 max-w-6xl">
       <div className="mb-4">
-        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("picks.core_title")}</h1>
-        <p className="text-sm font-medium text-slate-600 mt-1">{t("picks.core_subtitle")}</p>
-        <p className="text-xs font-medium text-slate-400 mt-0.5">
+        <h1 className="text-[32px] font-bold text-slate-900 leading-tight">{t("picks.title")}</h1>
+        <p className="text-sm font-medium text-slate-500 mt-1">
           {new Date(data.updatedAt).toLocaleString(lang === "ja-JP" ? "ja-JP" : "zh-CN")}
         </p>
       </div>
