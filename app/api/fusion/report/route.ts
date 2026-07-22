@@ -6,7 +6,7 @@
 //
 // 凭证与 AUTHENTICATED 本轮相同（单租户，尚无用户体系），但**逻辑等级更高**：
 // 后续拆权限时本文件应保持管理员级，不随 AUTHENTICATED 一起下放。
-import { guardAdminRoute } from "@/lib/admin-auth";
+import { guardBetaOrAdmin } from "@/lib/beta-auth"; // P22-S3：白名单只读 → Beta 或 Admin
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 // GET /api/fusion/report — per-regime Production vs Alpha stats + data-searched optimal
 // fusion ratio. Research-only; production recommendations are NOT affected.
 export async function GET(req: Request) {
-  const denied = await guardAdminRoute(req);
+  const denied = await guardBetaOrAdmin(req);
   if (denied) return denied;
 
   const rows = await prisma.regimeFusionResult.findMany();

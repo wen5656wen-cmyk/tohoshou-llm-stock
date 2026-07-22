@@ -10,13 +10,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isReviewAction, reviewPatch } from "@/lib/research/review-flow";
 import { guardAdminRoute } from "@/lib/admin-auth";
+import { guardBetaOrAdmin } from "@/lib/beta-auth"; // P22-S3：GET 开放 Beta，POST 仍 Admin
 import { applyVersion } from "@/lib/research/engine";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/research/review — 待审版本（reviewStatus=PENDING 或 status=AI_RESEARCHED）。
 export async function GET(req: Request) {
-  const denied = await guardAdminRoute(req);
+  const denied = await guardBetaOrAdmin(req);
   if (denied) return denied;
 
   const [pending, industries, agg] = await Promise.all([

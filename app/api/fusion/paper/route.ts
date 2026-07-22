@@ -6,7 +6,7 @@
 //
 // 凭证与 AUTHENTICATED 本轮相同（单租户，尚无用户体系），但**逻辑等级更高**：
 // 后续拆权限时本文件应保持管理员级，不随 AUTHENTICATED 一起下放。
-import { guardAdminRoute } from "@/lib/admin-auth";
+import { guardBetaOrAdmin } from "@/lib/beta-auth"; // P22-S3：白名单只读 → Beta 或 Admin
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -18,7 +18,7 @@ const STRATS = ["PRODUCTION", "ALPHA", "FUSION"];
 // GET /api/fusion/paper?topN=20 — forward paper-trading comparison of the three strategies.
 // Read-only; the official recommendation is never modified.
 export async function GET(req: NextRequest) {
-  const denied = await guardAdminRoute(req);
+  const denied = await guardBetaOrAdmin(req);
   if (denied) return denied;
 
   const { searchParams } = new URL(req.url);

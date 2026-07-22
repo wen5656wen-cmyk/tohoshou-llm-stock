@@ -1,4 +1,4 @@
-// 🔒 P22-S1 · 访问级别：ADMIN_ONLY（生产可观测聚合）
+// 🔒 P22-S1 → P22-S3 · 访问级别：Beta 白名单可读 + Admin（生产可观测聚合）
 //
 // 统一巡检中心的**唯一只读聚合入口**。middleware 已覆盖 /api/admin/*，
 // route 内再显式 guardAdminRoute（纵深防御，与全站一致）。
@@ -12,7 +12,7 @@ import { NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { prisma } from "@/lib/prisma";
-import { guardAdminRoute } from "@/lib/admin-auth";
+import { guardBetaOrAdmin } from "@/lib/beta-auth"; // P22-S3：白名单只读 → Beta 或 Admin
 import {
   jstDay, latestHealth, healthTrend, pipelineTrend, rateLimitTrend,
   readPhases, rateLimit429Today, todaySyncAlert, buildId,
@@ -35,7 +35,7 @@ function appVersion(): string | null {
 }
 
 export async function GET(req: Request) {
-  const denied = await guardAdminRoute(req);
+  const denied = await guardBetaOrAdmin(req);
   if (denied) return denied;
 
   const today = jstDay();

@@ -582,6 +582,14 @@ export type Messages = {
   "quality.newsToday": string;
   "quality.pipeline": string;
   "quality.footer": string;
+  "beta.title": string;
+  "beta.desc": string;
+  "beta.placeholder": string;
+  "beta.enter": string;
+  "beta.verifying": string;
+  "beta.wrong": string;
+  "beta.unconfigured": string;
+  "beta.exit": string;
   "pm.alert.COVERAGE_CRITICAL": string;
   "pm.alert.HEALTH_CRITICAL": string;
   "pm.alert.CRON_NOT_RUN": string;

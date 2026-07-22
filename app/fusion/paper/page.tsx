@@ -1,6 +1,6 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
+import BetaAccessGate from "@/components/beta/BetaAccessGate";
 import { useEffect, useState } from "react";
 
 // Fusion Paper Trading (P2-T4) — live 3-strategy comparison (admin). English labels.
@@ -121,8 +121,8 @@ function FusionPaperPageInner() {
 // 未登录时各面板会拿到 401 并渲染成「—」「データなし」——那是假话。外层加闸说清楚。
 export default function FusionPaperPage() {
   return (
-    <AuthGate titleKey="rw.a.fusion">
+    <BetaAccessGate>
       <FusionPaperPageInner />
-    </AuthGate>
+    </BetaAccessGate>
   );
 }

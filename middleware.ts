@@ -13,6 +13,8 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAdminRequest } from "@/lib/admin-auth";
+import { verifyBetaOrAdmin } from "@/lib/beta-auth";
+import { isBetaReadable } from "@/lib/beta-access";
 
 // ── P21-P0-API-G1 · 紧急封闭（个人资产读写）─────────────────────────────────
 //
@@ -71,10 +73,22 @@ export const config = {
 };
 
 const SESSION_PATH = "/api/admin/session";
+const BETA_SESSION_PATH = "/api/beta/session";
 
 export async function middleware(req: NextRequest) {
-  // 登录端点自身必须豁免（它负责校验 token 并签发会话）
-  if (req.nextUrl.pathname === SESSION_PATH) return NextResponse.next();
+  const { pathname } = req.nextUrl;
+
+  // 登录端点自身必须豁免（它们负责校验凭证并签发会话）
+  if (pathname === SESSION_PATH || pathname === BETA_SESSION_PATH) return NextResponse.next();
+
+  // ── P22-S3 · Beta 只读白名单放宽 ──────────────────────────────────────────
+  // 白名单内的**只读 GET**：接受 (Beta 或 Admin)。Beta ≠ Admin，且此放宽**仅限
+  // GET** —— 同路径的写方法、以及白名单外的一切，下面仍走 admin-only 判定，
+  // 权限一分未降。research/review 的 GET 在此放行、POST 落到 admin-only，正是靠这里。
+  if (isBetaReadable(pathname, req.method)) {
+    if (await verifyBetaOrAdmin(req)) return NextResponse.next();
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const verdict = await verifyAdminRequest(req);
 

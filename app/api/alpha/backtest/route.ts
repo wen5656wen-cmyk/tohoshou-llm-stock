@@ -6,7 +6,7 @@
 //
 // 凭证与 AUTHENTICATED 本轮相同（单租户，尚无用户体系），但**逻辑等级更高**：
 // 后续拆权限时本文件应保持管理员级，不随 AUTHENTICATED 一起下放。
-import { guardAdminRoute } from "@/lib/admin-auth";
+import { guardBetaOrAdmin } from "@/lib/beta-auth"; // P22-S3：白名单只读 → Beta 或 Admin
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -17,7 +17,7 @@ const VALID_PERIODS = new Set([30, 90, 180]);
 // GET /api/alpha/backtest?period=90 — shadow backtest: Production vs Alpha across
 // Top10/20/50 × hold 5/10/20. Read-only validation layer.
 export async function GET(req: NextRequest) {
-  const denied = await guardAdminRoute(req);
+  const denied = await guardBetaOrAdmin(req);
   if (denied) return denied;
 
   const { searchParams } = new URL(req.url);

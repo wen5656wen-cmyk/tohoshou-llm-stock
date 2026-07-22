@@ -1,6 +1,6 @@
 "use client";
 // Strategy 页面 · 仅负责 Layout + Data Fetch(hook) + 组合（P4-T3 模块化拆分）
-import AuthGate from "@/components/auth/AuthGate";
+import BetaAccessGate from "@/components/beta/BetaAccessGate";
 import { useI18n } from "@/lib/i18n";
 import type { StratType, ActiveTab } from "@/components/strategy/types";
 import { ALL_TYPES } from "@/components/strategy/types";
@@ -123,8 +123,8 @@ function StrategyPageInner() {
 // 未登录时各面板会拿到 401 并渲染成「—」「データなし」——那是假话。外层加闸说清楚。
 export default function StrategyPage() {
   return (
-    <AuthGate titleKey="dv.nav.strategy">
+    <BetaAccessGate>
       <StrategyPageInner />
-    </AuthGate>
+    </BetaAccessGate>
   );
 }

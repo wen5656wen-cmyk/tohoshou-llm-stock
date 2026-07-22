@@ -1,4 +1,4 @@
-// 🔒 P22-S2 · 访问级别：ADMIN_ONLY（AI 质量分析）
+// 🔒 P22-S2 → P22-S3 · 访问级别：Beta 白名单可读 + Admin（AI 质量分析）
 //
 // AI 模型质量看板的**唯一聚合入口**。前端只调此一个 API（禁止前端并发多接口）。
 // 纯只读：仅 count / aggregate / groupBy / findMany，绝不写库、不触发流水线、
@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { guardAdminRoute } from "@/lib/admin-auth";
+import { guardBetaOrAdmin } from "@/lib/beta-auth"; // P22-S3：白名单只读 → Beta 或 Admin
 import { readPhases, jstDay } from "@/lib/monitor/aggregate";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ function stddev(xs: number[]): number | null {
 }
 
 export async function GET(req: Request) {
-  const denied = await guardAdminRoute(req);
+  const denied = await guardBetaOrAdmin(req);
   if (denied) return denied;
 
   const today = jstDay();
