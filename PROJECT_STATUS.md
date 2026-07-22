@@ -1,9 +1,22 @@
 # PROJECT_STATUS.md — TOHOSHOU AI 日本股票AI分析系统
 
-> **最后更新：** 2026-07-19（🏭 **P18-T2 AI 数据中心 Deep Research V2 — WEN 已审批发布，P18-T2 收尾**）
-> **版本：** v18.43.0（CHANGELOG）
+> **最后更新：** 2026-07-22（🔓 **P22 正式关闭 — 生产可观测建设 + Beta 研究工作区开放，项目进入 Maintenance Mode，等待 P23**）
+> **版本：** v18.50.0（CHANGELOG）
 > **生产域名：** https://aitohoshou.com（唯一生产验收域名，禁止使用 tohoshou.com）
-> **下次启动继续位置：** **P18-T2 已收尾**（AI 数据中心 V2 由 WEN 于 11:15:30Z APPROVE→PUBLISHED，currentVer=V2）。下一个：**待用户指定的下一个 AI 产业 Deep Research**（同 Golden Path）。待办：① 6 家 NEW_CANDIDATE 可在下轮或后续深研纳入；② TECH_DEBT **P1-DR-01 Benchmark 并发与幂等保护**（仅记录，勿顺手开发）；③ Phase 5 其余产业逐个 Benchmark→人审→发布。
+> **下次启动继续位置：** **P22 已 100% Completed，项目进入 Maintenance Mode**。下一阶段 **P23（Pending，未定义，不得提前开发）**。当前工作区：决策 ✅ Open · 研究 ✅ Beta · 管理 ⛔ Closed（产品决策）。已知决策与待办：① 管理工作区保持关闭属产品决策（TECH_DEBT · Known Decisions）；② TECH_DEBT **P1-DR-01 Benchmark 并发与幂等**（仅记录，勿顺手开发）。
+
+## 🔓 P22 — 生产可观测 + Beta 研究开放（2026-07-22，v18.50.0，✅ 100% Completed）
+
+- **P22-S1 Production Monitor**（`2180508`）：新增 `/admin/production-monitor` + `GET /api/admin/production-monitor`。7 区域统一巡检 + 30 天趋势（纯 SVG）。只读聚合，零业务改动。
+- **P22-S2 AI Quality Dashboard**（`7d82318`）：新增 `/admin/ai-quality` + `GET /api/admin/ai-quality`。8 区域 AI 质量分析，全真实数据，无数据显 "No Data"。
+- **P22-S3 Beta Access Gate**（`b063065`）：新增 `lib/beta-auth.ts` / `lib/beta-access.ts` / `/api/beta/session` / `BetaAccessGate`。独立 Beta 低权限凭证（30 天 httpOnly Cookie），开放 7 个只读研究页；**guardAdminRoute 未删、ADMIN_ONLY 一分未降**。
+- **P22-S4 Research Permission Alignment**（`693dda5`）：新增 `useResearchPermission()` 权限唯一来源；Research/Strategy 页按权限过滤 tab，Beta「UI 可见 = 实际可访问」，杜绝点进去 401；Admin 视图 100% 不变。
+- **P22-S4A Repository Hygiene**（`65f289c`）：收录隔夜策略审计文档，working tree clean。
+- **P22-S3-HOTFIX Research Navigation Fix**（`64aa63c`）：导航层 `ENABLED_WORKSPACES` 放开 research，让 BetaAccessGate 接管三态；WorkspaceSwitcher 文案动态化。
+- **系统状态**：Build ✅ PASS · TypeScript 0 Error · Health CRITICAL=0（✅72 ❌0 ⚠️4） · HEAD==origin/main · working tree clean。
+- **Beta 访问文档**：见 `docs/BETA_ACCESS.md`。**DB 变更：全程无。权限变更：仅新增独立 Beta 低权限，未降 admin。Breaking Change：无。**
+
+> ℹ️ 本文件保留 P6/P18 历史段落作参照；本 P22 段为最新状态。P8–P21 详见 CHANGELOG / memory。
 
 ## 🏭 P18-T2 — AI 数据中心 Deep Research V2（2026-07-19，v18.43.0，待人审）
 

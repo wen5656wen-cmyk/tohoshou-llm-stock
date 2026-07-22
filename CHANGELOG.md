@@ -2,6 +2,52 @@
 
 ---
 
+## [18.50.0] - 2026-07-22 — 🔓 P22：生产可观测建设 + Beta 研究工作区开放
+
+P22 六阶段收官。全程**零业务代码破坏**：零评分算法 / 零推荐 / 零 Decision / 零 Alpha / 零 Fusion / 零 Cron / 零数据库 Schema / 零 Prisma migration。核心是「只读可观测」+「独立 Beta 低权限凭证开放只读研究页」。**无任何 Breaking Change**（新增页面/接口，未改任何现有 API 返回结构）。
+
+### P22-S1 · Production Monitor 生产统一巡检中心（`2180508`）
+- **新增页面**：`/admin/production-monitor`（7 区域：告警 / 系统 / 数据 / 流水线 / 定时任务 / 部署 / 健康 + 30 天趋势）。纯 SVG sparkline，无第三方图库。
+- **新增 API**：`GET /api/admin/production-monitor`（只读聚合，`guardAdminRoute`）。复用已有可观测痕迹（health 快照 305 份 / pipeline-phases jsonl / 429 summary / DeploymentLog / DailyPrice），补 mission-control 没有的 429 聚合、30 天趋势、统一 P0/P1/P2 告警分级。
+- **影响范围**：仅新增；不动 mission-control 与任何现有 API。**DB 变更：无。权限变更：无（ADMIN_ONLY）。Breaking：无。**
+- **红线**：API 只返回 code/params，展示语言由前端 i18n 渲染（首版误返中文 message 致日文页混入中文，已修正）。
+
+### P22-S2 · AI Quality Dashboard AI 质量监控中心（`7d82318`）
+- **新增页面**：`/admin/ai-quality`（8 区域：今日推荐质量 / 命中率 7-30-90d / 策略收益 DAY-SWING-LONG / Alpha / 评分分布 SVG 直方图 / AI 稳定性 / 最近 30 笔推荐 / 数据完整性）。
+- **新增 API**：`GET /api/admin/ai-quality`（唯一聚合入口，前端只调它一个；纯 count/aggregate/groupBy/findMany）。数据源全真实历史：StockScore / BacktestResult / AISignalDailyStat / StrategyBacktestSummary / StrategyTradeResult / ClosingDecision。
+- **诚实边界**：无数据处显 "No Data"（30d/90d 命中率、Alpha/Beta 因表中确无数据 → No Data），绝不编造。
+- **影响范围**：仅新增。**DB 变更：无。权限变更：无（ADMIN_ONLY）。Breaking：无。**
+
+### P22-S3 · Beta Access Gate Beta 研究访问闸门（`b063065`）
+- **新增页面**：Beta 密码闸门（`components/beta/BetaAccessGate.tsx`），挂在 7 个只读研究页。
+- **新增 API**：`/api/beta/session`（POST 登录 / DELETE 退出 / GET 状态）。
+- **新增鉴权**：`lib/beta-auth.ts`（HMAC，Edge 兼容，30 天 httpOnly Cookie，不含密码明文）+ `lib/beta-access.ts`（只读白名单，仅 GET 生效）。middleware 白名单 GET → 接受 (Beta 或 Admin)；写方法/白名单外一律仍只 admin。
+- **影响范围**：开放 Alpha / Fusion / Strategy Validation / Research Library / Research Review / AI Quality / Production Monitor 的**只读**给 Beta。
+- **DB 变更：无。权限变更：新增独立 Beta 低权限凭证 —— guardAdminRoute 未删、verifyAdminRequest 未改、ADMIN_ONLY 一分未降（Shadow/Calibration/Freeze/写操作 Beta 全 401）。Breaking：无。**
+- 密码 `BETA_ACCESS_PASSWORD` 存生产 `.env`（不硬编码、不提交 Git）。
+
+### P22-S4 · Research Permission Alignment 研究工作区权限对齐（`693dda5`）
+- **新增**：`lib/research-permission.ts` —— `useResearchPermission()` 研究工作区权限**唯一来源**（`BETA_VISIBLE_FEATURES` 逐条对应 beta-access 白名单）。
+- **修改（前端条件渲染，非 IA 结构）**：ResearchWorkspaceHub 与 Strategy 页按权限过滤 tab —— Beta 隐藏 Shadow/Calibration/Promotion/Platform/Versions/Learning、strategy DAY/SWING/LONG/REPORTS，杜绝「点进去才 401」。
+- **影响范围**：Beta UI 可见 = 实际可访问。Admin 视图 100% 不变（4 顶级 tab + 全子 tab）。
+- **DB 变更：无。权限变更：无（后端权限未动，仅前端呈现对齐）。Breaking：无。**
+
+### P22-S4A · Repository Hygiene 仓库清理（`65f289c`）
+- **收录文档**：`docs/OVERNIGHT_MOMENTUM_SHADOW_AUDIT.md`（Claude 生成的隔夜强势策略只读审计，结论 PROMOTION_BLOCKED）入库。恢复 working tree clean。
+- **影响范围**：纯文档。**零代码 / 零 DB / 零权限 / Breaking：无。**
+
+### P22-S3-HOTFIX · Research Navigation Fix 研究导航修复（`64aa63c`）
+- **Root Cause**：S3 只挂页面级 BetaAccessGate，未放开导航级 `ENABLED_WORKSPACES=["boss"]`（P21 遗留），「研究」按钮被 disabled，用户走不到 BetaGate → 一直显示「暂未开放」。
+- **修改（仅导航层）**：`nav-config.ts` `ENABLED_WORKSPACES` → `["boss","research"]`；WorkspaceSwitcher 文案改为随实际未开放工作区动态生成（新增 `ws.notOpenSuffix`）。
+- **影响范围**：「研究」按钮可点 → 导航 `/admin/research` → BetaAccessGate 接管 none/beta/admin 三态。admin 工作区仍暂缓（灰显）。Boss 语义不变。
+- **DB 变更：无。权限变更：无（未碰 BetaGate/API/Guard）。Breaking：无。**
+
+### P22 收官系统状态
+Build ✅ PASS · TypeScript 0 Error · Health CRITICAL=0（✅72 ❌0 ⚠️4） · HEAD==origin/main · working tree clean。
+**当前工作区**：决策 ✅ Open · 研究 ✅ Beta（密码/管理员免密，30 天）· 管理 ⛔ Closed（产品决策，非 Bug）。
+
+---
+
 ## [18.49.1] - 2026-07-21 — 🔒 P19-FINAL-T15：收盘决策最终验收 + 两个日期口径缺陷修复
 
 P19 最终验收（只读复核）中实测发现两个缺陷，均已修复并重验通过。零 Schema / 零评分 / 零推荐 / 零交易 / 零 Cron。

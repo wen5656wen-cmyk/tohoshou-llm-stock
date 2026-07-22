@@ -1,8 +1,19 @@
 # TECH DEBT — TOHOSHOU AI
 
 > Created: 2026-06-26 (v13.7.1 Stabilization Audit)
-> Updated: 2026-07-19 (P18-T2 — Benchmark 并发/幂等)
+> Updated: 2026-07-22 (P22 Closed — Known Decisions 新增)
 > Format: Each entry has Priority / Discovered / Description / Impact / Fix Suggestion
+
+---
+
+## Known Decisions（产品决策，非 Bug —— 不需修复）
+
+### KD-01 — Admin Workspace 当前保持关闭
+**Discovered:** 2026-07-22 (P22-S3-HOTFIX · v18.50.0)
+**性质：** **产品决策，不是 Bug、不是技术债。** 顶部导航「管理（admin）」工作区当前**有意保持关闭**（灰显「管理 暂未开放」）。P22 只开放了「研究（research）」工作区给 Beta；管理工作区暂缓。
+**当前行为：** `ENABLED_WORKSPACES = ["boss", "research"]`（`lib/navigation/nav-config.ts`）——admin 不在其中，导航按钮 disabled。管理类具体页面（`/admin/mission-control` 系统巡检 / `/admin/ai-quality` / `/admin/production-monitor` 等）**仍存在且可用**，仅**管理员直连 URL** 访问，不走顶部「管理」按钮。
+**未来开放方式（无需改任何核心）：** 仅需把 `"admin"` 加进 `ENABLED_WORKSPACES` 一行开关即可。**无需修改** BetaGate / 权限系统 / API / Guard / middleware —— 页面级 AuthGate/BetaGate 与后端 guardAdminRoute 已就位，导航开关是唯一控制点。
+**注意：** 开放 admin 导航后，「管理」按钮对所有访客可点，点进去由页面级 Gate 拦成登录/密码框；开放前需确认该交互符合产品预期。
 
 ---
 
