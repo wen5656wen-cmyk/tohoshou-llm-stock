@@ -9,6 +9,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/lib/i18n";
 import { AppHeader, AppLoading, COLORS } from "@/components/ui";
+import { useResearchPermission } from "@/lib/research-permission";
 
 const spin = () => <AppLoading />;
 // dynamic 复用现有面板（named export）；prop 类型放宽以兼容 onNavigate / onTab 两种回调命名。
@@ -75,10 +76,11 @@ const NAV_MAP: Record<string, { tab: string; sub?: string }> = {
 export default function ResearchWorkspaceHub() {
   const { t } = useI18n();
   const router = useRouter();
+  const perm = useResearchPermission(); // P22-S4：权限的唯一来源（UI 可见 = 可访问）
   const sp = useSearchParams();
   const raw = sp.get("tab");
   const legacy = raw && !VALID.has(raw) ? LEGACY_TAB[raw] : undefined;
-  const active = raw && VALID.has(raw) ? raw : legacy ? legacy.tab : "factors";
+  const rawActive = raw && VALID.has(raw) ? raw : legacy ? legacy.tab : "factors";
   // P21-T3：子标签由 URL 决定（?sub=），刷新可保持、可分享深链、跨面板跳转不再是 no-op。
   // 旧深链未带 sub 时，用 LEGACY_TAB 指定的 sub 兜底（如 ?tab=v3 → sub=shadow）
   const rawSub = sp.get("sub") ?? legacy?.sub ?? null;
@@ -120,9 +122,19 @@ export default function ResearchWorkspaceHub() {
     ],
   };
 
+  // ── P22-S4 · 权限过滤（admin 全见；beta 仅白名单）───────────────────────────
+  // sub 按 `${tab}.${subKey}` 查权限；顶级 tab「无任一可见 sub」则整条隐藏。
+  // 隐藏后 URL 若指向不可见 tab/sub，下面自动兜底到第一个可见项 —— 不会 401。
+  const visibleGroups: Record<string, Sub[]> = {};
+  for (const [tab, subs] of Object.entries(GROUPS)) {
+    visibleGroups[tab] = subs.filter((s) => perm.canSee(`${tab}.${s.key}`));
+  }
+  const visibleTop = TOP.filter((tab) => (visibleGroups[tab.key]?.length ?? 0) > 0);
+  const active = visibleTop.some((tb) => tb.key === rawActive) ? rawActive : (visibleTop[0]?.key ?? rawActive);
+
   const renderBody = () => {
-    const group = GROUPS[active];
-    if (!group) return null;
+    const group = visibleGroups[active];
+    if (!group || group.length === 0) return null;
     const curSub = rawSub && group.some((g) => g.key === rawSub) ? rawSub : group[0].key;
     const cur = group.find((s) => s.key === curSub) ?? group[0];
     return (
@@ -155,15 +167,20 @@ export default function ResearchWorkspaceHub() {
     );
   };
 
+  // 权限判定未就绪前不渲染 tab，避免先闪出 admin 全量再收起
+  if (perm.loading) {
+    return <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}><div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8"><AppLoading label={t("ws.researchOverview")} /></div></div>;
+  }
+
   return (
     <div className="dash-font" style={{ background: COLORS.background, minHeight: "100vh" }}>
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-5">
         <AppHeader title={t("ws.researchOverview")} />
 
-        {/* 顶级 Tab — 移动端横向滚动 */}
+        {/* 顶级 Tab — 移动端横向滚动（P22-S4：已按权限过滤，beta 不会看到 401 tab） */}
         <div className="mt-4 mb-5 overflow-x-auto">
           <div className="flex gap-1.5 min-w-max">
-            {TOP.map((tab) => {
+            {visibleTop.map((tab) => {
               const on = tab.key === active;
               return (
                 <button

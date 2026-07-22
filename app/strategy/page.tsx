@@ -1,6 +1,7 @@
 "use client";
 // Strategy 页面 · 仅负责 Layout + Data Fetch(hook) + 组合（P4-T3 模块化拆分）
 import BetaAccessGate from "@/components/beta/BetaAccessGate";
+import { useResearchPermission } from "@/lib/research-permission";
 import { useI18n } from "@/lib/i18n";
 import type { StratType, ActiveTab } from "@/components/strategy/types";
 import { ALL_TYPES } from "@/components/strategy/types";
@@ -11,6 +12,7 @@ import { useStrategyOverview, useStrategyTabs } from "@/components/strategy/hook
 
 function StrategyPageInner() {
   const { t } = useI18n();
+  const perm = useResearchPermission(); // P22-S4：权限唯一来源
   const { overview, overviewLoading } = useStrategyOverview();
   const { activeTab, setActiveTab } = useStrategyTabs("DAY_TRADE");
 
@@ -28,6 +30,19 @@ function StrategyPageInner() {
     { key: "REPORTS", label: t("strategy.reports.tab") },
   ];
   const alloc = [{ t: "DAY_TRADE" as StratType, pct: 30 }, { t: "SWING_TRADE" as StratType, pct: 40 }, { t: "LONG_TRADE" as StratType, pct: 30 }];
+
+  // P22-S4：按权限过滤 tab（beta 仅 STABILIZATION=Strategy Validation，白名单内）。
+  // DAY/SWING/LONG(→/api/strategy/[type])、REPORTS 非白名单 → beta 隐藏，杜绝点进去 401。
+  const visibleTabDefs = perm.isAdmin ? tabDefs : tabDefs.filter((td) => perm.canSee(`strategy.${td.key}`));
+  const effTab = visibleTabDefs.some((td) => td.key === activeTab) ? activeTab : (visibleTabDefs[0]?.key ?? activeTab);
+  // 三策略 Premium 卡片点击会切到 DAY/SWING/LONG(401)，故 beta 隐藏；hero/mission 卡片
+  // 数据来自 /api/strategy/overview（白名单），beta 可保留。
+  const showStrategyDetail = perm.isAdmin;
+
+  // 权限就绪前不渲染 tab —— 否则加载瞬间 beta 可能落在 DAY_TRADE(401)。
+  if (perm.loading) {
+    return <div style={{ background: SM.bg, minHeight: "100vh" }} />;
+  }
 
   return (
     <div style={{ background: SM.bg, minHeight: "100vh", color: SM.ink, fontFamily: SFONT }}>
@@ -67,7 +82,8 @@ function StrategyPageInner() {
           <MissionCard label="Learning" code="AI Grade" value={unified?.grade ?? "—"} sub={unified?.recommendation ?? "AI 学习评级"} color={unified?.grade === "A" ? SM.green : unified?.grade === "D" ? SM.red : SM.amber} />
         </div>
 
-        {/* ── 3 Strategy Premium Cards ── */}
+        {/* ── 3 Strategy Premium Cards ──（P22-S4：beta 隐藏，点击会 401） */}
+        {showStrategyDetail && <>
         <div style={{ fontSize: 11, fontWeight: 700, color: SM.faint, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>三策略 · Strategies</div>
         {overviewLoading ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 24 }}>
@@ -93,11 +109,12 @@ function StrategyPageInner() {
             {alloc.map((a) => <div key={a.t} style={{ width: `${a.pct}%`, background: STRAT_HEX[a.t] }} title={`${stratShort(a.t, t)} ${a.pct}%`} />)}
           </div>
         </div>
+        </>}
 
-        {/* ── Segmented tabs ── */}
+        {/* ── Segmented tabs ──（P22-S4：已按权限过滤，beta 无 401 tab） */}
         <div style={{ display: "inline-flex", padding: 4, background: SM.card, border: `1px solid ${SM.border}`, borderRadius: 999, gap: 2, marginBottom: 18, flexWrap: "wrap" }}>
-          {tabDefs.map((tb) => {
-            const on = activeTab === tb.key;
+          {visibleTabDefs.map((tb) => {
+            const on = effTab === tb.key;
             return (
               <button key={tb.key} onClick={() => setActiveTab(tb.key)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 15px", borderRadius: 999, fontSize: 13, fontWeight: 600, color: on ? SM.ink : SM.sub, background: on ? SM.cardHi : "transparent", border: "none", cursor: "pointer", transition: "background .2s, color .2s" }}>
                 {tb.color && <span style={{ width: 7, height: 7, borderRadius: 999, background: tb.color }} />}{tb.label}
@@ -107,12 +124,12 @@ function StrategyPageInner() {
         </div>
 
         {/* ── Active tab content (unchanged logic) ── */}
-        {activeTab === "STABILIZATION" ? (
+        {effTab === "STABILIZATION" ? (
           <StabilizationTab t={t} />
-        ) : activeTab === "REPORTS" ? (
+        ) : effTab === "REPORTS" ? (
           <ReportsTab t={t} />
         ) : (
-          <StrategyTab key={activeTab} strategyType={activeTab as StratType} overview={overview?.strategies[activeTab as StratType] ?? null} t={t} />
+          <StrategyTab key={effTab} strategyType={effTab as StratType} overview={overview?.strategies[effTab as StratType] ?? null} t={t} />
         )}
       </div>
     </div>
