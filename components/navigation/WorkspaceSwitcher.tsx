@@ -30,7 +30,10 @@ export default function WorkspaceSwitcher({ dark = false }: { dark?: boolean }) 
   // 段控件：高 40 / 圆角 12；Active 蓝底，Inactive 白底（浅色）
   const idleBg = dark ? "transparent" : "#FFFFFF";
 
-  const hasDisabled = WORKSPACES.some((ws) => !isWorkspaceEnabled(ws));
+  // P22-S3-HOTFIX：文案随实际未开放的工作区动态生成，避免「研究已开放却仍说
+  // 研究暂未开放」的自相矛盾。research 开放后此处只剩「管理」。
+  const disabledList = WORKSPACES.filter((ws) => !isWorkspaceEnabled(ws));
+  const disabledText = disabledList.map((ws) => t(LABEL_KEY[ws] as Parameters<typeof t>[0])).join(" · ") + t("ws.notOpenSuffix");
 
   return (
     <div>
@@ -43,7 +46,7 @@ export default function WorkspaceSwitcher({ dark = false }: { dark?: boolean }) 
               key={ws}
               onClick={() => go(ws)}
               disabled={!enabled}
-              title={enabled ? undefined : t("ws.comingSoon")}
+              title={enabled ? undefined : t(LABEL_KEY[ws] as Parameters<typeof t>[0]) + t("ws.notOpenSuffix")}
               className={`flex-1 h-full text-[12px] font-semibold transition-colors text-center ${enabled ? "" : "cursor-not-allowed"}`}
               style={{
                 borderRadius: 8,
@@ -60,9 +63,9 @@ export default function WorkspaceSwitcher({ dark = false }: { dark?: boolean }) 
           );
         })}
       </div>
-      {hasDisabled && (
+      {disabledList.length > 0 && (
         <div className="px-1 pt-1.5 text-center" style={{ fontSize: 11, color: disabledColor }}>
-          {t("ws.comingSoon")}
+          {disabledText}
         </div>
       )}
     </div>

@@ -18,9 +18,11 @@ export type NavIcon = (p: { size?: number; strokeWidth?: number }) => React.Reac
 export type Workspace = "boss" | "admin" | "research";
 // 工作区顺序（P14-UI-03）：决策 → 研究 → 管理
 export const WORKSPACES: Workspace[] = ["boss", "research", "admin"];
-// 已开放工作区（其余在切换器中灰显禁用，标注「暂不开发」）。
-// 目标 IA：决策先行，研究/管理暂缓。放开某区时把它加进这里即可（单一开关）。
-export const ENABLED_WORKSPACES: Workspace[] = ["boss"];
+// 已开放工作区（其余在切换器中灰显禁用，标注「暂未开放」）。
+// P22-S3-HOTFIX：research 加入 → 导航层不再拦截「研究」，点击进入 /admin/research，
+//   由页面级 BetaAccessGate 接管 admin/beta/none 三态判定。admin 仍暂缓（保持灰显）。
+// boss 位置与语义不变。放开某区只需把它加进这里（单一开关）。
+export const ENABLED_WORKSPACES: Workspace[] = ["boss", "research"];
 export const isWorkspaceEnabled = (ws: Workspace): boolean => ENABLED_WORKSPACES.includes(ws);
 
 export type NavNode = {

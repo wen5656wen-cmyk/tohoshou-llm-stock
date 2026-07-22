@@ -679,6 +679,7 @@ export type Messages = {
   "ws.admin": string;
   "ws.research": string;
   "ws.comingSoon": string;
+  "ws.notOpenSuffix": string;
   "ws.stockCenter": string;
   "ws.strategy": string;
   "ws.myPortfolio": string;

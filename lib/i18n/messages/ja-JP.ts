@@ -1460,6 +1460,7 @@ const jaJP: Messages = {
   "ws.admin": "管理",
   "ws.research": "リサーチ",
   "ws.comingSoon": "リサーチ・管理は準備中",
+  "ws.notOpenSuffix": "は準備中",
   "ws.stockCenter": "銘柄センター",
   "ws.strategy": "戦略",
   "ws.myPortfolio": "マイポジション",

@@ -1460,6 +1460,7 @@ const zhCN: Messages = {
   "ws.admin": "管理",
   "ws.research": "研究",
   "ws.comingSoon": "研究 · 管理 暂未开放",
+  "ws.notOpenSuffix": " 暂未开放",
   "ws.stockCenter": "股票中心",
   "ws.strategy": "策略",
   "ws.myPortfolio": "我的持仓",
