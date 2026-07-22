@@ -51,6 +51,9 @@ export const NAV_NODES: NavNode[] = [
   { key: "dv-overview", workspace: "boss", labelKey: "dv.nav.overview", href: "/decision-v2?tab=overview", Icon: LayoutGrid, glyph: "◎", badge: "dv.nav.badge.core" },
   // 股票中心（原「AI 推荐」）：改名 + 上移至决策总览正下方（#2）。P2 再扩为三视图枢纽。
   { key: "dv-picks", workspace: "boss", labelKey: "dv.nav.picks", href: "/decision-v2?tab=recommendations", Icon: Star, glyph: "★" },
+  // 核心·每日2%计划（P26 Phase 5）：决策第 3 位（股票中心下 / 行业分析上）。独立路由 /core-daily，
+  // Admin Shadow Dashboard（数据经 /api/admin/core-daily/* 且 guardAdminRoute 门控）；Shadow badge。
+  { key: "dv-core-daily", workspace: "boss", labelKey: "dv.nav.coredaily", href: "/core-daily", Icon: Target, glyph: "◉", badge: "dv.nav.badge.shadow" },
   // 行业分析：上移至第三位（选股→看行业轮动→再挑股，与股票中心衔接）。
   // 复用 screener 的 sectors 页，URL 由 workspaceForPath 特判为 boss（见下），以免落入已禁用的研究区。
   { key: "dv-sectors", workspace: "boss", labelKey: "dv.nav.sectors", href: "/screener?tab=sectors", Icon: Layers, glyph: "▦" },

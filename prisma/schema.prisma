@@ -2550,3 +2550,115 @@ model EarningsSchedule {
   @@index([earningsDate])
   @@map("earnings_schedule")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// P26 Phase 2 · Core Daily 生产数据基建（append-only · 机器码 · 策略无关）
+// ⚠️ 隔离契约：与生产评分/推荐/持仓/track-record 零外键；换 CURRENT 策略即换 strategyId/Version。
+//    历史绝不覆盖（每次运行/验证/快照均为新行）。展示文案走前端 i18n（表内只存机器码）。
+//    Phase 2 仅建表+基础层；实际计算接线属 Phase 3。回滚 = DROP 四表，零业务损失。
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// 每日运行头（append-only，每次运行一行；runId 唯一）。含运行时日志字段（#6）。
+model CoreDailyRun {
+  id               Int      @id @default(autoincrement())
+  runId            String   @unique // 机器码运行 ID
+  strategyId       String
+  strategyVersion  String
+  tradeDate        DateTime @db.Date
+  asOf             String // 15:15 | 15:23 | 09:00
+  marketSession    String // PRE_CLOSE | CLOSE | OPEN
+  runStatus        String // OK | DATA_INSUFFICIENT | ERROR
+  integrityStatus  String // PASS | FAIL
+  integrityReasons Json? // 机器码[]（缺失项）
+  gateResult       String   @default("NA") // PASS | BLOCKED | NA
+  gateBreadth      Float?
+  gateReasons      Json? // 机器码[]
+  candidateCount   Int      @default(0)
+  shadowBuyCount   Int      @default(0)
+  dataVersion      String? // 分钟数据版本（如 as-of 日期/同步时间）
+  failureReason    String? // 机器码
+  startedAt        DateTime
+  finishedAt       DateTime?
+  durationMs       Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([strategyId, tradeDate, asOf])
+  @@index([strategyId, createdAt])
+  @@map("core_daily_run")
+}
+
+/// 每日信号（append-only，每 run × symbol 一行）。次日验证在 CoreDailyValidation 另存，不回改本表。
+model CoreDailySignal {
+  id              Int      @id @default(autoincrement())
+  runId           String
+  strategyId      String
+  strategyVersion String
+  tradeDate       DateTime @db.Date
+  asOf            String
+  symbol          String
+  inCandidatePool Boolean  @default(false)
+  asOfChangePct   Float?
+  decision        String // SHADOW_BUY | NO_SIGNAL | AVOID
+  confidence      Float?
+  refClose        Float?
+  entryLow        Float?
+  entryHigh       Float?
+  topRules        Json? // 机器码[]
+  failureReason   String? // GATE_BLOCKED | NO_HARD_GATE | DATA_INSUFFICIENT | FILL_UNCERTAIN
+  createdAt       DateTime @default(now())
+
+  @@unique([runId, symbol])
+  @@index([strategyId, tradeDate])
+  @@map("core_daily_signal")
+}
+
+/// 次日验证（append-only，昨日信号 × 今日开盘的兑现，绝不覆盖）。
+model CoreDailyValidation {
+  id              Int      @id @default(autoincrement())
+  runId           String // 被验证的信号 run
+  strategyId      String
+  strategyVersion String
+  tradeDate       DateTime @db.Date // 信号交易日
+  symbol          String
+  refClose        Float?
+  nextOpen        Float?
+  grossPct        Float?
+  slippagePct     Float? // 成本模型 slippage 分量（假设值，接入实盘替换）
+  costPct         Float?
+  netPct          Float?
+  fillState       String // 九态：FILLED_FULL … FILL_UNCERTAIN
+  success         Boolean?
+  failureReason   String? // OVERNIGHT_REVERSAL | COST_EXCEEDED_EDGE | FILL_UNCERTAIN
+  validatedAt     DateTime
+  createdAt       DateTime @default(now())
+
+  @@unique([runId, symbol])
+  @@index([strategyId, tradeDate])
+  @@map("core_daily_validation")
+}
+
+/// 历史累计快照（append-only，每策略每次快照一行，绑定 historyKey，绝不跨策略合并）。
+model CoreDailyHistory {
+  id              Int      @id @default(autoincrement())
+  strategyId      String
+  strategyVersion String
+  historyKey      String
+  n               Int
+  netWinRate      Float?
+  netMean         Float?
+  netMedian       Float?
+  breakEvenCost   Float?
+  netIdeal        Float?
+  netBase         Float?
+  netStress       Float?
+  sharpe          Float?
+  verdict         String // NET_NOT_VALIDATED 等
+  cumNetCurve     Json?
+  source          String? // 口径来源说明（机器可读）
+  computedAt      DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([strategyId, computedAt])
+  @@map("core_daily_history")
+}
