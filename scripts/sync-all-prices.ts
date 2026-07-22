@@ -66,6 +66,19 @@ const BATCH_DELAY_MS    = Math.max(0, parseInt(process.env.SYNC_BATCH_DELAY_MS  
 const MIN_INTERVAL_MS   = Math.max(0, parseInt(process.env.SYNC_MIN_INTERVAL_MS ?? "500"));
 const MAX_RETRIES       = 3; // 最大 3 回リトライ（初回 + 3 = 計 4 アテンプト。429 はクールダウンが本体）
 
+// ── P21-R1 · 価格同期レジリエンス（覆盖率韧性补救）─────────────────────────────
+// 收盘同步遭大量 429 导致覆盖率不足时，**当轮**自动延迟 retry → 重触发评分，
+// 不再依赖次日 06:00 全量同步才能恢复（那是 2026-07-21 18.7% 事故的恢复路径）。
+//
+// COVERAGE_THRESHOLD 刻意**沿用 data-health-guard 的 80%**（single source of truth）：
+//   只要会触发 health CRITICAL，就会先自动 retry 补救，逻辑闭环，不会出现
+//   「同步判达标、health 判 CRITICAL」的分裂。
+// 延迟递增（round × BASE）是为了让 J-Quants 短窗配额彻底恢复 —— 实测停流约
+//   60~70s 恢复，故 BASE 默认 120s 留足余量。
+const COVERAGE_THRESHOLD  = parseFloat(process.env.SYNC_COVERAGE_THRESHOLD    ?? "0.80");
+const RESILIENCE_ROUNDS   = Math.max(0, parseInt(process.env.SYNC_RESILIENCE_ROUNDS    ?? "2"));
+const RETRY_BASE_DELAY_MS = Math.max(0, parseInt(process.env.SYNC_RETRY_BASE_DELAY_MS  ?? "120000"));
+
 // ── Global rate-limit gate (shared across all concurrent workers) ──────────────
 // Every outgoing request passes through here first. This makes the *effective*
 // throughput independent of CONCURRENCY — raising concurrency only overlaps
@@ -317,6 +330,108 @@ async function syncWithRetry(
 }
 
 // ── Pipeline stage runner (sync-all-prices はすでに子プロセス内なので execSync OK) ──
+// ── 覆盖率計算（data-health-guard と**完全同一口径**。ズレると判定が割れる）──────
+// 分母 = stock.count()、分子 = 「今日JST より前の最新 date」の DailyPrice 行数。
+type Coverage = { pct: number; rows: number; total: number; date: string };
+async function computeCoverage(): Promise<Coverage> {
+  const nowJst   = new Date(Date.now() + 9 * 3600 * 1000);
+  const todayJst = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()));
+  const last  = await prisma.dailyPrice.findFirst({
+    where: { date: { lt: todayJst } }, orderBy: { date: "desc" }, select: { date: true },
+  });
+  const total = await prisma.stock.count();
+  if (!last || total === 0) return { pct: 100, rows: 0, total, date: "none" };
+  const rows = await prisma.dailyPrice.count({ where: { date: last.date } });
+  return { pct: (rows / total) * 100, rows, total, date: last.date.toISOString().slice(0, 10) };
+}
+
+// ── P21-R1 · 覆盖率韧性补救 ──────────────────────────────────────────────────
+// Phase1 直後・Phase2 前に呼ぶ。覆盖率 < 閾値なら、失敗リストのみを対象に
+// 延迟 retry を最大 RESILIENCE_ROUNDS 回。復旧すれば正常に、ダメなら告警を残して
+// **降級で Phase2 に進む**（ユーザー裁定：毎日必ず評分を出す／残欠は health/告警で明示）。
+//
+// 告警渠道について：本コードベースに LINE 送信の実装は**存在しない**（ドキュメント先行）。
+// よって告警は実在する可観測面に落とす —— logs/sync-alert-<date>.json ＋ pipeline-tracker
+// の FAILED フェーズ（Mission Control 今日簡報が読む）＋ data-health-guard は既に
+// 低覆盖率を CRITICAL とする。嘘の「LINE 送信済み」は出さない。
+async function resilienceRecover(
+  stocks: { id: number; symbol: string }[],
+  to: string,
+  from: string,
+  counters: Counters,
+): Promise<Coverage & { rounds: number; recovered: boolean; remainingFailed: number }> {
+  const gateT0 = Date.now();
+  let cov = await computeCoverage();
+  const thresholdPct = COVERAGE_THRESHOLD * 100;
+  console.log(`\n${"─".repeat(50)}`);
+  console.log(`覆盖率チェック: ${cov.pct.toFixed(1)}% (${cov.rows}/${cov.total}) on ${cov.date}  閾値 ${thresholdPct}%`);
+
+  let failedSymbols = counters.failedEntries.map(e => e.split(":")[0].trim());
+  let round = 0;
+  while (cov.pct < thresholdPct && failedSymbols.length > 0 && round < RESILIENCE_ROUNDS) {
+    round++;
+    const delayMs = RETRY_BASE_DELAY_MS * round; // 递增：让 429 短窗配额彻底恢复
+    console.log(
+      `\n⚠️ 覆盖率 ${cov.pct.toFixed(1)}% < ${thresholdPct}% — ${Math.round(delayMs / 1000)}s 遅延後に自動 retry` +
+      `（第 ${round}/${RESILIENCE_ROUNDS} 轮 · 失敗 ${failedSymbols.length} 只）`
+    );
+    await new Promise(r => setTimeout(r, delayMs));
+
+    const failSet = new Set(failedSymbols);
+    const targets = stocks.filter(s => failSet.has(s.symbol));
+    const rc: Counters = { ok: 0, skip: 0, err: 0, failedEntries: [] };
+    const tb = Math.ceil(targets.length / CONCURRENCY);
+    for (let bi = 0; bi < tb; bi++) {
+      const batch = targets.slice(bi * CONCURRENCY, (bi + 1) * CONCURRENCY);
+      await Promise.all(batch.map(s => syncWithRetry(s, to, from, rc))); // 幂等：createMany skipDuplicates
+      if (bi < tb - 1 && BATCH_DELAY_MS > 0) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+    }
+    console.log(`  retry 第 ${round} 轮完了: ✓${rc.ok} ○${rc.skip} ✗${rc.err}`);
+    failedSymbols = rc.failedEntries.map(e => e.split(":")[0].trim());
+    cov = await computeCoverage();
+    console.log(`  → 覆盖率 ${cov.pct.toFixed(1)}% (${cov.rows}/${cov.total})`);
+  }
+
+  const recovered = cov.pct >= thresholdPct;
+  const result = { ...cov, rounds: round, recovered, remainingFailed: failedSymbols.length };
+
+  if (round === 0) {
+    console.log(`✅ 覆盖率 ${cov.pct.toFixed(1)}% ≥ ${thresholdPct}% — 补救不要`);
+    return result;
+  }
+
+  const finishedAt = new Date();
+  if (recovered) {
+    console.log(`\n✅ 韧性补救成功：${round} 轮 retry 後、覆盖率 ${cov.pct.toFixed(1)}% に回復`);
+    recordPhase({
+      phase: "price-sync-resilience", label: `価格覆盖率 韧性补救（${round}轮で回復）`, source: "phase2",
+      startedAt: new Date(gateT0).toISOString(), finishedAt: finishedAt.toISOString(),
+      durationMs: Date.now() - gateT0, status: "SUCCESS", error: null,
+    });
+  } else {
+    // 告警：残欠のまま降級で Phase2 に進む。実在の可観測面にのみ記録。
+    const msg =
+      `価格覆盖率 ${cov.pct.toFixed(1)}% (${cov.rows}/${cov.total}) が閾値 ${thresholdPct}% を下回り、` +
+      `${round} 轮の遅延 retry でも回復せず（残 ${failedSymbols.length} 只）。` +
+      `評分流水線は降級実行 —— 推奨は残欠データに基づく。`;
+    const alertFile = join(LOG_DIR, `sync-alert-${today}.json`);
+    writeFileSync(alertFile, JSON.stringify({
+      ts: finishedAt.toISOString(), type: "PRICE_COVERAGE_LOW",
+      coveragePct: Number(cov.pct.toFixed(1)), rows: cov.rows, total: cov.total, tradingDate: cov.date,
+      thresholdPct, retryRounds: round, remainingFailed: failedSymbols.length,
+      rateLimitHits, message: msg,
+    }, null, 2), "utf-8");
+    console.error(`\n🚨 告警: ${msg}`);
+    console.error(`   告警文件: ${alertFile}`);
+    recordPhase({
+      phase: "price-sync-resilience", label: "価格覆盖率 韧性补救（未回復・降級）", source: "phase2",
+      startedAt: new Date(gateT0).toISOString(), finishedAt: finishedAt.toISOString(),
+      durationMs: Date.now() - gateT0, status: "FAILED", error: msg,
+    });
+  }
+  return result;
+}
+
 function runPipelineStage(scriptFile: string, label: string, timeoutMs = 10 * 60 * 1000): boolean {
   const phase = scriptFile.replace(/\.ts$/, ""); // 与 cron fallback 幂等判定同名
   const scriptPath = join(process.cwd(), "scripts", scriptFile);
@@ -474,6 +589,13 @@ async function main() {
   const priceCount = await prisma.dailyPrice.count();
   console.log(`\nDailyPrice 総計: ${priceCount.toLocaleString()} 条`);
   console.log("─".repeat(50));
+
+  // ── Phase 1.5: 覆盖率韧性补救（P21-R1）─────────────────────────────────────
+  // 完整流程（06:00）のみ。--retry-failed / --prices-only は補救自体が目的なので
+  // 再帰させない（RUN_PIPELINE がその境界）。
+  if (RUN_PIPELINE) {
+    await resilienceRecover(stocks, to, from, counters);
+  }
 
   await prisma.$disconnect();
 
