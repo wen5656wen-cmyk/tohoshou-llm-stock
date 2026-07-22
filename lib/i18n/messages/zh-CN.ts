@@ -831,6 +831,8 @@ const zhCN: Messages = {
 
   // AI Picks page
   "picks.title": "AI推荐",
+  "picks.core_title": "核心·每日2%计划",
+  "picks.core_subtitle": "每日收盘 AI 自动筛选 · 次日收益验证",
   "picks.position": "建议仓位",
   "picks.risk": "风险等级",
   "picks.action": "交易动作",
@@ -2605,6 +2607,7 @@ const zhCN: Messages = {
   "dv.nav.history": "AI 战绩档案",
   "dv.nav.sectors": "行业分析",
   "dv.nav.industry": "深度研究",
+  "dv.nav.coredaily": "核心·每日2%计划",
   "dv.nav.badge.core": "核心",
   "dr.title": "深度研究",
   "dr.sub": "AI 全产业链、关键技术与日本受益企业深度情报",
