@@ -2,6 +2,20 @@
 
 ---
 
+## [Research Log] - 2026-07-23 — 🔬 P27–P29 隔夜方向研究（研究沙盒 · **零生产代码变更**）
+
+> 全程在 `research/minute/`（未跟踪沙盒）+ gitignored 数据层。**未改任何生产模型/评分/策略/Schema/compute-scores/Cron。** 无 Build/Deploy 影响；本条仅记录研究结论。
+
+- **P27-DATAFIX-01**：J-Quants 官方 `AdjustmentFactor` 正式复权全 470 Prime 2 年分钟（独立 `data/minute_hist_adjusted/` 层，原始零覆盖，幂等）；修复 8697(JPX) 拆股假亏损 −48.42%→+3.16%；全市场扫描 90 起公司行动、启发式 0 漏网；复权后回测由「假净负 −0.75%/PF0.49」翻正为「打平 +0.04%/PF1.06」。ADJUSTMENT_READY=READY。
+- **P28-T1 Pattern Discovery**：数据驱动发现次日大涨=「弱市+高波动+超跌+负连跌」逆势现象（A+率 3.5x）；动量设置(MA5>MA20+强市)是最差组合之一；**RSI14 对次日 MI≈0（应删）**。
+- **P28-T2 方向判别**：一级池内 walk-forward `DIRECTION_SIGNAL_NOT_FOUND`（个股价量特征 delta≈0，p=0.875）。
+- **P28-T3 数据缺口研究**：证据判定缺失维度=①隔夜外盘（免费·先做）②新闻/事件（历史薄需前向累积）；tick 对隔夜方向 NOT_RECOMMENDED。7 份调研交付。
+- **P29-T1 Overnight Market Layer**：yfinance 建 17 标的×5年隔夜外盘层（严格 US date<D 无未来）；同流程消融验证 **INCREMENT ✅ 方向准确度 ~+10pp**（OOT 高置信 72% 胜率，随机标签对照证真）；有效因子=NASDAQ/SOX相对/美股宽度/US10Y/VIX。
+- **P29-T2 Event Layer**：TDnet(Disclosure ~19月)+新闻建事件层消融，**EVENT_NO_INCREMENT ❌**（池内事件覆盖仅 3%、新闻仅 1 月历史、statements 403 → 无方差可贡献，反稀释隔夜信号）。方向 Alpha 目前仅来自隔夜外盘。
+- **纪律结论**：仅隔夜外盘层通过样本外验证；事件层须前向累积够覆盖后再测；两者均**未进生产模型**（铁律：无样本外增量不进生产）。
+
+---
+
 ## [18.50.0] - 2026-07-22 — 🔓 P22：生产可观测建设 + Beta 研究工作区开放
 
 P22 六阶段收官。全程**零业务代码破坏**：零评分算法 / 零推荐 / 零 Decision / 零 Alpha / 零 Fusion / 零 Cron / 零数据库 Schema / 零 Prisma migration。核心是「只读可观测」+「独立 Beta 低权限凭证开放只读研究页」。**无任何 Breaking Change**（新增页面/接口，未改任何现有 API 返回结构）。
