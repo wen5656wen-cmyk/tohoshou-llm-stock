@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
-import LanguageSwitcher from "../LanguageSwitcher";
 import WorkspaceSwitcher from "../navigation/WorkspaceSwitcher";
 import { nodesForWorkspace, workspaceForPath, navItemActive } from "@/lib/navigation/nav-config";
 
@@ -103,7 +102,6 @@ export default function MobileDrawer({ open, onClose }: { open: boolean; onClose
               ))}
             </div>
           </div>
-          <LanguageSwitcher />
         </div>
       </div>
     </div>

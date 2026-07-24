@@ -2,6 +2,34 @@
 
 ---
 
+## [18.51.0] - 2026-07-24 — 🈯 日文界面下线：全站单一中文（选股系统重构 · 第 1 步）
+
+用户启动选股系统重构，第一步先取消日文界面切换。**纯展示层 / i18n 层**：零 Schema · 零评分 · 零推荐 · 零交易 · 零 Cron · 零 API 返回结构变更。
+
+### 关键事实（改动前）
+`lib/i18n/index.tsx` 的 **`DEFAULT_LANG` 原本是 `ja-JP`** —— 日文是全站默认语言，SSR 首帧亦为日文。因此「取消日文」不只是删切换按钮，必须同时改默认语言并迁移老用户已存的 `preferred_language=ja-JP`，否则老用户刷新后仍是日文界面。
+
+### 改动（3 文件，单点收口）
+- **`lib/i18n/index.tsx`**（唯一语言状态源）
+  - `DEFAULT_LANG`：`ja-JP` → **`zh-CN`**；`SUPPORTED` 收敛为 `["zh-CN"]`。
+  - `resolveLang()`：任何历史值（`ja-JP` / 旧英文 / 非法值）与浏览器语言**一律归一为 `zh-CN`**，并在 Provider 中一次性写回 localStorage 清除失效状态（老用户自动迁移，无需手动切换）。
+  - **不再 import `messages/ja-JP.ts`**；`MESSAGES` 的 `ja-JP` 槽位刻意映射到 `zhCN` —— 即使存在任何残留 ja-JP 状态也只渲染中文，杜绝日文漏出（双保险），同时前端 bundle 减少约 182KB。
+  - `setLang` 保留签名（兼容调用方），入参一律归一为受支持语言。
+  - effect 内不再 `setState`（语言单一化后 resolved 恒等于初始 state），消除 `react-hooks/set-state-in-effect` 并杜绝 Hydration 闪烁。
+- **`components/Sidebar.tsx`** / **`components/mobile/MobileDrawer.tsx`**：移除 `LanguageSwitcher` 挂载与 import（桌面侧栏 + 移动抽屉，全站仅此两处入口）。
+
+### 保留未动（可逆 / 非界面语言）
+- `components/LanguageSwitcher.tsx` 与 `lib/i18n/messages/ja-JP.ts`（3263 行 / 182KB）**保留在仓库但零引用**，便于随时恢复；`Lang` 类型仍含 `"ja-JP"`，故 28 处 `lang === "ja-JP"` 条件分支无需改动即恒走中文分支（死代码，可作二阶段清理）。
+- `scripts/` 内的 `toLocaleString("ja-JP")` 与 `ProductionMonitor` / `AIQualityDashboard` 的 `Intl.DateTimeFormat("ja-JP", …)`：属**日元金额 / 日期数字格式化**（输出为数字，不产生日文文案），与界面语言无关，**一律未动**。
+- 公司名称等**数据字段**（`nameJa` / `summaryJa` 等）未动 —— 日股公司名本身即日文，属数据非 UI 文案。
+
+### 验证
+- `tsc --noEmit` **0 Error** · ESLint 改动文件 **0 问题** · `npm run build` ✅ Compiled successfully。
+- 本地 `next start` 真实渲染扫描 **10 个页面**（`/` `/decision-v2` `/stocks` `/screener` `/sectors` `/strategy` `/core-daily` `/watchlist` `/news` `/market-regime`）：**全部 HTTP 200、平假名/片假名命中数全部 = 0**。
+- 生产 `data-health-guard`：`✅73 ❌0 ⚠️3` → **CRITICAL=0**。
+
+---
+
 ## [Research Log] - 2026-07-23 — 🔬 P27–P29 隔夜方向研究（研究沙盒 · **零生产代码变更**）
 
 > 全程在 `research/minute/`（未跟踪沙盒）+ gitignored 数据层。**未改任何生产模型/评分/策略/Schema/compute-scores/Cron。** 无 Build/Deploy 影响；本条仅记录研究结论。

@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import LanguageSwitcher from "./LanguageSwitcher";
 import WorkspaceSwitcher from "./navigation/WorkspaceSwitcher";
 import { Sparkles } from "./dashboard/icons";
 import { nodesForWorkspace, workspaceForPath, navItemActive, type NavNode, type Workspace } from "@/lib/navigation/nav-config";
@@ -104,7 +103,6 @@ export default function Sidebar() {
             </div>
           ))}
         </div>
-        <div className="mt-3.5"><LanguageSwitcher compact /></div>
       </div>
     </aside>
   );
